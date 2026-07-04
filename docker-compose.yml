@@ -1,0 +1,33 @@
+services:
+
+  postgres:
+    image: postgres:17
+
+    container_name: lics-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: inventory
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: change_me
+
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    ports:
+      - "5432:5432"
+
+    networks:
+      - backend
+
+networks:
+
+  backend:
+    driver: bridge

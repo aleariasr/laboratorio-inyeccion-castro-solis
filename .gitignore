@@ -1,0 +1,29 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Django
+media/
+
+# Node
+node_modules/
+.next/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+
+# Data
+data/postgres/
+
+# Backup files
+*.sql
+*.dump
