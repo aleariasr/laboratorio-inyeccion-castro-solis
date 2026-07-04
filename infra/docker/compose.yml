@@ -1,7 +1,6 @@
 name: lics
 
 services:
-
   postgres:
     image: postgres:17-alpine
     container_name: lics-postgres
@@ -17,7 +16,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
     ports:
       - "${POSTGRES_PORT}:5432"
@@ -31,6 +30,9 @@ services:
 
     networks:
       - backend
+
+volumes:
+  postgres_data:
 
 networks:
   backend:
