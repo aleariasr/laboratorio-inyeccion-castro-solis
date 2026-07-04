@@ -27,3 +27,7 @@ data/postgres/
 # Backup files
 *.sql
 *.dump
+
+# Frontend
+frontend/node_modules
+frontend/.next
