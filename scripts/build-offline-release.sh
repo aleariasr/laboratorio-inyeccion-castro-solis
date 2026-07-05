@@ -258,7 +258,8 @@ export_images() {
 
         log_info "Exportando imagen: ${image_name}"
 
-        docker save \
+        docker image save \
+            --platform "${TARGET_PLATFORM}" \
             --output "${archive_path}" \
             "${image_name}"
 
