@@ -166,17 +166,25 @@ validate_images() {
     while IFS= read -r image_name; do
         [[ -n "${image_name}" ]] || continue
 
-        docker image inspect "${image_name}" >/dev/null 2>&1 \
-            || die "Falta la imagen local: ${image_name}"
+        if ! docker image inspect \
+            --platform "${TARGET_PLATFORM}" \
+            "${image_name}" \
+            >/dev/null 2>&1
+        then
+            die \
+                "Falta la variante ${TARGET_PLATFORM} de la imagen local: ${image_name}"
+        fi
 
         os="$(
             docker image inspect \
+                --platform "${TARGET_PLATFORM}" \
                 --format '{{.Os}}' \
                 "${image_name}"
         )"
 
         architecture="$(
             docker image inspect \
+                --platform "${TARGET_PLATFORM}" \
                 --format '{{.Architecture}}' \
                 "${image_name}"
         )"
@@ -186,7 +194,8 @@ validate_images() {
                 "La imagen ${image_name} es ${os}/${architecture}; se requiere ${TARGET_PLATFORM}."
         fi
 
-        log_ok "Imagen compatible: ${image_name} (${os}/${architecture})"
+        log_ok \
+            "Imagen compatible: ${image_name} (${os}/${architecture})"
     done < <(required_images)
 }
 
