@@ -49,3 +49,15 @@ repo-audit.txt
 
 # Local runtime data
 /data/
+
+# Environment and secret files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local database backups
+/backups/
+
+# Generated offline release packages
+/release/

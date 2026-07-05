@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.http import JsonResponse
 
 
@@ -6,6 +7,6 @@ def health_check(request):
         {
             "status": "healthy",
             "service": "Laboratorio de Inyección Castro Solís",
-            "version": "0.1.0-alpha",
+            "version": settings.APP_VERSION,
         }
     )

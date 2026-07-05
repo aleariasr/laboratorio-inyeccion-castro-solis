@@ -1,0 +1,37 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.13-slim-bookworm AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV DJANGO_SETTINGS_MODULE=config.settings.production
+ENV PATH="/opt/venv/bin:${PATH}"
+
+WORKDIR /app
+
+RUN python -m venv /opt/venv \
+    && groupadd --system --gid 1001 django \
+    && useradd --system --uid 1001 --gid django --create-home django
+
+COPY requirements/base.txt requirements/prod.txt /tmp/requirements/
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r /tmp/requirements/prod.txt \
+    && rm -rf /tmp/requirements
+
+COPY --chown=django:django . /app
+
+RUN mkdir -p /app/src/staticfiles /app/src/media \
+    && DJANGO_SECRET_KEY=build-only-not-used-at-runtime \
+       POSTGRES_DB=build \
+       POSTGRES_USER=build \
+       POSTGRES_PASSWORD=build \
+       python src/manage.py collectstatic --noinput \
+    && chown -R django:django /app/src/staticfiles /app/src/media
+
+USER django
+
+EXPOSE 8000
+
+CMD ["gunicorn", "config.wsgi:application", "--chdir", "/app/src", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "2", "--timeout", "60", "--graceful-timeout", "30", "--keep-alive", "5", "--access-logfile", "-", "--error-logfile", "-", "--capture-output"]
