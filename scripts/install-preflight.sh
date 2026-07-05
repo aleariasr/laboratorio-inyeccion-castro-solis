@@ -38,10 +38,12 @@ readonly PROJECT_ROOT
 MIN_RAM_MB="${LICS_MIN_RAM_MB:-4096}"
 MIN_DISK_MB="${LICS_MIN_DISK_MB:-20480}"
 RELEASE_IMAGES_DIR="${LICS_RELEASE_IMAGES_DIR:-${PROJECT_ROOT}/release/images}"
+DISK_CHECK_PATH="${LICS_DISK_CHECK_PATH:-${PROJECT_ROOT}}"
 
 readonly MIN_RAM_MB
 readonly MIN_DISK_MB
 readonly RELEASE_IMAGES_DIR
+readonly DISK_CHECK_PATH
 
 FAILURES=0
 WARNINGS=0
@@ -137,7 +139,7 @@ check_disk_space() {
     local available_mb
 
     available_kb="$(
-        df -Pk "${PROJECT_ROOT}" \
+        df -Pk "${DISK_CHECK_PATH}" \
             | awk 'NR == 2 {print $4}'
     )"
 
@@ -409,6 +411,7 @@ main() {
     printf '======================\n'
     printf 'Proyecto: %s\n' "${PROJECT_ROOT}"
     printf 'Imágenes: %s\n' "${RELEASE_IMAGES_DIR}"
+    printf 'Disco:    %s\n' "${DISK_CHECK_PATH}"
     printf '\n'
 
     check_linux
