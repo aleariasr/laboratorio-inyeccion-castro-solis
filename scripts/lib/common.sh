@@ -19,11 +19,13 @@ PROJECT_ROOT="$(cd "${COMMON_DIR}/../.." && pwd)"
 
 COMPOSE_FILE="${LICS_COMPOSE_FILE:-${PROJECT_ROOT}/infra/docker/compose.prod.yml}"
 ENV_FILE="${LICS_ENV_FILE:-${PROJECT_ROOT}/infra/docker/.env.prod}"
+BACKUP_ROOT="${LICS_BACKUP_DIR:-${PROJECT_ROOT}/backups}"
 
 readonly COMMON_DIR
 readonly PROJECT_ROOT
 readonly COMPOSE_FILE
 readonly ENV_FILE
+readonly BACKUP_ROOT
 
 # -----------------------------------------------------------------------------
 # Salida
@@ -143,6 +145,43 @@ validate_runtime() {
     ensure_docker_available
     validate_project_files
     validate_compose_configuration
+}
+
+ensure_private_directory() {
+    local directory_path="$1"
+
+    mkdir -p "${directory_path}"
+    chmod 700 "${directory_path}"
+
+    if [[ ! -d "${directory_path}" ]]; then
+        die "No fue posible crear el directorio: ${directory_path}"
+    fi
+
+    if [[ ! -w "${directory_path}" ]]; then
+        die "No se puede escribir en el directorio: ${directory_path}"
+    fi
+}
+
+sha256_file() {
+    local file_path="$1"
+
+    require_file "${file_path}"
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "${file_path}" | awk '{print $1}'
+        return
+    fi
+
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "${file_path}" | awk '{print $1}'
+        return
+    fi
+
+    die "No se encontró sha256sum ni shasum para calcular checksums."
+}
+
+utc_timestamp() {
+    date -u '+%Y%m%dT%H%M%SZ'
 }
 
 # -----------------------------------------------------------------------------
