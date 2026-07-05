@@ -58,3 +58,6 @@ repo-audit.txt
 
 # Local database backups
 /backups/
+
+# Generated offline release packages
+/release/
