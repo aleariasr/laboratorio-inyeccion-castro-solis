@@ -73,7 +73,7 @@ install_units() {
     chmod 0644 "${TARGET_TIMER_FILE}"
 
     systemctl daemon-reload
-    systemctl enable "${TIMER_NAME}"
+    systemctl enable --now "${TIMER_NAME}"
 
     log_ok "Timer instalado y habilitado: ${TIMER_NAME}"
     log_info "Calendario configurado: ${TIMER_ON_CALENDAR}"
@@ -85,8 +85,7 @@ main() {
     require_project_layout
     install_units
 
-    log_info "Para iniciar el timer ahora:"
-    log_info "  sudo systemctl start ${TIMER_NAME}"
+    log_info "El timer quedó habilitado e iniciado."
     log_info "Para ver próximas ejecuciones:"
     log_info "  systemctl list-timers ${TIMER_NAME} --no-pager"
 }
