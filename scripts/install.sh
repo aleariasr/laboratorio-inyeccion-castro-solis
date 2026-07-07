@@ -457,7 +457,7 @@ run_migrations() {
         --rm \
         --no-deps \
         backend \
-        python manage.py migrate --noinput
+        python src/manage.py migrate --noinput
 
     log_ok "Migraciones iniciales completadas."
 }
