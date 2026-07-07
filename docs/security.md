@@ -58,3 +58,26 @@ También deberá configurar:
 ## Operadores
 
 El usuario que utiliza el sistema no debe tener permisos administrativos sobre Linux ni Docker.
+
+## Controles implementados actualmente
+
+- Secretos excluidos de Git.
+- `.env.prod` generado durante instalación.
+- `.env.prod` con permisos restringidos.
+- Nginx como único punto de entrada.
+- Servicios internos sin exposición directa.
+- Backend y frontend ejecutados como usuarios no root dentro de sus contenedores.
+- `no-new-privileges` configurado en producción.
+- `DEBUG=False` en producción.
+- Encabezados básicos de seguridad configurados en Nginx.
+- Backups con permisos restrictivos.
+- Restauración productiva con confirmación explícita y backup preventivo.
+
+## Controles pendientes
+
+- Usuario operativo del sistema operativo.
+- Usuario técnico separado.
+- SSH con llaves.
+- Firewall.
+- Hardening del sistema operativo.
+- Política de recuperación de credenciales administrativas.

@@ -2,7 +2,7 @@
 
 ## 1. Propósito
 
-Este documento registra el estado alcanzado en la infraestructura del sistema local para el Laboratorio de Inyección Castro Solís.
+Este documento registra el estado alcanzado en la infraestructura del sistema local para una instalación local de producción.
 
 El sistema está diseñado para operar en una computadora dedicada dentro del negocio, sin depender permanentemente de Internet. La aplicación será utilizada desde un navegador Chromium en modo kiosco y se ejecutará localmente mediante Docker Compose.
 

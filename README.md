@@ -1,12 +1,14 @@
-# Sistema de Gestión Local
+# LICS
 
-Sistema local offline para la gestión operativa del Laboratorio de Inyección Castro Solís.
+Sistema de gestión empresarial local diseñado para operar completamente offline mediante una arquitectura moderna, reproducible y orientada a producción.
 
-El sistema está diseñado para ejecutarse en una computadora dedicada dentro del negocio, sin depender de una conexión permanente a Internet.
+El proyecto está concebido para ejecutarse en una computadora dedicada dentro de una organización, priorizando estabilidad, recuperación ante fallos, mantenibilidad y facilidad de soporte técnico antes que la implementación de funcionalidades de negocio.
 
-La aplicación utiliza una arquitectura web local basada en Docker Compose y será operada desde Chromium en modo kiosco.
+Su arquitectura permite desplegar la aplicación de forma consistente mediante contenedores Docker, manteniendo separados los entornos de desarrollo y producción, y facilitando actualizaciones controladas mediante paquetes versionados.
 
-## Estado actual
+---
+
+# Estado del proyecto
 
 Versión actual:
 
@@ -14,66 +16,95 @@ Versión actual:
 0.1.0-alpha
 ```
 
-El proyecto se encuentra en etapa de infraestructura, instalación y operación técnica.
+Actualmente el proyecto se encuentra en fase de consolidación de infraestructura.
 
-La base productiva ya incluye:
+## Componentes implementados
 
-- PostgreSQL 17;
-- backend Django;
-- Django REST Framework;
-- Gunicorn;
-- frontend Next.js en modo standalone;
-- Nginx como proxy local;
-- Docker Compose de producción;
-- healthchecks;
-- persistencia de datos;
-- scripts operativos;
-- backups verificables;
-- restauración de prueba;
-- restauración productiva;
-- generación de paquetes offline;
-- imágenes `linux/amd64`;
-- preflight de instalación;
-- instalador offline inicial.
+- Arquitectura basada en Docker Compose.
+- Base de datos PostgreSQL 17.
+- Backend desarrollado con Django y Django REST Framework.
+- Backend productivo ejecutado mediante Gunicorn.
+- Frontend desarrollado con Next.js.
+- Frontend productivo en modo standalone.
+- Proxy inverso mediante Nginx.
+- Configuración independiente para desarrollo y producción.
+- Instalación offline mediante paquetes versionados.
+- Verificación de integridad mediante SHA-256.
+- Healthchecks para todos los servicios.
+- Scripts de instalación, inicio, parada, reinicio, estado, respaldo y restauración.
+- Generación automatizada de secretos durante la instalación inicial.
+- Backups verificables.
+- Restauración de prueba.
+- Restauración productiva controlada.
+- Generación de paquetes offline.
+- Imágenes Docker `linux/amd64`.
 
-Las funcionalidades de negocio todavía no están implementadas.
+## Componentes pendientes
 
-No se ha definido el modelo de datos definitivo para inventario, ventas, caja, clientes, proveedores ni reportes, porque primero se realizará el levantamiento formal de requerimientos reales del cliente.
+Antes de comenzar la implementación de funcionalidades de negocio aún deben completarse algunos elementos de infraestructura y operación:
 
-## Arquitectura objetivo
+- configuración de arranque automático mediante systemd;
+- modo kiosco para la estación de trabajo;
+- configuración definitiva del sistema operativo objetivo;
+- SSH para soporte técnico;
+- firewall;
+- validación completa sobre hardware Linux x86_64;
+- backups automáticos;
+- política de retención;
+- actualización offline automatizada;
+- rollback de actualización;
+- documentación operativa final.
+
+Las funcionalidades específicas del negocio todavía no están implementadas. El modelo de datos definitivo será diseñado después del levantamiento formal de requerimientos.
+
+---
+
+# Objetivos del proyecto
+
+El desarrollo del sistema sigue los siguientes principios:
+
+- funcionamiento completamente offline;
+- despliegues reproducibles;
+- separación entre desarrollo y producción;
+- persistencia segura de los datos;
+- recuperación ante fallos;
+- actualizaciones controladas;
+- respaldo y restauración verificables;
+- soporte técnico simplificado;
+- documentación completa;
+- mantenibilidad a largo plazo.
+
+---
+
+# Arquitectura
 
 ```text
-Chromium en modo kiosco
-          |
-          v
- http://127.0.0.1
-          |
-          v
-        Nginx
-       /     \
-      v       v
- Next.js    Django API
-                |
-                v
-           PostgreSQL
+                 Chromium
+                     │
+                     ▼
+            http://localhost
+                     │
+                     ▼
+                  Nginx
+               ┌─────────┐
+               │         │
+               ▼         ▼
+          Frontend    Backend
+          Next.js      Django
+                           │
+                           ▼
+                      PostgreSQL
 ```
 
-Servicios productivos:
+Todos los componentes se ejecutan como servicios independientes mediante Docker Compose y se comunican a través de una red interna dedicada.
 
-```text
-postgres
-backend
-frontend
-nginx
-```
+Solamente Nginx publica un puerto hacia el equipo anfitrión. PostgreSQL, backend y frontend permanecen dentro de la red interna de Docker.
 
-Solamente Nginx publica un puerto en la computadora anfitriona.
+---
 
-PostgreSQL, backend y frontend permanecen dentro de la red interna de Docker.
+# Tecnologías
 
-## Tecnologías
-
-### Backend
+## Backend
 
 - Python
 - Django
@@ -81,13 +112,13 @@ PostgreSQL, backend y frontend permanecen dentro de la red interna de Docker.
 - Gunicorn
 - WhiteNoise
 
-### Frontend
+## Frontend
 
 - Next.js
 - React
 - TypeScript
 
-### Infraestructura
+## Infraestructura
 
 - Docker Engine
 - Docker Compose v2
@@ -96,368 +127,149 @@ PostgreSQL, backend y frontend permanecen dentro de la red interna de Docker.
 - Linux
 - Git y GitHub
 
-## Plataforma objetivo
+---
 
-Producción:
-
-- Linux Mint XFCE o Ubuntu Desktop minimal;
-- arquitectura `x86_64`;
-- Docker Engine;
-- Docker Compose v2;
-- systemd;
-- Chromium;
-- SSH para soporte técnico.
-
-Desarrollo:
-
-- macOS, Linux o Windows con Docker;
-- Git;
-- Make.
-
-No es necesario instalar directamente Python, PostgreSQL ni Node.js para ejecutar el entorno mediante Docker.
-
-## Estructura principal
+# Arquitectura del repositorio
 
 ```text
 backend/
+    Código fuente del backend Django.
+
 frontend/
+    Aplicación web desarrollada con Next.js.
+
 infra/
-  docker/
-  nginx/
+    Configuración de Docker, Nginx y componentes de infraestructura.
+
 scripts/
+    Automatización de instalación, operación y mantenimiento.
+
 docs/
+    Documentación técnica del proyecto.
+
 VERSION
+    Versión actual del proyecto.
+
 CHANGELOG.md
-README.md
+    Historial de cambios.
 ```
 
-## Desarrollo local
+---
 
-Crear el archivo de configuración de desarrollo:
+# Entornos
+
+## Desarrollo
+
+El entorno de desarrollo está diseñado para ejecutarse desde cualquier estación de trabajo compatible con Docker.
+
+### Requisitos
+
+- Docker Engine o Docker Desktop
+- Docker Compose
+- Git
+- Make
+
+### Configuración inicial
 
 ```bash
 cp infra/docker/.env.example infra/docker/.env
 ```
 
-Editar las variables locales:
-
-```bash
-nano infra/docker/.env
-```
-
-Levantar el entorno:
-
-```bash
-make up
-```
-
-Consultar servicios:
-
-```bash
-make ps
-```
-
-Comprobar el backend:
-
-```bash
-curl http://localhost/api/health/
-```
-
-Abrir la aplicación:
-
-```text
-http://localhost
-```
-
-## Comandos de desarrollo
-
-```bash
-make up
-make down
-make restart
-make logs
-make ps
-make check
-make migrate
-make makemigrations
-make shell
-make db
-```
-
-## Runtime productivo local
-
-La configuración productiva utiliza:
-
-```text
-infra/docker/compose.prod.yml
-```
-
-El archivo local de secretos es:
-
-```text
-infra/docker/.env.prod
-```
-
-Ese archivo:
-
-- no se guarda en Git;
-- no se incluye en releases;
-- contiene secretos locales;
-- debe tener permisos restrictivos;
-- se genera durante la instalación.
-
-Los servicios productivos no deben hacer `docker pull` ni construir imágenes en la computadora del cliente.
-
-## Scripts operativos
+Editar el archivo generado con los valores necesarios para el entorno local.
 
 ### Inicio
 
 ```bash
-./scripts/start.sh
+make up
 ```
 
-### Detención segura
+### Administración
 
 ```bash
-./scripts/stop.sh
+make ps
+make logs
+make restart
+make check
+make migrate
+make shell
 ```
 
-### Reinicio
+---
 
-```bash
-./scripts/restart.sh
-```
+## Producción
 
-### Estado
+El entorno de producción está orientado a equipos Linux x86_64 utilizando un paquete offline previamente generado.
 
-```bash
-./scripts/status.sh
-```
+El proceso productivo utiliza:
 
-### Healthcheck
+- imágenes Docker versionadas;
+- instalación automatizada;
+- generación automática de secretos;
+- configuración independiente de desarrollo;
+- validaciones previas de instalación;
+- comprobaciones automáticas de salud.
 
-```bash
-./scripts/healthcheck.sh
-```
+La instalación productiva no depende del repositorio Git ni de acceso a Internet para operar.
 
-Los scripts de operación preservan:
+---
 
-- datos;
-- volúmenes;
-- imágenes;
-- redes;
-- configuración local.
+# Operación
 
-## Backups
-
-Crear un backup manual:
-
-```bash
-./scripts/backup.sh manual
-```
-
-Tipos disponibles:
+Las tareas administrativas se encuentran centralizadas en:
 
 ```text
-manual
-daily
-weekly
-pre-update
-pre-restore
+scripts/
 ```
 
-Cada respaldo contiene:
+Operaciones disponibles:
+
+- instalación inicial;
+- inicio y parada del sistema;
+- reinicio controlado;
+- consulta de estado;
+- comprobación de salud;
+- creación de respaldos;
+- restauración de respaldos;
+- validación de respaldos;
+- generación de paquetes offline.
+
+---
+
+# Documentación
+
+La documentación técnica se encuentra en:
 
 ```text
-database.dump
-metadata.txt
-SHA256SUMS
+docs/
 ```
 
-Los respaldos utilizan `pg_dump` en formato custom y son verificados antes de publicarse.
+Incluye documentación sobre:
 
-## Verificación de backups
+- arquitectura;
+- despliegue;
+- desarrollo;
+- seguridad;
+- respaldo y restauración;
+- proceso de actualización;
+- solución de problemas;
+- roadmap del proyecto;
+- preparación para producción.
 
-```bash
-./scripts/verify-backup.sh /ruta/al/backup
-```
+---
 
-La verificación comprueba:
+# Filosofía de desarrollo
 
-- archivos requeridos;
-- checksums;
-- tamaño;
-- metadatos;
-- versión;
-- base de datos;
-- formato de PostgreSQL.
+La infraestructura constituye la base del proyecto.
 
-## Restauración de prueba
+Las funcionalidades específicas del negocio no se implementan hasta disponer de una plataforma estable, documentada y preparada para operar en un entorno de producción.
 
-```bash
-./scripts/test-restore.sh /ruta/al/backup
-```
+Las decisiones técnicas priorizan:
 
-La restauración de prueba:
+- estabilidad;
+- seguridad;
+- consistencia;
+- facilidad de mantenimiento;
+- recuperación ante fallos;
+- facilidad de soporte técnico.
 
-- crea una base temporal;
-- restaura el backup;
-- valida migraciones;
-- valida tablas;
-- elimina la base temporal;
-- no modifica producción.
-
-## Restauración productiva
-
-```bash
-./scripts/restore.sh /ruta/al/backup
-```
-
-La restauración productiva:
-
-- verifica el respaldo;
-- solicita confirmación interactiva;
-- crea un backup preventivo;
-- detiene los servicios de aplicación;
-- restaura PostgreSQL;
-- valida tablas y migraciones;
-- reinicia el sistema;
-- ejecuta un healthcheck final.
-
-## Release offline
-
-Generar un paquete para Linux `amd64`:
-
-```bash
-./scripts/build-offline-release.sh
-```
-
-La salida se crea en:
-
-```text
-release/lics-<version>-linux-amd64/
-```
-
-Contenido principal:
-
-```text
-app/
-images/
-manifest.txt
-SHA256SUMS
-VERSION
-```
-
-El release incluye:
-
-- aplicación versionada;
-- scripts operativos;
-- instalador;
-- imágenes Docker;
-- manifiesto;
-- checksums.
-
-Los releases no se guardan en Git.
-
-## Instalación offline
-
-Desde la raíz del paquete de release:
-
-```bash
-sudo ./app/scripts/install.sh
-```
-
-El instalador:
-
-1. verifica checksums;
-2. ejecuta el preflight;
-3. valida Linux `x86_64`;
-4. carga las imágenes offline;
-5. instala en `/opt/lics`;
-6. genera secretos;
-7. inicia PostgreSQL;
-8. ejecuta migraciones;
-9. levanta los servicios;
-10. ejecuta el healthcheck final.
-
-El instalador todavía debe validarse en una máquina Linux `x86_64` limpia antes de considerarse aprobado para producción.
-
-## Seguridad
-
-Principios aplicados:
-
-- secretos excluidos de Git;
-- `.env.prod` excluido de releases;
-- PostgreSQL sin puerto público;
-- aplicación enlazada a localhost;
-- usuarios no root en contenedores de aplicación;
-- checksums de backups;
-- checksums de releases;
-- backups antes de restauraciones;
-- operaciones destructivas con confirmación;
-- volúmenes persistentes;
-- separación entre desarrollo y producción.
-
-## Documentación
-
-- [Arquitectura](docs/architecture.md)
-- [Desarrollo](docs/development.md)
-- [Despliegue](docs/deployment.md)
-- [Seguridad](docs/security.md)
-- [Backups y restauración](docs/backup-restore.md)
-- [Actualizaciones](docs/update-process.md)
-- [Solución de problemas](docs/troubleshooting.md)
-- [Roadmap](docs/roadmap.md)
-- [Cierre de infraestructura](docs/infrastructure-stage-closure.md)
-- [Lista de preparación para producción](docs/production-readiness-checklist.md)
-- [Historial de cambios](CHANGELOG.md)
-
-## Estado de preparación
-
-Completado:
-
-- runtime productivo;
-- healthchecks;
-- persistencia;
-- scripts operativos;
-- backup manual;
-- verificación de backups;
-- restauración temporal;
-- restauración productiva;
-- release offline;
-- preflight;
-- instalador inicial;
-- documentación de infraestructura.
-
-Pendiente antes de instalar en el negocio:
-
-- prueba limpia en Linux `x86_64`;
-- servicio systemd;
-- arranque automático;
-- Chromium en modo kiosco;
-- recuperación automática del kiosco;
-- SSH;
-- firewall;
-- backups automáticos;
-- retención de backups;
-- actualización offline;
-- rollback;
-- exportación de logs;
-- pruebas de apagado inesperado;
-- migración a otra computadora.
-
-Pendiente antes de implementar módulos de negocio:
-
-- levantamiento de requerimientos;
-- validación de procesos;
-- definición de actores;
-- reglas de negocio;
-- historias de usuario;
-- criterios de aceptación;
-- diseño del modelo de datos.
-
-## Estado del producto
-
-El sistema todavía no está listo para almacenar información real del cliente ni para ser entregado como producto final.
-
-La infraestructura base está implementada y documentada, pero la aprobación productiva depende de completar las pruebas de instalación, recuperación, autostart, actualización y operación en Linux.
+Este enfoque busca reducir el riesgo operativo y facilitar la evolución del sistema a largo plazo.

@@ -104,24 +104,38 @@ Los contenedores pueden eliminarse y recrearse sin perder los datos almacenados 
 
 ## 6. Entornos
 
-El proyecto debe mantener separación entre:
+El proyecto mantiene separación entre:
 
 - desarrollo;
 - staging local;
 - producción.
 
-La configuración actual corresponde a desarrollo.
+### Desarrollo
 
-La configuración de producción deberá usar:
+Usa `infra/docker/compose.yml`.
 
-- imágenes construidas e inmutables;
+Características:
+
+- código fuente montado como volumen;
+- recarga y herramientas de desarrollo;
+- configuración mediante `.env`;
+- comandos mediante `Makefile`.
+
+### Producción
+
+Usa `infra/docker/compose.prod.yml`.
+
+Características:
+
+- imágenes construidas y versionadas;
 - Gunicorn para Django;
-- compilación de producción de Next.js;
+- Next.js compilado en modo standalone;
 - `DEBUG=False`;
-- secretos únicos;
-- puertos internos no publicados;
-- políticas de seguridad adicionales;
-- backups y actualizaciones controladas.
+- secretos generados localmente;
+- Nginx enlazado a `127.0.0.1`;
+- healthchecks;
+- backup y restore;
+- instalación offline mediante paquete versionado.
 
 ## 7. Decisiones no negociables
 
