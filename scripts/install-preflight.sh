@@ -174,7 +174,8 @@ check_required_commands() {
         cp \
         mkdir \
         sha256sum \
-        openssl
+        openssl \
+        curl
     do
         if command_exists "${command_name}"; then
             ok "Comando disponible: ${command_name}"

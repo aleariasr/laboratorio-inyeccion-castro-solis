@@ -36,9 +36,6 @@ services:
   backend:
     image: lics-backend:${LICS_VERSION:?LICS_VERSION is required}
     platform: linux/amd64
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile.prod
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -77,9 +74,6 @@ services:
   frontend:
     image: lics-frontend:${LICS_VERSION:?LICS_VERSION is required}
     platform: linux/amd64
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile.prod
     restart: unless-stopped
     environment:
       NODE_ENV: production
