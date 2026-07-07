@@ -37,7 +37,13 @@ readonly PROJECT_ROOT
 
 MIN_RAM_MB="${LICS_MIN_RAM_MB:-4096}"
 MIN_DISK_MB="${LICS_MIN_DISK_MB:-20480}"
-RELEASE_IMAGES_DIR="${LICS_RELEASE_IMAGES_DIR:-${PROJECT_ROOT}/release/images}"
+if [[ -n "${LICS_RELEASE_IMAGES_DIR:-}" ]]; then
+    RELEASE_IMAGES_DIR="${LICS_RELEASE_IMAGES_DIR}"
+elif [[ -d "${PROJECT_ROOT}/../images" ]]; then
+    RELEASE_IMAGES_DIR="$(cd "${PROJECT_ROOT}/../images" && pwd)"
+else
+    RELEASE_IMAGES_DIR="${PROJECT_ROOT}/release/images"
+fi
 DISK_CHECK_PATH="${LICS_DISK_CHECK_PATH:-${PROJECT_ROOT}}"
 
 readonly MIN_RAM_MB

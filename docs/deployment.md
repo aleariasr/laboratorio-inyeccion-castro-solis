@@ -213,3 +213,15 @@ La infraestructura de despliegue se encuentra ampliamente implementada, sin emba
 - procedimiento documentado de recuperación ante fallos del sistema operativo.
 
 Estos elementos forman parte de la fase final de preparación para producción y no afectan la arquitectura principal del proyecto.
+
+### Preflight manual desde un release offline
+
+Si se ejecuta `install-preflight.sh` directamente desde un paquete offline, el script detecta automáticamente el directorio `images/` ubicado junto a `app/`.
+
+También puede indicarse explícitamente:
+
+```bash
+LICS_RELEASE_IMAGES_DIR="$PWD/images" ./app/scripts/install-preflight.sh
+```
+
+Durante la instalación normal, `install.sh` configura esta ruta automáticamente.
