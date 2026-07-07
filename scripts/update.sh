@@ -388,7 +388,65 @@ compose_new() {
         "$@"
 }
 
+wait_for_new_postgres() {
+    local timeout_seconds=120
+    local start_time
+    local current_time
+    local elapsed
+    local container_id
+    local health_status
+
+    start_time="$(date +%s)"
+
+    while true; do
+        container_id="$(
+            compose_new ps \
+                --quiet \
+                postgres
+        )"
+
+        if [[ -n "${container_id}" ]]; then
+            health_status="$(
+                docker inspect \
+                    --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+                    "${container_id}"
+            )"
+
+            if [[ "${health_status}" == "healthy" ]]; then
+                log_ok "PostgreSQL de la nueva versión está saludable."
+                return
+            fi
+
+            if [[ "${health_status}" == "unhealthy" ]] \
+                || [[ "${health_status}" == "exited" ]] \
+                || [[ "${health_status}" == "dead" ]]
+            then
+                die "PostgreSQL entró en estado ${health_status}."
+            fi
+        fi
+
+        current_time="$(date +%s)"
+        elapsed=$((current_time - start_time))
+
+        if (( elapsed >= timeout_seconds )); then
+            die "PostgreSQL no quedó saludable dentro del tiempo esperado."
+        fi
+
+        sleep 2
+    done
+}
+
 run_migrations() {
+    log_info "Iniciando PostgreSQL para ejecutar migraciones..."
+
+    compose_new up \
+        --detach \
+        --no-build \
+        --pull never \
+        postgres
+
+    wait_for_new_postgres
+
     log_info "Ejecutando migraciones de la nueva versión..."
 
     compose_new run \
