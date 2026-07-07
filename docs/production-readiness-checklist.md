@@ -63,8 +63,8 @@ Una versión únicamente podrá liberarse cuando todos los elementos obligatorio
 - [x] Verificación automática de respaldos.
 - [x] Restauración de prueba completamente validada.
 - [x] Restauración productiva completamente validada.
-- [ ] Política automática de respaldos.
-- [ ] Política automática de retención.
+- [x] Política automática de respaldos.
+- [x] Política automática de retención local.
 - [ ] Copia automática a medio externo.
 
 ---
@@ -109,8 +109,8 @@ Una versión únicamente podrá liberarse cuando todos los elementos obligatorio
 - [x] Verificación de integridad.
 - [x] Backup obligatorio antes de modificar la base de datos.
 - [x] Validación posterior mediante healthchecks.
-- [ ] Automatización completa del proceso de actualización.
-- [ ] Estrategia definitiva de rollback.
+- [x] Automatización completa del proceso de actualización.
+- [x] Estrategia de rollback productivo validada.
 
 ---
 
@@ -126,9 +126,9 @@ Una versión únicamente podrá liberarse cuando todos los elementos obligatorio
 - [x] Verificación de backups.
 - [x] Restauración de prueba.
 - [x] Restauración productiva.
-- [ ] Arranque automático mediante systemd.
-- [ ] Chromium en modo kiosco.
-- [ ] Recuperación automática del modo kiosco.
+- [x] Arranque automático mediante systemd.
+- [x] Chromium en modo kiosco preparado.
+- [x] Recuperación automática del modo kiosco mediante systemd user service.
 - [ ] Configuración definitiva del sistema operativo.
 
 ---
@@ -142,11 +142,12 @@ Una versión únicamente podrá liberarse cuando todos los elementos obligatorio
 - [ ] Recuperación después de un apagado inesperado.
 - [ ] Recuperación después de reiniciar Docker.
 - [ ] Recuperación con poco espacio disponible.
-- [ ] Prueba documentada de actualización offline.
+- [x] Prueba documentada de actualización offline.
 - [x] Prueba documentada de backup.
 - [x] Prueba documentada de verificación de backup.
 - [x] Prueba documentada de restauración de prueba.
 - [x] Prueba documentada de restauración productiva.
+- [x] Prueba documentada de rollback.
 - [ ] Validación completa del procedimiento de soporte.
 
 ---

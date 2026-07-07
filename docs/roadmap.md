@@ -68,7 +68,7 @@ Incluye:
 
 ## Fase 3: scripts operativos y recuperación
 
-Estado: parcialmente completada.
+Estado: completada.
 
 Completado:
 
@@ -85,12 +85,10 @@ Completado:
 - restore productivo probado;
 - detección de corrupción.
 
-Pendiente:
+Pendiente futuro:
 
-- backup automático;
-- política de retención;
-- copia a USB o disco externo;
-- prueba de restauración periódica;
+- copia automática a USB o disco externo;
+- prueba de restauración periódica programada;
 - logs propios de scripts;
 - alertas locales de fallo.
 
@@ -98,7 +96,7 @@ Pendiente:
 
 ## Fase 4: instalación y configuración del sistema operativo
 
-Estado: en progreso.
+Estado: parcialmente completada.
 
 Completado:
 
@@ -110,30 +108,36 @@ Completado:
 - instalador inicial;
 - generación de secretos.
 
+Completado:
+
+- instalación limpia validada en Ubuntu Server x86_64;
+- servicio systemd de LICS;
+- backups automáticos mediante systemd timer;
+- instalador de estación gráfica;
+- Chromium kiosk preparado mediante servicio systemd de usuario;
+- recuperación del kiosco mediante reinicio automático del servicio de usuario.
+
 Pendiente:
 
-1. probar instalación limpia en Linux x86_64;
-2. corregir problemas detectados;
-3. crear servicio systemd;
-4. validar arranque tras reinicio;
-5. configurar usuario operativo;
-6. configurar Chromium kiosco;
-7. configurar recuperación del kiosco;
-8. configurar SSH;
-9. configurar firewall;
-10. desactivar servicios innecesarios;
-11. configurar hora y zona horaria;
-12. revisar política de actualizaciones del sistema operativo;
-13. probar apagado inesperado;
-14. documentar recuperación.
+1. probar instalación limpia en Linux Mint XFCE o Ubuntu Desktop;
+2. configurar usuario operativo;
+3. configurar autologin;
+4. validar arranque tras reinicio en entorno gráfico;
+5. configurar SSH;
+6. configurar firewall;
+7. desactivar servicios innecesarios;
+8. configurar hora y zona horaria;
+9. revisar política de actualizaciones del sistema operativo;
+10. probar apagado inesperado;
+11. documentar recuperación.
 
 ---
 
 ## Fase 5: actualización offline y rollback
 
-Estado: pendiente.
+Estado: completada.
 
-Debe incluir:
+Incluye:
 
 - paquete de actualización versionado;
 - validación SHA-256;
@@ -153,7 +157,7 @@ Debe incluir:
 
 ## Fase 6: observabilidad y mantenimiento
 
-Estado: pendiente.
+Estado: pendiente futuro.
 
 Debe incluir:
 

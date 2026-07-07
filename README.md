@@ -13,7 +13,7 @@ Su arquitectura permite desplegar la aplicación de forma consistente mediante c
 Versión actual:
 
 ```text
-0.1.0-alpha
+0.1.2-alpha
 ```
 
 Actualmente el proyecto se encuentra en fase de consolidación de infraestructura.
@@ -31,28 +31,30 @@ Actualmente el proyecto se encuentra en fase de consolidación de infraestructur
 - Instalación offline mediante paquetes versionados.
 - Verificación de integridad mediante SHA-256.
 - Healthchecks para todos los servicios.
-- Scripts de instalación, inicio, parada, reinicio, estado, respaldo y restauración.
+- Scripts de instalación, inicio, parada, reinicio, estado, respaldo, restauración, actualización y rollback.
 - Generación automatizada de secretos durante la instalación inicial.
 - Backups verificables.
+- Backups automáticos mediante systemd timer.
+- Política básica de retención local.
 - Restauración de prueba.
 - Restauración productiva controlada.
+- Actualización offline automatizada.
+- Rollback productivo validado.
 - Generación de paquetes offline.
 - Imágenes Docker `linux/amd64`.
+- Arranque automático mediante systemd.
+- Modo kiosco preparado para estaciones gráficas Linux.
 
 ## Componentes pendientes
 
 Antes de comenzar la implementación de funcionalidades de negocio aún deben completarse algunos elementos de infraestructura y operación:
 
-- configuración de arranque automático mediante systemd;
-- modo kiosco para la estación de trabajo;
+- validación limpia sobre Linux Mint XFCE o Ubuntu Desktop;
+- autologin del usuario operativo;
 - configuración definitiva del sistema operativo objetivo;
 - SSH para soporte técnico;
 - firewall;
-- validación completa sobre hardware Linux x86_64;
-- backups automáticos;
-- política de retención;
-- actualización offline automatizada;
-- rollback de actualización;
+- copia externa de respaldos a USB o disco externo;
 - documentación operativa final.
 
 Las funcionalidades específicas del negocio todavía no están implementadas. El modelo de datos definitivo será diseñado después del levantamiento formal de requerimientos.
@@ -72,18 +74,20 @@ Validado:
 - verificación de backup;
 - restauración de prueba;
 - restauración productiva con backup preventivo;
-- parada, arranque y reinicio controlado.
+- parada, arranque y reinicio controlado;
+- systemd;
+- backups automáticos;
+- actualización offline;
+- rollback productivo;
+- preservación de backups durante update y rollback.
 
 Pendiente de cierre operativo:
 
-- systemd;
-- backups automáticos;
-- política de retención;
-- actualización offline automatizada;
-- rollback;
+- prueba limpia en Linux Mint XFCE o Ubuntu Desktop;
+- autologin;
 - pruebas de apagón;
 - migración a otra computadora;
-- modo kiosco.
+- hardening final de SSH y firewall.
 
 ---
 
