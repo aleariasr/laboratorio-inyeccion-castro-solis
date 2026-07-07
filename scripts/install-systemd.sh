@@ -86,7 +86,7 @@ install_service() {
         "${TARGET_SERVICE_FILE}"
 
     systemctl daemon-reload
-    systemctl enable "${SERVICE_NAME}"
+    systemctl enable --now "${SERVICE_NAME}"
 
     log_ok "Servicio instalado y habilitado: ${SERVICE_NAME}"
 }
@@ -97,8 +97,7 @@ main() {
     require_project_layout
     install_service
 
-    log_info "Para iniciar ahora:"
-    log_info "  sudo systemctl start ${SERVICE_NAME}"
+    log_info "El servicio quedó habilitado e iniciado."
     log_info "Para revisar estado:"
     log_info "  sudo systemctl status ${SERVICE_NAME} --no-pager"
 }

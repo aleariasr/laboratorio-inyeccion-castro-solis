@@ -22,13 +22,14 @@
 # - arranque del sistema;
 # - healthcheck final.
 #
+# Configura automáticamente:
+# - servicio systemd de LICS;
+# - timer systemd de backups automáticos.
+#
 # No configura todavía:
-# - systemd;
 # - Chromium en modo kiosco;
 # - SSH;
 # - firewall.
-#
-# Esas configuraciones pertenecen a la siguiente etapa.
 
 set -Eeuo pipefail
 
@@ -143,6 +144,12 @@ validate_package_structure() {
         "${SOURCE_APP_DIR}/scripts/install-preflight.sh"
         "${SOURCE_APP_DIR}/scripts/start.sh"
         "${SOURCE_APP_DIR}/scripts/healthcheck.sh"
+        "${SOURCE_APP_DIR}/infra/systemd/lics.service"
+        "${SOURCE_APP_DIR}/infra/systemd/lics-backup.service"
+        "${SOURCE_APP_DIR}/infra/systemd/lics-backup.timer"
+        "${SOURCE_APP_DIR}/scripts/install-systemd.sh"
+        "${SOURCE_APP_DIR}/scripts/install-backup-timer.sh"
+        "${SOURCE_APP_DIR}/scripts/cleanup-backups.sh"
     )
 
     for required_path in "${required_paths[@]}"; do
@@ -478,6 +485,15 @@ run_healthcheck() {
     log_ok "Healthcheck completado correctamente."
 }
 
+install_operating_system_services() {
+    log_info "Instalando servicios del sistema operativo..."
+
+    "${INSTALL_ROOT}/scripts/install-systemd.sh"
+    "${INSTALL_ROOT}/scripts/install-backup-timer.sh"
+
+    log_ok "Servicios del sistema operativo instalados."
+}
+
 print_result() {
     printf '\n'
     printf 'Instalación completada\n'
@@ -533,6 +549,7 @@ main() {
     run_migrations
     start_application
     run_healthcheck
+    install_operating_system_services
     print_result
 }
 
