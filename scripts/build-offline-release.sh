@@ -158,6 +158,26 @@ validate_docker() {
     log_ok "Docker daemon disponible."
 }
 
+build_product_images() {
+    log_info "Construyendo imágenes productivas para ${TARGET_PLATFORM}..."
+
+    docker buildx build \
+        --platform "${TARGET_PLATFORM}" \
+        --tag "lics-backend:${VERSION}" \
+        --file "${PROJECT_ROOT}/backend/Dockerfile.prod" \
+        --load \
+        "${PROJECT_ROOT}/backend"
+
+    docker buildx build \
+        --platform "${TARGET_PLATFORM}" \
+        --tag "lics-frontend:${VERSION}" \
+        --file "${PROJECT_ROOT}/frontend/Dockerfile.prod" \
+        --load \
+        "${PROJECT_ROOT}/frontend"
+
+    log_ok "Imágenes productivas construidas."
+}
+
 validate_images() {
     local image_name
     local os
@@ -380,6 +400,7 @@ main() {
     require_command sort
     require_command awk
     require_command tr
+    require_command date
 
     load_version
 
@@ -391,6 +412,7 @@ main() {
 
     validate_git_state
     validate_docker
+    build_product_images
     validate_images
     prepare_directories
     copy_versioned_application
