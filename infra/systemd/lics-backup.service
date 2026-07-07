@@ -1,0 +1,10 @@
+[Unit]
+Description=LICS automatic backup
+Requires=docker.service
+After=docker.service lics.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/lics
+ExecStart=/opt/lics/scripts/backup.sh daily
+ExecStartPost=/opt/lics/scripts/cleanup-backups.sh

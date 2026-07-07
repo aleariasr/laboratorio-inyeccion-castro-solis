@@ -1,0 +1,11 @@
+[Unit]
+Description=LICS automatic backup timer
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=10min
+Unit=lics-backup.service
+
+[Install]
+WantedBy=timers.target
