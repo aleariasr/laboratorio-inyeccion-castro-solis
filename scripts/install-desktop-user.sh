@@ -84,6 +84,24 @@ enable_lingering() {
     log_ok "Systemd user lingering habilitado para ${KIOSK_USER}."
 }
 
+enable_user_kiosk_service() {
+    local home_dir
+    local wants_dir
+
+    home_dir="$(getent passwd "${KIOSK_USER}" | cut -d: -f6)"
+    wants_dir="${home_dir}/.config/systemd/user/default.target.wants"
+
+    mkdir -p "${wants_dir}"
+
+    ln -sfn \
+        "${home_dir}/.config/systemd/user/lics-kiosk.service" \
+        "${wants_dir}/lics-kiosk.service"
+
+    chown -R "${KIOSK_USER}:${KIOSK_USER}" "${home_dir}/.config/systemd/user"
+
+    log_ok "Servicio kiosk habilitado para ${KIOSK_USER}."
+}
+
 print_result() {
     printf '\n'
     printf 'Usuario operativo configurado\n'
@@ -103,11 +121,13 @@ main() {
     require_command cut
     require_command install
     require_command loginctl
+    require_command ln
     require_project_layout
     create_kiosk_user
     prepare_user_directories
     install_user_kiosk_service
     enable_lingering
+    enable_user_kiosk_service
     print_result
 }
 

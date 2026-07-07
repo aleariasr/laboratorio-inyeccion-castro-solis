@@ -24,10 +24,12 @@
 #
 # Configura automáticamente:
 # - servicio systemd de LICS;
-# - timer systemd de backups automáticos.
+# - timer systemd de backups automáticos;
+# - usuario operativo dedicado;
+# - autologin de Ubuntu Desktop mediante GDM;
+# - kiosk Chromium para el usuario operativo.
 #
 # No configura todavía:
-# - Chromium en modo kiosco;
 # - SSH;
 # - firewall.
 
@@ -150,6 +152,13 @@ validate_package_structure() {
         "${SOURCE_APP_DIR}/scripts/install-systemd.sh"
         "${SOURCE_APP_DIR}/scripts/install-backup-timer.sh"
         "${SOURCE_APP_DIR}/scripts/cleanup-backups.sh"
+        "${SOURCE_APP_DIR}/scripts/install-desktop-user.sh"
+        "${SOURCE_APP_DIR}/scripts/install-autologin-gdm.sh"
+        "${SOURCE_APP_DIR}/scripts/install-kiosk.sh"
+        "${SOURCE_APP_DIR}/scripts/install-workstation.sh"
+        "${SOURCE_APP_DIR}/scripts/wait-for-lics.sh"
+        "${SOURCE_APP_DIR}/scripts/start-kiosk.sh"
+        "${SOURCE_APP_DIR}/infra/systemd/lics-kiosk.service"
     )
 
     for required_path in "${required_paths[@]}"; do
@@ -207,6 +216,31 @@ validate_target() {
     if [[ -e "${TEMP_INSTALL_ROOT}" ]]; then
         die "Ya existe el directorio temporal ${TEMP_INSTALL_ROOT}."
     fi
+}
+
+validate_desktop_requirements() {
+    log_info "Validando entorno gráfico de producción..."
+
+    if [[ ! -d /etc/gdm3 ]] || ! command -v gdm3 >/dev/null 2>&1; then
+        die "Se requiere Ubuntu Desktop con GDM para autologin."
+    fi
+
+    if command -v chromium >/dev/null 2>&1; then
+        log_ok "Chromium disponible."
+        return
+    fi
+
+    if command -v chromium-browser >/dev/null 2>&1; then
+        log_ok "Chromium Browser disponible."
+        return
+    fi
+
+    if command -v google-chrome >/dev/null 2>&1; then
+        log_ok "Google Chrome disponible."
+        return
+    fi
+
+    die "No se encontró Chromium ni Google Chrome. Instale Chromium antes de ejecutar el instalador."
 }
 
 image_archives() {
@@ -494,6 +528,15 @@ install_operating_system_services() {
     log_ok "Servicios del sistema operativo instalados."
 }
 
+install_desktop_services() {
+    log_info "Configurando estación gráfica dedicada..."
+
+    "${INSTALL_ROOT}/scripts/install-desktop-user.sh"
+    "${INSTALL_ROOT}/scripts/install-autologin-gdm.sh"
+
+    log_ok "Estación gráfica dedicada configurada."
+}
+
 print_result() {
     printf '\n'
     printf 'Instalación completada\n'
@@ -508,6 +551,9 @@ print_result() {
     printf '  %s/scripts/backup.sh manual\n' "${INSTALL_ROOT}"
     printf '\n'
     printf '[OK] LICS quedó instalado y saludable.\n'
+    printf '[OK] El usuario operativo y el kiosco quedaron configurados.\n'
+    printf '\n'
+    printf 'Reinicie la computadora para validar el arranque automático completo.\n'
 }
 
 main() {
@@ -539,6 +585,7 @@ main() {
     load_version
     run_preflight
     validate_target
+    validate_desktop_requirements
     load_images
     validate_loaded_images
     prepare_application_files
@@ -550,6 +597,7 @@ main() {
     start_application
     run_healthcheck
     install_operating_system_services
+    install_desktop_services
     print_result
 }
 
