@@ -504,7 +504,7 @@ Flujo:
 
 Estado actual:
 
-El instalador todavía debe probarse en una máquina Linux x86_64 limpia antes de considerarse aprobado para producción.
+El instalador offline fue probado correctamente en Ubuntu Server 26.04 LTS x86_64 sobre hardware real, usando un paquete offline versionado.
 
 ## 16. Pruebas realizadas
 
@@ -619,7 +619,7 @@ Restore de prueba:                 completado
 Restore productivo:                completado y probado
 Release offline:                   completado
 Preflight de instalación:          completado
-Instalador offline:                implementado, pendiente de prueba Linux
+Instalador offline:                probado en Ubuntu Server 26.04 LTS x86_64
 systemd:                           pendiente
 Kiosco:                            pendiente
 Backup automático:                 pendiente
@@ -630,3 +630,39 @@ Requerimientos del cliente:        pendiente
 Modelo de datos:                   pendiente
 Módulos de negocio:                no iniciados
 ```
+
+## Validación en Linux x86_64 real
+
+Fecha de prueba: 2026-07-06 / 2026-07-07 UTC.
+
+Entorno utilizado:
+
+- Host: homeserver.
+- Sistema operativo: Ubuntu Server 26.04 LTS.
+- Arquitectura: x86_64.
+- Docker Engine: 29.6.1.
+- Docker Compose: 5.3.0.
+- Instalación: `/opt/lics`.
+- URL local: `http://127.0.0.1:80`.
+
+Pruebas realizadas:
+
+- verificación SHA-256 del paquete offline;
+- ejecución de `install-preflight.sh`;
+- instalación offline mediante `install.sh`;
+- carga local de imágenes Docker;
+- migraciones iniciales de Django;
+- arranque de PostgreSQL, backend, frontend y Nginx;
+- validación mediante `status.sh`;
+- validación mediante `healthcheck.sh`;
+- creación de backup manual;
+- verificación de backup;
+- restauración de prueba en base temporal;
+- restauración productiva real con backup preventivo;
+- parada controlada mediante `stop.sh`;
+- arranque controlado mediante `start.sh`;
+- reinicio controlado mediante `restart.sh`.
+
+Resultado:
+
+Todas las pruebas anteriores finalizaron correctamente.

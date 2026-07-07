@@ -203,16 +203,18 @@ Para considerar una instalación apta para producción deben cumplirse, como mí
 
 # Componentes pendientes
 
-La infraestructura de despliegue se encuentra ampliamente implementada, sin embargo aún deben completarse los siguientes componentes antes de la primera instalación definitiva en un entorno real:
+La instalación offline base ya fue validada en Ubuntu Server 26.04 LTS x86_64.
+
+Quedan pendientes para cierre operativo completo:
 
 - configuración del servicio systemd;
-- configuración del modo kiosco;
-- configuración del firewall del sistema operativo;
-- configuración de OpenSSH para soporte remoto;
-- validación completa sobre hardware Linux x86_64;
-- procedimiento documentado de recuperación ante fallos del sistema operativo.
-
-Estos elementos forman parte de la fase final de preparación para producción y no afectan la arquitectura principal del proyecto.
+- backups automáticos;
+- política de retención;
+- actualización offline automatizada;
+- rollback seguro;
+- pruebas de apagón y reinicio completo;
+- migración completa a otra computadora;
+- modo kiosco en entorno gráfico Linux.
 
 ### Preflight manual desde un release offline
 

@@ -57,6 +57,34 @@ Antes de comenzar la implementación de funcionalidades de negocio aún deben co
 
 Las funcionalidades específicas del negocio todavía no están implementadas. El modelo de datos definitivo será diseñado después del levantamiento formal de requerimientos.
 
+## Estado validado
+
+La infraestructura base fue validada sobre Ubuntu Server 26.04 LTS x86_64 usando un paquete offline versionado.
+
+Validado:
+
+- instalación offline;
+- verificación de checksums SHA-256;
+- carga local de imágenes Docker;
+- migraciones iniciales;
+- healthchecks de PostgreSQL, backend, frontend y Nginx;
+- backup manual;
+- verificación de backup;
+- restauración de prueba;
+- restauración productiva con backup preventivo;
+- parada, arranque y reinicio controlado.
+
+Pendiente de cierre operativo:
+
+- systemd;
+- backups automáticos;
+- política de retención;
+- actualización offline automatizada;
+- rollback;
+- pruebas de apagón;
+- migración a otra computadora;
+- modo kiosco.
+
 ---
 
 # Objetivos del proyecto
