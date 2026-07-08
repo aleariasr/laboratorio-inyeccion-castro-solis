@@ -16,3 +16,10 @@ class SaleWithoutItemsError(SalesError):
 
 class InsufficientStockError(SalesError):
     pass
+
+class SaleNotConfirmedError(SalesError):
+    pass
+
+
+class SaleAlreadyCancelledError(SalesError):
+    pass

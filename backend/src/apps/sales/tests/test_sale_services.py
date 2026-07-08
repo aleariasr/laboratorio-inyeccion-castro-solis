@@ -8,11 +8,17 @@ from apps.inventory.selectors import current_stock
 from apps.inventory.services import initial_inventory
 from apps.sales.exceptions import (
     InsufficientStockError,
+    SaleAlreadyCancelledError,
     SaleAlreadyConfirmedError,
+    SaleCancelledError,
+    SaleNotConfirmedError,
     SaleWithoutItemsError,
 )
 from apps.sales.models import Sale, SaleItem, SaleStatus
-from apps.sales.services import confirm_sale
+from apps.sales.services import (
+    cancel_sale,
+    confirm_sale,
+)
 
 User = get_user_model()
 
@@ -118,6 +124,51 @@ class ConfirmSaleServiceTest(TestCase):
 
         with self.assertRaises(SaleAlreadyConfirmedError):
             confirm_sale(
+                sale=self.sale,
+                user=self.user,
+            )
+
+    def test_cancel_sale_restores_stock(self):
+        SaleItem.objects.create(
+            sale=self.sale,
+            product=self.product,
+            quantity=4,
+            unit_price=100,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        confirm_sale(
+            sale=self.sale,
+            user=self.user,
+        )
+
+        self.assertEqual(
+            current_stock(self.product),
+            6,
+        )
+
+        cancel_sale(
+            sale=self.sale,
+            user=self.user,
+        )
+
+        self.sale.refresh_from_db()
+
+        self.assertEqual(
+            self.sale.status,
+            SaleStatus.CANCELLED,
+        )
+
+        self.assertEqual(
+            current_stock(self.product),
+            10,
+        )
+
+
+    def test_cannot_cancel_draft_sale(self):
+        with self.assertRaises(SaleNotConfirmedError):
+            cancel_sale(
                 sale=self.sale,
                 user=self.user,
             )
