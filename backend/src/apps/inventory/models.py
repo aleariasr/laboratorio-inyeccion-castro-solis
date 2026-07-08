@@ -341,3 +341,66 @@ class PurchaseItem(AuditModel):
             f"{self.purchase.invoice_number} - "
             f"{self.supplier_product.product.standard_code}"
         )
+    
+class StockMovementType(models.TextChoices):
+    ENTRY = "ENTRY", "Entrada"
+    EXIT = "EXIT", "Salida"
+    ADJUSTMENT = "ADJUSTMENT", "Ajuste"
+    INITIAL = "INITIAL", "Inventario inicial"
+
+class StockMovement(AuditModel):
+    """
+    Fuente única de verdad para las existencias.
+    Ningún otro modelo modifica el inventario directamente.
+    """
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+    )
+
+    movement_type = models.CharField(
+        max_length=20,
+        choices=StockMovementType.choices,
+    )
+
+    quantity = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+    )
+
+    purchase_item = models.ForeignKey(
+        PurchaseItem,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+        null=True,
+        blank=True,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "inventory_stock_movements"
+        verbose_name = "Movimiento de inventario"
+        verbose_name_plural = "Movimientos de inventario"
+        ordering = ["-created_at", "-id"]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if (
+            self.movement_type == StockMovementType.ENTRY
+            and self.purchase_item is None
+        ):
+            raise ValidationError(
+                "Un movimiento de entrada debe estar asociado a una línea de compra."
+            )
+
+    def __str__(self):
+        return (
+            f"{self.product.standard_code} "
+            f"{self.movement_type} "
+            f"{self.quantity}"
+        )

@@ -8,6 +8,7 @@ from .models import (
     SupplierProduct,
     Purchase,
     PurchaseItem,
+    StockMovement,
 )
 
 
@@ -125,4 +126,23 @@ class PurchaseItemAdmin(admin.ModelAdmin):
         "purchase__invoice_number",
         "supplier_product__product__standard_code",
         "supplier_product__supplier__name",
+    )
+
+@admin.register(StockMovement)
+class StockMovementAdmin(admin.ModelAdmin):
+    list_display = (
+        "product",
+        "movement_type",
+        "quantity",
+        "created_at",
+    )
+
+    search_fields = (
+        "product__standard_code",
+        "product__name",
+    )
+
+    list_filter = (
+        "movement_type",
+        "created_at",
     )
