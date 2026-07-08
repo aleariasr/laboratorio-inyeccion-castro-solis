@@ -83,3 +83,98 @@ class ImportCost(AuditModel, ActivableModel):
             f"{self.purchase.invoice_number} - "
             f"{self.category.name}"
         )
+    
+class ProductCostHistory(AuditModel):
+    product = models.ForeignKey(
+        "inventory.Product",
+        on_delete=models.PROTECT,
+        related_name="cost_history",
+    )
+
+    purchase = models.ForeignKey(
+        "inventory.Purchase",
+        on_delete=models.PROTECT,
+        related_name="product_cost_history",
+    )
+
+    original_unit_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        validators=[
+            MinValueValidator(Decimal("0.0001")),
+        ],
+    )
+
+    cost_factor = models.DecimalField(
+        max_digits=12,
+        decimal_places=6,
+        validators=[
+            MinValueValidator(Decimal("0.000001")),
+        ],
+    )
+
+    final_unit_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        validators=[
+            MinValueValidator(Decimal("0.0001")),
+        ],
+    )
+
+    currency = models.CharField(
+        max_length=3,
+        choices=Currency.choices,
+    )
+
+    exchange_rate = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=1,
+        validators=[
+            MinValueValidator(Decimal("0.0001")),
+        ],
+    )
+
+    margin_percentage = models.DecimalField(
+        max_digits=8,
+        decimal_places=4,
+        default=0,
+        validators=[
+            MinValueValidator(Decimal("0")),
+        ],
+    )
+
+    suggested_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    calculated_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "inventory_product_cost_history"
+        verbose_name = "Histórico de costo"
+        verbose_name_plural = "Históricos de costos"
+        ordering = [
+            "-calculated_at",
+            "-id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "product",
+                    "purchase",
+                ],
+                name="uq_product_purchase_cost_history",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.product.standard_code} - "
+            f"{self.purchase.invoice_number}"
+        )
