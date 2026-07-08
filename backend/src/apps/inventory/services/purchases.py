@@ -7,6 +7,7 @@ from apps.inventory.exceptions import (
     PurchaseWithoutItemsError,
 )
 from apps.inventory.models import (
+    MovementDirection,
     Purchase,
     PurchaseStatus,
     StockMovement,
@@ -16,10 +17,6 @@ from apps.inventory.models import (
 
 @transaction.atomic
 def confirm_purchase(*, purchase: Purchase, user):
-    """
-    Confirma una compra e ingresa el inventario.
-    """
-
     if purchase.status == PurchaseStatus.CONFIRMED:
         raise PurchaseAlreadyConfirmedError()
 
@@ -37,6 +34,7 @@ def confirm_purchase(*, purchase: Purchase, user):
 
     purchase.status = PurchaseStatus.CONFIRMED
     purchase.updated_by = user
+
     purchase.save(
         update_fields=[
             "status",
@@ -49,6 +47,7 @@ def confirm_purchase(*, purchase: Purchase, user):
         StockMovement.create_from_service(
             product=item.supplier_product.product,
             movement_type=StockMovementType.ENTRY,
+            direction=MovementDirection.IN,
             quantity=item.quantity,
             purchase_item=item,
             created_by=user,
@@ -60,10 +59,6 @@ def confirm_purchase(*, purchase: Purchase, user):
 
 @transaction.atomic
 def cancel_purchase(*, purchase: Purchase, user):
-    """
-    Anula una compra antes de ingresar inventario.
-    """
-
     if purchase.status == PurchaseStatus.CONFIRMED:
         raise PurchaseCannotBeCancelledError()
 

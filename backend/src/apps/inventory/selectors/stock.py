@@ -1,31 +1,23 @@
 from django.db.models import Case, F, IntegerField, Sum, Value, When
 from django.db.models.functions import Coalesce
 
-from apps.inventory.models import Product, StockMovementType
+from apps.inventory.models import (
+    MovementDirection,
+    Product,
+)
 
 
 def current_stock(product: Product) -> int:
-    """
-    Calcula el inventario actual de un producto.
-    """
-
     result = (
         product.stock_movements.annotate(
             signed_quantity=Case(
                 When(
-                    movement_type__in=[
-                        StockMovementType.ENTRY,
-                        StockMovementType.INITIAL,
-                    ],
+                    direction=MovementDirection.IN,
                     then=F("quantity"),
                 ),
                 When(
-                    movement_type=StockMovementType.EXIT,
+                    direction=MovementDirection.OUT,
                     then=-F("quantity"),
-                ),
-                When(
-                    movement_type=StockMovementType.ADJUSTMENT,
-                    then=F("quantity"),
                 ),
                 default=Value(0),
                 output_field=IntegerField(),

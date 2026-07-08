@@ -3,17 +3,24 @@ from django.core.validators import MinValueValidator
 from django.db import models
 
 from apps.core.models import AuditModel
+from apps.inventory.exceptions import InventoryError
 
 from .catalog import StockMovementType
 from .product import Product
 from .purchase import PurchaseItem
 
-from apps.inventory.exceptions import InventoryError
+
+class MovementDirection(models.TextChoices):
+    IN = "IN", "Entrada"
+    OUT = "OUT", "Salida"
+
 
 class StockMovement(AuditModel):
     """
     Fuente única de verdad para las existencias.
-    Ningún otro modelo modifica el inventario directamente.
+
+    Ningún otro modelo debe modificar el inventario directamente.
+    Toda entrada o salida debe registrarse mediante un servicio del dominio.
     """
 
     _allow_save = False
@@ -27,6 +34,12 @@ class StockMovement(AuditModel):
     movement_type = models.CharField(
         max_length=20,
         choices=StockMovementType.choices,
+    )
+
+    direction = models.CharField(
+        max_length=3,
+        choices=MovementDirection.choices,
+        default=MovementDirection.IN,
     )
 
     quantity = models.PositiveIntegerField(
@@ -82,7 +95,7 @@ class StockMovement(AuditModel):
 
     def __str__(self):
         return (
-            f"{self.product.standard_code} "
-            f"{self.movement_type} "
+            f"{self.product.standard_code} | "
+            f"{self.direction} | "
             f"{self.quantity}"
         )
