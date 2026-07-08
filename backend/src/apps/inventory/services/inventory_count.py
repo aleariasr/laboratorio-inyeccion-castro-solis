@@ -3,7 +3,11 @@ from django.db import transaction
 from apps.inventory.models import (
     InventoryCount,
     InventoryCountStatus,
+    MovementDirection,
+    StockMovement,
+    StockMovementType,
 )
+from apps.inventory.selectors import current_stock
 
 
 @transaction.atomic
@@ -15,14 +19,39 @@ def approve_inventory_count(
     """
     Aprueba un conteo físico.
 
-    Por ahora únicamente cambia el estado.
-    En el siguiente paso generaremos automáticamente
-    los movimientos de ajuste.
+    Por cada línea calcula la diferencia entre el
+    inventario registrado y el inventario contado.
+
+    Si existe diferencia genera automáticamente un
+    movimiento de ajuste.
     """
 
     if inventory_count.status != InventoryCountStatus.DRAFT:
         raise ValueError(
             "Solo un conteo en borrador puede aprobarse."
+        )
+
+    for item in inventory_count.items.select_related("product"):
+
+        stock = current_stock(item.product)
+
+        difference = item.counted_quantity - stock
+
+        if difference == 0:
+            continue
+
+        StockMovement.create_from_service(
+            product=item.product,
+            movement_type=StockMovementType.ADJUSTMENT,
+            direction=(
+                MovementDirection.IN
+                if difference > 0
+                else MovementDirection.OUT
+            ),
+            quantity=abs(difference),
+            notes=f"Conteo físico {inventory_count.reference}",
+            created_by=user,
+            updated_by=user,
         )
 
     inventory_count.status = InventoryCountStatus.APPROVED
