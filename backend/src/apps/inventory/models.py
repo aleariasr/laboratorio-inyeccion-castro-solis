@@ -296,3 +296,48 @@ class Purchase(AuditModel, ActivableModel):
 
     def __str__(self):
         return self.invoice_number
+    
+class PurchaseItem(AuditModel):
+    """
+    Línea de una compra.
+    """
+
+    purchase = models.ForeignKey(
+        Purchase,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    supplier_product = models.ForeignKey(
+        SupplierProduct,
+        on_delete=models.PROTECT,
+        related_name="purchase_items",
+    )
+
+    quantity = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+    )
+
+    unit_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        validators=[MinValueValidator(0.0001)],
+    )
+
+    class Meta:
+        db_table = "inventory_purchase_items"
+        verbose_name = "Línea de compra"
+        verbose_name_plural = "Líneas de compra"
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["purchase", "supplier_product"],
+                name="uq_purchase_supplier_product",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.purchase.invoice_number} - "
+            f"{self.supplier_product.product.standard_code}"
+        )

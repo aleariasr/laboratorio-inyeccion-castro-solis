@@ -7,6 +7,7 @@ from .models import (
     Supplier,
     SupplierProduct,
     Purchase,
+    PurchaseItem,
 )
 
 
@@ -109,4 +110,19 @@ class PurchaseAdmin(admin.ModelAdmin):
         "status",
         "currency",
         "purchase_date",
+    )
+
+@admin.register(PurchaseItem)
+class PurchaseItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "purchase",
+        "supplier_product",
+        "quantity",
+        "unit_cost",
+    )
+
+    search_fields = (
+        "purchase__invoice_number",
+        "supplier_product__product__standard_code",
+        "supplier_product__supplier__name",
     )
