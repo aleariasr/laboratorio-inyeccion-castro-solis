@@ -84,3 +84,98 @@ class Product(AuditModel, ActivableModel):
 
     def __str__(self):
         return f"{self.standard_code} - {self.name}"
+    
+class ProductReference(AuditModel, ActivableModel):
+    """
+    Referencia comercial o equivalente de un producto.
+    """
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="references",
+    )
+
+    manufacturer = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    reference_code = models.CharField(
+        max_length=80,
+    )
+
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "inventory_product_references"
+        verbose_name = "Referencia de producto"
+        verbose_name_plural = "Referencias de producto"
+        ordering = ["reference_code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "manufacturer", "reference_code"],
+                name="uq_product_reference",
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        self.reference_code = self.reference_code.strip().upper()
+        self.manufacturer = self.manufacturer.strip()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        if self.manufacturer:
+            return f"{self.manufacturer} - {self.reference_code}"
+        return self.reference_code
+    
+class Supplier(AuditModel, ActivableModel):
+    """
+    Empresa que suministra productos al laboratorio.
+    """
+
+    name = models.CharField(
+        max_length=150,
+        unique=True,
+    )
+
+    contact_name = models.CharField(
+        max_length=150,
+        blank=True,
+    )
+
+    phone = models.CharField(
+        max_length=30,
+        blank=True,
+    )
+
+    email = models.EmailField(
+        blank=True,
+    )
+
+    country = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "inventory_suppliers"
+        verbose_name = "Proveedor"
+        verbose_name_plural = "Proveedores"
+        ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        self.name = self.name.strip().upper()
+        self.contact_name = self.contact_name.strip()
+        self.country = self.country.strip()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
