@@ -5,4 +5,5 @@ __all__ = [
     "register_customer",
     "register_injector",
     "receive_injector",
+    "start_service",
 ]

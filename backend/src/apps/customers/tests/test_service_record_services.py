@@ -9,7 +9,10 @@ from apps.customers.models import (
     InjectorServiceRecord,
     InjectorServiceStatus,
 )
-from apps.customers.services import receive_injector
+from apps.customers.services import (
+    receive_injector,
+    start_service,
+)
 
 User = get_user_model()
 
@@ -51,4 +54,23 @@ class ReceiveInjectorServiceTest(TestCase):
         self.assertEqual(
             record.status,
             InjectorServiceStatus.RECEIVED,
+        )
+    
+    def test_start_service(self):
+        record = receive_injector(
+            injector=self.injector,
+            received_at=timezone.now(),
+            user=self.user,
+        )
+
+        start_service(
+            service_record=record,
+            user=self.user,
+        )
+
+        record.refresh_from_db()
+
+        self.assertEqual(
+            record.status,
+            InjectorServiceStatus.IN_PROGRESS,
         )
