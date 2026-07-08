@@ -6,6 +6,7 @@ from .models import (
     StorageLocation,
     Supplier,
     SupplierProduct,
+    Purchase,
 )
 
 
@@ -87,4 +88,25 @@ class SupplierProductAdmin(admin.ModelAdmin):
         "preferred_supplier",
         "manufacturer",
         "is_active",
+    )
+
+@admin.register(Purchase)
+class PurchaseAdmin(admin.ModelAdmin):
+    list_display = (
+        "invoice_number",
+        "supplier",
+        "purchase_date",
+        "currency",
+        "status",
+    )
+
+    search_fields = (
+        "invoice_number",
+        "supplier__name",
+    )
+
+    list_filter = (
+        "status",
+        "currency",
+        "purchase_date",
     )

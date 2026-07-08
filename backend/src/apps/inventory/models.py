@@ -232,3 +232,67 @@ class SupplierProduct(AuditModel, ActivableModel):
 
     def __str__(self):
         return f"{self.supplier} - {self.product.standard_code}"
+    
+class PurchaseStatus(models.TextChoices):
+    DRAFT = "DRAFT", "Borrador"
+    CONFIRMED = "CONFIRMED", "Confirmada"
+    CANCELLED = "CANCELLED", "Anulada"
+
+class Purchase(AuditModel, ActivableModel):
+    """
+    Cabecera de una compra.
+    """
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="purchases",
+    )
+
+    invoice_number = models.CharField(
+        max_length=100,
+    )
+
+    purchase_date = models.DateField()
+
+    currency = models.CharField(
+        max_length=3,
+        help_text="ISO 4217 (CRC, USD, EUR).",
+    )
+
+    exchange_rate = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=1,
+        validators=[MinValueValidator(0.0001)],
+    )
+
+    status = models.CharField(
+        max_length=15,
+        choices=PurchaseStatus.choices,
+        default=PurchaseStatus.DRAFT,
+    )
+
+    notes = models.TextField(
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "inventory_purchases"
+        verbose_name = "Compra"
+        verbose_name_plural = "Compras"
+        ordering = ["-purchase_date", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["supplier", "invoice_number"],
+                name="uq_supplier_invoice",
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        self.invoice_number = self.invoice_number.strip().upper()
+        self.currency = self.currency.strip().upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.invoice_number
