@@ -8,12 +8,15 @@ from .catalog import StockMovementType
 from .product import Product
 from .purchase import PurchaseItem
 
+from apps.inventory.exceptions import InventoryError
 
 class StockMovement(AuditModel):
     """
     Fuente única de verdad para las existencias.
     Ningún otro modelo modifica el inventario directamente.
     """
+
+    _allow_save = False
 
     product = models.ForeignKey(
         Product,
@@ -61,6 +64,21 @@ class StockMovement(AuditModel):
             raise ValidationError(
                 "Un movimiento de entrada debe estar asociado a una línea de compra."
             )
+
+    def save(self, *args, **kwargs):
+        if not self._allow_save:
+            raise InventoryError(
+                "Los movimientos de inventario solo pueden crearse mediante servicios del dominio."
+            )
+
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def create_from_service(cls, **kwargs):
+        movement = cls(**kwargs)
+        movement._allow_save = True
+        movement.save()
+        return movement
 
     def __str__(self):
         return (

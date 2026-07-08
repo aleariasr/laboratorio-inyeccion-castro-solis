@@ -14,12 +14,19 @@ from apps.inventory.models import (
     Supplier,
     SupplierProduct,
 )
-from apps.inventory.services import confirm_purchase
+from apps.inventory.services import (
+    confirm_purchase,
+    cancel_purchase,
+)
 
 from apps.inventory.exceptions import (
     PurchaseAlreadyConfirmedError,
+    PurchaseCancelledError,
+    PurchaseCannotBeCancelledError,
     PurchaseWithoutItemsError,
 )
+
+from apps.inventory.selectors import current_stock
 
 User = get_user_model()
 
@@ -160,5 +167,53 @@ class ConfirmPurchaseServiceTest(TestCase):
         with self.assertRaises(PurchaseCancelledError):
             confirm_purchase(
                 purchase=cancelled_purchase,
+                user=self.user,
+            )
+
+    def test_current_stock_after_confirmation(self):
+        confirm_purchase(
+            purchase=self.purchase,
+            user=self.user,
+        )
+
+        self.assertEqual(
+            current_stock(self.product),
+            5,
+        )
+
+    def test_stock_movement_cannot_be_created_directly(self):
+        with self.assertRaises(Exception):
+            StockMovement.objects.create(
+                product=self.product,
+                movement_type=StockMovementType.ENTRY,
+                quantity=1,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+
+    def test_cancel_purchase(self):
+        cancel_purchase(
+            purchase=self.purchase,
+            user=self.user,
+        )
+
+        self.purchase.refresh_from_db()
+
+        self.assertEqual(
+            self.purchase.status,
+            PurchaseStatus.CANCELLED,
+        )
+
+    def test_confirmed_purchase_cannot_be_cancelled(self):
+        confirm_purchase(
+            purchase=self.purchase,
+            user=self.user,
+        )
+
+        with self.assertRaises(
+            PurchaseCannotBeCancelledError
+        ):
+            cancel_purchase(
+                purchase=self.purchase,
                 user=self.user,
             )

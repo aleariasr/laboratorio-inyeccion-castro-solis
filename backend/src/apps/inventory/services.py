@@ -5,6 +5,7 @@ from .exceptions import (
     PurchaseAlreadyConfirmedError,
     PurchaseCancelledError,
     PurchaseWithoutItemsError,
+    PurchaseCannotBeCancelledError,
 )
 from .models import Purchase, PurchaseStatus, StockMovement, StockMovementType
 
@@ -35,7 +36,7 @@ def confirm_purchase(*, purchase: Purchase, user):
     purchase.save(update_fields=["status", "updated_by", "updated_at"])
 
     for item in items:
-        StockMovement.objects.create(
+        StockMovement.create_from_service(
             product=item.supplier_product.product,
             movement_type=StockMovementType.ENTRY,
             quantity=item.quantity,
@@ -43,5 +44,28 @@ def confirm_purchase(*, purchase: Purchase, user):
             created_by=user,
             updated_by=user,
         )
+
+    return purchase
+
+def cancel_purchase(*, purchase: Purchase, user):
+    """
+    Anula una compra antes de que ingrese al inventario.
+    """
+
+    if purchase.status == PurchaseStatus.CONFIRMED:
+        raise PurchaseCannotBeCancelledError()
+
+    if purchase.status == PurchaseStatus.CANCELLED:
+        return purchase
+
+    purchase.status = PurchaseStatus.CANCELLED
+    purchase.updated_by = user
+    purchase.save(
+        update_fields=[
+            "status",
+            "updated_by",
+            "updated_at",
+        ]
+    )
 
     return purchase

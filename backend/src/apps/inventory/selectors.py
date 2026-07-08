@@ -1,31 +1,45 @@
-from django.db.models import Sum
+from django.db.models import Case, F, IntegerField, Sum, Value, When
+from django.db.models.functions import Coalesce
 
-from .models import Product, StockMovement, StockMovementType
+from .models import Product, StockMovementType
 
 
-def get_current_stock(product: Product) -> int:
+def current_stock(product: Product) -> int:
     """
-    Calcula el inventario actual a partir de los movimientos.
+    Calcula el inventario actual de un producto a partir
+    del historial de movimientos.
     """
 
-    entries = (
-        StockMovement.objects.filter(
-            product=product,
-            movement_type__in=[
-                StockMovementType.ENTRY,
-                StockMovementType.INITIAL,
-                StockMovementType.ADJUSTMENT,
-            ],
-        ).aggregate(total=Sum("quantity"))["total"]
-        or 0
+    result = (
+        product.stock_movements.annotate(
+            signed_quantity=Case(
+                When(
+                    movement_type__in=[
+                        StockMovementType.ENTRY,
+                        StockMovementType.INITIAL,
+                    ],
+                    then=F("quantity"),
+                ),
+                When(
+                    movement_type__in=[
+                        StockMovementType.EXIT,
+                    ],
+                    then=-F("quantity"),
+                ),
+                When(
+                    movement_type=StockMovementType.ADJUSTMENT,
+                    then=F("quantity"),
+                ),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        )
+        .aggregate(
+            stock=Coalesce(
+                Sum("signed_quantity"),
+                Value(0),
+            )
+        )
     )
 
-    exits = (
-        StockMovement.objects.filter(
-            product=product,
-            movement_type=StockMovementType.EXIT,
-        ).aggregate(total=Sum("quantity"))["total"]
-        or 0
-    )
-
-    return entries - exits
+    return result["stock"]
