@@ -6,4 +6,7 @@ __all__ = [
     "register_injector",
     "receive_injector",
     "start_service",
+    "mark_ready",
+    "deliver_service",
+    "cancel_service",
 ]
