@@ -1,27 +1,61 @@
-from rest_framework import permissions
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from rest_framework import generics, permissions, status
+from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .serializers import UserCreateSerializer, UserSerializer
 
-class CurrentUserView(APIView):
-    """
-    Devuelve información del usuario autenticado.
-    """
 
-    permission_classes = [permissions.IsAuthenticated]
+class LoginView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-    def get(self, request):
-        user = request.user
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        user = authenticate(
+            username=username,
+            password=password,
+        )
+
+        if user is None:
+            return Response(
+                {"detail": "Credenciales inválidas."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        token, _ = Token.objects.get_or_create(user=user)
 
         return Response(
             {
-                "id": user.id,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "email": user.email,
-                "is_staff": user.is_staff,
-                "is_superuser": user.is_superuser,
-                "groups": list(user.groups.values_list("name", flat=True)),
+                "token": token.key,
+                "user": UserSerializer(user).data,
             }
         )
+
+
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        request.user.auth_token.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CurrentUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
+
+class UserListCreateView(generics.ListCreateAPIView):
+    queryset = User.objects.order_by("username")
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return UserCreateSerializer
+        return UserSerializer
