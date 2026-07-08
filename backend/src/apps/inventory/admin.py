@@ -9,6 +9,8 @@ from .models import (
     Purchase,
     PurchaseItem,
     StockMovement,
+    ImportCost,
+    ImportCostCategory,
 )
 
 
@@ -145,4 +147,35 @@ class StockMovementAdmin(admin.ModelAdmin):
     list_filter = (
         "movement_type",
         "created_at",
+    )
+
+@admin.register(ImportCostCategory)
+class ImportCostCategoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "is_active",
+    )
+
+    search_fields = (
+        "name",
+    )
+
+
+@admin.register(ImportCost)
+class ImportCostAdmin(admin.ModelAdmin):
+    list_display = (
+        "purchase",
+        "category",
+        "amount",
+        "currency",
+    )
+
+    list_filter = (
+        "currency",
+        "category",
+    )
+
+    autocomplete_fields = (
+        "purchase",
+        "category",
     )
