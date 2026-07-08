@@ -5,6 +5,7 @@ from .models import (
     ProductReference,
     StorageLocation,
     Supplier,
+    SupplierProduct,
 )
 
 
@@ -60,5 +61,30 @@ class SupplierAdmin(admin.ModelAdmin):
 
     list_filter = (
         "country",
+        "is_active",
+    )
+
+@admin.register(SupplierProduct)
+class SupplierProductAdmin(admin.ModelAdmin):
+    list_display = (
+        "supplier",
+        "product",
+        "supplier_reference",
+        "manufacturer",
+        "preferred_supplier",
+        "is_active",
+    )
+
+    search_fields = (
+        "supplier__name",
+        "product__standard_code",
+        "product__name",
+        "supplier_reference",
+        "manufacturer",
+    )
+
+    list_filter = (
+        "preferred_supplier",
+        "manufacturer",
         "is_active",
     )
