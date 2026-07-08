@@ -3,6 +3,12 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from apps.inventory.exceptions import (
+    PurchaseAlreadyConfirmedError,
+    PurchaseCancelledError,
+    PurchaseCannotBeCancelledError,
+    PurchaseWithoutItemsError,
+)
 from apps.inventory.models import (
     Product,
     Purchase,
@@ -14,19 +20,11 @@ from apps.inventory.models import (
     Supplier,
     SupplierProduct,
 )
-from apps.inventory.services import (
-    confirm_purchase,
-    cancel_purchase,
-)
-
-from apps.inventory.exceptions import (
-    PurchaseAlreadyConfirmedError,
-    PurchaseCancelledError,
-    PurchaseCannotBeCancelledError,
-    PurchaseWithoutItemsError,
-)
-
 from apps.inventory.selectors import current_stock
+from apps.inventory.services import (
+    cancel_purchase,
+    confirm_purchase,
+)
 
 User = get_user_model()
 
@@ -98,36 +96,29 @@ class ConfirmPurchaseServiceTest(TestCase):
 
         movement = StockMovement.objects.get()
 
-        self.assertEqual(
-            movement.product,
-            self.product,
-        )
-
-        self.assertEqual(
-            movement.quantity,
-            5,
-        )
-
+        self.assertEqual(movement.product, self.product)
+        self.assertEqual(movement.quantity, 5)
         self.assertEqual(
             movement.movement_type,
             StockMovementType.ENTRY,
         )
-    
+
     def test_cannot_confirm_twice(self):
         confirm_purchase(
             purchase=self.purchase,
             user=self.user,
         )
 
-        with self.assertRaises(PurchaseAlreadyConfirmedError):
+        with self.assertRaises(
+            PurchaseAlreadyConfirmedError,
+        ):
             confirm_purchase(
                 purchase=self.purchase,
                 user=self.user,
             )
 
-
     def test_purchase_without_items_raises_error(self):
-        empty_purchase = Purchase.objects.create(
+        purchase = Purchase.objects.create(
             supplier=self.supplier,
             invoice_number="FAC-002",
             purchase_date=date.today(),
@@ -136,14 +127,16 @@ class ConfirmPurchaseServiceTest(TestCase):
             updated_by=self.user,
         )
 
-        with self.assertRaises(PurchaseWithoutItemsError):
+        with self.assertRaises(
+            PurchaseWithoutItemsError,
+        ):
             confirm_purchase(
-                purchase=empty_purchase,
+                purchase=purchase,
                 user=self.user,
             )
 
     def test_cancelled_purchase_cannot_be_confirmed(self):
-        cancelled_purchase = Purchase.objects.create(
+        purchase = Purchase.objects.create(
             supplier=self.supplier,
             invoice_number="FAC-003",
             purchase_date=date.today(),
@@ -154,7 +147,7 @@ class ConfirmPurchaseServiceTest(TestCase):
         )
 
         PurchaseItem.objects.create(
-            purchase=cancelled_purchase,
+            purchase=purchase,
             supplier_product=self.supplier_product,
             quantity=2,
             unit_cost=50,
@@ -162,11 +155,11 @@ class ConfirmPurchaseServiceTest(TestCase):
             updated_by=self.user,
         )
 
-        from apps.inventory.exceptions import PurchaseCancelledError
-
-        with self.assertRaises(PurchaseCancelledError):
+        with self.assertRaises(
+            PurchaseCancelledError,
+        ):
             confirm_purchase(
-                purchase=cancelled_purchase,
+                purchase=purchase,
                 user=self.user,
             )
 
@@ -211,7 +204,7 @@ class ConfirmPurchaseServiceTest(TestCase):
         )
 
         with self.assertRaises(
-            PurchaseCannotBeCancelledError
+            PurchaseCannotBeCancelledError,
         ):
             cancel_purchase(
                 purchase=self.purchase,

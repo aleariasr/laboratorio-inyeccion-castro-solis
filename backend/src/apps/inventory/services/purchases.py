@@ -1,13 +1,17 @@
 from django.db import transaction
 
-from .exceptions import (
-    InvalidPurchaseStatusError,
+from apps.inventory.exceptions import (
     PurchaseAlreadyConfirmedError,
     PurchaseCancelledError,
-    PurchaseWithoutItemsError,
     PurchaseCannotBeCancelledError,
+    PurchaseWithoutItemsError,
 )
-from .models import Purchase, PurchaseStatus, StockMovement, StockMovementType
+from apps.inventory.models import (
+    Purchase,
+    PurchaseStatus,
+    StockMovement,
+    StockMovementType,
+)
 
 
 @transaction.atomic
@@ -24,7 +28,7 @@ def confirm_purchase(*, purchase: Purchase, user):
 
     items = list(
         purchase.items.select_related(
-            "supplier_product__product"
+            "supplier_product__product",
         )
     )
 
@@ -33,7 +37,13 @@ def confirm_purchase(*, purchase: Purchase, user):
 
     purchase.status = PurchaseStatus.CONFIRMED
     purchase.updated_by = user
-    purchase.save(update_fields=["status", "updated_by", "updated_at"])
+    purchase.save(
+        update_fields=[
+            "status",
+            "updated_by",
+            "updated_at",
+        ]
+    )
 
     for item in items:
         StockMovement.create_from_service(
@@ -47,9 +57,11 @@ def confirm_purchase(*, purchase: Purchase, user):
 
     return purchase
 
+
+@transaction.atomic
 def cancel_purchase(*, purchase: Purchase, user):
     """
-    Anula una compra antes de que ingrese al inventario.
+    Anula una compra antes de ingresar inventario.
     """
 
     if purchase.status == PurchaseStatus.CONFIRMED:
@@ -60,6 +72,7 @@ def cancel_purchase(*, purchase: Purchase, user):
 
     purchase.status = PurchaseStatus.CANCELLED
     purchase.updated_by = user
+
     purchase.save(
         update_fields=[
             "status",

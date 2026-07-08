@@ -1,13 +1,12 @@
 from django.db.models import Case, F, IntegerField, Sum, Value, When
 from django.db.models.functions import Coalesce
 
-from .models import Product, StockMovementType
+from apps.inventory.models import Product, StockMovementType
 
 
 def current_stock(product: Product) -> int:
     """
-    Calcula el inventario actual de un producto a partir
-    del historial de movimientos.
+    Calcula el inventario actual de un producto.
     """
 
     result = (
@@ -21,9 +20,7 @@ def current_stock(product: Product) -> int:
                     then=F("quantity"),
                 ),
                 When(
-                    movement_type__in=[
-                        StockMovementType.EXIT,
-                    ],
+                    movement_type=StockMovementType.EXIT,
                     then=-F("quantity"),
                 ),
                 When(
