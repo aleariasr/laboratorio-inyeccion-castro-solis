@@ -1,41 +1,47 @@
 from django.db import transaction
 
 from .exceptions import (
-    InvalidPurchaseStateError,
+    InvalidPurchaseStatusError,
+    PurchaseAlreadyConfirmedError,
+    PurchaseCancelledError,
+    PurchaseWithoutItemsError,
 )
-from .models import (
-    PurchaseStatus,
-    StockMovement,
-    StockMovementType,
-)
-from .validators import validate_purchase_has_items
+from .models import Purchase, PurchaseStatus, StockMovement, StockMovementType
 
 
 @transaction.atomic
-def confirm_purchase(purchase):
+def confirm_purchase(*, purchase: Purchase, user):
     """
-    Confirma una compra y genera
-    los movimientos de inventario.
+    Confirma una compra e ingresa el inventario.
     """
 
-    if purchase.status != PurchaseStatus.DRAFT:
-        raise InvalidPurchaseStateError(
-            "Solo las compras en borrador pueden confirmarse."
+    if purchase.status == PurchaseStatus.CONFIRMED:
+        raise PurchaseAlreadyConfirmedError()
+
+    if purchase.status == PurchaseStatus.CANCELLED:
+        raise PurchaseCancelledError()
+
+    items = list(
+        purchase.items.select_related(
+            "supplier_product__product"
         )
+    )
 
-    validate_purchase_has_items(purchase)
+    if not items:
+        raise PurchaseWithoutItemsError()
 
-    for item in purchase.items.select_related(
-        "supplier_product__product"
-    ):
+    purchase.status = PurchaseStatus.CONFIRMED
+    purchase.updated_by = user
+    purchase.save(update_fields=["status", "updated_by", "updated_at"])
+
+    for item in items:
         StockMovement.objects.create(
             product=item.supplier_product.product,
             movement_type=StockMovementType.ENTRY,
             quantity=item.quantity,
             purchase_item=item,
-            created_by=purchase.created_by,
-            updated_by=purchase.updated_by,
+            created_by=user,
+            updated_by=user,
         )
 
-    purchase.status = PurchaseStatus.CONFIRMED
-    purchase.save(update_fields=["status", "updated_at"])
+    return purchase
