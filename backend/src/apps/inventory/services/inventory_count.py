@@ -1,5 +1,6 @@
 from django.db import transaction
 
+from apps.inventory.exceptions import InventoryError
 from apps.inventory.models import (
     InventoryCount,
     InventoryCountStatus,
@@ -27,7 +28,7 @@ def approve_inventory_count(
     """
 
     if inventory_count.status != InventoryCountStatus.DRAFT:
-        raise ValueError(
+        raise InventoryError(
             "Solo un conteo en borrador puede aprobarse."
         )
 

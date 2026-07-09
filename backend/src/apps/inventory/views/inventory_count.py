@@ -1,5 +1,8 @@
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
+from apps.inventory.exceptions import InventoryError
 from apps.inventory.models import (
     InventoryCount,
     InventoryCountItem,
@@ -8,6 +11,7 @@ from apps.inventory.serializers import (
     InventoryCountItemSerializer,
     InventoryCountSerializer,
 )
+from apps.inventory.services import approve_inventory_count
 
 
 class InventoryCountViewSet(viewsets.ModelViewSet):
@@ -36,6 +40,32 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="approve",
+    )
+    def approve(self, request, pk=None):
+        inventory_count = self.get_object()
+
+        try:
+            inventory_count = approve_inventory_count(
+                inventory_count=inventory_count,
+                user=request.user,
+            )
+        except InventoryError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(inventory_count)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
         )
 
 

@@ -18,6 +18,8 @@ from apps.inventory.services import (
     initial_inventory,
 )
 
+from apps.inventory.exceptions import InventoryError
+
 User = get_user_model()
 
 
@@ -84,7 +86,7 @@ class InventoryCountServiceTest(TestCase):
             user=self.user,
         )
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InventoryError):
             approve_inventory_count(
                 inventory_count=self.inventory_count,
                 user=self.user,

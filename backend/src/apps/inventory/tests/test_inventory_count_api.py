@@ -306,3 +306,160 @@ class InventoryCountApiTest(APITestCase):
         item.refresh_from_db()
 
         self.assertEqual(item.counted_quantity, 8)
+
+    def test_approve_inventory_count_with_positive_adjustment(self):
+        from apps.inventory.selectors import current_stock
+        from apps.inventory.services import initial_inventory
+
+        initial_inventory(
+            product=self.product,
+            quantity=5,
+            user=self.user,
+        )
+
+        InventoryCountItem.objects.create(
+            inventory_count=self.inventory_count,
+            product=self.product,
+            counted_quantity=8,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            f"/api/inventory/inventory-counts/{self.inventory_count.id}/approve/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.inventory_count.refresh_from_db()
+
+        self.assertEqual(
+            self.inventory_count.status,
+            InventoryCountStatus.APPROVED,
+        )
+        self.assertEqual(self.inventory_count.updated_by, self.user)
+        self.assertEqual(current_stock(self.product), 8)
+
+    def test_approve_inventory_count_with_negative_adjustment(self):
+        from apps.inventory.models import MovementDirection, StockMovement
+        from apps.inventory.selectors import current_stock
+        from apps.inventory.services import initial_inventory
+
+        initial_inventory(
+            product=self.product,
+            quantity=10,
+            user=self.user,
+        )
+
+        InventoryCountItem.objects.create(
+            inventory_count=self.inventory_count,
+            product=self.product,
+            counted_quantity=6,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            f"/api/inventory/inventory-counts/{self.inventory_count.id}/approve/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(current_stock(self.product), 6)
+
+        movement = (
+            StockMovement.objects
+            .filter(product=self.product)
+            .order_by("-id")
+            .first()
+        )
+
+        self.assertEqual(movement.direction, MovementDirection.OUT)
+        self.assertEqual(movement.quantity, 4)
+        self.assertEqual(
+            movement.notes,
+            f"Conteo físico {self.inventory_count.reference}",
+        )
+
+    def test_approve_inventory_count_without_difference_creates_no_adjustment(self):
+        from apps.inventory.models import StockMovement
+        from apps.inventory.selectors import current_stock
+        from apps.inventory.services import initial_inventory
+
+        initial_inventory(
+            product=self.product,
+            quantity=10,
+            user=self.user,
+        )
+
+        InventoryCountItem.objects.create(
+            inventory_count=self.inventory_count,
+            product=self.product,
+            counted_quantity=10,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        movements_before = StockMovement.objects.count()
+
+        response = self.client.post(
+            f"/api/inventory/inventory-counts/{self.inventory_count.id}/approve/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(current_stock(self.product), 10)
+        self.assertEqual(
+            StockMovement.objects.count(),
+            movements_before,
+        )
+
+    def test_cannot_approve_inventory_count_twice(self):
+        InventoryCountItem.objects.create(
+            inventory_count=self.inventory_count,
+            product=self.product,
+            counted_quantity=10,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        first_response = self.client.post(
+            f"/api/inventory/inventory-counts/{self.inventory_count.id}/approve/",
+            {},
+            format="json",
+        )
+
+        second_response = self.client.post(
+            f"/api/inventory/inventory-counts/{self.inventory_count.id}/approve/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            second_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    def test_cannot_approve_cancelled_inventory_count(self):
+        self.inventory_count.status = InventoryCountStatus.CANCELLED
+        self.inventory_count.save(update_fields=["status"])
+
+        response = self.client.post(
+            f"/api/inventory/inventory-counts/{self.inventory_count.id}/approve/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.inventory_count.refresh_from_db()
+
+        self.assertEqual(
+            self.inventory_count.status,
+            InventoryCountStatus.CANCELLED,
+        )
