@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -51,11 +51,12 @@ class CurrentUserView(APIView):
         return Response(UserSerializer(request.user).data)
 
 
-class UserListCreateView(generics.ListCreateAPIView):
+class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.order_by("username")
     permission_classes = [permissions.IsAdminUser]
 
     def get_serializer_class(self):
-        if self.request.method == "POST":
+        if self.action == "create":
             return UserCreateSerializer
+
         return UserSerializer
