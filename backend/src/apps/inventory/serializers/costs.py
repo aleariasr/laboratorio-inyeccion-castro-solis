@@ -3,6 +3,7 @@ from rest_framework import serializers
 from apps.inventory.models import (
     ImportCost,
     ImportCostCategory,
+    ProductCostHistory,
 )
 
 
@@ -78,3 +79,51 @@ class ImportCostSerializer(serializers.ModelSerializer):
             "currency": obj.purchase.currency,
             "status": obj.purchase.status,
         }
+    
+class ProductCostHistorySerializer(serializers.ModelSerializer):
+    product_detail = serializers.SerializerMethodField()
+    purchase_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductCostHistory
+        fields = (
+            "id",
+            "product",
+            "product_detail",
+            "purchase",
+            "purchase_detail",
+            "original_unit_cost",
+            "cost_factor",
+            "final_unit_cost",
+            "currency",
+            "exchange_rate",
+            "margin_percentage",
+            "suggested_price",
+            "calculated_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    def get_product_detail(self, obj):
+        return {
+            "id": obj.product_id,
+            "standard_code": obj.product.standard_code,
+            "name": obj.product.name,
+        }
+
+    def get_purchase_detail(self, obj):
+        return {
+            "id": obj.purchase_id,
+            "invoice_number": obj.purchase.invoice_number,
+            "supplier": obj.purchase.supplier.name,
+            "currency": obj.purchase.currency,
+        }
+
+
+class PurchaseCostCalculationSerializer(serializers.Serializer):
+    margin_percentage = serializers.DecimalField(
+        max_digits=8,
+        decimal_places=4,
+        min_value=0,
+    )

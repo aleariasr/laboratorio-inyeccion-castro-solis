@@ -15,6 +15,9 @@ from apps.inventory.models import (
     StorageLocation,
     Supplier,
     SupplierProduct,
+    ImportCost,
+    ImportCostCategory,
+    ProductCostHistory,
 )
 from apps.inventory.selectors import current_stock
 
@@ -319,3 +322,108 @@ class PurchaseApiTest(APITestCase):
         self.purchase_item.refresh_from_db()
 
         self.assertEqual(self.purchase_item.quantity, 5)
+
+    def test_calculate_purchase_costs_creates_cost_history(self):
+        category = ImportCostCategory.objects.create(
+            name="FLETE",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        ImportCost.objects.create(
+            purchase=self.purchase,
+            category=category,
+            amount=Decimal("100.0000"),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
+            {
+                "margin_percentage": "30.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(ProductCostHistory.objects.count(), 1)
+
+        history = ProductCostHistory.objects.get()
+
+        self.assertEqual(history.product, self.product)
+        self.assertEqual(history.purchase, self.purchase)
+        self.assertEqual(history.original_unit_cost, Decimal("100.0000"))
+        self.assertEqual(history.cost_factor, Decimal("1.2"))
+        self.assertEqual(history.final_unit_cost, Decimal("120.0000"))
+        self.assertEqual(history.suggested_price, Decimal("156.0000"))
+        self.assertEqual(history.margin_percentage, Decimal("30.0000"))
+        self.assertEqual(history.created_by, self.user)
+        self.assertEqual(history.updated_by, self.user)
+
+        item = response.data[0]
+
+        self.assertEqual(item["product"], self.product.id)
+        self.assertEqual(item["purchase"], self.purchase.id)
+        self.assertEqual(item["product_detail"]["standard_code"], "P-001")
+        self.assertEqual(
+            item["purchase_detail"]["invoice_number"],
+            "FAC-001",
+        )
+
+    def test_calculate_purchase_costs_creates_new_history_each_time(self):
+        first_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
+            {
+                "margin_percentage": "20.0000",
+            },
+            format="json",
+        )
+
+        second_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
+            {
+                "margin_percentage": "30.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(ProductCostHistory.objects.count(), 2)
+
+    def test_calculate_purchase_costs_requires_valid_margin(self):
+        response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
+            {
+                "margin_percentage": "-1.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(ProductCostHistory.objects.count(), 0)
+
+    def test_calculate_purchase_costs_without_items_returns_400(self):
+        purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-999",
+            purchase_date=date.today(),
+            currency="CRC",
+            exchange_rate=Decimal("1.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            f"/api/inventory/purchases/{purchase.id}/calculate-costs/",
+            {
+                "margin_percentage": "30.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(ProductCostHistory.objects.count(), 0)

@@ -3,17 +3,24 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.inventory.exceptions import (
+    InventoryError,
     PurchaseAlreadyConfirmedError,
     PurchaseCancelledError,
     PurchaseCannotBeCancelledError,
     PurchaseWithoutItemsError,
 )
+
 from apps.inventory.models import Purchase, PurchaseItem
+
 from apps.inventory.serializers import (
+    ProductCostHistorySerializer,
+    PurchaseCostCalculationSerializer,
     PurchaseItemSerializer,
     PurchaseSerializer,
 )
+
 from apps.inventory.services import (
+    calculate_purchase_costs,
     cancel_purchase,
     confirm_purchase,
 )
@@ -100,6 +107,45 @@ class PurchaseViewSet(viewsets.ModelViewSet):
 
         return Response(
             serializer.data,
+            status=status.HTTP_200_OK,
+        )
+    
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="calculate-costs",
+    )
+    def calculate_costs(self, request, pk=None):
+        purchase = self.get_object()
+
+        input_serializer = PurchaseCostCalculationSerializer(
+            data=request.data,
+        )
+        input_serializer.is_valid(
+            raise_exception=True,
+        )
+
+        try:
+            histories = calculate_purchase_costs(
+                purchase=purchase,
+                margin_percentage=input_serializer.validated_data[
+                    "margin_percentage"
+                ],
+                user=request.user,
+            )
+        except InventoryError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        output_serializer = ProductCostHistorySerializer(
+            histories,
+            many=True,
+        )
+
+        return Response(
+            output_serializer.data,
             status=status.HTTP_200_OK,
         )
 
