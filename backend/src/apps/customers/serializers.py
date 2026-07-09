@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.customers.models import Customer
+from apps.customers.models import Customer, Injector
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -38,3 +38,52 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def validate_phone(self, value):
         return value.strip()
+
+
+class CustomerSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = (
+            "id",
+            "customer_type",
+            "display_name",
+            "phone",
+            "email",
+            "identification",
+            "is_active",
+        )
+
+
+class InjectorSerializer(serializers.ModelSerializer):
+    customer_detail = CustomerSummarySerializer(
+        source="customer",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Injector
+        fields = (
+            "id",
+            "customer",
+            "customer_detail",
+            "injector_number",
+            "description",
+            "notes",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "created_at",
+            "updated_at",
+        )
+
+    def validate_injector_number(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "El número de inyector es obligatorio."
+            )
+
+        return value.upper()
