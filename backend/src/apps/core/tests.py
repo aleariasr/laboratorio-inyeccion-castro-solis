@@ -1,3 +1,6 @@
+from io import StringIO
+
+from django.core.management import call_command
 from django.contrib.auth.models import AnonymousUser, Group, User
 from django.test import RequestFactory, TestCase
 
@@ -233,4 +236,50 @@ class RolePermissionTest(TestCase):
                 request,
                 view=None,
             )
+        )
+
+class SetupRolesCommandTest(TestCase):
+    def test_setup_roles_creates_base_groups(self):
+        output = StringIO()
+
+        call_command(
+            "setup_roles",
+            stdout=output,
+        )
+
+        expected_roles = {
+            ROLE_ADMIN,
+            ROLE_INVENTORY,
+            ROLE_SALES,
+            ROLE_CUSTOMERS,
+            ROLE_READ_ONLY,
+        }
+
+        existing_roles = set(
+            Group.objects.filter(
+                name__in=expected_roles,
+            ).values_list(
+                "name",
+                flat=True,
+            )
+        )
+
+        self.assertEqual(existing_roles, expected_roles)
+        self.assertIn("Roles ready.", output.getvalue())
+
+    def test_setup_roles_is_idempotent(self):
+        call_command("setup_roles")
+        call_command("setup_roles")
+
+        self.assertEqual(
+            Group.objects.filter(
+                name__in=[
+                    ROLE_ADMIN,
+                    ROLE_INVENTORY,
+                    ROLE_SALES,
+                    ROLE_CUSTOMERS,
+                    ROLE_READ_ONLY,
+                ]
+            ).count(),
+            5,
         )
