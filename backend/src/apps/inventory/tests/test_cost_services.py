@@ -105,22 +105,27 @@ class PurchaseCostServiceTest(TestCase):
         self.assertEqual(history.final_unit_cost, Decimal("12.0000"))
         self.assertEqual(history.suggested_price, Decimal("15.6000"))
 
-    def test_calculate_purchase_costs_is_idempotent_per_purchase_product(self):
+    def test_calculate_purchase_costs_creates_new_history_on_recalculation(self):
+        calculate_purchase_costs(
+            purchase=self.purchase,
+            margin_percentage=Decimal("25.0000"),
+            user=self.user,
+        )
+
         calculate_purchase_costs(
             purchase=self.purchase,
             margin_percentage=Decimal("30.0000"),
             user=self.user,
         )
 
-        calculate_purchase_costs(
-            purchase=self.purchase,
-            margin_percentage=Decimal("40.0000"),
-            user=self.user,
+        self.assertEqual(ProductCostHistory.objects.count(), 2)
+
+        latest_history = ProductCostHistory.objects.order_by(
+            "-calculated_at",
+            "-id",
+        ).first()
+
+        self.assertEqual(
+            latest_history.margin_percentage,
+            Decimal("30.0000"),
         )
-
-        self.assertEqual(ProductCostHistory.objects.count(), 1)
-
-        history = ProductCostHistory.objects.get()
-
-        self.assertEqual(history.margin_percentage, Decimal("40.0000"))
-        self.assertEqual(history.suggested_price, Decimal("16.8000"))

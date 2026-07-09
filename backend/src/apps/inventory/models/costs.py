@@ -163,15 +163,6 @@ class ProductCostHistory(AuditModel):
             "-calculated_at",
             "-id",
         ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=[
-                    "product",
-                    "purchase",
-                ],
-                name="uq_product_purchase_cost_history",
-            )
-        ]
 
     def __str__(self):
         return (

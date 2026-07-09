@@ -2,6 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 
+from apps.inventory.exceptions import InventoryError
 from apps.inventory.models import ProductCostHistory, Purchase
 
 
@@ -31,7 +32,7 @@ def calculate_purchase_costs(
     )
 
     if invoice_subtotal <= 0:
-        raise ValueError(
+        raise InventoryError(
             "El subtotal de la compra debe ser mayor que cero."
         )
 
@@ -57,20 +58,18 @@ def calculate_purchase_costs(
             )
         )
 
-        history, _ = ProductCostHistory.objects.update_or_create(
+        history = ProductCostHistory.objects.create(
             product=product,
             purchase=purchase,
-            defaults={
-                "original_unit_cost": item.unit_cost,
-                "cost_factor": cost_factor,
-                "final_unit_cost": final_unit_cost,
-                "currency": purchase.currency,
-                "exchange_rate": purchase.exchange_rate,
-                "margin_percentage": margin_percentage,
-                "suggested_price": suggested_price,
-                "created_by": user,
-                "updated_by": user,
-            },
+            original_unit_cost=item.unit_cost,
+            cost_factor=cost_factor,
+            final_unit_cost=final_unit_cost,
+            currency=purchase.currency,
+            exchange_rate=purchase.exchange_rate,
+            margin_percentage=margin_percentage,
+            suggested_price=suggested_price,
+            created_by=user,
+            updated_by=user,
         )
 
         histories.append(history)
