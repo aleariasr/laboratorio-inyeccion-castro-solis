@@ -33,6 +33,7 @@ class SupplierApiTest(APITestCase):
             "/api/inventory/suppliers/",
             {
                 "name": "Denso",
+                "contact_name": "Carlos Mora",
                 "country": "Japón",
             },
             format="json",
@@ -43,6 +44,7 @@ class SupplierApiTest(APITestCase):
         supplier = Supplier.objects.get(id=response.data["id"])
 
         self.assertEqual(supplier.name, "DENSO")
+        self.assertEqual(supplier.contact_name, "Carlos Mora")
         self.assertEqual(supplier.country, "Japón")
         self.assertEqual(supplier.created_by, self.user)
         self.assertEqual(supplier.updated_by, self.user)
@@ -52,6 +54,7 @@ class SupplierApiTest(APITestCase):
             f"/api/inventory/suppliers/{self.supplier.id}/",
             {
                 "phone": "2222-3333",
+                "contact_name": "Ana López",
             },
             format="json",
         )
@@ -63,4 +66,8 @@ class SupplierApiTest(APITestCase):
         self.assertEqual(
             self.supplier.phone,
             "2222-3333",
+        )
+        self.assertEqual(
+            self.supplier.contact_name,
+            "Ana López",
         )
