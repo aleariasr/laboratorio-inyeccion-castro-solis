@@ -102,6 +102,10 @@ class PurchaseApiTest(APITestCase):
         self.assertEqual(item["supplier"], self.supplier.id)
         self.assertEqual(item["supplier_detail"]["name"], "PROVEEDOR")
         self.assertEqual(item["status"], PurchaseStatus.DRAFT)
+        self.assertIn("confirmed_at", item)
+        self.assertIn("confirmed_by", item)
+        self.assertIn("cancelled_at", item)
+        self.assertIn("cancelled_by", item)
         self.assertEqual(len(item["items"]), 1)
 
     def test_create_purchase(self):
@@ -188,6 +192,10 @@ class PurchaseApiTest(APITestCase):
         self.purchase.refresh_from_db()
 
         self.assertEqual(self.purchase.status, PurchaseStatus.CONFIRMED)
+        self.assertIsNotNone(self.purchase.confirmed_at)
+        self.assertEqual(self.purchase.confirmed_by, self.user)
+        self.assertIsNone(self.purchase.cancelled_at)
+        self.assertIsNone(self.purchase.cancelled_by)
         self.assertEqual(current_stock(self.product), 5)
 
         movement = StockMovement.objects.get()
@@ -254,6 +262,10 @@ class PurchaseApiTest(APITestCase):
         self.purchase.refresh_from_db()
 
         self.assertEqual(self.purchase.status, PurchaseStatus.CANCELLED)
+        self.assertIsNotNone(self.purchase.cancelled_at)
+        self.assertEqual(self.purchase.cancelled_by, self.user)
+        self.assertIsNone(self.purchase.confirmed_at)
+        self.assertIsNone(self.purchase.confirmed_by)
 
     def test_cannot_cancel_confirmed_purchase(self):
         confirm_response = self.client.post(

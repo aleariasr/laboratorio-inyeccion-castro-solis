@@ -115,6 +115,10 @@ class SaleSerializer(serializers.ModelSerializer):
             "currency",
             "exchange_rate",
             "status",
+            "confirmed_at",
+            "confirmed_by",
+            "cancelled_at",
+            "cancelled_by",
             "notes",
             "items",
             "total",
@@ -124,6 +128,10 @@ class SaleSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "status",
+            "confirmed_at",
+            "confirmed_by",
+            "cancelled_at",
+            "cancelled_by",
             "created_at",
             "updated_at",
             "total",

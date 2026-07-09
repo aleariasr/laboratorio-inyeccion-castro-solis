@@ -1,3 +1,4 @@
+from django.conf import settings
 from decimal import Decimal
 
 from django.core.validators import MinValueValidator
@@ -45,6 +46,32 @@ class Purchase(AuditModel, ActivableModel):
         max_length=15,
         choices=PurchaseStatus.choices,
         default=PurchaseStatus.DRAFT,
+    )
+    
+    confirmed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="confirmed_purchases",
+        null=True,
+        blank=True,
+    )
+
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="cancelled_purchases",
+        null=True,
+        blank=True,
     )
 
     notes = models.TextField(

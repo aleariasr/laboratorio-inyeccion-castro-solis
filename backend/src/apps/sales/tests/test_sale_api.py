@@ -96,6 +96,10 @@ class SaleApiTest(APITestCase):
             "CLIENTE PRUEBA",
         )
         self.assertEqual(item["status"], SaleStatus.DRAFT)
+        self.assertIn("confirmed_at", item)
+        self.assertIn("confirmed_by", item)
+        self.assertIn("cancelled_at", item)
+        self.assertIn("cancelled_by", item)
         self.assertEqual(len(item["items"]), 1)
 
     def test_create_sale(self):
@@ -180,6 +184,10 @@ class SaleApiTest(APITestCase):
         self.sale.refresh_from_db()
 
         self.assertEqual(self.sale.status, SaleStatus.CONFIRMED)
+        self.assertIsNotNone(self.sale.confirmed_at)
+        self.assertEqual(self.sale.confirmed_by, self.user)
+        self.assertIsNone(self.sale.cancelled_at)
+        self.assertIsNone(self.sale.cancelled_by)
         self.assertEqual(current_stock(self.product), 7)
 
         movement = StockMovement.objects.filter(
@@ -290,6 +298,10 @@ class SaleApiTest(APITestCase):
         self.sale.refresh_from_db()
 
         self.assertEqual(self.sale.status, SaleStatus.CANCELLED)
+        self.assertIsNotNone(self.sale.confirmed_at)
+        self.assertEqual(self.sale.confirmed_by, self.user)
+        self.assertIsNotNone(self.sale.cancelled_at)
+        self.assertEqual(self.sale.cancelled_by, self.user)
         self.assertEqual(current_stock(self.product), 10)
 
     def test_cannot_cancel_draft_sale(self):

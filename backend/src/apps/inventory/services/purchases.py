@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.db import transaction
 
 from apps.inventory.exceptions import (
@@ -33,11 +34,15 @@ def confirm_purchase(*, purchase: Purchase, user):
         raise PurchaseWithoutItemsError()
 
     purchase.status = PurchaseStatus.CONFIRMED
+    purchase.confirmed_at = timezone.now()
+    purchase.confirmed_by = user
     purchase.updated_by = user
 
     purchase.save(
         update_fields=[
             "status",
+            "confirmed_at",
+            "confirmed_by",
             "updated_by",
             "updated_at",
         ]
@@ -66,11 +71,15 @@ def cancel_purchase(*, purchase: Purchase, user):
         return purchase
 
     purchase.status = PurchaseStatus.CANCELLED
+    purchase.cancelled_at = timezone.now()
+    purchase.cancelled_by = user
     purchase.updated_by = user
 
     purchase.save(
         update_fields=[
             "status",
+            "cancelled_at",
+            "cancelled_by",
             "updated_by",
             "updated_at",
         ]

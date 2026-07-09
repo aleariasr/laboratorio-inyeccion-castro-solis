@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.db import transaction
 
 from apps.inventory.models import (
@@ -41,11 +42,15 @@ def confirm_sale(*, sale: Sale, user):
             )
 
     sale.status = SaleStatus.CONFIRMED
+    sale.confirmed_at = timezone.now()
+    sale.confirmed_by = user
     sale.updated_by = user
 
     sale.save(
         update_fields=[
             "status",
+            "confirmed_at",
+            "confirmed_by",
             "updated_by",
             "updated_at",
         ]
@@ -83,11 +88,15 @@ def cancel_sale(
     )
 
     sale.status = SaleStatus.CANCELLED
+    sale.cancelled_at = timezone.now()
+    sale.cancelled_by = user
     sale.updated_by = user
 
     sale.save(
         update_fields=[
             "status",
+            "cancelled_at",
+            "cancelled_by",
             "updated_by",
             "updated_at",
         ]
