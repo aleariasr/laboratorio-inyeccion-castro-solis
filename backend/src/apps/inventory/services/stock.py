@@ -7,6 +7,7 @@ from apps.inventory.models import (
     StockMovement,
     StockMovementType,
 )
+from apps.inventory.selectors import current_stock
 
 
 @transaction.atomic
@@ -49,6 +50,13 @@ def adjust_stock(
     if quantity == 0:
         raise InventoryError(
             "El ajuste no puede ser cero."
+        )
+
+    available_stock = current_stock(product)
+
+    if quantity < 0 and abs(quantity) > available_stock:
+        raise InventoryError(
+            "El ajuste no puede dejar el inventario en negativo."
         )
 
     direction = (

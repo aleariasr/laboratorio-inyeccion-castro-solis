@@ -144,3 +144,47 @@ class InitialInventoryServiceTest(TestCase):
                 user=self.user,
                 notes="Inválido",
             )
+
+    def test_negative_adjustment_cannot_exceed_current_stock(self):
+        initial_inventory(
+            product=self.product,
+            quantity=20,
+            user=self.user,
+        )
+
+        with self.assertRaises(InventoryError):
+            adjust_stock(
+                product=self.product,
+                quantity=-21,
+                user=self.user,
+                notes="Ajuste inválido",
+            )
+
+        self.assertEqual(
+            current_stock(self.product),
+            20,
+        )
+
+    def test_negative_adjustment_can_leave_stock_at_zero(self):
+        initial_inventory(
+            product=self.product,
+            quantity=20,
+            user=self.user,
+        )
+
+        movement = adjust_stock(
+            product=self.product,
+            quantity=-20,
+            user=self.user,
+            notes="Ajuste válido",
+        )
+
+        self.assertEqual(
+            movement.direction,
+            MovementDirection.OUT,
+        )
+
+        self.assertEqual(
+            current_stock(self.product),
+            0,
+        )
