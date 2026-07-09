@@ -38,10 +38,13 @@ check:
 	$(BACKEND) check
 
 test:
-	$(BACKEND) test apps.accounts apps.inventory apps.customers apps.sales
+	$(BACKEND) test apps.accounts apps.core apps.inventory apps.customers apps.sales
 
 test-inventory:
 	$(BACKEND) test apps.inventory
+
+test-core:
+	$(BACKEND) test apps.core
 
 test-customers:
 	$(BACKEND) test apps.customers
