@@ -43,6 +43,7 @@ services:
       - -c
       - |
         python src/manage.py migrate &&
+        python src/manage.py setup_roles &&
         python src/manage.py runserver 0.0.0.0:8000
     healthcheck:
       test:

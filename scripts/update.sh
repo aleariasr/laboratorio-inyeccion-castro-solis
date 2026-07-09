@@ -455,7 +455,15 @@ run_migrations() {
         backend \
         python src/manage.py migrate --noinput
 
-    log_ok "Migraciones completadas."
+    log_info "Asegurando roles base de la aplicación..."
+
+    compose_new run \
+        --rm \
+        --no-deps \
+        backend \
+        python src/manage.py setup_roles
+
+    log_ok "Migraciones y roles base completados."
 }
 
 start_new_application() {
