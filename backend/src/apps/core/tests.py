@@ -1,3 +1,8 @@
+from decimal import Decimal
+
+from apps.core.permissions import ROLE_INVENTORY, ROLE_READ_ONLY
+from apps.inventory.selectors import current_stock
+from apps.inventory.services import initial_inventory
 from io import StringIO
 
 from django.core.management import call_command
@@ -491,3 +496,150 @@ class UniversalSearchApiTest(APITestCase):
             response.data["results"]["injectors"][0]["injector_number"],
             "INY-001",
         )
+
+class InventoryReportsApiTest(APITestCase):
+    def setUp(self):
+        self.inventory_user = User.objects.create_user(
+            username="reports-inventory",
+            password="12345678",
+        )
+
+        inventory_group, _ = Group.objects.get_or_create(
+            name=ROLE_INVENTORY,
+        )
+        self.inventory_user.groups.add(inventory_group)
+
+        self.read_only_user = User.objects.create_user(
+            username="reports-readonly",
+            password="12345678",
+        )
+
+        read_only_group, _ = Group.objects.get_or_create(
+            name=ROLE_READ_ONLY,
+        )
+        self.read_only_user.groups.add(read_only_group)
+
+        self.plain_user = User.objects.create_user(
+            username="reports-plain",
+            password="12345678",
+        )
+
+        self.location = StorageLocation.objects.create(
+            code="B200",
+            description="Estante B",
+            created_by=self.inventory_user,
+            updated_by=self.inventory_user,
+        )
+
+        self.product = Product.objects.create(
+            standard_code="REP-001",
+            name="Producto reporte",
+            description="Producto para reportes",
+            storage_location=self.location,
+            minimum_stock=5,
+            created_by=self.inventory_user,
+            updated_by=self.inventory_user,
+        )
+
+        self.product_with_stock = Product.objects.create(
+            standard_code="REP-002",
+            name="Producto con stock",
+            description="Producto con inventario",
+            storage_location=self.location,
+            minimum_stock=1,
+            created_by=self.inventory_user,
+            updated_by=self.inventory_user,
+        )
+
+        initial_inventory(
+            product=self.product_with_stock,
+            quantity=10,
+            user=self.inventory_user,
+        )
+
+    def test_low_stock_report_lists_products_below_minimum(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.get(
+            "/api/reports/low-stock-products/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        standard_codes = {
+            item["standard_code"]
+            for item in response.data["results"]
+        }
+
+        self.assertIn("REP-001", standard_codes)
+        self.assertNotIn("REP-002", standard_codes)
+
+    def test_stock_by_location_report_groups_products(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.get(
+            "/api/reports/stock-by-location/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"][0]["code"], "B200")
+
+        product_codes = {
+            item["standard_code"]
+            for item in response.data["results"][0]["products"]
+        }
+
+        self.assertIn("REP-001", product_codes)
+        self.assertIn("REP-002", product_codes)
+
+    def test_product_movements_report_lists_movements(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.get(
+            "/api/reports/product-movements/",
+            {
+                "product": self.product_with_stock.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["product"]["standard_code"],
+            "REP-002",
+        )
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(current_stock(self.product_with_stock), 10)
+
+    def test_product_movements_report_requires_product(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.get(
+            "/api/reports/product-movements/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reports_allow_read_only_user_to_read(self):
+        self.client.force_authenticate(self.read_only_user)
+
+        response = self.client.get(
+            "/api/reports/low-stock-products/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_reports_block_authenticated_user_without_group(self):
+        self.client.force_authenticate(self.plain_user)
+
+        response = self.client.get(
+            "/api/reports/low-stock-products/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_reports_require_authentication(self):
+        response = self.client.get(
+            "/api/reports/low-stock-products/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

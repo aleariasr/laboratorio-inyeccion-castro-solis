@@ -1,7 +1,8 @@
-from rest_framework import permissions
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.permissions import InventoryPermission
 from apps.customers.models import Customer, Injector
 from apps.inventory.models import (
     Product,
@@ -9,6 +10,11 @@ from apps.inventory.models import (
     Purchase,
     StorageLocation,
     Supplier,
+)
+from apps.inventory.selectors import (
+    current_stock_bulk,
+    low_stock_products,
+    stock_history,
 )
 
 
@@ -200,3 +206,136 @@ class UniversalSearchView(APIView):
             }
             for injector in injectors
         ]
+    
+class LowStockProductsReportView(APIView):
+    permission_classes = [InventoryPermission]
+
+    def get(self, request):
+        products = (
+            low_stock_products()
+            .select_related("storage_location")[:100]
+        )
+
+        return Response(
+            {
+                "results": [
+                    {
+                        "id": product.id,
+                        "standard_code": product.standard_code,
+                        "name": product.name,
+                        "minimum_stock": product.minimum_stock,
+                        "current_stock": product.current_stock,
+                        "storage_location": {
+                            "id": product.storage_location_id,
+                            "code": product.storage_location.code,
+                        },
+                    }
+                    for product in products
+                ]
+            }
+        )
+
+
+class StockByLocationReportView(APIView):
+    permission_classes = [InventoryPermission]
+
+    def get(self, request):
+        products = (
+            current_stock_bulk()
+            .select_related("storage_location")
+        )
+
+        locations = {}
+
+        for product in products:
+            location = product.storage_location
+
+            if location.id not in locations:
+                locations[location.id] = {
+                    "id": location.id,
+                    "code": location.code,
+                    "description": location.description,
+                    "total_stock": 0,
+                    "products": [],
+                }
+
+            locations[location.id]["total_stock"] += product.current_stock
+            locations[location.id]["products"].append(
+                {
+                    "id": product.id,
+                    "standard_code": product.standard_code,
+                    "name": product.name,
+                    "current_stock": product.current_stock,
+                    "minimum_stock": product.minimum_stock,
+                }
+            )
+
+        return Response(
+            {
+                "results": list(
+                    sorted(
+                        locations.values(),
+                        key=lambda item: item["code"],
+                    )
+                )
+            }
+        )
+
+
+class ProductMovementsReportView(APIView):
+    permission_classes = [InventoryPermission]
+
+    def get(self, request):
+        product_id = request.query_params.get("product")
+
+        if not product_id:
+            return Response(
+                {
+                    "detail": "Debe indicar el producto."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            product = Product.objects.select_related(
+                "storage_location",
+            ).get(
+                id=product_id,
+            )
+        except Product.DoesNotExist:
+            return Response(
+                {
+                    "detail": "Producto no encontrado."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        movements = stock_history(product)[:100]
+
+        return Response(
+            {
+                "product": {
+                    "id": product.id,
+                    "standard_code": product.standard_code,
+                    "name": product.name,
+                    "storage_location": {
+                        "id": product.storage_location_id,
+                        "code": product.storage_location.code,
+                    },
+                },
+                "results": [
+                    {
+                        "id": movement.id,
+                        "movement_type": movement.movement_type,
+                        "direction": movement.direction,
+                        "quantity": movement.quantity,
+                        "purchase_item": movement.purchase_item_id,
+                        "sale_item": movement.sale_item_id,
+                        "notes": movement.notes,
+                        "created_at": movement.created_at,
+                        "created_by": movement.created_by_id,
+                    }
+                    for movement in movements
+                ],
+            }
+        )
