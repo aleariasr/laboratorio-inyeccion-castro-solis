@@ -8,6 +8,15 @@ from apps.customers.models import (
     InjectorServiceStatus,
 )
 
+from apps.customers.models import (
+    Customer,
+    Injector,
+    InjectorAccessory,
+    InjectorServiceAccessory,
+    InjectorServiceRecord,
+    InjectorServiceStatus,
+)
+
 
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -195,3 +204,59 @@ class InjectorAccessorySerializer(serializers.ModelSerializer):
             )
 
         return value
+    
+class InjectorServiceAccessorySerializer(serializers.ModelSerializer):
+    accessory_detail = InjectorAccessorySerializer(
+        source="accessory",
+        read_only=True,
+    )
+
+    class Meta:
+        model = InjectorServiceAccessory
+        fields = (
+            "id",
+            "service_record",
+            "accessory",
+            "accessory_detail",
+            "quantity",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "created_at",
+            "updated_at",
+        )
+
+    def validate(self, attrs):
+        service_record = attrs.get(
+            "service_record",
+            self.instance.service_record if self.instance else None,
+        )
+        accessory = attrs.get(
+            "accessory",
+            self.instance.accessory if self.instance else None,
+        )
+
+        if service_record.status in {
+            InjectorServiceStatus.DELIVERED,
+            InjectorServiceStatus.CANCELLED,
+        }:
+            raise serializers.ValidationError(
+                "No se pueden modificar accesorios de servicios entregados o anulados."
+            )
+
+        queryset = InjectorServiceAccessory.objects.filter(
+            service_record=service_record,
+            accessory=accessory,
+        )
+
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "Este accesorio ya fue registrado en el servicio."
+            )
+
+        return attrs

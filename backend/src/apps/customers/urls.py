@@ -7,6 +7,14 @@ from apps.customers.views import (
     InjectorViewSet,
 )
 
+from apps.customers.views import (
+    CustomerViewSet,
+    InjectorAccessoryViewSet,
+    InjectorServiceAccessoryViewSet,
+    InjectorServiceRecordViewSet,
+    InjectorViewSet,
+)
+
 router = DefaultRouter()
 router.register(
     "customers",
@@ -27,6 +35,12 @@ router.register(
     "accessories",
     InjectorAccessoryViewSet,
     basename="accessory",
+)
+
+router.register(
+    "service-accessories",
+    InjectorServiceAccessoryViewSet,
+    basename="service-accessory",
 )
 
 urlpatterns = router.urls

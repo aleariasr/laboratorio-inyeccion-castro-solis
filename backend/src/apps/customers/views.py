@@ -15,10 +15,12 @@ from apps.customers.models import (
     InjectorServiceRecord,
 )
 from apps.customers.selectors import customer_search
+
 from apps.customers.serializers import (
     CustomerSerializer,
     InjectorAccessorySerializer,
     InjectorSerializer,
+    InjectorServiceAccessorySerializer,
     InjectorServiceRecordSerializer,
 )
 from apps.customers.services import (
@@ -29,6 +31,14 @@ from apps.customers.services import (
     register_customer,
     register_injector,
     start_service,
+)
+
+from apps.customers.models import (
+    Customer,
+    Injector,
+    InjectorAccessory,
+    InjectorServiceAccessory,
+    InjectorServiceRecord,
 )
 
 
@@ -340,6 +350,40 @@ class InjectorAccessoryViewSet(viewsets.ModelViewSet):
     queryset = InjectorAccessory.objects.order_by("name")
     serializer_class = InjectorAccessorySerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            updated_by=self.request.user,
+        )
+
+    def perform_update(self, serializer):
+        serializer.save(
+            updated_by=self.request.user,
+        )
+
+class InjectorServiceAccessoryViewSet(viewsets.ModelViewSet):
+    serializer_class = InjectorServiceAccessorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = (
+            InjectorServiceAccessory.objects
+            .select_related(
+                "service_record",
+                "service_record__injector",
+                "service_record__injector__customer",
+                "accessory",
+            )
+            .order_by("-created_at", "-id")
+        )
+
+        service_record_id = self.request.query_params.get("service_record")
+
+        if service_record_id:
+            queryset = queryset.filter(service_record_id=service_record_id)
+
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(
