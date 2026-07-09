@@ -2,8 +2,9 @@ from django.db import transaction
 
 from apps.customers.exceptions import (
     CustomerAlreadyExistsError,
+    InjectorAlreadyExistsError,
 )
-from apps.customers.models import Customer
+from apps.customers.models import Customer, Injector
 
 
 @transaction.atomic
@@ -39,9 +40,6 @@ def register_customer(
         created_by=user,
         updated_by=user,
     )
-
-from apps.customers.exceptions import InjectorAlreadyExistsError
-from apps.customers.models import Injector
 
 
 @transaction.atomic

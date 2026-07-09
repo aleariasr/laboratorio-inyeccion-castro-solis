@@ -42,6 +42,7 @@ def confirm_sale(*, sale: Sale, user):
 
     sale.status = SaleStatus.CONFIRMED
     sale.updated_by = user
+
     sale.save(
         update_fields=[
             "status",
@@ -63,6 +64,7 @@ def confirm_sale(*, sale: Sale, user):
         )
 
     return sale
+
 
 @transaction.atomic
 def cancel_sale(

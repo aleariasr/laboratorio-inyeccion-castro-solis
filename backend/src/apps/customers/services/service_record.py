@@ -1,8 +1,11 @@
 from django.db import transaction
 
+from apps.customers.exceptions import InvalidServiceTransitionError
 from apps.customers.models import (
     InjectorServiceRecord,
+    InjectorServiceStatus,
 )
+
 
 def _change_status(
     *,
@@ -11,10 +14,6 @@ def _change_status(
     new_status,
     user,
 ):
-    from apps.customers.exceptions import (
-        InvalidServiceTransitionError,
-    )
-
     if service_record.status != expected_status:
         raise InvalidServiceTransitionError(
             f"No se puede cambiar de "
@@ -35,6 +34,7 @@ def _change_status(
 
     return service_record
 
+
 @transaction.atomic
 def receive_injector(
     *,
@@ -48,11 +48,6 @@ def receive_injector(
         created_by=user,
         updated_by=user,
     )
-
-from apps.customers.models import InjectorServiceStatus
-
-
-from apps.customers.models import InjectorServiceStatus
 
 
 @transaction.atomic
@@ -68,14 +63,13 @@ def start_service(
         user=user,
     )
 
+
 @transaction.atomic
 def mark_ready(
     *,
     service_record,
     user,
 ):
-    from apps.customers.models import InjectorServiceStatus
-
     return _change_status(
         service_record=service_record,
         expected_status=InjectorServiceStatus.IN_PROGRESS,
@@ -91,8 +85,6 @@ def deliver_service(
     delivered_at,
     user,
 ):
-    from apps.customers.models import InjectorServiceStatus
-
     service_record = _change_status(
         service_record=service_record,
         expected_status=InjectorServiceStatus.READY,
@@ -118,22 +110,12 @@ def cancel_service(
     service_record,
     user,
 ):
-    from apps.customers.models import InjectorServiceStatus
-
     if service_record.status == InjectorServiceStatus.DELIVERED:
-        from apps.customers.exceptions import (
-            InvalidServiceTransitionError,
-        )
-
         raise InvalidServiceTransitionError(
             "Un servicio entregado no puede anularse."
         )
 
     if service_record.status == InjectorServiceStatus.CANCELLED:
-        from apps.customers.exceptions import (
-            InvalidServiceTransitionError,
-        )
-
         raise InvalidServiceTransitionError(
             "El servicio ya está anulado."
         )
