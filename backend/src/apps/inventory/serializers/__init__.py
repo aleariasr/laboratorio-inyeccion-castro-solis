@@ -4,6 +4,7 @@ from apps.inventory.models import Product, StorageLocation
 from apps.inventory.selectors import current_stock
 
 from .supplier import SupplierSerializer
+from .supplier_product import SupplierProductSerializer
 
 
 class StorageLocationSerializer(serializers.ModelSerializer):
