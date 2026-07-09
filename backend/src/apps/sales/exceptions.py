@@ -3,23 +3,24 @@ class SalesError(Exception):
 
 
 class SaleAlreadyConfirmedError(SalesError):
-    pass
+    """La venta ya fue confirmada."""
 
 
 class SaleCancelledError(SalesError):
-    pass
+    """La venta fue anulada."""
 
 
 class SaleWithoutItemsError(SalesError):
-    pass
+    """La venta no posee líneas."""
 
 
 class InsufficientStockError(SalesError):
-    pass
+    """No hay inventario suficiente."""
+
 
 class SaleNotConfirmedError(SalesError):
-    pass
+    """La venta no está confirmada."""
 
 
 class SaleAlreadyCancelledError(SalesError):
-    pass
+    """La venta ya fue anulada."""

@@ -1,18 +1,18 @@
 class CustomerError(Exception):
-    """Excepción base del dominio Customers."""
+    """Excepción base del dominio de clientes."""
 
 
 class CustomerAlreadyExistsError(CustomerError):
-    pass
+    """El cliente ya existe."""
 
 
 class CustomerInactiveError(CustomerError):
-    pass
+    """El cliente está inactivo."""
 
 
 class InjectorAlreadyExistsError(CustomerError):
-    pass
+    """El inyector ya existe para el cliente."""
 
 
 class InvalidServiceTransitionError(CustomerError):
-    pass
+    """La transición de estado del servicio no es válida."""
