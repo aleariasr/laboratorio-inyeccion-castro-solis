@@ -1,0 +1,129 @@
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from apps.inventory.exceptions import (
+    PurchaseAlreadyConfirmedError,
+    PurchaseCancelledError,
+    PurchaseCannotBeCancelledError,
+    PurchaseWithoutItemsError,
+)
+from apps.inventory.models import Purchase, PurchaseItem
+from apps.inventory.serializers import (
+    PurchaseItemSerializer,
+    PurchaseSerializer,
+)
+from apps.inventory.services import (
+    cancel_purchase,
+    confirm_purchase,
+)
+
+
+class PurchaseViewSet(viewsets.ModelViewSet):
+    queryset = (
+        Purchase.objects.select_related("supplier")
+        .prefetch_related(
+            "items",
+            "items__supplier_product",
+            "items__supplier_product__supplier",
+            "items__supplier_product__product",
+        )
+        .order_by(
+            "-purchase_date",
+            "-id",
+        )
+    )
+    serializer_class = PurchaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            updated_by=self.request.user,
+        )
+
+    def perform_update(self, serializer):
+        serializer.save(
+            updated_by=self.request.user,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="confirm",
+    )
+    def confirm(self, request, pk=None):
+        purchase = self.get_object()
+
+        try:
+            purchase = confirm_purchase(
+                purchase=purchase,
+                user=request.user,
+            )
+        except (
+            PurchaseAlreadyConfirmedError,
+            PurchaseCancelledError,
+            PurchaseWithoutItemsError,
+        ) as exc:
+            return Response(
+                {"detail": str(exc) or exc.__class__.__name__},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(purchase)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="cancel",
+    )
+    def cancel(self, request, pk=None):
+        purchase = self.get_object()
+
+        try:
+            purchase = cancel_purchase(
+                purchase=purchase,
+                user=request.user,
+            )
+        except PurchaseCannotBeCancelledError as exc:
+            return Response(
+                {"detail": str(exc) or exc.__class__.__name__},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(purchase)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class PurchaseItemViewSet(viewsets.ModelViewSet):
+    queryset = (
+        PurchaseItem.objects.select_related(
+            "purchase",
+            "supplier_product",
+            "supplier_product__supplier",
+            "supplier_product__product",
+        )
+        .order_by("id")
+    )
+    serializer_class = PurchaseItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            updated_by=self.request.user,
+        )
+
+    def perform_update(self, serializer):
+        serializer.save(
+            updated_by=self.request.user,
+        )

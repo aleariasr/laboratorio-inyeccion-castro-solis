@@ -2,6 +2,8 @@ from rest_framework.routers import DefaultRouter
 
 from apps.inventory.views import (
     ProductViewSet,
+    PurchaseItemViewSet,
+    PurchaseViewSet,
     StorageLocationViewSet,
     SupplierProductViewSet,
     SupplierViewSet,
@@ -27,6 +29,16 @@ router.register(
     "supplier-products",
     SupplierProductViewSet,
     basename="supplier-product",
+)
+router.register(
+    "purchases",
+    PurchaseViewSet,
+    basename="purchase",
+)
+router.register(
+    "purchase-items",
+    PurchaseItemViewSet,
+    basename="purchase-item",
 )
 
 urlpatterns = router.urls
