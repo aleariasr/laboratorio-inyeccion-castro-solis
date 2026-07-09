@@ -1,6 +1,8 @@
 from rest_framework.routers import DefaultRouter
 
 from apps.inventory.views import (
+    ImportCostCategoryViewSet,
+    ImportCostViewSet,
     InventoryCountItemViewSet,
     InventoryCountViewSet,
     ProductReferenceViewSet,
@@ -57,6 +59,16 @@ router.register(
     "inventory-count-items",
     InventoryCountItemViewSet,
     basename="inventory-count-item",
+)
+router.register(
+    "import-cost-categories",
+    ImportCostCategoryViewSet,
+    basename="import-cost-category",
+)
+router.register(
+    "import-costs",
+    ImportCostViewSet,
+    basename="import-cost",
 )
 
 urlpatterns = router.urls
