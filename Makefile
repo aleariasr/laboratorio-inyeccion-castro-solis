@@ -1,4 +1,5 @@
 COMPOSE=docker compose -f infra/docker/compose.yml
+BACKEND=$(COMPOSE) exec backend python src/manage.py
 
 up:
 	$(COMPOSE) up -d --build
@@ -28,13 +29,25 @@ db:
 	$(COMPOSE) exec postgres psql -U lics -d lics
 
 migrate:
-	$(COMPOSE) exec backend python src/manage.py migrate
+	$(BACKEND) migrate
 
 makemigrations:
-	$(COMPOSE) exec backend python src/manage.py makemigrations
+	$(BACKEND) makemigrations
 
 check:
-	$(COMPOSE) exec backend python src/manage.py check
+	$(BACKEND) check
+
+test:
+	$(BACKEND) test apps.inventory apps.customers apps.sales
+
+test-inventory:
+	$(BACKEND) test apps.inventory
+
+test-customers:
+	$(BACKEND) test apps.customers
+
+test-sales:
+	$(BACKEND) test apps.sales
 
 run:
-	$(COMPOSE) exec backend python src/manage.py runserver 0.0.0.0:8000
+	$(BACKEND) runserver 0.0.0.0:8000
