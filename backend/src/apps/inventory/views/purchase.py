@@ -19,12 +19,14 @@ from apps.inventory.serializers import (
     PurchaseCostCalculationSerializer,
     PurchaseItemSerializer,
     PurchaseSerializer,
+    PurchaseCostSummaryInputSerializer,
 )
 
 from apps.inventory.services import (
     calculate_purchase_costs,
     cancel_purchase,
     confirm_purchase,
+    purchase_cost_summary,
 )
 
 
@@ -145,6 +147,39 @@ class PurchaseViewSet(viewsets.ModelViewSet):
 
         return Response(
             output_serializer.data,
+            status=status.HTTP_200_OK,
+        )
+    
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="cost-summary",
+    )
+    def cost_summary(self, request, pk=None):
+        purchase = self.get_object()
+
+        input_serializer = PurchaseCostSummaryInputSerializer(
+            data=request.query_params,
+        )
+        input_serializer.is_valid(
+            raise_exception=True,
+        )
+
+        try:
+            summary = purchase_cost_summary(
+                purchase=purchase,
+                margin_percentage=input_serializer.validated_data[
+                    "margin_percentage"
+                ],
+            )
+        except InventoryError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            summary,
             status=status.HTTP_200_OK,
         )
 

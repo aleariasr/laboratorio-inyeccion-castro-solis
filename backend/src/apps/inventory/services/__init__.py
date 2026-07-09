@@ -10,7 +10,10 @@ from .stock import (
     initial_inventory,
 )
 
-from .costs import calculate_purchase_costs
+from .costs import (
+    calculate_purchase_costs,
+    purchase_cost_summary,
+)
 
 __all__ = [
     "approve_inventory_count",
@@ -19,4 +22,5 @@ __all__ = [
     "initial_inventory",
     "adjust_stock",
     "calculate_purchase_costs",
+    "purchase_cost_summary",
 ]

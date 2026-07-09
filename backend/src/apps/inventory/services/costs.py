@@ -12,6 +12,58 @@ def _money(value: Decimal) -> Decimal:
         rounding=ROUND_HALF_UP,
     )
 
+def purchase_cost_summary(
+    *,
+    purchase: Purchase,
+    margin_percentage: Decimal,
+):
+    items = list(
+        purchase.items.all()
+    )
+
+    invoice_subtotal = sum(
+        (
+            item.unit_cost * item.quantity
+            for item in items
+        ),
+        Decimal("0"),
+    )
+
+    if invoice_subtotal <= 0:
+        raise InventoryError(
+            "El subtotal de la compra debe ser mayor que cero."
+        )
+
+    import_costs_total = sum(
+        (
+            cost.amount
+            for cost in purchase.import_costs.filter(is_active=True)
+        ),
+        Decimal("0"),
+    )
+
+    total_cost = invoice_subtotal + import_costs_total
+    cost_factor = total_cost / invoice_subtotal
+
+    suggested_total = _money(
+        total_cost
+        * (
+            Decimal("1")
+            + (margin_percentage / Decimal("100"))
+        )
+    )
+
+    return {
+        "purchase": purchase.id,
+        "invoice_subtotal": _money(invoice_subtotal),
+        "import_costs_total": _money(import_costs_total),
+        "total_cost": _money(total_cost),
+        "cost_factor": cost_factor,
+        "margin_percentage": margin_percentage,
+        "suggested_total": suggested_total,
+        "currency": purchase.currency,
+        "exchange_rate": purchase.exchange_rate,
+    }
 
 @transaction.atomic
 def calculate_purchase_costs(
@@ -26,23 +78,12 @@ def calculate_purchase_costs(
         )
     )
 
-    invoice_subtotal = sum(
-        item.unit_cost * item.quantity
-        for item in items
+    summary = purchase_cost_summary(
+        purchase=purchase,
+        margin_percentage=margin_percentage,
     )
 
-    if invoice_subtotal <= 0:
-        raise InventoryError(
-            "El subtotal de la compra debe ser mayor que cero."
-        )
-
-    import_costs_total = sum(
-        cost.amount
-        for cost in purchase.import_costs.filter(is_active=True)
-    )
-
-    total_cost = invoice_subtotal + import_costs_total
-    cost_factor = total_cost / invoice_subtotal
+    cost_factor = summary["cost_factor"]
 
     histories = []
 

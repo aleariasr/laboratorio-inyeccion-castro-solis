@@ -169,3 +169,10 @@ class PurchaseSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+    
+class PurchaseCostSummaryInputSerializer(serializers.Serializer):
+    margin_percentage = serializers.DecimalField(
+        max_digits=8,
+        decimal_places=4,
+        min_value=0,
+    )

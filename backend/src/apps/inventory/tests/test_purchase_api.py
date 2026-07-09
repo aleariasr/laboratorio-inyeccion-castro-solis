@@ -447,3 +447,76 @@ class PurchaseApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(ProductCostHistory.objects.count(), 0)
+
+    def test_purchase_cost_summary_returns_totals(self):
+        category = ImportCostCategory.objects.create(
+            name="FLETE",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        ImportCost.objects.create(
+            purchase=self.purchase,
+            category=category,
+            amount=Decimal("100.0000"),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            f"/api/inventory/purchases/{self.purchase.id}/cost-summary/",
+            {
+                "margin_percentage": "30.0000",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["purchase"], self.purchase.id)
+        self.assertEqual(
+            Decimal(response.data["invoice_subtotal"]),
+            Decimal("500.0000"),
+        )
+        self.assertEqual(
+            Decimal(response.data["import_costs_total"]),
+            Decimal("100.0000"),
+        )
+        self.assertEqual(
+            Decimal(response.data["total_cost"]),
+            Decimal("600.0000"),
+        )
+        self.assertEqual(
+            Decimal(response.data["cost_factor"]),
+            Decimal("1.2"),
+        )
+        self.assertEqual(
+            Decimal(response.data["suggested_total"]),
+            Decimal("780.0000"),
+        )
+
+    def test_purchase_cost_summary_requires_margin(self):
+        response = self.client.get(
+            f"/api/inventory/purchases/{self.purchase.id}/cost-summary/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_purchase_cost_summary_without_items_returns_400(self):
+        purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-998",
+            purchase_date=date.today(),
+            currency="CRC",
+            exchange_rate=Decimal("1.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            f"/api/inventory/purchases/{purchase.id}/cost-summary/",
+            {
+                "margin_percentage": "30.0000",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -15,7 +15,11 @@ from apps.inventory.models import (
     Supplier,
     SupplierProduct,
 )
-from apps.inventory.services import calculate_purchase_costs
+
+from apps.inventory.services import (
+    calculate_purchase_costs,
+    purchase_cost_summary,
+)
 
 User = get_user_model()
 
@@ -129,3 +133,19 @@ class PurchaseCostServiceTest(TestCase):
             latest_history.margin_percentage,
             Decimal("30.0000"),
         )
+
+    def test_purchase_cost_summary_returns_calculated_totals(self):
+        summary = purchase_cost_summary(
+            purchase=self.purchase,
+            margin_percentage=Decimal("30.0000"),
+        )
+
+        self.assertEqual(summary["purchase"], self.purchase.id)
+        self.assertEqual(summary["invoice_subtotal"], Decimal("100.0000"))
+        self.assertEqual(summary["import_costs_total"], Decimal("20.0000"))
+        self.assertEqual(summary["total_cost"], Decimal("120.0000"))
+        self.assertEqual(summary["cost_factor"], Decimal("1.2"))
+        self.assertEqual(summary["margin_percentage"], Decimal("30.0000"))
+        self.assertEqual(summary["suggested_total"], Decimal("156.0000"))
+        self.assertEqual(summary["currency"], "USD")
+        self.assertEqual(summary["exchange_rate"], Decimal("500.0000"))
