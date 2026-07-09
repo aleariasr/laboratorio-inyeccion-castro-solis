@@ -11,11 +11,13 @@ from apps.customers.exceptions import (
 from apps.customers.models import (
     Customer,
     Injector,
+    InjectorAccessory,
     InjectorServiceRecord,
 )
 from apps.customers.selectors import customer_search
 from apps.customers.serializers import (
     CustomerSerializer,
+    InjectorAccessorySerializer,
     InjectorSerializer,
     InjectorServiceRecordSerializer,
 )
@@ -331,4 +333,21 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
         return Response(
             serializer.data,
             status=status.HTTP_200_OK,
+        )
+
+
+class InjectorAccessoryViewSet(viewsets.ModelViewSet):
+    queryset = InjectorAccessory.objects.order_by("name")
+    serializer_class = InjectorAccessorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            updated_by=self.request.user,
+        )
+
+    def perform_update(self, serializer):
+        serializer.save(
+            updated_by=self.request.user,
         )

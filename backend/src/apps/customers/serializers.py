@@ -3,6 +3,7 @@ from rest_framework import serializers
 from apps.customers.models import (
     Customer,
     Injector,
+    InjectorAccessory,
     InjectorServiceRecord,
     InjectorServiceStatus,
 )
@@ -157,3 +158,40 @@ class InjectorServiceRecordSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+
+class InjectorAccessorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InjectorAccessory
+        fields = (
+            "id",
+            "name",
+            "description",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "created_at",
+            "updated_at",
+        )
+
+    def validate_name(self, value):
+        value = value.strip().upper()
+
+        if not value:
+            raise serializers.ValidationError(
+                "El nombre del accesorio es obligatorio."
+            )
+
+        queryset = InjectorAccessory.objects.filter(name=value)
+
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "Ya existe un accesorio con este nombre."
+            )
+
+        return value

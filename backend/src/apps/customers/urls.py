@@ -2,6 +2,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.customers.views import (
     CustomerViewSet,
+    InjectorAccessoryViewSet,
     InjectorServiceRecordViewSet,
     InjectorViewSet,
 )
@@ -21,6 +22,11 @@ router.register(
     "service-records",
     InjectorServiceRecordViewSet,
     basename="service-record",
+)
+router.register(
+    "accessories",
+    InjectorAccessoryViewSet,
+    basename="accessory",
 )
 
 urlpatterns = router.urls
