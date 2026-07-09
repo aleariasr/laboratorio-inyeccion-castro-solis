@@ -1,6 +1,20 @@
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *
 
 DEBUG = False
+
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+
+if (
+    len(SECRET_KEY) < 50
+    or SECRET_KEY == "REEMPLAZAR_CON_CLAVE_ALEATORIA"
+    or SECRET_KEY == "change-this-secret-key-in-production"
+    or SECRET_KEY.startswith("django-insecure-")
+):
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY debe ser una clave aleatoria fuerte en producción."
+    )
 
 # WhiteNoise sirve los archivos estáticos compilados dentro de la imagen.
 MIDDLEWARE.insert(
