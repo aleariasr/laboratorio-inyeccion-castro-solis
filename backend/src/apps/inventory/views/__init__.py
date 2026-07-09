@@ -3,7 +3,10 @@ from .product import (
     StorageLocationViewSet,
 )
 
+from .supplier import SupplierViewSet
+
 __all__ = [
     "ProductViewSet",
     "StorageLocationViewSet",
+    "SupplierViewSet",
 ]

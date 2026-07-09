@@ -3,6 +3,8 @@ from rest_framework import serializers
 from apps.inventory.models import Product, StorageLocation
 from apps.inventory.selectors import current_stock
 
+from .supplier import SupplierSerializer
+
 
 class StorageLocationSerializer(serializers.ModelSerializer):
     class Meta:
