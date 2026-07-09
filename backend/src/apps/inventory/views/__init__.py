@@ -1,6 +1,7 @@
 from .costs import (
     ImportCostCategoryViewSet,
     ImportCostViewSet,
+    ProductCostHistoryViewSet,
 )
 from .inventory_count import (
     InventoryCountItemViewSet,
@@ -21,6 +22,7 @@ from .supplier_product import SupplierProductViewSet
 __all__ = [
     "ImportCostCategoryViewSet",
     "ImportCostViewSet",
+    "ProductCostHistoryViewSet",
     "InventoryCountItemViewSet",
     "InventoryCountViewSet",
     "ProductReferenceViewSet",

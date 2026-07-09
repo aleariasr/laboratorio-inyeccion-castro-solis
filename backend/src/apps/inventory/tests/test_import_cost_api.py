@@ -8,8 +8,13 @@ from apps.inventory.models import (
     Currency,
     ImportCost,
     ImportCostCategory,
+    Product,
+    ProductCostHistory,
     Purchase,
+    PurchaseItem,
+    StorageLocation,
     Supplier,
+    SupplierProduct,
 )
 
 User = get_user_model()
@@ -30,12 +35,44 @@ class ImportCostApiTest(APITestCase):
             updated_by=self.user,
         )
 
+        self.location = StorageLocation.objects.create(
+            code="A101",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.product = Product.objects.create(
+            standard_code="P-001",
+            name="Producto prueba",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.supplier_product = SupplierProduct.objects.create(
+            supplier=self.supplier,
+            product=self.product,
+            supplier_reference="SUP-P001",
+            manufacturer="Bosch",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
         self.purchase = Purchase.objects.create(
             supplier=self.supplier,
             invoice_number="FAC-001",
             purchase_date=date.today(),
             currency=Currency.USD,
             exchange_rate="500.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.purchase_item = PurchaseItem.objects.create(
+            purchase=self.purchase,
+            supplier_product=self.supplier_product,
+            quantity=1,
+            unit_cost="100.0000",
             created_by=self.user,
             updated_by=self.user,
         )
@@ -239,3 +276,140 @@ class ImportCostApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_product_cost_history(self):
+        history = ProductCostHistory.objects.create(
+            product=self.purchase.items.first().supplier_product.product,
+            purchase=self.purchase,
+            original_unit_cost="100.0000",
+            cost_factor="1.200000",
+            final_unit_cost="120.0000",
+            currency=Currency.USD,
+            exchange_rate="500.0000",
+            margin_percentage="30.0000",
+            suggested_price="156.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/product-cost-history/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+        item = response.data[0]
+
+        self.assertEqual(item["id"], history.id)
+        self.assertEqual(item["purchase"], self.purchase.id)
+        self.assertEqual(
+            item["purchase_detail"]["invoice_number"],
+            "FAC-001",
+        )
+
+    def test_filter_product_cost_history_by_purchase(self):
+        product = self.purchase.items.first().supplier_product.product
+
+        ProductCostHistory.objects.create(
+            product=product,
+            purchase=self.purchase,
+            original_unit_cost="100.0000",
+            cost_factor="1.200000",
+            final_unit_cost="120.0000",
+            currency=Currency.USD,
+            exchange_rate="500.0000",
+            margin_percentage="30.0000",
+            suggested_price="156.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        other_purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-003",
+            purchase_date=date.today(),
+            currency=Currency.USD,
+            exchange_rate="500.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        ProductCostHistory.objects.create(
+            product=product,
+            purchase=other_purchase,
+            original_unit_cost="90.0000",
+            cost_factor="1.100000",
+            final_unit_cost="99.0000",
+            currency=Currency.USD,
+            exchange_rate="500.0000",
+            margin_percentage="20.0000",
+            suggested_price="118.8000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/product-cost-history/",
+            {
+                "purchase": self.purchase.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["purchase"], self.purchase.id)
+
+    def test_product_cost_history_is_read_only(self):
+        product = self.purchase.items.first().supplier_product.product
+
+        history = ProductCostHistory.objects.create(
+            product=product,
+            purchase=self.purchase,
+            original_unit_cost="100.0000",
+            cost_factor="1.200000",
+            final_unit_cost="120.0000",
+            currency=Currency.USD,
+            exchange_rate="500.0000",
+            margin_percentage="30.0000",
+            suggested_price="156.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        patch_response = self.client.patch(
+            f"/api/inventory/product-cost-history/{history.id}/",
+            {
+                "suggested_price": "999.0000",
+            },
+            format="json",
+        )
+
+        post_response = self.client.post(
+            "/api/inventory/product-cost-history/",
+            {
+                "product": product.id,
+                "purchase": self.purchase.id,
+                "original_unit_cost": "100.0000",
+                "cost_factor": "1.200000",
+                "final_unit_cost": "120.0000",
+                "currency": Currency.USD,
+                "exchange_rate": "500.0000",
+                "margin_percentage": "30.0000",
+                "suggested_price": "156.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            patch_response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+        self.assertEqual(
+            post_response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+        history.refresh_from_db()
+
+        self.assertEqual(str(history.suggested_price), "156.0000")

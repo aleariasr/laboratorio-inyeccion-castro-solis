@@ -79,7 +79,7 @@ class ImportCostSerializer(serializers.ModelSerializer):
             "currency": obj.purchase.currency,
             "status": obj.purchase.status,
         }
-    
+
 class ProductCostHistorySerializer(serializers.ModelSerializer):
     product_detail = serializers.SerializerMethodField()
     purchase_detail = serializers.SerializerMethodField()

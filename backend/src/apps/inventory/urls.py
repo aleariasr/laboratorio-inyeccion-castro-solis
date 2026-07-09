@@ -5,6 +5,7 @@ from apps.inventory.views import (
     ImportCostViewSet,
     InventoryCountItemViewSet,
     InventoryCountViewSet,
+    ProductCostHistoryViewSet,
     ProductReferenceViewSet,
     ProductViewSet,
     PurchaseItemViewSet,
@@ -69,6 +70,11 @@ router.register(
     "import-costs",
     ImportCostViewSet,
     basename="import-cost",
+)
+router.register(
+    "product-cost-history",
+    ProductCostHistoryViewSet,
+    basename="product-cost-history",
 )
 
 urlpatterns = router.urls
