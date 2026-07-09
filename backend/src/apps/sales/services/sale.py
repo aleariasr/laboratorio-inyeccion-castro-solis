@@ -59,6 +59,7 @@ def confirm_sale(*, sale: Sale, user):
             notes=f"Venta #{sale.id}",
             created_by=user,
             updated_by=user,
+            sale_item=item,
         )
 
     return sale
@@ -99,6 +100,7 @@ def cancel_sale(
             notes=f"Cancelación venta #{sale.id}",
             created_by=user,
             updated_by=user,
+            sale_item=item,
         )
 
     return sale

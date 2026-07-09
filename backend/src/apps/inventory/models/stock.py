@@ -56,6 +56,14 @@ class StockMovement(AuditModel):
         blank=True,
     )
 
+    sale_item = models.ForeignKey(
+        "sales.SaleItem",
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+        null=True,
+        blank=True,
+    )
+
     notes = models.TextField(
         blank=True,
     )
@@ -73,9 +81,19 @@ class StockMovement(AuditModel):
         if (
             self.movement_type == StockMovementType.ENTRY
             and self.purchase_item is None
+            and self.direction == MovementDirection.IN
         ):
             raise ValidationError(
-                "Un movimiento de entrada debe estar asociado a una línea de compra."
+                "Una entrada debe estar asociada a una línea de compra."
+            )
+
+        if (
+            self.movement_type == StockMovementType.EXIT
+            and self.sale_item is None
+            and self.direction == MovementDirection.OUT
+        ):
+            raise ValidationError(
+                "Una salida debe estar asociada a una línea de venta."
             )
 
     def save(self, *args, **kwargs):
