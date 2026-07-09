@@ -1,3 +1,3 @@
 from django.contrib import admin
 
-# Register your models here.
+# Health currently exposes runtime checks and does not define admin models.

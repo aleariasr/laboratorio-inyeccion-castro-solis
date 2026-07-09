@@ -1,3 +1,3 @@
 from django.contrib import admin
 
-# Register your models here.
+# Core currently only provides shared abstract models and utilities.
