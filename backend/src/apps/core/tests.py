@@ -20,6 +20,8 @@ from apps.core.permissions import (
     ROLE_SALES,
 )
 
+from apps.inventory.models import PurchaseItem, PurchaseStatus, SupplierProduct
+from apps.sales.models import Sale, SaleItem, SaleStatus
 
 class RolePermissionTest(TestCase):
     def setUp(self):
@@ -643,3 +645,180 @@ class InventoryReportsApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+class BusinessReportsApiTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="business-reports",
+            password="12345678",
+        )
+
+        inventory_group, _ = Group.objects.get_or_create(
+            name=ROLE_INVENTORY,
+        )
+        self.user.groups.add(inventory_group)
+
+        self.client.force_authenticate(self.user)
+
+        self.location = StorageLocation.objects.create(
+            code="C300",
+            description="Estante C",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.product = Product.objects.create(
+            standard_code="TOP-001",
+            name="Producto vendido",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.supplier = Supplier.objects.create(
+            name="Proveedor Reportes",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.supplier_product = SupplierProduct.objects.create(
+            supplier=self.supplier,
+            product=self.product,
+            supplier_reference="SUP-TOP-001",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="REP-FAC-001",
+            purchase_date=date(2026, 7, 1),
+            currency="CRC",
+            status=PurchaseStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        PurchaseItem.objects.create(
+            purchase=self.purchase,
+            supplier_product=self.supplier_product,
+            quantity=4,
+            unit_cost=Decimal("100.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.customer = Customer.objects.create(
+            display_name="Cliente Reportes",
+            phone="8888-1111",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.sale = Sale.objects.create(
+            customer=self.customer,
+            sale_date=date(2026, 7, 2),
+            currency="CRC",
+            status=SaleStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        SaleItem.objects.create(
+            sale=self.sale,
+            product=self.product,
+            quantity=3,
+            unit_price=Decimal("250.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def test_purchases_by_supplier_report(self):
+        response = self.client.get(
+            "/api/reports/purchases-by-supplier/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+
+        item = response.data["results"][0]
+
+        self.assertEqual(
+            item["supplier"]["name"],
+            "PROVEEDOR REPORTES",
+        )
+        self.assertEqual(item["purchase_count"], 1)
+        self.assertEqual(
+            Decimal(item["invoice_subtotal"]),
+            Decimal("400.0000"),
+        )
+
+    def test_sales_by_date_report(self):
+        response = self.client.get(
+            "/api/reports/sales-by-date/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+
+        item = response.data["results"][0]
+
+        self.assertEqual(item["date"], date(2026, 7, 2))
+        self.assertEqual(item["sale_count"], 1)
+        self.assertEqual(
+            Decimal(item["total"]),
+            Decimal("750.0000"),
+        )
+
+    def test_top_selling_products_report(self):
+        response = self.client.get(
+            "/api/reports/top-selling-products/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+
+        item = response.data["results"][0]
+
+        self.assertEqual(
+            item["product"]["standard_code"],
+            "TOP-001",
+        )
+        self.assertEqual(item["quantity_sold"], 3)
+        self.assertEqual(
+            Decimal(item["total"]),
+            Decimal("750.0000"),
+        )
+
+    def test_business_reports_reject_invalid_date(self):
+        response = self.client.get(
+            "/api/reports/sales-by-date/",
+            {
+                "date_from": "fecha-mala",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_business_reports_reject_inverted_date_range(self):
+        response = self.client.get(
+            "/api/reports/sales-by-date/",
+            {
+                "date_from": "2026-07-31",
+                "date_to": "2026-07-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

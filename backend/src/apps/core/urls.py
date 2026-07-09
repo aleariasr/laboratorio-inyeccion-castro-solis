@@ -5,6 +5,9 @@ from .views import (
     ProductMovementsReportView,
     StockByLocationReportView,
     UniversalSearchView,
+    PurchasesBySupplierReportView,
+    SalesByDateReportView,
+    TopSellingProductsReportView,
 )
 
 app_name = "core"
@@ -25,5 +28,20 @@ urlpatterns = [
         "reports/product-movements/",
         ProductMovementsReportView.as_view(),
         name="report-product-movements",
+    ),
+    path(
+        "reports/purchases-by-supplier/",
+        PurchasesBySupplierReportView.as_view(),
+        name="report-purchases-by-supplier",
+    ),
+    path(
+        "reports/sales-by-date/",
+        SalesByDateReportView.as_view(),
+        name="report-sales-by-date",
+    ),
+    path(
+        "reports/top-selling-products/",
+        TopSellingProductsReportView.as_view(),
+        name="report-top-selling-products",
     ),
 ]
