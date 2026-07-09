@@ -2,8 +2,11 @@ from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from apps.core.permissions import ROLE_SALES
 
 from apps.customers.models import Customer
 from apps.inventory.models import (
@@ -25,6 +28,11 @@ class SaleApiTest(APITestCase):
             username="admin",
             password="12345678",
         )
+
+        sales_group, _ = Group.objects.get_or_create(
+            name=ROLE_SALES,
+        )
+        self.user.groups.add(sales_group)
 
         self.client.force_authenticate(self.user)
 

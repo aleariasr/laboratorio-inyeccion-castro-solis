@@ -1,6 +1,8 @@
-from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework import status, viewsets
+
+from apps.core.permissions import SalesPermission
 
 from apps.sales.exceptions import (
     InsufficientStockError,
@@ -34,7 +36,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         )
     )
     serializer_class = SaleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [SalesPermission]
 
     def perform_create(self, serializer):
         serializer.save(
@@ -117,7 +119,7 @@ class SaleItemViewSet(viewsets.ModelViewSet):
         .order_by("id")
     )
     serializer_class = SaleItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [SalesPermission]
 
     def perform_create(self, serializer):
         serializer.save(
