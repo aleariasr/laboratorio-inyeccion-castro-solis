@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 COPY --chown=django:django . /app
 
 RUN mkdir -p /app/src/staticfiles /app/src/media \
-    && DJANGO_SECRET_KEY=build-only-not-used-at-runtime \
+    && DJANGO_SECRET_KEY=build-only-collectstatic-secret-key-with-more-than-50-characters-1234567890 \
        POSTGRES_DB=build \
        POSTGRES_USER=build \
        POSTGRES_PASSWORD=build \
