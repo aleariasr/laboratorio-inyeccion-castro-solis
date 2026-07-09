@@ -1,6 +1,8 @@
-from rest_framework import permissions, status, viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+from apps.core.permissions import InventoryPermission
 
 from apps.inventory.exceptions import (
     InventoryError,
@@ -41,7 +43,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         )
     )
     serializer_class = PurchaseSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
     def perform_create(self, serializer):
         serializer.save(
@@ -53,7 +55,6 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         serializer.save(
             updated_by=self.request.user,
         )
-
     @action(
         detail=True,
         methods=["post"],
@@ -83,7 +84,6 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             serializer.data,
             status=status.HTTP_200_OK,
         )
-
     @action(
         detail=True,
         methods=["post"],
@@ -109,7 +109,6 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             serializer.data,
             status=status.HTTP_200_OK,
         )
-    
     @action(
         detail=True,
         methods=["post"],
@@ -161,7 +160,7 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
         .order_by("id")
     )
     serializer_class = PurchaseItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
     def perform_create(self, serializer):
         serializer.save(

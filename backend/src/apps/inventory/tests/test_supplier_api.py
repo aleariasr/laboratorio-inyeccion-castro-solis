@@ -1,6 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from apps.core.permissions import ROLE_INVENTORY
 
 from apps.inventory.models import Supplier
 
@@ -13,6 +16,11 @@ class SupplierApiTest(APITestCase):
             username="admin",
             password="12345678",
         )
+
+        inventory_group, _ = Group.objects.get_or_create(
+            name=ROLE_INVENTORY,
+        )
+        self.user.groups.add(inventory_group)
 
         self.client.force_authenticate(self.user)
 

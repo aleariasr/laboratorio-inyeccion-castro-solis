@@ -1,4 +1,6 @@
-from rest_framework import permissions, viewsets
+from rest_framework import viewsets
+
+from apps.core.permissions import InventoryPermission
 
 from apps.inventory.models import SupplierProduct
 from apps.inventory.serializers import SupplierProductSerializer
@@ -16,7 +18,7 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         )
     )
     serializer_class = SupplierProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
     def perform_create(self, serializer):
         serializer.save(

@@ -1,4 +1,6 @@
-from rest_framework import permissions, viewsets
+from rest_framework import viewsets
+
+from apps.core.permissions import InventoryPermission
 
 from apps.inventory.models import (
     Product,
@@ -15,7 +17,7 @@ from apps.inventory.serializers import (
 class StorageLocationViewSet(viewsets.ModelViewSet):
     queryset = StorageLocation.objects.order_by("code")
     serializer_class = StorageLocationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -25,7 +27,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         .order_by("standard_code")
     )
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
     def perform_create(self, serializer):
         serializer.save(
@@ -41,7 +43,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 class ProductReferenceViewSet(viewsets.ModelViewSet):
     serializer_class = ProductReferenceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
     def get_queryset(self):
         queryset = (

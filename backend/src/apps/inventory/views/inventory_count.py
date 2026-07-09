@@ -1,6 +1,8 @@
-from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework import status, viewsets
+
+from apps.core.permissions import InventoryPermission
 
 from apps.inventory.exceptions import InventoryError
 from apps.inventory.models import (
@@ -16,7 +18,7 @@ from apps.inventory.services import approve_inventory_count
 
 class InventoryCountViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryCountSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
     def get_queryset(self):
         queryset = InventoryCount.objects.order_by(
@@ -71,7 +73,7 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
 
 class InventoryCountItemViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryCountItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
     def get_queryset(self):
         queryset = (
