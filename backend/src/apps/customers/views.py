@@ -1,7 +1,9 @@
 from django.utils import timezone
-from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework import status, viewsets
+
+from apps.core.permissions import CustomersPermission
 
 from apps.customers.exceptions import (
     CustomerAlreadyExistsError,
@@ -44,7 +46,7 @@ from apps.customers.models import (
 
 class CustomerViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomersPermission]
 
     def get_queryset(self):
         queryset = Customer.objects.order_by("display_name")
@@ -107,7 +109,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
 class InjectorViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomersPermission]
 
     def get_queryset(self):
         queryset = (
@@ -165,7 +167,7 @@ class InjectorViewSet(viewsets.ModelViewSet):
 
 class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorServiceRecordSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomersPermission]
 
     def get_queryset(self):
         queryset = (
@@ -349,7 +351,7 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
 class InjectorAccessoryViewSet(viewsets.ModelViewSet):
     queryset = InjectorAccessory.objects.order_by("name")
     serializer_class = InjectorAccessorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomersPermission]
 
     def perform_create(self, serializer):
         serializer.save(
@@ -364,7 +366,7 @@ class InjectorAccessoryViewSet(viewsets.ModelViewSet):
 
 class InjectorServiceAccessoryViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorServiceAccessorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CustomersPermission]
 
     def get_queryset(self):
         queryset = (
