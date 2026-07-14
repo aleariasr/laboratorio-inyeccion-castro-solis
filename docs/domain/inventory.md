@@ -143,6 +143,13 @@ Tipos:
 - EXIT
 - ADJUSTMENT
 - INITIAL
+- REVERSAL
+
+Los movimientos de tipo `REVERSAL` permiten deshacer de forma
+trazable los efectos de una operación confirmada.
+
+Cada reversión conserva una relación con el movimiento original.
+Los movimientos históricos no se eliminan ni se sobrescriben.
 
 ---
 
@@ -171,33 +178,49 @@ Toda consulta compleja deberá implementarse mediante selectors.
 
 Una compra DRAFT puede confirmarse.
 
-Una compra DRAFT puede anularse.
+Una compra DRAFT puede anularse sin generar movimientos de inventario.
 
 Una compra CONFIRMED no puede confirmarse nuevamente.
 
-Una compra CONFIRMED no puede anularse.
+Una compra CONFIRMED puede anularse mediante una acción específica.
 
-Una compra CANCELLED no puede confirmarse.
+La anulación de una compra confirmada requiere un motivo y genera
+movimientos `REVERSAL` vinculados con las entradas originales.
+
+Una compra CANCELLED no puede confirmarse ni anularse nuevamente.
 
 Toda confirmación genera movimientos de inventario.
 
-Los movimientos de inventario únicamente pueden crearse mediante servicios del dominio.
+Los documentos finalizados y sus líneas no pueden eliminarse.
+
+Los movimientos históricos no se eliminan ni se modifican para
+deshacer operaciones.
+
+Los movimientos de inventario únicamente pueden crearse mediante
+servicios del dominio.
 
 ---
 
-# Casos de uso pendientes
+# Casos de uso implementados
 
-- Inventario inicial
-- Ajuste de inventario
-- Conteo físico
-- Historial de movimientos
-- Productos con stock bajo
-- Kardex
-- Valorización de inventario
-- Costo promedio
-- Salidas por venta
-- Salidas manuales
-- Transferencias entre ubicaciones
+- entradas por compras;
+- salidas por ventas;
+- reversión de compras confirmadas;
+- reversión de ventas confirmadas;
+- ajuste de inventario mediante conteo físico;
+- aprobación de conteos;
+- historial de movimientos;
+- productos con stock bajo;
+- stock por ubicación.
+
+# Casos de uso pendientes o sujetos a validación
+
+- inventario inicial mediante flujo operativo definitivo;
+- kardex ampliado;
+- valorización de inventario;
+- costo promedio;
+- salidas manuales;
+- transferencias entre ubicaciones.
 
 ---
 

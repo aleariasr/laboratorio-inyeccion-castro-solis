@@ -17,7 +17,7 @@ Validaciones ejecutadas antes del cierre:
     git status: limpio
     Django check: sin issues
     makemigrations --check --dry-run: sin migraciones pendientes
-    tests backend: 226 tests OK
+    tests backend: 251 tests OK
     build backend Docker: OK
 
 ## Alcance implementado
@@ -85,6 +85,8 @@ Implementado:
 - conteo físico;
 - aprobación de conteo físico;
 - ajustes automáticos por diferencia de conteo.
+- protección contra edición y eliminación de conteos aprobados o anulados;
+- protección de las líneas pertenecientes a conteos finalizados.
 
 Regla principal:
 
@@ -101,6 +103,9 @@ Implementado:
 - confirmación de compra;
 - anulación de compra;
 - generación de entradas de inventario al confirmar compras;
+- reversión trazable del inventario al anular compras confirmadas;
+- motivo obligatorio de anulación;
+- protección contra eliminación de compras y líneas finalizadas;
 - auditoría de confirmación y anulación.
 
 Auditoría de compras:
@@ -139,6 +144,9 @@ Implementado:
 - validación de stock suficiente;
 - generación de salidas de inventario al confirmar ventas;
 - reversa de stock al anular ventas confirmadas;
+- movimientos de reversión vinculados con los movimientos originales;
+- motivo obligatorio de anulación;
+- protección contra eliminación de ventas y líneas finalizadas;
 - auditoría de confirmación y anulación.
 
 Auditoría de ventas:
