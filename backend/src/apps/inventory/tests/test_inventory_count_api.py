@@ -471,3 +471,119 @@ class InventoryCountApiTest(APITestCase):
             self.inventory_count.status,
             InventoryCountStatus.CANCELLED,
         )
+
+    def test_delete_draft_inventory_count_item(self):
+        inventory_count_item = InventoryCountItem.objects.create(
+            inventory_count=self.inventory_count,
+            product=self.product,
+            counted_quantity=5,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.delete(
+            (
+                "/api/inventory/inventory-count-items/"
+                f"{inventory_count_item.id}/"
+            ),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT,
+        )
+        self.assertFalse(
+            InventoryCountItem.objects.filter(
+                id=inventory_count_item.id,
+            ).exists()
+        )
+
+    def test_delete_draft_inventory_count(self):
+        response = self.client.delete(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/"
+            ),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT,
+        )
+        self.assertFalse(
+            InventoryCount.objects.filter(
+                id=self.inventory_count.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_approved_inventory_count_item(self):
+        inventory_count_item = InventoryCountItem.objects.create(
+            inventory_count=self.inventory_count,
+            product=self.product,
+            counted_quantity=5,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        approve_response = self.client.post(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/approve/"
+            ),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            approve_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            (
+                "/api/inventory/inventory-count-items/"
+                f"{inventory_count_item.id}/"
+            ),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            InventoryCountItem.objects.filter(
+                id=inventory_count_item.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_approved_inventory_count(self):
+        approve_response = self.client.post(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/approve/"
+            ),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            approve_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/"
+            ),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            InventoryCount.objects.filter(
+                id=self.inventory_count.id,
+            ).exists()
+        )

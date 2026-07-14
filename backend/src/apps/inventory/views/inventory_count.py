@@ -8,6 +8,7 @@ from apps.inventory.exceptions import InventoryError
 from apps.inventory.models import (
     InventoryCount,
     InventoryCountItem,
+    InventoryCountStatus,
 )
 from apps.inventory.serializers import (
     InventoryCountItemSerializer,
@@ -42,6 +43,26 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        inventory_count = self.get_object()
+
+        if inventory_count.status != InventoryCountStatus.DRAFT:
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden eliminar conteos "
+                        "de inventario en borrador."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(
+            request,
+            *args,
+            **kwargs,
         )
 
     @action(
@@ -109,4 +130,27 @@ class InventoryCountItemViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        inventory_count_item = self.get_object()
+
+        if (
+            inventory_count_item.inventory_count.status
+            != InventoryCountStatus.DRAFT
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden eliminar líneas "
+                        "de conteos en borrador."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(
+            request,
+            *args,
+            **kwargs,
         )
