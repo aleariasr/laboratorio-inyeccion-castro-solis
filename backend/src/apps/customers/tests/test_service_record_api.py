@@ -58,9 +58,9 @@ class InjectorServiceRecordApiTest(APITestCase):
         response = self.client.get("/api/customers/service-records/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
-        item = response.data[0]
+        item = response.data["results"][0]
 
         self.assertEqual(item["injector"], self.injector.id)
         self.assertEqual(item["status"], InjectorServiceStatus.RECEIVED)
@@ -92,8 +92,11 @@ class InjectorServiceRecordApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["injector"], self.injector.id)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["injector"],
+            self.injector.id,
+        )
 
     def test_create_service_record(self):
         received_at = timezone.now()

@@ -139,9 +139,9 @@ class ImportCostApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
-        self.assertEqual(response.data[0]["name"], "FLETES")
+        self.assertEqual(response.data["results"][0]["name"], "FLETES")
 
     def test_create_import_cost(self):
         response = self.client.post(
@@ -186,9 +186,9 @@ class ImportCostApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
-        item = response.data[0]
+        item = response.data["results"][0]
 
         self.assertEqual(item["purchase"], self.purchase.id)
         self.assertEqual(item["category"], self.category.id)
@@ -241,8 +241,8 @@ class ImportCostApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["purchase"], self.purchase.id)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["purchase"], self.purchase.id)
 
     def test_update_import_cost(self):
         import_cost = ImportCost.objects.create(
@@ -305,9 +305,9 @@ class ImportCostApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
-        item = response.data[0]
+        item = response.data["results"][0]
 
         self.assertEqual(item["id"], history.id)
         self.assertEqual(item["purchase"], self.purchase.id)
@@ -365,8 +365,8 @@ class ImportCostApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["purchase"], self.purchase.id)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["purchase"], self.purchase.id)
 
     def test_product_cost_history_is_read_only(self):
         product = self.purchase.items.first().supplier_product.product

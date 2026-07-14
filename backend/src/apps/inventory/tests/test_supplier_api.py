@@ -34,7 +34,7 @@ class SupplierApiTest(APITestCase):
         response = self.client.get("/api/inventory/suppliers/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_create_supplier(self):
         response = self.client.post(

@@ -60,9 +60,9 @@ class InventoryCountApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
-        item = response.data[0]
+        item = response.data["results"][0]
 
         self.assertEqual(item["reference"], "CNT-001")
         self.assertEqual(item["status"], InventoryCountStatus.DRAFT)
@@ -186,9 +186,9 @@ class InventoryCountApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
-        item = response.data[0]
+        item = response.data["results"][0]
 
         self.assertEqual(item["inventory_count"], self.inventory_count.id)
         self.assertEqual(item["product"], self.product.id)
@@ -238,9 +238,9 @@ class InventoryCountApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
         self.assertEqual(
-            response.data[0]["inventory_count"],
+            response.data["results"][0]["inventory_count"],
             self.inventory_count.id,
         )
 

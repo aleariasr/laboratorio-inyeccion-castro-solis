@@ -154,6 +154,10 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
     ],
+    "DEFAULT_PAGINATION_CLASS": (
+        "apps.core.pagination.StandardResultsSetPagination"
+    ),
+    "PAGE_SIZE": 50,
 }
 
 # -----------------------------------------------------------------------------

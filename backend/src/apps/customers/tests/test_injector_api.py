@@ -51,9 +51,9 @@ class InjectorApiTest(APITestCase):
         response = self.client.get("/api/customers/injectors/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
-        item = response.data[0]
+        item = response.data["results"][0]
 
         self.assertEqual(item["customer"], self.customer.id)
         self.assertEqual(
@@ -86,9 +86,9 @@ class InjectorApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
         self.assertEqual(
-            response.data[0]["injector_number"],
+            response.data["results"][0]["injector_number"],
             "0445110183",
         )
 

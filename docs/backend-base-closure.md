@@ -17,7 +17,7 @@ Validaciones ejecutadas antes del cierre:
     git status: limpio
     Django check: sin issues
     makemigrations --check --dry-run: sin migraciones pendientes
-    tests backend: 251 tests OK
+    tests backend: 256 tests OK
     build backend Docker: OK
 
 ## Alcance implementado

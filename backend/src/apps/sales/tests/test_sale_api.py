@@ -86,9 +86,9 @@ class SaleApiTest(APITestCase):
         response = self.client.get("/api/sales/sales/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
-        item = response.data[0]
+        item = response.data["results"][0]
         self.assertIn("cancellation_reason", item)
 
         self.assertEqual(item["customer"], self.customer.id)

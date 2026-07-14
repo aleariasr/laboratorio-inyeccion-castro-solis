@@ -160,9 +160,9 @@ Antes de implementar la administración completa de usuarios será necesario agr
 
 # Paginación y rendimiento
 
-Actualmente Django REST Framework no tiene paginación global configurada.
+Django REST Framework tiene paginación global configurada para los listados de los `ViewSet`.
 
-Esto implica que los listados pueden devolver todos los registros:
+Antes de esta implementación, los listados podían devolver todos los registros:
 
 - productos;
 - ubicaciones;
@@ -177,7 +177,7 @@ Esto implica que los listados pueden devolver todos los registros:
 
 Esto representa un riesgo real para producción, especialmente en una computadora antigua.
 
-Antes de construir los listados principales se debe definir una paginación uniforme del backend.
+La paginación uniforme del backend fue implementada antes de construir los listados principales.
 
 La respuesta paginada deberá permitir al frontend conocer:
 
@@ -187,7 +187,7 @@ La respuesta paginada deberá permitir al frontend conocer:
 - página anterior;
 - resultados.
 
-La paginación no debe agregarse sin actualizar las pruebas existentes y revisar los endpoints que consumen listas completas.
+Las pruebas existentes fueron actualizadas para consumir el formato paginado. Las acciones personalizadas que devuelven resultados calculados conservan su contrato específico.
 
 ---
 
@@ -792,7 +792,7 @@ Requisitos mínimos:
 
 Pendientes confirmados:
 
-1. Definir paginación uniforme.
+1. Paginación uniforme implementada.
 2. Revisar filtros y búsquedas de listados.
 3. Ampliar la búsqueda universal según requerimientos confirmados.
 4. Permitir administración controlada de roles de usuario.
@@ -833,7 +833,7 @@ No se comenzará la implementación de pantallas hasta completar:
 - sistema de diseño;
 - estrategia de autenticación;
 - estrategia del cliente API;
-- decisión de paginación;
+- paginación implementada y validada;
 - estructura inicial de carpetas;
 - reglas de teclado y accesibilidad;
 - actualización documental mínima.

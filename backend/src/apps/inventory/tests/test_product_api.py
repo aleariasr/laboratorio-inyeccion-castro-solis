@@ -42,7 +42,7 @@ class ProductApiTest(APITestCase):
         response = self.client.get("/api/inventory/products/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data["count"], 1)
 
     def test_retrieve_product(self):
         response = self.client.get(
@@ -97,3 +97,87 @@ class ProductApiTest(APITestCase):
             self.product.name,
             "Producto actualizado",
         )
+
+    def create_additional_products(self, quantity):
+        products = [
+            Product(
+                standard_code=f"P-{index:03d}",
+                name=f"Producto {index}",
+                storage_location=self.location,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+            for index in range(2, quantity + 2)
+        ]
+
+        Product.objects.bulk_create(products)
+
+    def test_product_list_has_standard_pagination_structure(self):
+        response = self.client.get("/api/inventory/products/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            set(response.data.keys()),
+            {"count", "next", "previous", "results"},
+        )
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertIsNone(response.data["next"])
+        self.assertIsNone(response.data["previous"])
+
+    def test_product_list_uses_default_page_size(self):
+        self.create_additional_products(120)
+
+        response = self.client.get("/api/inventory/products/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 121)
+        self.assertEqual(len(response.data["results"]), 50)
+        self.assertIsNotNone(response.data["next"])
+        self.assertIsNone(response.data["previous"])
+
+    def test_product_list_accepts_custom_page_size(self):
+        self.create_additional_products(30)
+
+        response = self.client.get(
+            "/api/inventory/products/",
+            {
+                "page_size": 10,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 31)
+        self.assertEqual(len(response.data["results"]), 10)
+        self.assertIsNotNone(response.data["next"])
+
+    def test_product_list_limits_page_size_to_one_hundred(self):
+        self.create_additional_products(120)
+
+        response = self.client.get(
+            "/api/inventory/products/",
+            {
+                "page_size": 500,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 121)
+        self.assertEqual(len(response.data["results"]), 100)
+        self.assertIsNotNone(response.data["next"])
+
+    def test_product_list_returns_second_page(self):
+        self.create_additional_products(60)
+
+        response = self.client.get(
+            "/api/inventory/products/",
+            {
+                "page": 2,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 61)
+        self.assertEqual(len(response.data["results"]), 11)
+        self.assertIsNone(response.data["next"])
+        self.assertIsNotNone(response.data["previous"])
