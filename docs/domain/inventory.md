@@ -1,5 +1,7 @@
 # Dominio: Inventario
 
+> Estado actualizado: el dominio de inventario ya cuenta con una implementación backend base en `0.2.0-alpha`. Este documento se mantiene como referencia técnica y conceptual, pero debe evolucionar según la validación de flujos reales desde el frontend.
+
 ## Estado
 
 Draft
@@ -216,3 +218,45 @@ Producción dependerá de Inventario.
 Toda modificación importante deberá justificarse antes de implementarse.
 
 El modelo de datos debe evolucionar únicamente cuando exista un requerimiento funcional real.
+
+## Estado de implementación actual
+
+En la versión `0.2.0-alpha`, el backend ya implementa una base funcional del dominio de inventario.
+
+Incluye:
+
+- ubicaciones físicas;
+- productos;
+- referencias de producto;
+- proveedores;
+- referencias proveedor-producto;
+- compras;
+- líneas de compra;
+- confirmación y anulación de compras;
+- movimientos de inventario;
+- validación contra stock negativo;
+- cálculo de stock desde movimientos;
+- costos de importación;
+- resumen de costos;
+- historial de costos;
+- ventas;
+- líneas de venta;
+- confirmación y anulación de ventas;
+- conteo físico;
+- ajustes auditables;
+- búsqueda universal;
+- reportes JSON;
+- etiquetas PDF con código de barras real.
+
+Regla principal:
+
+El stock no se edita directamente. La fuente de verdad son los movimientos de inventario.
+
+## Documentación relacionada
+
+- [README principal](../../README.md)
+- [Índice de documentación](../index.md)
+- [Cierre de backend base](../backend-base-closure.md)
+- [Modelo de datos](../data-model.md)
+- [Roadmap](../roadmap.md)
+- [Lista de preparación para producción](../production-readiness-checklist.md)

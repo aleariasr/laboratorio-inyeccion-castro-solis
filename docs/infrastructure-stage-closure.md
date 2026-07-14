@@ -1,5 +1,7 @@
 # Cierre de etapa: infraestructura productiva base
 
+> Nota histórica: este documento registra el cierre de la infraestructura productiva base. Después de este cierre, el proyecto avanzó y el backend base quedó cerrado en versión `0.2.0-alpha`. El estado funcional actualizado está documentado en [Cierre de backend base](backend-base-closure.md).
+
 ## 1. Propósito
 
 Este documento registra el estado alcanzado en la infraestructura del sistema local para una instalación local de producción.
@@ -666,3 +668,36 @@ Pruebas realizadas:
 Resultado:
 
 Todas las pruebas anteriores finalizaron correctamente.
+
+## Estado posterior a este cierre
+
+Después del cierre de infraestructura productiva base, el proyecto avanzó hasta cerrar el backend base en versión `0.2.0-alpha`.
+
+El backend base actual incluye:
+
+- autenticación;
+- usuarios;
+- roles;
+- permisos por módulo;
+- estado administrativo del sistema;
+- inventario;
+- compras;
+- costos;
+- ventas;
+- clientes;
+- inyectores;
+- búsqueda universal;
+- reportes JSON;
+- documentos PDF iniciales;
+- etiquetas con código de barras Code128 real.
+
+Por lo tanto, este documento debe leerse como un registro histórico de la etapa de infraestructura, no como el estado funcional actual completo del proyecto.
+
+## Documentación relacionada
+
+- [README principal](../README.md)
+- [Índice de documentación](index.md)
+- [Cierre de backend base](backend-base-closure.md)
+- [Roadmap](roadmap.md)
+- [Lista de preparación para producción](production-readiness-checklist.md)
+- [Despliegue](deployment.md)

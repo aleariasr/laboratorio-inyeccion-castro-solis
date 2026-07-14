@@ -1,5 +1,7 @@
 # Despliegue
 
+> Estado actualizado: la instalación offline base y el backend operativo inicial ya fueron validados. Las validaciones finales pendientes corresponden principalmente al entorno gráfico objetivo, hardening, soporte técnico y operación con usuarios reales.
+
 ## Objetivo
 
 Definir el proceso de instalación y despliegue del sistema en un equipo destinado a operar como estación de trabajo de producción.
@@ -203,18 +205,22 @@ Para considerar una instalación apta para producción deben cumplirse, como mí
 
 # Componentes pendientes
 
-La instalación offline base ya fue validada en Ubuntu Server 26.04 LTS x86_64.
+La instalación offline base ya fue validada en Ubuntu Server 26.04 LTS x86_64 y el backend base quedó cerrado en versión `0.2.0-alpha`.
 
 Quedan pendientes para cierre operativo completo:
 
-- configuración del servicio systemd;
-- backups automáticos;
-- política de retención;
-- actualización offline automatizada;
-- rollback seguro;
+- validación limpia sobre Linux Mint XFCE o Ubuntu Desktop gráfico;
+- configuración definitiva del usuario operativo;
+- autologin;
+- validación del modo kiosco en el equipo objetivo;
+- SSH para soporte técnico con llaves;
+- firewall;
+- hardening básico del sistema operativo;
+- copia externa de respaldos a USB o disco externo;
 - pruebas de apagón y reinicio completo;
 - migración completa a otra computadora;
-- modo kiosco en entorno gráfico Linux.
+- validación con usuarios reales;
+- validación con datos reales.
 
 ### Preflight manual desde un release offline
 
@@ -227,3 +233,14 @@ LICS_RELEASE_IMAGES_DIR="$PWD/images" ./app/scripts/install-preflight.sh
 ```
 
 Durante la instalación normal, `install.sh` configura esta ruta automáticamente.
+
+## Documentación relacionada
+
+- [README principal](../README.md)
+- [Índice de documentación](index.md)
+- [Arquitectura](architecture.md)
+- [Estructura de producción](production-layout.md)
+- [Backups y restauración](backup-restore.md)
+- [Proceso de actualización](update-process.md)
+- [Solución de problemas](troubleshooting.md)
+- [Cierre de backend base](backend-base-closure.md)
