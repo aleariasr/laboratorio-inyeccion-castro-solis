@@ -3,6 +3,7 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
+from reportlab.graphics.barcode import code128
 
 
 def build_product_labels_pdf(*, products):
@@ -89,16 +90,31 @@ def draw_product_label(
         location_code,
     )
 
-    current_y -= 16
+    current_y -= 14
 
-    pdf.setFont("Helvetica", 8)
+    barcode = code128.Code128(
+        location_code,
+        barHeight=10 * mm,
+        barWidth=0.45 * mm,
+        humanReadable=False,
+    )
+
+    barcode.drawOn(
+        pdf,
+        text_x,
+        current_y - 8,
+    )
+
+    current_y -= 19
+
+    pdf.setFont("Helvetica", 7)
     pdf.drawString(
         text_x,
         current_y,
-        f"Código de barras: {location_code}",
+        location_code,
     )
 
-    current_y -= 13
+    current_y -= 11
 
     pdf.setFont("Helvetica-Bold", 10)
     pdf.drawString(
