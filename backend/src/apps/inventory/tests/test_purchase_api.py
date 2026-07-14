@@ -655,3 +655,146 @@ class PurchaseApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_delete_draft_purchase_item(self):
+        response = self.client.delete(
+            f"/api/inventory/purchase-items/{self.purchase_item.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT,
+        )
+        self.assertFalse(
+            PurchaseItem.objects.filter(
+                id=self.purchase_item.id,
+            ).exists()
+        )
+
+    def test_delete_draft_purchase(self):
+        response = self.client.delete(
+            f"/api/inventory/purchases/{self.purchase.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT,
+        )
+        self.assertFalse(
+            Purchase.objects.filter(
+                id=self.purchase.id,
+            ).exists()
+        )
+        self.assertFalse(
+            PurchaseItem.objects.filter(
+                id=self.purchase_item.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_item_from_confirmed_purchase(self):
+        confirm_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            f"/api/inventory/purchase-items/{self.purchase_item.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            PurchaseItem.objects.filter(
+                id=self.purchase_item.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_confirmed_purchase(self):
+        confirm_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            f"/api/inventory/purchases/{self.purchase.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            Purchase.objects.filter(
+                id=self.purchase.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_cancelled_purchase(self):
+        cancel_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/cancel/",
+            {
+                "reason": "Factura duplicada.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            cancel_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            f"/api/inventory/purchases/{self.purchase.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            Purchase.objects.filter(
+                id=self.purchase.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_item_from_cancelled_purchase(self):
+        cancel_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/cancel/",
+            {
+                "reason": "Factura duplicada.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            cancel_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            f"/api/inventory/purchase-items/{self.purchase_item.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            PurchaseItem.objects.filter(
+                id=self.purchase_item.id,
+            ).exists()
+        )

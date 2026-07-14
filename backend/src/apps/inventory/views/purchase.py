@@ -12,7 +12,11 @@ from apps.inventory.exceptions import (
     InsufficientStockForPurchaseReversalError,
 )
 
-from apps.inventory.models import Purchase, PurchaseItem
+from apps.inventory.models import (
+    Purchase,
+    PurchaseItem,
+    PurchaseStatus,
+)
 
 from apps.inventory.serializers import (
     ProductCostHistorySerializer,
@@ -57,6 +61,25 @@ class PurchaseViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        purchase = self.get_object()
+
+        if purchase.status != PurchaseStatus.DRAFT:
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden eliminar compras en borrador."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(
+            request,
+            *args,
+            **kwargs,
         )
 
     @action(
@@ -228,4 +251,24 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        purchase_item = self.get_object()
+
+        if purchase_item.purchase.status != PurchaseStatus.DRAFT:
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden eliminar líneas "
+                        "de compras en borrador."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(
+            request,
+            *args,
+            **kwargs,
         )

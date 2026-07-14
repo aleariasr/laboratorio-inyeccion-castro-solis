@@ -507,3 +507,168 @@ class SaleApiTest(APITestCase):
             ).count(),
             1,
         )
+
+    def test_delete_draft_sale_item(self):
+        response = self.client.delete(
+            f"/api/sales/sale-items/{self.sale_item.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT,
+        )
+        self.assertFalse(
+            SaleItem.objects.filter(
+                id=self.sale_item.id,
+            ).exists()
+        )
+
+    def test_delete_draft_sale(self):
+        response = self.client.delete(
+            f"/api/sales/sales/{self.sale.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT,
+        )
+        self.assertFalse(
+            Sale.objects.filter(
+                id=self.sale.id,
+            ).exists()
+        )
+        self.assertFalse(
+            SaleItem.objects.filter(
+                id=self.sale_item.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_item_from_confirmed_sale(self):
+        confirm_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            f"/api/sales/sale-items/{self.sale_item.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            SaleItem.objects.filter(
+                id=self.sale_item.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_confirmed_sale(self):
+        confirm_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            f"/api/sales/sales/{self.sale.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            Sale.objects.filter(
+                id=self.sale.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_cancelled_sale(self):
+        confirm_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        cancel_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/cancel/",
+            {
+                "reason": "Venta duplicada.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            cancel_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            f"/api/sales/sales/{self.sale.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            Sale.objects.filter(
+                id=self.sale.id,
+            ).exists()
+        )
+
+    def test_cannot_delete_item_from_cancelled_sale(self):
+        confirm_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        cancel_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/cancel/",
+            {
+                "reason": "Venta duplicada.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            cancel_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.delete(
+            f"/api/sales/sale-items/{self.sale_item.id}/",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            SaleItem.objects.filter(
+                id=self.sale_item.id,
+            ).exists()
+        )

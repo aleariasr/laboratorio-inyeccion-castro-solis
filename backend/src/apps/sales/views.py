@@ -12,7 +12,11 @@ from apps.sales.exceptions import (
     SaleNotConfirmedError,
     SaleWithoutItemsError,
 )
-from apps.sales.models import Sale, SaleItem
+from apps.sales.models import (
+    Sale,
+    SaleItem,
+    SaleStatus,
+)
 from apps.sales.serializers import (
     SaleItemSerializer,
     SaleSerializer,
@@ -48,6 +52,25 @@ class SaleViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        sale = self.get_object()
+
+        if sale.status != SaleStatus.DRAFT:
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden eliminar ventas en borrador."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(
+            request,
+            *args,
+            **kwargs,
         )
 
     @action(
@@ -142,4 +165,24 @@ class SaleItemViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        sale_item = self.get_object()
+
+        if sale_item.sale.status != SaleStatus.DRAFT:
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden eliminar líneas "
+                        "de ventas en borrador."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(
+            request,
+            *args,
+            **kwargs,
         )
