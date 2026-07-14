@@ -17,6 +17,5 @@ class PurchaseWithoutItemsError(InventoryError):
 class InvalidPurchaseStatusError(InventoryError):
     """La compra no puede cambiar de estado."""
 
-
-class PurchaseCannotBeCancelledError(InventoryError):
-    """Una compra confirmada no puede anularse."""
+class InsufficientStockForPurchaseReversalError(InventoryError):
+    """No existe inventario suficiente para revertir una compra."""

@@ -64,6 +64,14 @@ class StockMovement(AuditModel):
         blank=True,
     )
 
+    reverses_movement = models.OneToOneField(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="reversal_movement",
+        null=True,
+        blank=True,
+    )
+
     notes = models.TextField(
         blank=True,
     )
@@ -96,6 +104,46 @@ class StockMovement(AuditModel):
                 "Una salida debe estar asociada a una línea de venta."
             )
 
+        if (
+            self.movement_type == StockMovementType.REVERSAL
+            and self.reverses_movement is None
+        ):
+            raise ValidationError(
+                "Una reversión debe indicar el movimiento original."
+            )
+
+        if (
+            self.movement_type != StockMovementType.REVERSAL
+            and self.reverses_movement is not None
+        ):
+            raise ValidationError(
+                "Solo una reversión puede apuntar a otro movimiento."
+            )
+
+        if (
+            self.reverses_movement is not None
+            and self.reverses_movement.product_id != self.product_id
+        ):
+            raise ValidationError(
+                "La reversión debe pertenecer al mismo producto."
+            )
+
+        if (
+            self.reverses_movement is not None
+            and self.reverses_movement.direction == self.direction
+        ):
+            raise ValidationError(
+                "La reversión debe usar la dirección contraria."
+            )
+
+        if (
+            self.reverses_movement is not None
+            and self.reverses_movement.quantity != self.quantity
+        ):
+            raise ValidationError(
+                "La reversión debe usar la misma cantidad del movimiento original."
+            )
+
     def save(self, *args, **kwargs):
         if not self._allow_save:
             raise InventoryError(
@@ -107,6 +155,7 @@ class StockMovement(AuditModel):
     @classmethod
     def create_from_service(cls, **kwargs):
         movement = cls(**kwargs)
+        movement.full_clean()
         movement._allow_save = True
         movement.save()
         return movement

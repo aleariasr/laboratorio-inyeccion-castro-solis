@@ -70,6 +70,10 @@ class Sale(AuditModel, ActivableModel):
         blank=True,
     )
 
+    cancellation_reason = models.TextField(
+        blank=True,
+    )
+
     notes = models.TextField(blank=True)
 
     class Meta:

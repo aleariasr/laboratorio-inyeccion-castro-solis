@@ -3,7 +3,13 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from apps.inventory.models import Product, StorageLocation
+from apps.inventory.models import (
+    MovementDirection,
+    Product,
+    StockMovement,
+    StockMovementType,
+    StorageLocation,
+)
 from apps.inventory.selectors import current_stock
 from apps.inventory.services import initial_inventory
 from apps.sales.exceptions import (
@@ -128,8 +134,8 @@ class ConfirmSaleServiceTest(TestCase):
                 user=self.user,
             )
 
-    def test_cancel_sale_restores_stock(self):
-        SaleItem.objects.create(
+    def test_cancel_sale_restores_stock_with_reversal(self):
+        sale_item = SaleItem.objects.create(
             sale=self.sale,
             product=self.product,
             quantity=4,
@@ -148,9 +154,16 @@ class ConfirmSaleServiceTest(TestCase):
             6,
         )
 
+        original_movement = StockMovement.objects.get(
+            sale_item=sale_item,
+            movement_type=StockMovementType.EXIT,
+            direction=MovementDirection.OUT,
+        )
+
         cancel_sale(
             sale=self.sale,
             user=self.user,
+            reason="Venta registrada por error.",
         )
 
         self.sale.refresh_from_db()
@@ -159,10 +172,36 @@ class ConfirmSaleServiceTest(TestCase):
             self.sale.status,
             SaleStatus.CANCELLED,
         )
-
+        self.assertEqual(
+            self.sale.cancellation_reason,
+            "Venta registrada por error.",
+        )
+        self.assertIsNotNone(self.sale.cancelled_at)
+        self.assertEqual(
+            self.sale.cancelled_by,
+            self.user,
+        )
         self.assertEqual(
             current_stock(self.product),
             10,
+        )
+
+        reversal = StockMovement.objects.get(
+            sale_item=sale_item,
+            movement_type=StockMovementType.REVERSAL,
+        )
+
+        self.assertEqual(
+            reversal.direction,
+            MovementDirection.IN,
+        )
+        self.assertEqual(
+            reversal.quantity,
+            original_movement.quantity,
+        )
+        self.assertEqual(
+            reversal.reverses_movement,
+            original_movement,
         )
 
 
@@ -171,4 +210,75 @@ class ConfirmSaleServiceTest(TestCase):
             cancel_sale(
                 sale=self.sale,
                 user=self.user,
+                reason="Intento de anulación.",
             )
+
+    def test_sale_cancellation_requires_reason(self):
+        SaleItem.objects.create(
+            sale=self.sale,
+            product=self.product,
+            quantity=1,
+            unit_price=100,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        confirm_sale(
+            sale=self.sale,
+            user=self.user,
+        )
+
+        with self.assertRaises(ValueError):
+            cancel_sale(
+                sale=self.sale,
+                user=self.user,
+                reason="   ",
+            )
+
+        self.sale.refresh_from_db()
+
+        self.assertEqual(
+            self.sale.status,
+            SaleStatus.CONFIRMED,
+        )
+        self.assertEqual(
+            StockMovement.objects.filter(
+                movement_type=StockMovementType.REVERSAL,
+            ).count(),
+            0,
+        )
+
+    def test_cannot_cancel_sale_twice(self):
+        SaleItem.objects.create(
+            sale=self.sale,
+            product=self.product,
+            quantity=1,
+            unit_price=100,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        confirm_sale(
+            sale=self.sale,
+            user=self.user,
+        )
+
+        cancel_sale(
+            sale=self.sale,
+            user=self.user,
+            reason="Venta duplicada.",
+        )
+
+        with self.assertRaises(SaleAlreadyCancelledError):
+            cancel_sale(
+                sale=self.sale,
+                user=self.user,
+                reason="Segundo intento.",
+            )
+
+        self.assertEqual(
+            StockMovement.objects.filter(
+                movement_type=StockMovementType.REVERSAL,
+            ).count(),
+            1,
+        )

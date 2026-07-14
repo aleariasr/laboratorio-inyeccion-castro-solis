@@ -4,9 +4,10 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from apps.inventory.exceptions import (
+    InsufficientStockForPurchaseReversalError,
+    InventoryError,
     PurchaseAlreadyConfirmedError,
     PurchaseCancelledError,
-    PurchaseCannotBeCancelledError,
     PurchaseWithoutItemsError,
 )
 from apps.inventory.models import (
@@ -175,7 +176,7 @@ class ConfirmPurchaseServiceTest(TestCase):
         )
 
     def test_stock_movement_cannot_be_created_directly(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(InventoryError):
             StockMovement.objects.create(
                 product=self.product,
                 movement_type=StockMovementType.ENTRY,
@@ -184,10 +185,11 @@ class ConfirmPurchaseServiceTest(TestCase):
                 updated_by=self.user,
             )
 
-    def test_cancel_purchase(self):
+    def test_cancel_draft_purchase(self):
         cancel_purchase(
             purchase=self.purchase,
             user=self.user,
+            reason="Factura ingresada por error.",
         )
 
         self.purchase.refresh_from_db()
@@ -196,17 +198,138 @@ class ConfirmPurchaseServiceTest(TestCase):
             self.purchase.status,
             PurchaseStatus.CANCELLED,
         )
+        self.assertEqual(
+            self.purchase.cancellation_reason,
+            "Factura ingresada por error.",
+        )
+        self.assertIsNotNone(self.purchase.cancelled_at)
+        self.assertEqual(
+            self.purchase.cancelled_by,
+            self.user,
+        )
+        self.assertEqual(
+            StockMovement.objects.count(),
+            0,
+        )
 
-    def test_confirmed_purchase_cannot_be_cancelled(self):
+    def test_confirmed_purchase_can_be_cancelled_with_reversal_movements(self):
         confirm_purchase(
             purchase=self.purchase,
             user=self.user,
         )
 
+        self.assertEqual(
+            current_stock(self.product),
+            5,
+        )
+
+        original_movement = StockMovement.objects.get(
+            movement_type=StockMovementType.ENTRY,
+        )
+
+        cancel_purchase(
+            purchase=self.purchase,
+            user=self.user,
+            reason="Cantidad ingresada incorrectamente.",
+        )
+
+        self.purchase.refresh_from_db()
+
+        self.assertEqual(
+            self.purchase.status,
+            PurchaseStatus.CANCELLED,
+        )
+        self.assertEqual(
+            self.purchase.cancellation_reason,
+            "Cantidad ingresada incorrectamente.",
+        )
+        self.assertEqual(
+            current_stock(self.product),
+            0,
+        )
+
+        reversal = StockMovement.objects.get(
+            movement_type=StockMovementType.REVERSAL,
+        )
+
+        self.assertEqual(
+            reversal.product,
+            self.product,
+        )
+        self.assertEqual(
+            reversal.direction,
+            "OUT",
+        )
+        self.assertEqual(
+            reversal.quantity,
+            original_movement.quantity,
+        )
+        self.assertEqual(
+            reversal.reverses_movement,
+            original_movement,
+        )
+
+    def test_purchase_cannot_be_cancelled_twice(self):
+        cancel_purchase(
+            purchase=self.purchase,
+            user=self.user,
+            reason="Factura duplicada.",
+        )
+
+        with self.assertRaises(PurchaseCancelledError):
+            cancel_purchase(
+                purchase=self.purchase,
+                user=self.user,
+                reason="Segundo intento.",
+            )
+
+    def test_purchase_cancellation_requires_reason(self):
+        with self.assertRaises(ValueError):
+            cancel_purchase(
+                purchase=self.purchase,
+                user=self.user,
+                reason="   ",
+            )
+
+    def test_confirmed_purchase_cannot_be_cancelled_without_stock(self):
+        confirm_purchase(
+            purchase=self.purchase,
+            user=self.user,
+        )
+
+        StockMovement.create_from_service(
+            product=self.product,
+            movement_type=StockMovementType.ADJUSTMENT,
+            direction="OUT",
+            quantity=5,
+            notes="Salida posterior de prueba.",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.assertEqual(
+            current_stock(self.product),
+            0,
+        )
+
         with self.assertRaises(
-            PurchaseCannotBeCancelledError,
+            InsufficientStockForPurchaseReversalError,
         ):
             cancel_purchase(
                 purchase=self.purchase,
                 user=self.user,
+                reason="Factura incorrecta.",
             )
+
+        self.purchase.refresh_from_db()
+
+        self.assertEqual(
+            self.purchase.status,
+            PurchaseStatus.CONFIRMED,
+        )
+        self.assertEqual(
+            StockMovement.objects.filter(
+                movement_type=StockMovementType.REVERSAL,
+            ).count(),
+            0,
+        )

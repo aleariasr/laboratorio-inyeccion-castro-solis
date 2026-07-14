@@ -89,6 +89,7 @@ class SaleApiTest(APITestCase):
         self.assertEqual(len(response.data), 1)
 
         item = response.data[0]
+        self.assertIn("cancellation_reason", item)
 
         self.assertEqual(item["customer"], self.customer.id)
         self.assertEqual(
@@ -277,37 +278,89 @@ class SaleApiTest(APITestCase):
 
         self.assertEqual(exit_movements.count(), 1)
 
-    def test_cancel_confirmed_sale_restores_stock(self):
+    def test_cancel_confirmed_sale_restores_stock_with_reversal(self):
         confirm_response = self.client.post(
             f"/api/sales/sales/{self.sale.id}/confirm/",
             {},
             format="json",
         )
 
-        self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(current_stock(self.product), 7)
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            current_stock(self.product),
+            7,
+        )
+
+        original_movement = StockMovement.objects.get(
+            sale_item=self.sale_item,
+            movement_type=StockMovementType.EXIT,
+        )
 
         cancel_response = self.client.post(
             f"/api/sales/sales/{self.sale.id}/cancel/",
-            {},
+            {
+                "reason": "Venta registrada por error.",
+            },
             format="json",
         )
 
-        self.assertEqual(cancel_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            cancel_response.status_code,
+            status.HTTP_200_OK,
+        )
 
         self.sale.refresh_from_db()
 
-        self.assertEqual(self.sale.status, SaleStatus.CANCELLED)
+        self.assertEqual(
+            self.sale.status,
+            SaleStatus.CANCELLED,
+        )
+        self.assertEqual(
+            self.sale.cancellation_reason,
+            "Venta registrada por error.",
+        )
         self.assertIsNotNone(self.sale.confirmed_at)
-        self.assertEqual(self.sale.confirmed_by, self.user)
+        self.assertEqual(
+            self.sale.confirmed_by,
+            self.user,
+        )
         self.assertIsNotNone(self.sale.cancelled_at)
-        self.assertEqual(self.sale.cancelled_by, self.user)
-        self.assertEqual(current_stock(self.product), 10)
+        self.assertEqual(
+            self.sale.cancelled_by,
+            self.user,
+        )
+        self.assertEqual(
+            current_stock(self.product),
+            10,
+        )
+
+        reversal = StockMovement.objects.get(
+            sale_item=self.sale_item,
+            movement_type=StockMovementType.REVERSAL,
+        )
+
+        self.assertEqual(
+            reversal.direction,
+            "IN",
+        )
+        self.assertEqual(
+            reversal.quantity,
+            original_movement.quantity,
+        )
+        self.assertEqual(
+            reversal.reverses_movement,
+            original_movement,
+        )
 
     def test_cannot_cancel_draft_sale(self):
         response = self.client.post(
             f"/api/sales/sales/{self.sale.id}/cancel/",
-            {},
+            {
+                "reason": "Intento de anulación.",
+            },
             format="json",
         )
 
@@ -368,3 +421,89 @@ class SaleApiTest(APITestCase):
         self.sale_item.refresh_from_db()
 
         self.assertEqual(self.sale_item.quantity, 3)
+
+    def test_cancel_sale_requires_reason(self):
+        confirm_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/cancel/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn(
+            "reason",
+            response.data,
+        )
+
+        self.sale.refresh_from_db()
+
+        self.assertEqual(
+            self.sale.status,
+            SaleStatus.CONFIRMED,
+        )
+
+    def test_cannot_cancel_sale_twice(self):
+        confirm_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        first_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/cancel/",
+            {
+                "reason": "Venta duplicada.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            first_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        second_response = self.client.post(
+            f"/api/sales/sales/{self.sale.id}/cancel/",
+            {
+                "reason": "Segundo intento.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            second_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        self.sale.refresh_from_db()
+
+        self.assertEqual(
+            self.sale.cancellation_reason,
+            "Venta duplicada.",
+        )
+
+        self.assertEqual(
+            StockMovement.objects.filter(
+                movement_type=StockMovementType.REVERSAL,
+            ).count(),
+            1,
+        )

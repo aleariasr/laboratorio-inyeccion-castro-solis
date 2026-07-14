@@ -128,6 +128,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
             "confirmed_by",
             "cancelled_at",
             "cancelled_by",
+            "cancellation_reason",
             "notes",
             "items",
             "is_active",
@@ -140,6 +141,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
             "confirmed_by",
             "cancelled_at",
             "cancelled_by",
+            "cancellation_reason",
             "created_at",
             "updated_at",
         )
@@ -176,3 +178,20 @@ class PurchaseCostSummaryInputSerializer(serializers.Serializer):
         decimal_places=4,
         min_value=0,
     )
+
+class PurchaseCancellationSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        min_length=1,
+        max_length=1000,
+        trim_whitespace=True,
+    )
+
+    def validate_reason(self, value):
+        normalized_reason = value.strip()
+
+        if not normalized_reason:
+            raise serializers.ValidationError(
+                "El motivo de anulación es obligatorio."
+            )
+
+        return normalized_reason

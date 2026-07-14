@@ -1,5 +1,5 @@
-from django.utils import timezone
 from django.db import transaction
+from django.utils import timezone
 
 from apps.inventory.models import (
     MovementDirection,
@@ -20,6 +20,10 @@ from apps.sales.models import Sale, SaleStatus
 
 @transaction.atomic
 def confirm_sale(*, sale: Sale, user):
+    sale = Sale.objects.select_for_update().get(
+        pk=sale.pk,
+    )
+
     if sale.status == SaleStatus.CONFIRMED:
         raise SaleAlreadyConfirmedError()
 
@@ -76,7 +80,19 @@ def cancel_sale(
     *,
     sale: Sale,
     user,
+    reason: str,
 ):
+    normalized_reason = reason.strip()
+
+    if not normalized_reason:
+        raise ValueError(
+            "El motivo de anulación es obligatorio."
+        )
+
+    sale = Sale.objects.select_for_update().get(
+        pk=sale.pk,
+    )
+
     if sale.status == SaleStatus.DRAFT:
         raise SaleNotConfirmedError()
 
@@ -84,12 +100,47 @@ def cancel_sale(
         raise SaleAlreadyCancelledError()
 
     items = list(
-        sale.items.select_related("product")
+        sale.items.select_related("product").prefetch_related(
+            "stock_movements",
+        )
     )
+
+    reversal_data = []
+
+    for item in items:
+        original_movement = item.stock_movements.get(
+            movement_type=StockMovementType.EXIT,
+            direction=MovementDirection.OUT,
+            reverses_movement__isnull=True,
+        )
+
+        reversal_data.append(
+            (
+                item,
+                original_movement,
+            )
+        )
+
+    for item, original_movement in reversal_data:
+        StockMovement.create_from_service(
+            product=item.product,
+            movement_type=StockMovementType.REVERSAL,
+            direction=MovementDirection.IN,
+            quantity=original_movement.quantity,
+            notes=(
+                f"Anulación de venta #{sale.id}: "
+                f"{normalized_reason}"
+            ),
+            created_by=user,
+            updated_by=user,
+            sale_item=item,
+            reverses_movement=original_movement,
+        )
 
     sale.status = SaleStatus.CANCELLED
     sale.cancelled_at = timezone.now()
     sale.cancelled_by = user
+    sale.cancellation_reason = normalized_reason
     sale.updated_by = user
 
     sale.save(
@@ -97,21 +148,10 @@ def cancel_sale(
             "status",
             "cancelled_at",
             "cancelled_by",
+            "cancellation_reason",
             "updated_by",
             "updated_at",
         ]
     )
-
-    for item in items:
-        StockMovement.create_from_service(
-            product=item.product,
-            movement_type=StockMovementType.ENTRY,
-            direction=MovementDirection.IN,
-            quantity=item.quantity,
-            notes=f"Cancelación venta #{sale.id}",
-            created_by=user,
-            updated_by=user,
-            sale_item=item,
-        )
 
     return sale

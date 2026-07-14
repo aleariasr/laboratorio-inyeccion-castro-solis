@@ -8,8 +8,8 @@ from apps.inventory.exceptions import (
     InventoryError,
     PurchaseAlreadyConfirmedError,
     PurchaseCancelledError,
-    PurchaseCannotBeCancelledError,
     PurchaseWithoutItemsError,
+    InsufficientStockForPurchaseReversalError,
 )
 
 from apps.inventory.models import Purchase, PurchaseItem
@@ -20,6 +20,7 @@ from apps.inventory.serializers import (
     PurchaseItemSerializer,
     PurchaseSerializer,
     PurchaseCostSummaryInputSerializer,
+    PurchaseCancellationSerializer,
 )
 
 from apps.inventory.services import (
@@ -57,6 +58,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         serializer.save(
             updated_by=self.request.user,
         )
+
     @action(
         detail=True,
         methods=["post"],
@@ -76,7 +78,12 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             PurchaseWithoutItemsError,
         ) as exc:
             return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
+                {
+                    "detail": (
+                        str(exc)
+                        or exc.__class__.__name__
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -86,6 +93,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             serializer.data,
             status=status.HTTP_200_OK,
         )
+
     @action(
         detail=True,
         methods=["post"],
@@ -94,14 +102,28 @@ class PurchaseViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         purchase = self.get_object()
 
+        input_serializer = PurchaseCancellationSerializer(
+            data=request.data,
+        )
+        input_serializer.is_valid(raise_exception=True)
+
         try:
             purchase = cancel_purchase(
                 purchase=purchase,
                 user=request.user,
+                reason=input_serializer.validated_data["reason"],
             )
-        except PurchaseCannotBeCancelledError as exc:
+        except (
+            PurchaseCancelledError,
+            InsufficientStockForPurchaseReversalError,
+        ) as exc:
             return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
+                {
+                    "detail": (
+                        str(exc)
+                        or exc.__class__.__name__
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

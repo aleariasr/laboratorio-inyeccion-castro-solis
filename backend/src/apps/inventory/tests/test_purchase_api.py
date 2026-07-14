@@ -106,6 +106,7 @@ class PurchaseApiTest(APITestCase):
         self.assertIn("confirmed_by", item)
         self.assertIn("cancelled_at", item)
         self.assertIn("cancelled_by", item)
+        self.assertIn("cancellation_reason", item)
         self.assertEqual(len(item["items"]), 1)
 
     def test_create_purchase(self):
@@ -253,43 +254,177 @@ class PurchaseApiTest(APITestCase):
     def test_cancel_draft_purchase(self):
         response = self.client.post(
             f"/api/inventory/purchases/{self.purchase.id}/cancel/",
-            {},
+            {
+                "reason": "Factura ingresada por error.",
+            },
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
 
         self.purchase.refresh_from_db()
 
-        self.assertEqual(self.purchase.status, PurchaseStatus.CANCELLED)
+        self.assertEqual(
+            self.purchase.status,
+            PurchaseStatus.CANCELLED,
+        )
+        self.assertEqual(
+            self.purchase.cancellation_reason,
+            "Factura ingresada por error.",
+        )
         self.assertIsNotNone(self.purchase.cancelled_at)
-        self.assertEqual(self.purchase.cancelled_by, self.user)
+        self.assertEqual(
+            self.purchase.cancelled_by,
+            self.user,
+        )
         self.assertIsNone(self.purchase.confirmed_at)
         self.assertIsNone(self.purchase.confirmed_by)
-
-    def test_cannot_cancel_confirmed_purchase(self):
-        confirm_response = self.client.post(
-            f"/api/inventory/purchases/{self.purchase.id}/confirm/",
-            {},
-            format="json",
+        self.assertEqual(
+            StockMovement.objects.count(),
+            0,
         )
 
-        self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["cancellation_reason"],
+            "Factura ingresada por error.",
+        )
 
-        cancel_response = self.client.post(
+    def test_cancel_purchase_requires_reason(self):
+        response = self.client.post(
             f"/api/inventory/purchases/{self.purchase.id}/cancel/",
             {},
             format="json",
         )
 
         self.assertEqual(
-            cancel_response.status_code,
+            response.status_code,
             status.HTTP_400_BAD_REQUEST,
         )
 
         self.purchase.refresh_from_db()
 
-        self.assertEqual(self.purchase.status, PurchaseStatus.CONFIRMED)
+        self.assertEqual(
+            self.purchase.status,
+            PurchaseStatus.DRAFT,
+        )
+        self.assertEqual(
+            self.purchase.cancellation_reason,
+            "",
+        )
+        self.assertEqual(
+            StockMovement.objects.count(),
+            0,
+        )
+        self.assertIn(
+            "reason",
+            response.data,
+        )
+
+    def test_cancel_confirmed_purchase_creates_reversal(self):
+        confirm_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            confirm_response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            current_stock(self.product),
+            5,
+        )
+
+        original_movement = StockMovement.objects.get(
+            movement_type=StockMovementType.ENTRY,
+        )
+
+        cancel_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/cancel/",
+            {
+                "reason": "Cantidad incorrecta en la factura.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            cancel_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.purchase.refresh_from_db()
+
+        self.assertEqual(
+            self.purchase.status,
+            PurchaseStatus.CANCELLED,
+        )
+        self.assertEqual(
+            self.purchase.cancellation_reason,
+            "Cantidad incorrecta en la factura.",
+        )
+        self.assertEqual(
+            current_stock(self.product),
+            0,
+        )
+
+        reversal = StockMovement.objects.get(
+            movement_type=StockMovementType.REVERSAL,
+        )
+
+        self.assertEqual(
+            reversal.direction,
+            "OUT",
+        )
+        self.assertEqual(
+            reversal.quantity,
+            original_movement.quantity,
+        )
+        self.assertEqual(
+            reversal.reverses_movement,
+            original_movement,
+        )
+
+    def test_cannot_cancel_purchase_twice(self):
+        first_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/cancel/",
+            {
+                "reason": "Factura duplicada.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            first_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        second_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/cancel/",
+            {
+                "reason": "Segundo intento.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            second_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        self.purchase.refresh_from_db()
+
+        self.assertEqual(
+            self.purchase.status,
+            PurchaseStatus.CANCELLED,
+        )
+        self.assertEqual(
+            self.purchase.cancellation_reason,
+            "Factura duplicada.",
+        )
 
     def test_cannot_modify_confirmed_purchase(self):
         confirm_response = self.client.post(

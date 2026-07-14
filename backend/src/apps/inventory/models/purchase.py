@@ -74,6 +74,10 @@ class Purchase(AuditModel, ActivableModel):
         blank=True,
     )
 
+    cancellation_reason = models.TextField(
+        blank=True,
+    )
+
     notes = models.TextField(
         blank=True,
     )

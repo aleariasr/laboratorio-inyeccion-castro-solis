@@ -16,6 +16,7 @@ from apps.sales.models import Sale, SaleItem
 from apps.sales.serializers import (
     SaleItemSerializer,
     SaleSerializer,
+    SaleCancellationSerializer,
 )
 from apps.sales.services import (
     cancel_sale,
@@ -88,17 +89,28 @@ class SaleViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         sale = self.get_object()
 
+        input_serializer = SaleCancellationSerializer(
+            data=request.data,
+        )
+        input_serializer.is_valid(raise_exception=True)
+
         try:
             sale = cancel_sale(
                 sale=sale,
                 user=request.user,
+                reason=input_serializer.validated_data["reason"],
             )
         except (
             SaleAlreadyCancelledError,
             SaleNotConfirmedError,
         ) as exc:
             return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
+                {
+                    "detail": (
+                        str(exc)
+                        or exc.__class__.__name__
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
