@@ -1,5 +1,6 @@
 import {
   HomeIcon,
+  InventoryIcon,
   StatusIcon,
 } from "@/components/icons/app-icons";
 
@@ -45,6 +46,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Inicio",
     section: "main",
     icon: HomeIcon,
+  },
+  {
+    href: "/inventory/products",
+    label: "Productos",
+    section: "inventory",
+    icon: InventoryIcon,
+    roles: [
+      "INVENTORY",
+      "READ_ONLY",
+    ],
   },
   {
     href: "/system/status",

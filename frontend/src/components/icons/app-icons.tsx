@@ -147,3 +147,55 @@ export function LogoutIcon({
     </svg>
   );
 }
+
+export function SearchIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle
+        cx="10.8"
+        cy="10.8"
+        r="6.2"
+      />
+
+      <path
+        d="m15.4 15.4 4.1 4.1"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function BoxIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M4.5 7.5 12 3.8l7.5 3.7L12 11.2 4.5 7.5Z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M4.5 7.5v8.8L12 20.2l7.5-3.9V7.5M12 11.2v9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
