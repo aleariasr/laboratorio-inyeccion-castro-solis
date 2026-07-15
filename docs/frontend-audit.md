@@ -896,3 +896,94 @@ Una vez completado lo anterior, el primer bloque funcional será:
 4. logout;
 5. protección de rutas;
 6. pantalla de estado del sistema.
+---
+
+# Trabajo backend diferido durante la implementación del frontend
+
+Los siguientes cambios no bloquean el inicio de la base técnica del frontend.
+
+Se implementarán cuando se construya el listado correspondiente, para evitar
+agregar filtros sin validar primero las necesidades reales de la interfaz.
+
+## Compras
+
+Pendientes previstos:
+
+- búsqueda `q` por número de factura y nombre del proveedor;
+- filtro exacto por proveedor;
+- filtro por estado;
+- filtro por moneda;
+- filtro por fecha inicial;
+- filtro por fecha final;
+- filtro por estado activo o inactivo;
+- validación del rango de fechas;
+- revisión de ordenamiento configurable.
+
+## Ventas
+
+Pendientes previstos:
+
+- búsqueda `q` por nombre, identificación o teléfono del cliente;
+- filtro exacto por cliente;
+- filtro por estado;
+- filtro por moneda;
+- filtro por fecha inicial;
+- filtro por fecha final;
+- filtro por estado activo o inactivo;
+- validación del rango de fechas;
+- revisión de ordenamiento configurable.
+
+## Clientes e inyectores
+
+Pendientes previstos:
+
+- ampliar búsqueda de clientes por nombre, identificación y teléfono;
+- búsqueda de inyectores por número y cliente;
+- filtro de inyectores por cliente;
+- filtros por estado activo cuando corresponda;
+- validación estricta de identificadores.
+
+## Servicios de inyectores
+
+Pendientes previstos:
+
+- filtro por inyector;
+- filtro por cliente;
+- filtro por estado;
+- filtros por fechas de recepción y entrega;
+- búsqueda por número de inyector;
+- ordenamiento útil para la bandeja operativa.
+
+## Conteos y costos
+
+Pendientes previstos:
+
+- búsqueda y filtros de conteos por referencia, estado y fecha;
+- filtro de líneas por conteo;
+- filtros de costos por compra, categoría y producto;
+- validación uniforme de identificadores;
+- revisión de ordenamiento.
+
+## Búsqueda universal
+
+Pendiente ampliar la búsqueda para incluir, según validación operativa:
+
+- nombre y descripción de producto;
+- referencias y fabricantes;
+- referencias de proveedor;
+- identificación y teléfono del cliente;
+- ventas;
+- servicios de inyector.
+
+## Regla de implementación
+
+Cada grupo de filtros se implementará junto con su pantalla correspondiente.
+
+Cada cambio deberá incluir:
+
+1. validación de parámetros;
+2. pruebas automatizadas;
+3. compatibilidad con paginación;
+4. documentación;
+5. validación desde la interfaz;
+6. commit independiente.
