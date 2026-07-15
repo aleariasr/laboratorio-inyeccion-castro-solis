@@ -117,7 +117,10 @@ export default function LoginPage() {
 
       <section className="motion-enter relative w-full max-w-[440px]">
         <div className="mb-8">
-          <AppLogo align="center" />
+          <AppLogo
+            size="large"
+            align="center"
+          />
         </div>
 
         <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-surface px-6 py-7 shadow-[var(--shadow-lg)] sm:px-9 sm:py-9">

@@ -6,8 +6,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { AppLogo } from "@/components/branding/app-logo";
-import { LoadingState } from "@/components/feedback/loading-state";
+import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import { getSystemStatus } from "@/features/system-status/api";
@@ -54,10 +53,22 @@ function formatServerTime(value: string): string {
   }
 
   return new Intl.DateTimeFormat("es-CR", {
-    dateStyle: "medium",
-    timeStyle: "medium",
+    dateStyle: "long",
+    timeStyle: "short",
     timeZone: "America/Costa_Rica",
   }).format(date);
+}
+
+function getEnvironmentLabel(value: string): string {
+  if (value === "production") {
+    return "Producción";
+  }
+
+  if (value === "development") {
+    return "Desarrollo";
+  }
+
+  return value;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -96,12 +107,6 @@ export default function SystemStatusPage() {
     user?.is_superuser === true ||
     user?.is_staff === true ||
     user?.groups.includes("ADMIN") === true;
-
-  useEffect(() => {
-    if (authStatus === "unauthenticated") {
-      router.replace("/login");
-    }
-  }, [authStatus, router]);
 
   useEffect(() => {
     if (
@@ -144,7 +149,7 @@ export default function SystemStatusPage() {
             status: "forbidden",
             data: null,
             message:
-              "Tu usuario no tiene permisos para consultar el estado administrativo.",
+              "Este usuario no tiene permiso para consultar esta información.",
           });
 
           return;
@@ -167,11 +172,6 @@ export default function SystemStatusPage() {
     router,
     token,
   ]);
-
-  async function handleLogout(): Promise<void> {
-    await logout();
-    router.replace("/login");
-  }
 
   async function handleRetry(): Promise<void> {
     if (!token) {
@@ -204,7 +204,7 @@ export default function SystemStatusPage() {
           status: "forbidden",
           data: null,
           message:
-            "Tu usuario no tiene permisos para consultar el estado administrativo.",
+            "Este usuario no tiene permiso para consultar esta información.",
         });
 
         return;
@@ -218,322 +218,211 @@ export default function SystemStatusPage() {
     }
   }
 
-  if (authStatus !== "authenticated" || !user) {
+  if (
+    authStatus === "authenticated" &&
+    user &&
+    !hasAdministrativeAccess
+  ) {
     return (
-      <LoadingState
-        fullScreen
-        message="Verificando acceso…"
-      />
-    );
-  }
+      <AppShell
+        title="Acceso restringido"
+        description="Esta sección está disponible únicamente para administración."
+      >
+        <section
+          className="max-w-xl rounded-[var(--radius-xl)] bg-surface p-7 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]"
+          role="alert"
+        >
+          <p className="text-sm leading-6 text-muted-foreground">
+            Su usuario no tiene permisos para consultar el estado
+            técnico del sistema.
+          </p>
 
-  if (!hasAdministrativeAccess) {
-    return (
-      <main className="min-h-screen bg-background px-5 py-6 sm:px-8">
-        <div className="mx-auto max-w-4xl motion-enter">
-          <header className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
-            <AppLogo />
-
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                router.replace("/dashboard");
-              }}
-            >
-              Volver al inicio
-            </Button>
-          </header>
-
-          <section
-            className="mt-8 rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm"
-            role="alert"
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-6"
+            onClick={() => {
+              router.replace("/dashboard");
+            }}
           >
-            <h1 className="text-xl font-semibold text-foreground">
-              Acceso restringido
-            </h1>
-
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Esta sección está reservada para administración y soporte
-              técnico.
-            </p>
-          </section>
-        </div>
-      </main>
+            Volver al inicio
+          </Button>
+        </section>
+      </AppShell>
     );
   }
-
-  if (loadState.status === "loading") {
-    return (
-      <LoadingState
-        fullScreen
-        message="Consultando estado del sistema…"
-      />
-    );
-  }
-
-  const fullName = [
-    user.first_name,
-    user.last_name,
-  ]
-    .filter(Boolean)
-    .join(" ");
 
   return (
-    <main className="min-h-screen bg-background px-5 py-6 sm:px-8 sm:py-8">
-      <div className="mx-auto max-w-6xl motion-enter">
-        <header className="flex flex-col gap-6 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
-          <AppLogo />
+    <AppShell
+      title="Estado del sistema"
+      description="Información de la instalación y del entorno local."
+    >
+      {loadState.status === "loading" && (
+        <div
+          className="flex min-h-56 items-center justify-center"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span
+              className="size-4 animate-spin rounded-full border-2 border-current border-r-transparent"
+              aria-hidden="true"
+            />
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="min-w-0 text-left sm:text-right">
-              <p className="truncate text-sm font-medium text-foreground">
-                {fullName || user.username}
-              </p>
-
-              <p className="text-xs text-muted-foreground">
-                {user.username}
-              </p>
-            </div>
-
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                router.replace("/dashboard");
-              }}
-            >
-              Volver al inicio
-            </Button>
-
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                void handleLogout();
-              }}
-            >
-              Cerrar sesión
-            </Button>
+            Consultando información…
           </div>
-        </header>
+        </div>
+      )}
 
-        <section className="py-8">
-          <div className="max-w-2xl">
-            <p className="text-sm font-medium text-[var(--color-brand-blue)]">
-              Administración
-            </p>
+      {loadState.status === "forbidden" && (
+        <section
+          className="max-w-xl rounded-[var(--radius-xl)] bg-surface p-7 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]"
+          role="alert"
+        >
+          <h2 className="text-lg font-semibold text-foreground">
+            Acceso restringido
+          </h2>
 
-            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-foreground sm:text-4xl">
-              Estado del sistema
-            </h1>
-
-            <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              Información técnica de la instalación para administración
-              y soporte.
-            </p>
-          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {loadState.message}
+          </p>
         </section>
+      )}
 
-        {loadState.status === "forbidden" && (
-          <section
-            className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm"
-            role="alert"
+      {loadState.status === "error" && (
+        <section
+          className="max-w-xl rounded-[var(--radius-xl)] bg-surface p-7 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]"
+          role="alert"
+        >
+          <h2 className="text-lg font-semibold text-foreground">
+            No se pudo cargar la información
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {loadState.message}
+          </p>
+
+          <Button
+            type="button"
+            className="mt-6"
+            onClick={() => {
+              void handleRetry();
+            }}
           >
-            <h2 className="text-sm font-semibold text-foreground">
-              Acceso restringido
-            </h2>
+            Reintentar
+          </Button>
+        </section>
+      )}
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {loadState.message}
-            </p>
+      {loadState.status === "success" && (
+        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <section className="app-status-card overflow-hidden xl:row-span-2">
+            <div className="flex flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Servicio
+                </p>
 
-            <div className="mt-5">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  router.replace("/dashboard");
-                }}
-              >
-                Volver al inicio
-              </Button>
-            </div>
-          </section>
-        )}
+                <h2 className="mt-1 text-xl font-semibold tracking-[-0.025em] text-foreground">
+                  {loadState.data.service}
+                </h2>
 
-        {loadState.status === "error" && (
-          <section
-            className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm"
-            role="alert"
-          >
-            <h2 className="text-sm font-semibold text-foreground">
-              No se pudo cargar la información
-            </h2>
-
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {loadState.message}
-            </p>
-
-            <div className="mt-5">
-              <Button
-                type="button"
-                onClick={() => {
-                  void handleRetry();
-                }}
-              >
-                Reintentar
-              </Button>
-            </div>
-          </section>
-        )}
-
-        {loadState.status === "success" && (
-          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-            <section className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm sm:p-7">
-              <div className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Servicio
-                  </p>
-
-                  <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-foreground">
-                    {loadState.data.service}
-                  </h2>
-                </div>
-
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-surface-muted px-3 py-1.5">
-                  <span
-                    className="size-2 rounded-full bg-[var(--color-brand-blue)]"
-                    aria-hidden="true"
-                  />
-
-                  <span className="text-xs font-semibold text-foreground">
-                    Disponible
-                  </span>
-                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Versión {loadState.data.version}
+                </p>
               </div>
 
-              <dl className="grid gap-6 pt-6 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Versión
-                  </dt>
+              <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[var(--color-success-soft)] px-3.5 py-2 text-sm font-semibold text-[var(--color-success)]">
+                <span
+                  className="status-pulse size-2 rounded-full bg-[var(--color-success)]"
+                  aria-hidden="true"
+                />
 
-                  <dd className="mt-2 text-sm font-medium text-foreground">
-                    {loadState.data.version}
-                  </dd>
-                </div>
+                Disponible
+              </div>
+            </div>
 
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Entorno
-                  </dt>
+            <dl className="border-t border-[var(--color-border-soft)]">
+              <div className="app-status-row">
+                <dt>Entorno</dt>
 
-                  <dd className="mt-2 text-sm font-medium capitalize text-foreground">
-                    {loadState.data.environment.name}
-                  </dd>
-                </div>
+                <dd>
+                  {getEnvironmentLabel(
+                    loadState.data.environment.name,
+                  )}
+                </dd>
+              </div>
 
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Depuración
-                  </dt>
+              <div className="app-status-row">
+                <dt>Depuración</dt>
 
-                  <dd className="mt-2 text-sm font-medium text-foreground">
-                    {loadState.data.environment.debug
-                      ? "Activada"
-                      : "Desactivada"}
-                  </dd>
-                </div>
+                <dd>
+                  {loadState.data.environment.debug
+                    ? "Activada"
+                    : "Desactivada"}
+                </dd>
+              </div>
 
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Hora del servidor
-                  </dt>
+              <div className="app-status-row">
+                <dt>Hora del servidor</dt>
 
-                  <dd className="mt-2 text-sm font-medium text-foreground">
-                    {formatServerTime(
-                      loadState.data.server_time,
-                    )}
-                  </dd>
-                </div>
-              </dl>
-            </section>
+                <dd>
+                  {formatServerTime(
+                    loadState.data.server_time,
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </section>
 
-            <section className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm sm:p-7">
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
-                Acceso administrativo
-              </h2>
+          <section className="app-status-card p-6">
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+              Acceso
+            </h2>
 
-              <dl className="mt-6 space-y-5">
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Usuario
-                  </dt>
+            <dl className="mt-5 space-y-5">
+              <div>
+                <dt className="text-sm text-muted-foreground">
+                  Usuario
+                </dt>
 
-                  <dd className="mt-2 text-sm font-medium text-foreground">
-                    {loadState.data.user.username}
-                  </dd>
-                </div>
+                <dd className="mt-1 text-sm font-semibold text-foreground">
+                  {loadState.data.user.username}
+                </dd>
+              </div>
 
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Tipo de acceso
-                  </dt>
+              <div>
+                <dt className="text-sm text-muted-foreground">
+                  Grupos
+                </dt>
 
-                  <dd className="mt-2 text-sm font-medium text-foreground">
-                    {loadState.data.user.is_superuser
-                      ? "Superusuario"
-                      : loadState.data.user.is_staff
-                        ? "Personal administrativo"
-                        : "Grupo ADMIN"}
-                  </dd>
-                </div>
+                <dd className="mt-1 text-sm font-semibold text-foreground">
+                  {loadState.data.user.groups.length > 0
+                    ? loadState.data.user.groups.join(", ")
+                    : "Sin grupos asignados"}
+                </dd>
+              </div>
+            </dl>
+          </section>
 
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Grupos
-                  </dt>
+          <section className="app-status-card p-6">
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+              Módulos
+            </h2>
 
-                  <dd className="mt-2 text-sm font-medium text-foreground">
-                    {loadState.data.user.groups.length > 0
-                      ? loadState.data.user.groups.join(", ")
-                      : "Sin grupos asignados"}
-                  </dd>
-                </div>
-              </dl>
-            </section>
-
-            <section className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm sm:p-7 lg:col-span-2">
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
-                Módulos disponibles
-              </h2>
-
-              <p className="mt-2 text-sm text-muted-foreground">
-                Componentes habilitados en esta instalación.
-              </p>
-
-              <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {loadState.data.modules.map((module) => (
-                  <li
-                    key={module}
-                    className="rounded-[var(--radius-md)] border border-border bg-surface-muted px-4 py-3"
-                  >
-                    <p className="text-sm font-medium text-foreground">
-                      {MODULE_LABELS[module] ?? module}
-                    </p>
-
-                    <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-                      {module}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-        )}
-      </div>
-    </main>
+            <ul className="mt-5 flex flex-wrap gap-2">
+              {loadState.data.modules.map((module) => (
+                <li
+                  key={module}
+                  className="rounded-full bg-surface-muted px-3 py-1.5 text-sm font-medium text-foreground"
+                >
+                  {MODULE_LABELS[module] ?? module}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      )}
+    </AppShell>
   );
 }

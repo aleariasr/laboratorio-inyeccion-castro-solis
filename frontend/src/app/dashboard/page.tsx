@@ -1,156 +1,254 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { AppShell } from "@/components/layout/app-shell";
 
-import { AppLogo } from "@/components/branding/app-logo";
-import { LoadingState } from "@/components/feedback/loading-state";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/auth-context";
+type ModuleItem = {
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  accent: string;
+  surface: string;
+};
+
+function InventoryIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className="size-7"
+      aria-hidden="true"
+    >
+      <path
+        d="M4.5 7.5 12 3.8l7.5 3.7L12 11.2 4.5 7.5Z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M4.5 7.5v8.8L12 20.2l7.5-3.9V7.5M12 11.2v9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SalesIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className="size-7"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 6.2h14v12.3H5z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M8 9.2h8M8 12.2h5M8 15.2h3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CustomersIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className="size-7"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="8.2" r="3.1" />
+
+      <path
+        d="M3.8 18.8c.5-3.1 2.2-4.8 5.2-4.8s4.7 1.7 5.2 4.8"
+        strokeLinecap="round"
+      />
+
+      <path
+        d="M15.2 6.2a2.7 2.7 0 0 1 0 5.2M16.1 14c2.4.2 3.7 1.8 4.1 4.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function PurchasesIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className="size-7"
+      aria-hidden="true"
+    >
+      <path
+        d="M6.3 7.2h11.4l1.1 12H5.2l1.1-12Z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M9 8V6.1a3 3 0 0 1 6 0V8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ReportsIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className="size-7"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 19V5M5 19h14"
+        strokeLinecap="round"
+      />
+
+      <path
+        d="m8 15 3-3 2.5 2 4.5-6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function DocumentsIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className="size-7"
+      aria-hidden="true"
+    >
+      <path
+        d="M7 3.8h7l4 4v12.4H7V3.8Z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M14 3.8v4h4M10 12h5M10 15h5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+const MODULES: ModuleItem[] = [
+  {
+    name: "Inventario",
+    description:
+      "Productos, ubicaciones, existencias y movimientos.",
+    icon: <InventoryIcon />,
+    accent: "#075184",
+    surface: "#eaf3f8",
+  },
+  {
+    name: "Ventas",
+    description:
+      "Registro y consulta de ventas.",
+    icon: <SalesIcon />,
+    accent: "#248a3d",
+    surface: "#edf8ef",
+  },
+  {
+    name: "Clientes e inyectores",
+    description:
+      "Clientes, inyectores y seguimiento de servicios.",
+    icon: <CustomersIcon />,
+    accent: "#6e4bb8",
+    surface: "#f3effb",
+  },
+  {
+    name: "Compras",
+    description:
+      "Proveedores, compras y costos.",
+    icon: <PurchasesIcon />,
+    accent: "#a05a00",
+    surface: "#fff6e5",
+  },
+  {
+    name: "Reportes",
+    description:
+      "Información operativa para análisis y decisiones.",
+    icon: <ReportsIcon />,
+    accent: "#0066cc",
+    surface: "#edf5ff",
+  },
+  {
+    name: "Documentos",
+    description:
+      "Etiquetas, catálogos y documentos internos.",
+    icon: <DocumentsIcon />,
+    accent: "#c02b63",
+    surface: "#fceef4",
+  },
+];
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const {
-    status,
-    user,
-    logout,
-  } = useAuth();
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/login");
-    }
-  }, [router, status]);
-
-  async function handleLogout(): Promise<void> {
-    await logout();
-    router.replace("/login");
-  }
-
-  if (status !== "authenticated" || !user) {
-    return (
-      <LoadingState
-        fullScreen
-        message="Preparando el sistema…"
-      />
-    );
-  }
-
-  const displayName = [
-    user.first_name,
-    user.last_name,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
   return (
-    <main className="min-h-screen bg-background px-5 py-6 sm:px-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
-          <AppLogo />
+    <AppShell
+      title="Inicio"
+      description="Seleccione el área en la que desea trabajar."
+    >
+      <section aria-labelledby="modules-title">
+        <h2
+          id="modules-title"
+          className="sr-only"
+        >
+          Áreas del sistema
+        </h2>
 
-          <div className="flex items-center gap-4">
-            <div className="min-w-0 text-right">
-              <p className="truncate text-sm font-medium text-foreground">
-                {displayName || user.username}
-              </p>
-
-              <p className="text-xs text-muted-foreground">
-                Sesión activa
-              </p>
-            </div>
-
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                void handleLogout();
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {MODULES.map((module, index) => (
+            <article
+              key={module.name}
+              className="app-module-card"
+              style={{
+                animationDelay: `${index * 55}ms`,
               }}
             >
-              Cerrar sesión
-            </Button>
-          </div>
-        </header>
+              <div
+                className="app-module-icon"
+                style={{
+                  background: module.surface,
+                  color: module.accent,
+                }}
+              >
+                {module.icon}
+              </div>
 
-        <section className="py-10">
-          <p className="text-sm font-medium text-[var(--color-brand-blue)]">
-            Inicio
-          </p>
+              <div className="mt-6">
+                <h3 className="text-[19px] font-semibold tracking-[-0.025em] text-foreground">
+                  {module.name}
+                </h3>
 
-          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-foreground sm:text-4xl">
-            ¿Qué necesita hacer?
-          </h1>
-
-          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-            Seleccione una opción para comenzar.
-          </p>
-        </section>
-
-        <section
-          aria-label="Opciones principales"
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-foreground">
-              Inventario
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Consultar productos, ubicaciones y existencias.
-            </p>
-          </article>
-
-          <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-foreground">
-              Ventas
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Registrar y consultar ventas.
-            </p>
-          </article>
-
-          <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-foreground">
-              Clientes e inyectores
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Consultar clientes y trabajos realizados.
-            </p>
-          </article>
-
-          <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-foreground">
-              Compras
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Consultar proveedores, compras y costos.
-            </p>
-          </article>
-
-          <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-foreground">
-              Reportes
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Revisar información operativa del negocio.
-            </p>
-          </article>
-
-          <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-foreground">
-              Administración
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Usuarios, configuración y estado técnico.
-            </p>
-          </article>
-        </section>
-      </div>
-    </main>
+                <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+                  {module.description}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </AppShell>
   );
 }
