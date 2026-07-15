@@ -58,15 +58,33 @@ Endpoint implementado:
 
     GET /api/system/status/
 
+El endpoint requiere autenticación y permisos administrativos.
+
+Tienen acceso:
+
+- usuarios superadministradores;
+- usuarios con `is_staff`;
+- usuarios pertenecientes al grupo `ADMIN`.
+
+Un usuario autenticado sin privilegios administrativos recibe
+`403 Forbidden`.
+
 Incluye:
 
-- estado general;
-- versión;
+- estado general de respuesta de la aplicación;
+- versión instalada;
 - hora del servidor;
-- entorno;
+- nombre del entorno;
+- estado de `DEBUG`;
 - usuario autenticado;
 - grupos del usuario;
 - módulos disponibles.
+
+No expone el módulo interno de configuración de Django.
+
+Este endpoint se utiliza para diagnóstico administrativo y para la futura
+pantalla de estado del sistema. No sustituye el healthcheck técnico
+`GET /api/health/`, utilizado por Docker, Nginx y la infraestructura.
 
 ### Inventario
 

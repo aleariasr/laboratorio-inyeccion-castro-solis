@@ -235,6 +235,12 @@ La instalación productiva no depende del repositorio Git ni de acceso a Interne
     GET /api/health/
     GET /api/system/status/
 
+`/api/health/` es el healthcheck técnico utilizado por la infraestructura.
+
+`/api/system/status/` es un endpoint administrativo. Requiere un usuario
+superusuario, `is_staff` o miembro del grupo `ADMIN`. Los usuarios
+autenticados sin privilegios administrativos reciben `403 Forbidden`.
+
 ## Cuentas
 
     POST /api/accounts/login/

@@ -8,6 +8,21 @@ ROLE_CUSTOMERS = "CUSTOMERS"
 ROLE_READ_ONLY = "READ_ONLY"
 
 
+class AdministrationPermission(permissions.BasePermission):
+    message = "No tiene permisos para consultar esta información."
+
+    def has_permission(self, request, view):
+        user = request.user
+
+        if not user or not user.is_authenticated:
+            return False
+
+        if user.is_superuser or user.is_staff:
+            return True
+
+        return user.groups.filter(name=ROLE_ADMIN).exists()
+
+
 class BaseRolePermission(permissions.BasePermission):
     required_roles = set()
 

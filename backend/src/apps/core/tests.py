@@ -10,6 +10,7 @@ from django.contrib.auth.models import AnonymousUser, Group, User
 from django.test import RequestFactory, TestCase
 
 from apps.core.permissions import (
+    AdministrationPermission,
     CustomersPermission,
     InventoryPermission,
     SalesPermission,
@@ -112,6 +113,108 @@ class RolePermissionTest(TestCase):
         permission = CustomersPermission()
 
         self.assertTrue(
+            permission.has_permission(
+                request,
+                view=None,
+            )
+        )
+
+    def test_administration_permission_denies_anonymous_user(self):
+        request = self._request(
+            AnonymousUser(),
+        )
+
+        permission = AdministrationPermission()
+
+        self.assertFalse(
+            permission.has_permission(
+                request,
+                view=None,
+            )
+        )
+
+    def test_administration_permission_allows_admin_group(self):
+        user = self._user_with_group(
+            ROLE_ADMIN,
+        )
+        request = self._request(
+            user,
+        )
+
+        permission = AdministrationPermission()
+
+        self.assertTrue(
+            permission.has_permission(
+                request,
+                view=None,
+            )
+        )
+
+    def test_administration_permission_allows_staff_user(self):
+        user = User.objects.create_user(
+            username="administration-staff",
+            password="12345678",
+            is_staff=True,
+        )
+        request = self._request(
+            user,
+        )
+
+        permission = AdministrationPermission()
+
+        self.assertTrue(
+            permission.has_permission(
+                request,
+                view=None,
+            )
+        )
+
+    def test_administration_permission_allows_superuser(self):
+        user = User.objects.create_superuser(
+            username="administration-superuser",
+            password="12345678",
+        )
+        request = self._request(
+            user,
+        )
+
+        permission = AdministrationPermission()
+
+        self.assertTrue(
+            permission.has_permission(
+                request,
+                view=None,
+            )
+        )
+
+    def test_administration_permission_denies_non_admin_role(self):
+        user = self._user_with_group(
+            ROLE_INVENTORY,
+        )
+        request = self._request(
+            user,
+        )
+
+        permission = AdministrationPermission()
+
+        self.assertFalse(
+            permission.has_permission(
+                request,
+                view=None,
+            )
+        )
+
+    def test_administration_permission_denies_read_only_role(self):
+        user = self._user_with_group(
+            ROLE_READ_ONLY,
+        )
+        request = self._request(
+            user,
+        )
+
+        permission = AdministrationPermission()
+
+        self.assertFalse(
             permission.has_permission(
                 request,
                 view=None,

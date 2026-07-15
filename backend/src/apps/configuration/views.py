@@ -1,25 +1,36 @@
 from django.conf import settings
 from django.utils import timezone
-from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.permissions import AdministrationPermission
+
+from .constants import SYSTEM_MODULES
+
 
 class SystemStatusView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AdministrationPermission]
 
     def get(self, request):
         user = request.user
 
+        environment_name = (
+            "development"
+            if settings.DEBUG
+            else "production"
+        )
+
         return Response(
             {
                 "status": "healthy",
-                "service": "Laboratorio de Inyección Castro Solís",
+                "service": (
+                    "Laboratorio de Inyección Castro Solís"
+                ),
                 "version": settings.APP_VERSION,
                 "server_time": timezone.now(),
                 "environment": {
+                    "name": environment_name,
                     "debug": settings.DEBUG,
-                    "settings_module": settings.SETTINGS_MODULE,
                 },
                 "user": {
                     "id": user.id,
@@ -33,14 +44,6 @@ class SystemStatusView(APIView):
                         )
                     ),
                 },
-                "modules": [
-                    "accounts",
-                    "inventory",
-                    "customers",
-                    "sales",
-                    "reports",
-                    "search",
-                    "configuration",
-                ],
+                "modules": list(SYSTEM_MODULES),
             }
         )

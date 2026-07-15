@@ -678,17 +678,32 @@ Endpoint:
 
 - `GET /api/system/status/`.
 
+El endpoint es exclusivamente administrativo.
+
+Pueden consultarlo:
+
+- usuarios superadministradores;
+- usuarios con `is_staff`;
+- usuarios pertenecientes al grupo `ADMIN`.
+
+Un usuario autenticado sin privilegios administrativos recibe
+`403 Forbidden`.
+
 Información esperada:
 
-- estado general;
-- versión;
+- estado general de respuesta de la aplicación;
+- versión instalada;
 - hora del servidor;
-- entorno;
+- nombre del entorno;
+- estado de `DEBUG`;
 - usuario autenticado;
 - grupos;
 - módulos disponibles.
 
-Debe usarse para una pantalla administrativa y para diagnóstico, no para sustituir el healthcheck técnico.
+La respuesta no expone el módulo interno de configuración de Django.
+
+Debe usarse para una pantalla administrativa y para diagnóstico. No sustituye
+el healthcheck técnico `GET /api/health/`.
 
 ---
 
