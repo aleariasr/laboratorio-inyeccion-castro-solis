@@ -5,7 +5,13 @@ from rest_framework.test import APITestCase
 
 from apps.core.permissions import ROLE_INVENTORY
 
-from apps.inventory.models import Product, StorageLocation
+from apps.inventory.models import (
+    MovementDirection,
+    Product,
+    StockMovement,
+    StockMovementType,
+    StorageLocation,
+)
 
 User = get_user_model()
 
@@ -251,3 +257,80 @@ class ProductApiTest(APITestCase):
             status.HTTP_400_BAD_REQUEST,
         )
         self.assertIn("storage_location", response.data)
+
+    def test_product_list_returns_calculated_current_stock(self):
+        StockMovement.create_from_service(
+            product=self.product,
+            movement_type=StockMovementType.INITIAL,
+            direction=MovementDirection.IN,
+            quantity=12,
+            notes="Inventario inicial de prueba.",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        StockMovement.create_from_service(
+            product=self.product,
+            movement_type=StockMovementType.ADJUSTMENT,
+            direction=MovementDirection.OUT,
+            quantity=4,
+            notes="Ajuste negativo de prueba.",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get("/api/inventory/products/")
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            response.data["results"][0]["current_stock"],
+            8,
+        )
+
+    def test_product_detail_returns_calculated_current_stock(self):
+        StockMovement.create_from_service(
+            product=self.product,
+            movement_type=StockMovementType.INITIAL,
+            direction=MovementDirection.IN,
+            quantity=7,
+            notes="Inventario inicial de prueba.",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            response.data["current_stock"],
+            7,
+        )
+
+    def test_product_list_does_not_query_stock_per_product(self):
+        self.create_additional_products(20)
+
+        with self.assertNumQueries(3):
+            response = self.client.get(
+                "/api/inventory/products/",
+            )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            response.data["count"],
+            21,
+        )
+        self.assertEqual(
+            len(response.data["results"]),
+            21,
+        )

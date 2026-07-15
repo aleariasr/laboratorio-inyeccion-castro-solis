@@ -49,6 +49,9 @@ class ProductSerializer(serializers.ModelSerializer):
         )
 
     def get_current_stock(self, obj):
+        if hasattr(obj, "current_stock"):
+            return obj.current_stock
+
         return current_stock(obj)
 
 

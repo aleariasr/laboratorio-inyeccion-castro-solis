@@ -1,4 +1,3 @@
-
 from django.db.models import Q
 from rest_framework import viewsets
 
@@ -7,12 +6,11 @@ from apps.core.query_params import (
     parse_boolean_query_param,
     parse_positive_integer_query_param,
 )
-
 from apps.inventory.models import (
-    Product,
     ProductReference,
     StorageLocation,
 )
+from apps.inventory.selectors import current_stock_bulk
 from apps.inventory.serializers import (
     ProductReferenceSerializer,
     ProductSerializer,
@@ -50,10 +48,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = [InventoryPermission]
 
     def get_queryset(self):
-        queryset = (
-            Product.objects
-            .select_related("storage_location")
-            .order_by("standard_code")
+        queryset = current_stock_bulk().select_related(
+            "storage_location",
         )
 
         query = self.request.query_params.get("q", "").strip()
