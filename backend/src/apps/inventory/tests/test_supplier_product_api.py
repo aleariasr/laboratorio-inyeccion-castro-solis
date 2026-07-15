@@ -163,3 +163,51 @@ class SupplierProductApiTest(APITestCase):
         )
         self.assertFalse(self.supplier_product.preferred_supplier)
         self.assertEqual(self.supplier_product.updated_by, self.user)
+
+
+    def test_search_supplier_products(self):
+        response = self.client.get(
+            "/api/inventory/supplier-products/",
+            {
+                "q": "BOSCH-001",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["id"],
+            self.supplier_product.id,
+        )
+
+    def test_filter_supplier_products_by_relationships(self):
+        response = self.client.get(
+            "/api/inventory/supplier-products/",
+            {
+                "supplier": self.supplier.id,
+                "product": self.product.id,
+                "preferred_supplier": "true",
+                "is_active": "true",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["id"],
+            self.supplier_product.id,
+        )
+
+    def test_invalid_preferred_supplier_filter_returns_400(self):
+        response = self.client.get(
+            "/api/inventory/supplier-products/",
+            {
+                "preferred_supplier": "yes",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("preferred_supplier", response.data)

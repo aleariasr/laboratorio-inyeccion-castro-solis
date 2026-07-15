@@ -165,3 +165,43 @@ class ProductReferenceApiTest(APITestCase):
         self.assertEqual(self.reference.reference_code, "NEW-001")
         self.assertEqual(self.reference.description, "Actualizada")
         self.assertEqual(self.reference.updated_by, self.user)
+
+
+    def test_search_product_references(self):
+        response = self.client.get(
+            "/api/inventory/product-references/",
+            {
+                "q": "Bosch",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["reference_code"],
+            "ABC-123",
+        )
+
+    def test_filter_product_references_by_active_state(self):
+        ProductReference.objects.create(
+            product=self.product,
+            manufacturer="Denso",
+            reference_code="DEN-900",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/product-references/",
+            {
+                "is_active": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["reference_code"],
+            "DEN-900",
+        )

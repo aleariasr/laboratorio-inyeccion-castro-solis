@@ -79,3 +79,49 @@ class SupplierApiTest(APITestCase):
             self.supplier.contact_name,
             "Ana López",
         )
+
+
+    def test_search_suppliers_by_visible_fields(self):
+        Supplier.objects.create(
+            name="Denso",
+            contact_name="Carlos Mora",
+            country="Japón",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/suppliers/",
+            {
+                "q": "Carlos",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["name"],
+            "DENSO",
+        )
+
+    def test_filter_suppliers_by_active_state(self):
+        Supplier.objects.create(
+            name="Denso",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/suppliers/",
+            {
+                "is_active": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["name"],
+            "DENSO",
+        )

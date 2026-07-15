@@ -1,6 +1,12 @@
+
+from django.db.models import Q
 from rest_framework import viewsets
 
 from apps.core.permissions import InventoryPermission
+from apps.core.query_params import (
+    parse_boolean_query_param,
+    parse_positive_integer_query_param,
+)
 
 from apps.inventory.models import (
     Product,
@@ -15,19 +21,68 @@ from apps.inventory.serializers import (
 
 
 class StorageLocationViewSet(viewsets.ModelViewSet):
-    queryset = StorageLocation.objects.order_by("code")
     serializer_class = StorageLocationSerializer
     permission_classes = [InventoryPermission]
 
+    def get_queryset(self):
+        queryset = StorageLocation.objects.order_by("code")
+
+        query = self.request.query_params.get("q", "").strip()
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"),
+            name="is_active",
+        )
+
+        if query:
+            queryset = queryset.filter(
+                Q(code__icontains=query)
+                | Q(description__icontains=query)
+            )
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
+
+        return queryset
+
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = (
-        Product.objects
-        .select_related("storage_location")
-        .order_by("standard_code")
-    )
     serializer_class = ProductSerializer
     permission_classes = [InventoryPermission]
+
+    def get_queryset(self):
+        queryset = (
+            Product.objects
+            .select_related("storage_location")
+            .order_by("standard_code")
+        )
+
+        query = self.request.query_params.get("q", "").strip()
+        storage_location_id = parse_positive_integer_query_param(
+            self.request.query_params.get("storage_location"),
+            name="storage_location",
+        )
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"),
+            name="is_active",
+        )
+
+        if query:
+            queryset = queryset.filter(
+                Q(standard_code__icontains=query)
+                | Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(storage_location__code__icontains=query)
+            )
+
+        if storage_location_id is not None:
+            queryset = queryset.filter(
+                storage_location_id=storage_location_id,
+            )
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
+
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(
@@ -52,10 +107,30 @@ class ProductReferenceViewSet(viewsets.ModelViewSet):
             .order_by("reference_code")
         )
 
-        product_id = self.request.query_params.get("product")
+        query = self.request.query_params.get("q", "").strip()
+        product_id = parse_positive_integer_query_param(
+            self.request.query_params.get("product"),
+            name="product",
+        )
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"),
+            name="is_active",
+        )
 
-        if product_id:
+        if query:
+            queryset = queryset.filter(
+                Q(reference_code__icontains=query)
+                | Q(manufacturer__icontains=query)
+                | Q(description__icontains=query)
+                | Q(product__standard_code__icontains=query)
+                | Q(product__name__icontains=query)
+            )
+
+        if product_id is not None:
             queryset = queryset.filter(product_id=product_id)
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
 
         return queryset
 

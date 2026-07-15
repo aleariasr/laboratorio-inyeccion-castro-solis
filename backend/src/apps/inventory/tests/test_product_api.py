@@ -181,3 +181,73 @@ class ProductApiTest(APITestCase):
         self.assertEqual(len(response.data["results"]), 11)
         self.assertIsNone(response.data["next"])
         self.assertIsNotNone(response.data["previous"])
+
+
+    def test_search_products_by_visible_fields(self):
+        Product.objects.create(
+            standard_code="INY-900",
+            name="Válvula de inyector",
+            description="Repuesto especial",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/products/",
+            {
+                "q": "inyector",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["standard_code"],
+            "INY-900",
+        )
+
+    def test_filter_products_by_location_and_active_state(self):
+        other_location = StorageLocation.objects.create(
+            code="B202",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        inactive_product = Product.objects.create(
+            standard_code="P-900",
+            name="Producto inactivo",
+            storage_location=other_location,
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/products/",
+            {
+                "storage_location": other_location.id,
+                "is_active": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["id"],
+            inactive_product.id,
+        )
+
+    def test_invalid_product_location_filter_returns_400(self):
+        response = self.client.get(
+            "/api/inventory/products/",
+            {
+                "storage_location": "invalid",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("storage_location", response.data)

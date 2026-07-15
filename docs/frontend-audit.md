@@ -272,6 +272,15 @@ Campos expuestos:
 
 El stock actual es de solo lectura y se calcula desde movimientos.
 
+Filtros implementados para productos:
+
+- búsqueda `q` por código estándar;
+- búsqueda `q` por nombre;
+- búsqueda `q` por descripción;
+- búsqueda `q` por código de ubicación;
+- filtro exacto por ubicación;
+- filtro por estado activo o inactivo.
+
 ## Ubicación
 
 Campos expuestos:
@@ -280,6 +289,12 @@ Campos expuestos:
 - código;
 - descripción;
 - estado activo.
+
+Filtros implementados para ubicaciones:
+
+- búsqueda `q` por código;
+- búsqueda `q` por descripción;
+- filtro por estado activo o inactivo.
 
 ## Referencias alternativas
 
@@ -290,6 +305,15 @@ Campos expuestos:
 - código de referencia;
 - descripción;
 - estado activo.
+
+Filtros implementados para referencias:
+
+- búsqueda `q` por código de referencia;
+- búsqueda `q` por fabricante;
+- búsqueda `q` por descripción;
+- búsqueda `q` por código o nombre del producto;
+- filtro exacto por producto;
+- filtro por estado activo o inactivo.
 
 ## Implicaciones de interfaz
 
@@ -311,6 +335,31 @@ Los cambios de stock deben dirigir al usuario hacia:
 - ventas;
 - conteos físicos;
 - movimientos o ajustes permitidos.
+
+## Proveedores y relaciones proveedor-producto
+
+Filtros implementados para proveedores:
+
+- búsqueda `q` por nombre;
+- búsqueda `q` por contacto;
+- búsqueda `q` por teléfono;
+- búsqueda `q` por correo;
+- búsqueda `q` por país;
+- filtro por estado activo o inactivo.
+
+Filtros implementados para relaciones proveedor-producto:
+
+- búsqueda `q` por referencia del proveedor;
+- búsqueda `q` por fabricante;
+- búsqueda `q` por proveedor;
+- búsqueda `q` por código o nombre del producto;
+- filtro exacto por proveedor;
+- filtro exacto por producto;
+- filtro por proveedor preferido;
+- filtro por estado activo o inactivo.
+
+Los parámetros booleanos aceptan únicamente `true` o `false`.
+Los identificadores de relaciones deben ser enteros positivos.
 
 ---
 
@@ -793,15 +842,16 @@ Requisitos mínimos:
 Pendientes confirmados:
 
 1. Paginación uniforme implementada.
-2. Revisar filtros y búsquedas de listados.
-3. Ampliar la búsqueda universal según requerimientos confirmados.
-4. Permitir administración controlada de roles de usuario.
-5. Revisar permisos cruzados necesarios entre módulos.
-6. Actualizar documentación desactualizada.
-7. Limpiar imports duplicados en `customers/views.py`.
-8. Confirmar qué endpoints necesitan ordenamiento.
-9. Confirmar qué listados requieren búsqueda propia.
-10. Mantener cerrados los módulos de caja y migración hasta tener requerimientos reales.
+2. Filtros básicos de catálogos de inventario implementados.
+3. Revisar filtros de compras, ventas, clientes, servicios, conteos y costos.
+4. Ampliar la búsqueda universal según requerimientos confirmados.
+5. Permitir administración controlada de roles de usuario.
+6. Revisar permisos cruzados necesarios entre módulos.
+7. Actualizar documentación desactualizada.
+8. Limpiar imports duplicados en `customers/views.py`.
+9. Confirmar qué endpoints necesitan ordenamiento configurable.
+10. Confirmar qué listados adicionales requieren búsqueda propia.
+11. Mantener cerrados los módulos de caja y migración hasta tener requerimientos reales.
 
 ---
 
@@ -811,7 +861,7 @@ La documentación actual todavía contiene información anterior a los cambios r
 
 Debe actualizarse:
 
-- número de pruebas backend: 251;
+- número de pruebas backend: 269;
 - anulación de compras confirmadas;
 - reversión de movimientos;
 - anulación de ventas confirmadas;

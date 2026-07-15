@@ -70,3 +70,62 @@ class StorageLocationApiTest(APITestCase):
             self.location.description,
             "Descripción actualizada",
         )
+
+
+    def test_search_locations_by_code_or_description(self):
+        StorageLocation.objects.create(
+            code="B202",
+            description="Bodega secundaria",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/locations/",
+            {
+                "q": "secundaria",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["code"],
+            "B202",
+        )
+
+    def test_filter_locations_by_active_state(self):
+        StorageLocation.objects.create(
+            code="B202",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/locations/",
+            {
+                "is_active": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["code"],
+            "B202",
+        )
+
+    def test_invalid_location_active_filter_returns_400(self):
+        response = self.client.get(
+            "/api/inventory/locations/",
+            {
+                "is_active": "invalid",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("is_active", response.data)

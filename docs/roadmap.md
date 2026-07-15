@@ -250,7 +250,7 @@ Incluye:
 - reportes JSON;
 - documentos PDF iniciales;
 - etiquetas con código de barras Code128 real;
-- suite backend con 256 tests;
+- suite backend con 269 tests;
 - reversión trazable de compras y ventas confirmadas;
 - protección contra eliminación de compras, ventas y conteos finalizados.
 
