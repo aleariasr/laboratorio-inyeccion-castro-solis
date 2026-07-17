@@ -129,14 +129,14 @@ export default function NewProductPage() {
       token,
       controller.signal,
     )
-      .then((response) => {
+      .then((locations) => {
         if (controller.signal.aborted) {
           return;
         }
 
         setLocationsState({
           status: "success",
-          locations: response.results,
+          locations,
           message: null,
         });
       })

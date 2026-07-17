@@ -41,6 +41,38 @@ function buildProductsQuery(
   return searchParams.toString();
 }
 
+async function getAllPages<T>(
+  buildPath: (page: number) => string,
+  token: string,
+  signal?: AbortSignal,
+): Promise<T[]> {
+  const results: T[] = [];
+  let page = 1;
+
+  while (true) {
+    const response =
+      await apiGet<PaginatedResponse<T>>(
+        buildPath(page),
+        {
+          token,
+          signal,
+        },
+      );
+
+    results.push(...response.results);
+
+    if (
+      response.next === null ||
+      response.results.length === 0 ||
+      results.length >= response.count
+    ) {
+      return results;
+    }
+
+    page += 1;
+  }
+}
+
 export function getProducts(
   token: string,
   filters: ProductFilters,
@@ -75,38 +107,40 @@ export function getProductReferences(
   token: string,
   productId: number,
   signal?: AbortSignal,
-): Promise<PaginatedResponse<ProductReference>> {
-  const searchParams = new URLSearchParams({
-    product: String(productId),
-    page_size: "100",
-  });
+): Promise<ProductReference[]> {
+  return getAllPages<ProductReference>(
+    (page) => {
+      const searchParams =
+        new URLSearchParams({
+          product: String(productId),
+          page: String(page),
+          page_size: "100",
+        });
 
-  return apiGet<PaginatedResponse<ProductReference>>(
-    `/api/inventory/product-references/?${searchParams.toString()}`,
-    {
-      token,
-      signal,
+      return `/api/inventory/product-references/?${searchParams.toString()}`;
     },
+    token,
+    signal,
   );
 }
 
 export function getActiveLocations(
   token: string,
   signal?: AbortSignal,
-): Promise<PaginatedResponse<StorageLocationSummary>> {
-  const searchParams = new URLSearchParams({
-    is_active: "true",
-    page_size: "100",
-  });
+): Promise<StorageLocationSummary[]> {
+  return getAllPages<StorageLocationSummary>(
+    (page) => {
+      const searchParams =
+        new URLSearchParams({
+          is_active: "true",
+          page: String(page),
+          page_size: "100",
+        });
 
-  return apiGet<
-    PaginatedResponse<StorageLocationSummary>
-  >(
-    `/api/inventory/locations/?${searchParams.toString()}`,
-    {
-      token,
-      signal,
+      return `/api/inventory/locations/?${searchParams.toString()}`;
     },
+    token,
+    signal,
   );
 }
 

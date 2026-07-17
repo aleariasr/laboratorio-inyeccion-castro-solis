@@ -173,7 +173,7 @@ export default function EditProductPage() {
         controller.signal,
       ),
     ])
-      .then(([product, locationsResponse]) => {
+      .then(([product, locations]) => {
         if (controller.signal.aborted) {
           return;
         }
@@ -183,8 +183,8 @@ export default function EditProductPage() {
           product,
           locations: includeCurrentLocation(
             product,
-            locationsResponse.results,
-          ),
+            locations,
+            ),
           message: null,
         });
       })

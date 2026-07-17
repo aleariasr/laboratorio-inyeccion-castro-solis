@@ -148,7 +148,7 @@ export default function ProductDetailPage() {
         setLoadState({
           status: "success",
           product,
-          references: references.results,
+          references,
           message: null,
         });
       })
