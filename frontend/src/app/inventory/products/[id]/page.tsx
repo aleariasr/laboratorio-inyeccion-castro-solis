@@ -6,6 +6,11 @@ import {
   useState,
 } from "react";
 
+import {
+  canReadInventory,
+  canWriteInventory,
+} from "@/features/auth/permissions";
+
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
 import { ArrowLeftIcon } from "@/components/icons/app-icons";
@@ -105,11 +110,10 @@ export default function ProductDetailPage() {
   const productId = Number(params.id);
 
   const hasInventoryAccess =
-    user?.is_superuser === true ||
-    user?.is_staff === true ||
-    user?.groups.includes("ADMIN") === true ||
-    user?.groups.includes("INVENTORY") === true ||
-    user?.groups.includes("READ_ONLY") === true;
+    user ? canReadInventory(user) : false;
+
+  const hasWriteAccess =
+    user ? canWriteInventory(user) : false;
 
   useEffect(() => {
     if (
@@ -292,14 +296,30 @@ export default function ProductDetailPage() {
           : "Información registrada del producto."
       }
       actions={
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={goBack}
-        >
-          <ArrowLeftIcon />
-          Volver
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {loadState.status === "success" &&
+            hasWriteAccess && (
+              <Button
+                type="button"
+                onClick={() => {
+                  router.push(
+                    `/inventory/products/${loadState.product.id}/edit`,
+                  );
+                }}
+              >
+                Editar producto
+              </Button>
+            )}
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={goBack}
+          >
+            <ArrowLeftIcon />
+            Volver
+          </Button>
+        </div>
       }
     >
       {loadState.status === "loading" && (
