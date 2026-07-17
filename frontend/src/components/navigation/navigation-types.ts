@@ -1,11 +1,6 @@
 import type { ComponentType } from "react";
 
-export type AppRole =
-  | "ADMIN"
-  | "INVENTORY"
-  | "SALES"
-  | "CUSTOMERS"
-  | "READ_ONLY";
+import type { AppRole } from "@/features/auth/permissions";
 
 export type NavigationSectionId =
   | "main"

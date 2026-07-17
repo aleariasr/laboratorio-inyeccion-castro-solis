@@ -1,0 +1,43 @@
+import {
+  forwardRef,
+  type SelectHTMLAttributes,
+} from "react";
+
+type SelectProps =
+  SelectHTMLAttributes<HTMLSelectElement> & {
+    hasError?: boolean;
+  };
+
+export const Select = forwardRef<
+  HTMLSelectElement,
+  SelectProps
+>(function Select(
+  {
+    hasError = false,
+    className = "",
+    children,
+    ...props
+  },
+  ref,
+) {
+  return (
+    <select
+      ref={ref}
+      aria-invalid={hasError || undefined}
+      className={[
+        "h-12 w-full rounded-[var(--radius-md)] border bg-surface px-4 text-[15px] text-foreground shadow-sm",
+        "transition-[border-color,box-shadow,background-color] duration-[var(--motion-fast)] ease-[var(--ease-standard)]",
+        "hover:border-[var(--color-border-strong)]",
+        "focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]",
+        "disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-muted-foreground",
+        hasError
+          ? "border-danger focus:border-danger focus:ring-[rgb(215_0_21_/_10%)]"
+          : "border-border",
+        className,
+      ].join(" ")}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+});
