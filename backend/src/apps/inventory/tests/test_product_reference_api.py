@@ -205,3 +205,21 @@ class ProductReferenceApiTest(APITestCase):
             response.data["results"][0]["reference_code"],
             "DEN-900",
         )
+
+    def test_delete_product_reference_is_not_allowed(self):
+        response = self.client.delete(
+            (
+                "/api/inventory/product-references/"
+                f"{self.reference.id}/"
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+        self.assertTrue(
+            ProductReference.objects.filter(
+                id=self.reference.id,
+            ).exists()
+        )

@@ -334,3 +334,205 @@ class ProductApiTest(APITestCase):
             len(response.data["results"]),
             21,
         )
+
+    def test_create_product_normalizes_text_values_and_sets_audit_users(self):
+        response = self.client.post(
+            "/api/inventory/products/",
+            {
+                "standard_code": "  iny-001  ",
+                "name": "  Válvula de inyector  ",
+                "description": "  Repuesto de prueba  ",
+                "storage_location": self.location.id,
+                "minimum_stock": 3,
+                "unit_of_measure": "  Unidad  ",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        product = Product.objects.get(
+            id=response.data["id"],
+        )
+
+        self.assertEqual(
+            product.standard_code,
+            "INY-001",
+        )
+        self.assertEqual(
+            product.name,
+            "Válvula de inyector",
+        )
+        self.assertEqual(
+            product.description,
+            "Repuesto de prueba",
+        )
+        self.assertEqual(
+            product.unit_of_measure,
+            "unidad",
+        )
+        self.assertEqual(
+            product.created_by,
+            self.user,
+        )
+        self.assertEqual(
+            product.updated_by,
+            self.user,
+        )
+
+    def test_duplicate_normalized_product_code_returns_400(self):
+        response = self.client.post(
+            "/api/inventory/products/",
+            {
+                "standard_code": "  p-001  ",
+                "name": "Duplicado",
+                "storage_location": self.location.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn(
+            "standard_code",
+            response.data,
+        )
+
+    def test_create_product_in_inactive_location_returns_400(self):
+        inactive_location = StorageLocation.objects.create(
+            code="B202",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            "/api/inventory/products/",
+            {
+                "standard_code": "P-900",
+                "name": "Producto inválido",
+                "storage_location": inactive_location.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn(
+            "storage_location",
+            response.data,
+        )
+
+    def test_move_product_to_inactive_location_returns_400(self):
+        inactive_location = StorageLocation.objects.create(
+            code="B202",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {
+                "storage_location": inactive_location.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn(
+            "storage_location",
+            response.data,
+        )
+
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            self.product.storage_location,
+            self.location,
+        )
+
+    def test_update_other_fields_when_current_location_is_inactive(self):
+        self.location.is_active = False
+        self.location.save(
+            update_fields=[
+                "is_active",
+                "updated_at",
+            ],
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {
+                "name": "  Producto actualizado  ",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.product.refresh_from_db()
+
+        self.assertEqual(
+            self.product.name,
+            "Producto actualizado",
+        )
+        self.assertEqual(
+            self.product.storage_location,
+            self.location,
+        )
+
+    def test_current_stock_cannot_be_modified_through_product_api(self):
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {
+                "current_stock": 999,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        detail_response = self.client.get(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(
+            detail_response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            detail_response.data["current_stock"],
+            0,
+        )
+
+    def test_delete_product_is_not_allowed(self):
+        response = self.client.delete(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+        self.assertTrue(
+            Product.objects.filter(
+                id=self.product.id,
+            ).exists()
+        )

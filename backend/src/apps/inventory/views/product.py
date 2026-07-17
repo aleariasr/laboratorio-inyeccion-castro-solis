@@ -1,5 +1,6 @@
 from django.db.models import Q
 from rest_framework import viewsets
+from rest_framework.exceptions import MethodNotAllowed
 
 from apps.core.permissions import InventoryPermission
 from apps.core.query_params import (
@@ -18,7 +19,28 @@ from apps.inventory.serializers import (
 )
 
 
-class StorageLocationViewSet(viewsets.ModelViewSet):
+class NonDestructiveDeleteMixin:
+    """
+    Impide el borrado físico de entidades operativas.
+
+    Estas entidades deben desactivarse mediante PATCH y conservarse
+    para mantener trazabilidad y relaciones históricas.
+    """
+
+    def destroy(self, request, *args, **kwargs):
+        raise MethodNotAllowed(
+            method="DELETE",
+            detail=(
+                "Este registro no puede eliminarse. "
+                "Debe desactivarlo mediante una actualización."
+            ),
+        )
+
+
+class StorageLocationViewSet(
+    NonDestructiveDeleteMixin,
+    viewsets.ModelViewSet,
+):
     serializer_class = StorageLocationSerializer
     permission_classes = [InventoryPermission]
 
@@ -42,8 +64,22 @@ class StorageLocationViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            updated_by=self.request.user,
+        )
 
-class ProductViewSet(viewsets.ModelViewSet):
+    def perform_update(self, serializer):
+        serializer.save(
+            updated_by=self.request.user,
+        )
+
+
+class ProductViewSet(
+    NonDestructiveDeleteMixin,
+    viewsets.ModelViewSet,
+):
     serializer_class = ProductSerializer
     permission_classes = [InventoryPermission]
 
@@ -92,7 +128,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
 
 
-class ProductReferenceViewSet(viewsets.ModelViewSet):
+class ProductReferenceViewSet(
+    NonDestructiveDeleteMixin,
+    viewsets.ModelViewSet,
+):
     serializer_class = ProductReferenceSerializer
     permission_classes = [InventoryPermission]
 

@@ -129,3 +129,104 @@ class StorageLocationApiTest(APITestCase):
             status.HTTP_400_BAD_REQUEST,
         )
         self.assertIn("is_active", response.data)
+
+    def test_create_location_normalizes_values_and_sets_audit_users(self):
+        response = self.client.post(
+            "/api/inventory/locations/",
+            {
+                "code": "  b203  ",
+                "description": "  Bodega auxiliar  ",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        location = StorageLocation.objects.get(
+            id=response.data["id"],
+        )
+
+        self.assertEqual(location.code, "B203")
+        self.assertEqual(
+            location.description,
+            "Bodega auxiliar",
+        )
+        self.assertEqual(
+            location.created_by,
+            self.user,
+        )
+        self.assertEqual(
+            location.updated_by,
+            self.user,
+        )
+
+    def test_update_location_sets_updated_by(self):
+        other_user = User.objects.create_user(
+            username="other-inventory",
+            password="12345678",
+        )
+
+        inventory_group = Group.objects.get(
+            name=ROLE_INVENTORY,
+        )
+        other_user.groups.add(inventory_group)
+
+        self.client.force_authenticate(other_user)
+
+        response = self.client.patch(
+            f"/api/inventory/locations/{self.location.id}/",
+            {
+                "description": "  Nueva descripción  ",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.location.refresh_from_db()
+
+        self.assertEqual(
+            self.location.description,
+            "Nueva descripción",
+        )
+        self.assertEqual(
+            self.location.updated_by,
+            other_user,
+        )
+
+    def test_duplicate_normalized_location_code_returns_400(self):
+        response = self.client.post(
+            "/api/inventory/locations/",
+            {
+                "code": " a101 ",
+                "description": "Duplicada",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("code", response.data)
+
+    def test_delete_location_is_not_allowed(self):
+        response = self.client.delete(
+            f"/api/inventory/locations/{self.location.id}/"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+        self.assertTrue(
+            StorageLocation.objects.filter(
+                id=self.location.id,
+            ).exists()
+        )
