@@ -4,6 +4,7 @@ import type { PaginatedResponse } from "@/lib/api/types";
 import type {
   Product,
   ProductFilters,
+  ProductReference,
 } from "./types";
 
 function buildProductsQuery(
@@ -43,6 +44,38 @@ export function getProducts(
 
   return apiGet<PaginatedResponse<Product>>(
     `/api/inventory/products/?${query}`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+export function getProduct(
+  token: string,
+  productId: number,
+  signal?: AbortSignal,
+): Promise<Product> {
+  return apiGet<Product>(
+    `/api/inventory/products/${productId}/`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+
+export function getProductReferences(
+  token: string,
+  productId: number,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<ProductReference>> {
+  const searchParams = new URLSearchParams({
+    product: String(productId),
+    page_size: "100",
+  });
+
+  return apiGet<PaginatedResponse<ProductReference>>(
+    `/api/inventory/product-references/?${searchParams.toString()}`,
     {
       token,
       signal,

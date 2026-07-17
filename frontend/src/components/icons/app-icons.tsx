@@ -199,3 +199,24 @@ export function BoxIcon({
     </svg>
   );
 }
+
+export function ArrowLeftIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="m14.5 6.5-5.5 5.5 5.5 5.5M9.3 12H19"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

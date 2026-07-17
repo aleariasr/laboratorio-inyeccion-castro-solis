@@ -128,156 +128,88 @@ export default function ProductsPage() {
     user?.groups.includes("INVENTORY") === true ||
     user?.groups.includes("READ_ONLY") === true;
 
-    useEffect(() => {
+  useEffect(() => {
     if (
-        authStatus !== "authenticated" ||
-        !token ||
-        !hasInventoryAccess
+      authStatus !== "authenticated" ||
+      !token ||
+      !hasInventoryAccess
     ) {
-        return;
+      return;
     }
 
     const controller = new AbortController();
 
     getProducts(
-        token,
-        filters,
-        controller.signal,
+      token,
+      filters,
+      controller.signal,
     )
-        .then((data) => {
+      .then((data) => {
         if (controller.signal.aborted) {
-            return;
+          return;
         }
 
         setLoadState({
-            status: "success",
-            data,
-            message: null,
+          status: "success",
+          data,
+          message: null,
         });
-        })
-        .catch((error: unknown) => {
+      })
+      .catch((error: unknown) => {
         if (controller.signal.aborted) {
-            return;
+          return;
         }
 
         if (
-            error instanceof DOMException &&
-            error.name === "AbortError"
+          error instanceof DOMException &&
+          error.name === "AbortError"
         ) {
-            return;
+          return;
         }
 
         if (
-            error instanceof ApiError &&
-            error.status === 401
+          error instanceof ApiError &&
+          error.status === 401
         ) {
-            void logout().then(() => {
+          void logout().then(() => {
             router.replace("/login");
-            });
+          });
 
-            return;
+          return;
         }
 
         if (
-            error instanceof ApiError &&
-            error.status === 403
+          error instanceof ApiError &&
+          error.status === 403
         ) {
-            setLoadState({
+          setLoadState({
             status: "forbidden",
             data: null,
             message:
-                "Este usuario no tiene permisos para consultar el inventario.",
-            });
+              "Este usuario no tiene permisos para consultar el inventario.",
+          });
 
-            return;
+          return;
         }
 
         setLoadState({
-            status: "error",
-            data: null,
-            message: getLoadErrorMessage(error),
+          status: "error",
+          data: null,
+          message: getLoadErrorMessage(error),
         });
-        });
+      });
 
     return () => {
-        controller.abort();
+      controller.abort();
     };
-    }, [
+  }, [
     authStatus,
     filters,
     hasInventoryAccess,
     logout,
     router,
     token,
-    ]);
-
-    async function handleRetry(): Promise<void> {
-        if (!token) {
-            return;
-        }
-
-        setLoadState({
-            status: "loading",
-            data: null,
-            message: null,
-        });
-
-        try {
-            const data = await getProducts(
-            token,
-            filters,
-            );
-
-            setLoadState({
-            status: "success",
-            data,
-            message: null,
-            });
-        } catch (error) {
-            if (
-            error instanceof ApiError &&
-            error.status === 401
-            ) {
-            await logout();
-            router.replace("/login");
-            return;
-            }
-
-            if (
-            error instanceof ApiError &&
-            error.status === 403
-            ) {
-            setLoadState({
-                status: "forbidden",
-                data: null,
-                message:
-                "Este usuario no tiene permisos para consultar el inventario.",
-            });
-
-            return;
-            }
-
-            setLoadState({
-            status: "error",
-            data: null,
-            message: getLoadErrorMessage(error),
-            });
-        }
-        }
-
-  function updateFilters(
-  updater: (
-    current: ProductFilters,
-  ) => ProductFilters,
-): void {
-  setLoadState({
-    status: "loading",
-    data: null,
-    message: null,
-  });
-
-  setFilters(updater);
-}
+  ]);
 
   useEffect(() => {
     function handleGlobalKeyboard(
@@ -318,15 +250,89 @@ export default function ProductsPage() {
     };
   }, []);
 
+  async function handleRetry(): Promise<void> {
+    if (!token) {
+      return;
+    }
+
+    setLoadState({
+      status: "loading",
+      data: null,
+      message: null,
+    });
+
+    try {
+      const data = await getProducts(
+        token,
+        filters,
+      );
+
+      setLoadState({
+        status: "success",
+        data,
+        message: null,
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      if (
+        error instanceof ApiError &&
+        error.status === 403
+      ) {
+        setLoadState({
+          status: "forbidden",
+          data: null,
+          message:
+            "Este usuario no tiene permisos para consultar el inventario.",
+        });
+
+        return;
+      }
+
+      setLoadState({
+        status: "error",
+        data: null,
+        message: getLoadErrorMessage(error),
+      });
+    }
+  }
+
+  function updateFilters(
+    updater: (
+      current: ProductFilters,
+    ) => ProductFilters,
+  ): void {
+    setLoadState({
+      status: "loading",
+      data: null,
+      message: null,
+    });
+
+    setFilters(updater);
+  }
+
+  function openProduct(productId: number): void {
+    router.push(
+      `/inventory/products/${productId}`,
+    );
+  }
+
   function handleSearchSubmit(
     event: FormEvent<HTMLFormElement>,
   ): void {
     event.preventDefault();
 
     updateFilters((current) => ({
-        ...current,
-        query: draftQuery.trim(),
-        page: 1,
+      ...current,
+      query: draftQuery.trim(),
+      page: 1,
     }));
   }
 
@@ -334,9 +340,9 @@ export default function ProductsPage() {
     setDraftQuery("");
 
     updateFilters((current) => ({
-        ...current,
-        query: "",
-        page: 1,
+      ...current,
+      query: "",
+      page: 1,
     }));
 
     searchInputRef.current?.focus();
@@ -346,6 +352,21 @@ export default function ProductsPage() {
     event: ReactKeyboardEvent<HTMLTableRowElement>,
     rowIndex: number,
   ): void {
+    if (event.key === "Enter") {
+      event.preventDefault();
+
+      const product =
+        loadState.status === "success"
+          ? loadState.data.results[rowIndex]
+          : null;
+
+      if (product) {
+        openProduct(product.id);
+      }
+
+      return;
+    }
+
     if (event.key === "ArrowDown") {
       event.preventDefault();
 
@@ -370,7 +391,7 @@ export default function ProductsPage() {
       updateFilters((current) => ({
         ...current,
         page: current.page + 1,
-    }));
+      }));
 
       return;
     }
@@ -385,7 +406,7 @@ export default function ProductsPage() {
       updateFilters((current) => ({
         ...current,
         page: current.page - 1,
-    }));
+      }));
     }
   }
 
@@ -494,7 +515,7 @@ export default function ProductsPage() {
                     ...current,
                     activeState,
                     page: 1,
-                }));
+                  }));
                 }}
                 className="h-12 rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
                 aria-label="Filtrar productos por estado"
@@ -563,7 +584,7 @@ export default function ProductsPage() {
                   type="button"
                   onClick={() => {
                     void handleRetry();
-                    }}
+                  }}
                 >
                   Reintentar
                 </Button>
@@ -588,17 +609,15 @@ export default function ProductsPage() {
                 }
                 icon={<BoxIcon />}
                 action={
-                  filters.query
-                    ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleClearSearch}
-                      >
-                        Limpiar búsqueda
-                      </Button>
-                    )
-                    : undefined
+                  filters.query ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleClearSearch}
+                    >
+                      Limpiar búsqueda
+                    </Button>
+                  ) : undefined
                 }
               />
             </div>
@@ -651,13 +670,18 @@ export default function ProductsPage() {
                                 element;
                             }}
                             tabIndex={0}
+                            role="link"
+                            aria-label={`Abrir producto ${product.standard_code}, ${product.name}`}
+                            onClick={() => {
+                              openProduct(product.id);
+                            }}
                             onKeyDown={(event) => {
                               handleRowKeyDown(
                                 event,
                                 index,
                               );
                             }}
-                            className="border-b border-[var(--color-border-soft)] transition-colors last:border-b-0 hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
+                            className="cursor-pointer border-b border-[var(--color-border-soft)] transition-colors last:border-b-0 hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
                           >
                             <td className="px-5 py-4 align-top">
                               <span className="font-mono text-sm font-semibold text-foreground">
@@ -759,10 +783,10 @@ export default function ProductsPage() {
                   loadState.data.previous !== null
                 }
                 onPageChange={(page) => {
-                    updateFilters((current) => ({
-                        ...current,
-                        page,
-                    }));
+                  updateFilters((current) => ({
+                    ...current,
+                    page,
+                  }));
                 }}
               />
             </>

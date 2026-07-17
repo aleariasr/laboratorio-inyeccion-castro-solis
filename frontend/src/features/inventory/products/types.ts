@@ -26,3 +26,20 @@ export type ProductFilters = {
   page: number;
   pageSize: number;
 };
+
+export type ProductReference = {
+  id: number;
+  product: number;
+  product_detail: {
+    id: number;
+    standard_code: string;
+    name: string;
+    description: string;
+  };
+  manufacturer: string;
+  reference_code: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
