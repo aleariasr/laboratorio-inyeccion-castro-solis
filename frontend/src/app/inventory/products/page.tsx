@@ -20,6 +20,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
+import {
+  canReadInventory,
+  canWriteInventory,
+} from "@/features/auth/permissions";
 import { getProducts } from "@/features/inventory/products/api";
 import type {
   Product,
@@ -122,11 +126,10 @@ export default function ProductsPage() {
     });
 
   const hasInventoryAccess =
-    user?.is_superuser === true ||
-    user?.is_staff === true ||
-    user?.groups.includes("ADMIN") === true ||
-    user?.groups.includes("INVENTORY") === true ||
-    user?.groups.includes("READ_ONLY") === true;
+    user ? canReadInventory(user) : false;
+
+  const hasWriteAccess =
+    user ? canWriteInventory(user) : false;
 
   useEffect(() => {
     if (
@@ -444,6 +447,20 @@ export default function ProductsPage() {
     <AppShell
       title="Productos"
       description="Consulte piezas, ubicaciones y existencias actuales."
+      actions={
+        hasWriteAccess ? (
+          <Button
+            type="button"
+            onClick={() => {
+              router.push(
+                "/inventory/products/new",
+              );
+            }}
+          >
+            Nuevo producto
+          </Button>
+        ) : undefined
+      }
     >
       <section
         className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]"
