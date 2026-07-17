@@ -1,10 +1,16 @@
-import { apiGet } from "@/lib/api/client";
+import {
+  apiGet,
+  apiPatch,
+  apiPost,
+} from "@/lib/api/client";
 import type { PaginatedResponse } from "@/lib/api/types";
 
 import type {
   Product,
   ProductFilters,
   ProductReference,
+  ProductWritePayload,
+  StorageLocationSummary,
 } from "./types";
 
 function buildProductsQuery(
@@ -50,6 +56,7 @@ export function getProducts(
     },
   );
 }
+
 export function getProduct(
   token: string,
   productId: number,
@@ -79,6 +86,53 @@ export function getProductReferences(
     {
       token,
       signal,
+    },
+  );
+}
+
+export function getActiveLocations(
+  token: string,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<StorageLocationSummary>> {
+  const searchParams = new URLSearchParams({
+    is_active: "true",
+    page_size: "100",
+  });
+
+  return apiGet<
+    PaginatedResponse<StorageLocationSummary>
+  >(
+    `/api/inventory/locations/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+
+export function createProduct(
+  token: string,
+  payload: ProductWritePayload,
+): Promise<Product> {
+  return apiPost<Product>(
+    "/api/inventory/products/",
+    payload,
+    {
+      token,
+    },
+  );
+}
+
+export function updateProduct(
+  token: string,
+  productId: number,
+  payload: ProductWritePayload,
+): Promise<Product> {
+  return apiPatch<Product>(
+    `/api/inventory/products/${productId}/`,
+    payload,
+    {
+      token,
     },
   );
 }
