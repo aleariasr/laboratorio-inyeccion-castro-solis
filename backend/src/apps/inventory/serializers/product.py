@@ -55,6 +55,39 @@ class StorageLocationSerializer(serializers.ModelSerializer):
     def validate_description(self, value):
         return value.strip()
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if self.instance is None:
+            return attrs
+
+        resulting_is_active = attrs.get(
+            "is_active",
+            self.instance.is_active,
+        )
+
+        is_being_deactivated = (
+            self.instance.is_active
+            and not resulting_is_active
+        )
+
+        if (
+            is_being_deactivated
+            and self.instance.products.filter(
+                is_active=True,
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                {
+                    "is_active": (
+                        "No puede inactivar una ubicación "
+                        "que todavía tiene productos activos."
+                    )
+                }
+            )
+
+        return attrs
+
 
 class ProductSerializer(serializers.ModelSerializer):
     current_stock = serializers.SerializerMethodField()
@@ -144,6 +177,43 @@ class ProductSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if self.instance is None:
+            return attrs
+
+        was_active = self.instance.is_active
+        resulting_is_active = attrs.get(
+            "is_active",
+            was_active,
+        )
+
+        resulting_location = attrs.get(
+            "storage_location",
+            self.instance.storage_location,
+        )
+
+        is_being_reactivated = (
+            not was_active
+            and resulting_is_active
+        )
+
+        if (
+            is_being_reactivated
+            and not resulting_location.is_active
+        ):
+            raise serializers.ValidationError(
+                {
+                    "storage_location": (
+                        "No puede activar un producto "
+                        "ubicado en una ubicación inactiva."
+                    )
+                }
+            )
+
+        return attrs
 
     def get_current_stock(self, obj):
         if hasattr(obj, "current_stock"):

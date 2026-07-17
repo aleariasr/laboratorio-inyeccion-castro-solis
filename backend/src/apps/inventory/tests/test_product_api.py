@@ -495,6 +495,47 @@ class ProductApiTest(APITestCase):
             self.location,
         )
 
+    def test_cannot_reactivate_product_in_inactive_location(self):
+        inactive_location = StorageLocation.objects.create(
+            code="Z999",
+            description="Ubicación inactiva",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        product = Product.objects.create(
+            standard_code="REACTIVATE-001",
+            name="Producto por reactivar",
+            storage_location=inactive_location,
+            minimum_stock=0,
+            unit_of_measure="unidad",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/products/{product.id}/",
+            {
+                "is_active": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn(
+            "storage_location",
+            response.data,
+        )
+
+        product.refresh_from_db()
+
+        self.assertFalse(product.is_active)
+
     def test_current_stock_cannot_be_modified_through_product_api(self):
         response = self.client.patch(
             f"/api/inventory/products/{self.product.id}/",

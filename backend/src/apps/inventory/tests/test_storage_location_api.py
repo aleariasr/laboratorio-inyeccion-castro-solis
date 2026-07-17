@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 
 from apps.core.permissions import ROLE_INVENTORY
 
-from apps.inventory.models import StorageLocation
+from apps.inventory.models import Product, StorageLocation
 
 User = get_user_model()
 
@@ -215,6 +215,106 @@ class StorageLocationApiTest(APITestCase):
             status.HTTP_400_BAD_REQUEST,
         )
         self.assertIn("code", response.data)
+
+    def test_cannot_deactivate_location_with_active_products(self):
+        Product.objects.create(
+            standard_code="PROD-LOCATION-001",
+            name="Producto activo",
+            storage_location=self.location,
+            minimum_stock=0,
+            unit_of_measure="unidad",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/locations/{self.location.id}/",
+            {
+                "is_active": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("is_active", response.data)
+
+        self.location.refresh_from_db()
+
+        self.assertTrue(self.location.is_active)
+
+
+    def test_can_deactivate_location_when_all_products_are_inactive(self):
+        Product.objects.create(
+            standard_code="PROD-LOCATION-002",
+            name="Producto inactivo",
+            storage_location=self.location,
+            minimum_stock=0,
+            unit_of_measure="unidad",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/locations/{self.location.id}/",
+            {
+                "is_active": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.location.refresh_from_db()
+
+        self.assertFalse(self.location.is_active)
+
+    def test_cannot_reactivate_product_in_inactive_location(self):
+        inactive_location = StorageLocation.objects.create(
+            code="Z999",
+            description="Ubicación inactiva",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        product = Product.objects.create(
+            standard_code="REACTIVATE-001",
+            name="Producto por reactivar",
+            storage_location=inactive_location,
+            minimum_stock=0,
+            unit_of_measure="unidad",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/products/{product.id}/",
+            {
+                "is_active": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn(
+            "storage_location",
+            response.data,
+        )
+
+        product.refresh_from_db()
+
+        self.assertFalse(product.is_active)
 
     def test_delete_location_is_not_allowed(self):
         response = self.client.delete(
