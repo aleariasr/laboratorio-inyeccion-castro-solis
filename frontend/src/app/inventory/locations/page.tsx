@@ -20,7 +20,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventory } from "@/features/auth/permissions";
+import {
+  canReadInventory,
+  canWriteInventory,
+} from "@/features/auth/permissions";
 import { getStorageLocations } from "@/features/inventory/locations/api";
 import type {
   StorageLocation,
@@ -108,8 +111,11 @@ export default function StorageLocationsPage() {
       message: null,
     });
 
-  const hasInventoryAccess =
-    user ? canReadInventory(user) : false;
+    const hasInventoryAccess =
+        user ? canReadInventory(user) : false;
+
+    const hasWriteAccess =
+        user ? canWriteInventory(user) : false;
 
   useEffect(() => {
     if (
@@ -402,8 +408,22 @@ export default function StorageLocationsPage() {
 
   return (
     <AppShell
-      title="Ubicaciones"
-      description="Consulte los espacios físicos disponibles para almacenar productos."
+        title="Ubicaciones"
+        description="Consulte los espacios físicos disponibles para almacenar productos."
+        actions={
+            hasWriteAccess ? (
+            <Button
+                type="button"
+                onClick={() => {
+                router.push(
+                    "/inventory/locations/new",
+                );
+                }}
+            >
+                Nueva ubicación
+            </Button>
+            ) : undefined
+        }
     >
       <section
         className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]"
