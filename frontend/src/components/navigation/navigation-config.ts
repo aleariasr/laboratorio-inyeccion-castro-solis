@@ -1,6 +1,7 @@
 import {
   HomeIcon,
   InventoryIcon,
+  LocationIcon,
   StatusIcon,
 } from "@/components/icons/app-icons";
 
@@ -57,6 +58,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
       "READ_ONLY",
     ],
   },
+  {
+  href: "/inventory/locations",
+  label: "Ubicaciones",
+  section: "inventory",
+  icon: LocationIcon,
+  roles: [
+    "INVENTORY",
+    "READ_ONLY",
+  ],
+},
   {
     href: "/system/status",
     label: "Estado del sistema",

@@ -220,3 +220,28 @@ export function ArrowLeftIcon({
     </svg>
   );
 }
+
+export function LocationIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M5 5.5h14v13H5z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M8.5 5.5v13M15.5 5.5v13M5 10h14M5 14h14"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
