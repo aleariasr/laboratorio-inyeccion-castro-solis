@@ -1,9 +1,6 @@
-export type StorageLocationSummary = {
-  id: number;
-  code: string;
-  description: string;
-  is_active: boolean;
-};
+import type { StorageLocationSummary } from "../locations/types";
+
+export type { StorageLocationSummary } from "../locations/types";
 
 export type Product = {
   id: number;

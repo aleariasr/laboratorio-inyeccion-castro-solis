@@ -10,8 +10,9 @@ import type {
   ProductFilters,
   ProductReference,
   ProductWritePayload,
-  StorageLocationSummary,
 } from "./types";
+
+import type { StorageLocationSummary } from "../locations/types";
 
 function buildProductsQuery(
   filters: ProductFilters,
