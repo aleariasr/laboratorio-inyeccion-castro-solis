@@ -327,35 +327,56 @@ export function LocationForm({
         </div>
 
         <div className="border-t border-[var(--color-border-soft)] p-5 sm:p-6">
-          <label
+        <label
             htmlFor="location-active"
             className="flex cursor-pointer items-start gap-3"
-          >
+        >
             <input
-              id="location-active"
-              name="isActive"
-              type="checkbox"
-              checked={values.isActive}
-              onChange={(event) => {
+            id="location-active"
+            name="isActive"
+            type="checkbox"
+            checked={values.isActive}
+            onChange={(event) => {
                 updateValue(
-                  "isActive",
-                  event.target.checked,
+                "isActive",
+                event.target.checked,
                 );
-              }}
-              disabled={isSubmitting}
-              className="mt-0.5 size-5 rounded border-border accent-[var(--color-primary)]"
+            }}
+            disabled={isSubmitting}
+            aria-invalid={
+                errors.isActive ? true : undefined
+            }
+            aria-describedby={
+                errors.isActive
+                ? "location-active-error"
+                : "location-active-description"
+            }
+            className="mt-0.5 size-5 rounded border-border accent-[var(--color-primary)]"
             />
 
             <span>
-              <span className="block text-sm font-semibold text-foreground">
+            <span className="block text-sm font-semibold text-foreground">
                 Ubicación activa
-              </span>
-
-              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                Las ubicaciones inactivas se conservan para mantener la trazabilidad, pero no pueden asignarse a productos nuevos.
-              </span>
             </span>
-          </label>
+
+            <span
+                id="location-active-description"
+                className="mt-1 block text-xs leading-5 text-muted-foreground"
+            >
+                Las ubicaciones inactivas se conservan para mantener la trazabilidad, pero no pueden asignarse a productos nuevos.
+            </span>
+
+            {errors.isActive && (
+                <span
+                id="location-active-error"
+                className="mt-2 block text-sm font-medium text-danger"
+                role="alert"
+                >
+                {errors.isActive}
+                </span>
+            )}
+            </span>
+        </label>
         </div>
       </section>
 

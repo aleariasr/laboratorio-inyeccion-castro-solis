@@ -307,6 +307,18 @@ export default function StorageLocationsPage() {
     setFilters(updater);
   }
 
+  function openLocation(
+    locationId: number,
+    ): void {
+    if (!hasWriteAccess) {
+        return;
+    }
+
+    router.push(
+        `/inventory/locations/${locationId}/edit`,
+    );
+    }
+
   function handleSearchSubmit(
     event: FormEvent<HTMLFormElement>,
   ): void {
@@ -335,6 +347,24 @@ export default function StorageLocationsPage() {
     event: ReactKeyboardEvent<HTMLTableRowElement>,
     rowIndex: number,
   ): void {
+    if (
+        event.key === "Enter" &&
+        hasWriteAccess
+        ) {
+        event.preventDefault();
+
+        const location =
+            loadState.status === "success"
+            ? loadState.data.results[rowIndex]
+            : null;
+
+        if (location) {
+            openLocation(location.id);
+        }
+
+        return;
+    }
+
     if (event.key === "ArrowDown") {
       event.preventDefault();
       rowRefs.current[rowIndex + 1]?.focus();
@@ -633,14 +663,32 @@ export default function StorageLocationsPage() {
                             rowRefs.current[index] =
                               element;
                           }}
-                          tabIndex={0}
-                          onKeyDown={(event) => {
+                          tabIndex={hasWriteAccess ? 0 : -1}
+                            role={
+                            hasWriteAccess
+                                ? "link"
+                                : undefined
+                            }
+                            aria-label={
+                            hasWriteAccess
+                                ? `Editar ubicación ${location.code}`
+                                : undefined
+                            }
+                            onClick={() => {
+                            openLocation(location.id);
+                            }}
+                            onKeyDown={(event) => {
                             handleRowKeyDown(
-                              event,
-                              index,
+                                event,
+                                index,
                             );
-                          }}
-                          className="border-b border-[var(--color-border-soft)] transition-colors last:border-b-0 hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
+                            }}
+                            className={[
+                            "border-b border-[var(--color-border-soft)] transition-colors last:border-b-0",
+                            hasWriteAccess
+                                ? "cursor-pointer hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
+                                : "",
+                            ].join(" ")}
                         >
                           <td className="px-5 py-4 align-top">
                             <span className="inline-flex rounded-[var(--radius-sm)] bg-surface-muted px-3 py-1.5 font-mono text-sm font-semibold text-foreground">
