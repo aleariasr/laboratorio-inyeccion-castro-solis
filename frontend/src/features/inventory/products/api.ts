@@ -9,6 +9,7 @@ import type {
   Product,
   ProductFilters,
   ProductReference,
+  ProductReferenceWritePayload,
   ProductWritePayload,
 } from "./types";
 
@@ -122,6 +123,49 @@ export function getProductReferences(
     },
     token,
     signal,
+  );
+}
+
+export function createProductReference(
+  token: string,
+  payload: ProductReferenceWritePayload,
+): Promise<ProductReference> {
+  return apiPost<ProductReference>(
+    "/api/inventory/product-references/",
+    payload,
+    {
+      token,
+    },
+  );
+}
+
+export function updateProductReference(
+  token: string,
+  referenceId: number,
+  payload: ProductReferenceWritePayload,
+): Promise<ProductReference> {
+  return apiPatch<ProductReference>(
+    `/api/inventory/product-references/${referenceId}/`,
+    payload,
+    {
+      token,
+    },
+  );
+}
+
+export function updateProductReferenceState(
+  token: string,
+  referenceId: number,
+  isActive: boolean,
+): Promise<ProductReference> {
+  return apiPatch<ProductReference>(
+    `/api/inventory/product-references/${referenceId}/`,
+    {
+      is_active: isActive,
+    },
+    {
+      token,
+    },
   );
 }
 

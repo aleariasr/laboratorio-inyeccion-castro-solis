@@ -12,18 +12,29 @@ import {
 } from "@/features/auth/permissions";
 
 import { LoadingState } from "@/components/feedback/loading-state";
+import { FormError } from "@/components/feedback/form-error";
 import { StatePanel } from "@/components/feedback/state-panel";
 import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import {
+  createProductReference,
   getProduct,
   getProductReferences,
+  updateProductReference,
+  updateProductReferenceState,
 } from "@/features/inventory/products/api";
-import type {
-  Product,
-  ProductReference,
+import { ProductReferenceForm } from "@/features/inventory/products/product-reference-form";
+import { mapProductReferenceApiFieldErrors } from "@/features/inventory/products/reference-form-errors";
+import {
+  buildProductReferenceWritePayload,
+  EMPTY_PRODUCT_REFERENCE_FORM_VALUES,
+  productReferenceToFormValues,
+  type Product,
+  type ProductReference,
+  type ProductReferenceFormErrors,
+  type ProductReferenceFormValues,
 } from "@/features/inventory/products/types";
 import {
   ApiError,
@@ -50,6 +61,27 @@ type LoadState =
       references: [];
       message: string;
     };
+
+type ReferenceFormState =
+  | {
+      mode: "closed";
+      reference: null;
+    }
+  | {
+      mode: "create";
+      reference: null;
+    }
+  | {
+      mode: "edit";
+      reference: ProductReference;
+    };
+
+type ReferenceActionState = {
+  isSubmitting: boolean;
+  submitError: string | null;
+  fieldErrors: ProductReferenceFormErrors;
+  pendingStateReferenceId: number | null;
+};
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
@@ -106,6 +138,23 @@ export default function ProductDetailPage() {
       references: [],
       message: null,
     });
+  const [
+    referenceFormState,
+    setReferenceFormState,
+  ] = useState<ReferenceFormState>({
+    mode: "closed",
+    reference: null,
+  });
+
+  const [
+    referenceActionState,
+    setReferenceActionState,
+  ] = useState<ReferenceActionState>({
+    isSubmitting: false,
+    submitError: null,
+    fieldErrors: {},
+    pendingStateReferenceId: null,
+  });
 
   const productId = Number(params.id);
 
@@ -114,6 +163,18 @@ export default function ProductDetailPage() {
 
   const hasWriteAccess =
     user ? canWriteInventory(user) : false;
+
+  const referenceFormInitialValues =
+    referenceFormState.mode === "edit"
+      ? productReferenceToFormValues(
+          referenceFormState.reference,
+        )
+      : EMPTY_PRODUCT_REFERENCE_FORM_VALUES;
+
+  const referenceFormKey =
+    referenceFormState.mode === "edit"
+      ? `edit-${referenceFormState.reference.id}`
+      : "create";
 
   useEffect(() => {
     if (
@@ -218,6 +279,257 @@ export default function ProductDetailPage() {
     token,
   ]);
 
+  function openCreateReferenceForm(): void {
+    setReferenceActionState({
+      isSubmitting: false,
+      submitError: null,
+      fieldErrors: {},
+      pendingStateReferenceId: null,
+    });
+
+    setReferenceFormState({
+      mode: "create",
+      reference: null,
+    });
+  }
+
+  function openEditReferenceForm(
+    reference: ProductReference,
+  ): void {
+    setReferenceActionState({
+      isSubmitting: false,
+      submitError: null,
+      fieldErrors: {},
+      pendingStateReferenceId: null,
+    });
+
+    setReferenceFormState({
+      mode: "edit",
+      reference,
+    });
+  }
+
+  function closeReferenceForm(): void {
+    if (
+      referenceActionState.isSubmitting
+    ) {
+      return;
+    }
+
+    setReferenceFormState({
+      mode: "closed",
+      reference: null,
+    });
+
+    setReferenceActionState({
+      isSubmitting: false,
+      submitError: null,
+      fieldErrors: {},
+      pendingStateReferenceId: null,
+    });
+  }
+
+  function updateReferenceInState(
+    updatedReference: ProductReference,
+  ): void {
+    setLoadState((current) => {
+      if (current.status !== "success") {
+        return current;
+      }
+
+      const referenceExists =
+        current.references.some(
+          (reference) =>
+            reference.id ===
+            updatedReference.id,
+        );
+
+      const references = referenceExists
+        ? current.references.map(
+            (reference) =>
+              reference.id ===
+              updatedReference.id
+                ? updatedReference
+                : reference,
+          )
+        : [
+            ...current.references,
+            updatedReference,
+          ];
+
+      references.sort((left, right) =>
+        left.reference_code.localeCompare(
+          right.reference_code,
+          "es",
+          {
+            sensitivity: "base",
+            numeric: true,
+          },
+        ),
+      );
+
+      return {
+        ...current,
+        references,
+      };
+    });
+  }
+
+  async function handleReferenceSubmit(
+    values: ProductReferenceFormValues,
+  ): Promise<void> {
+    if (
+      !token ||
+      loadState.status !== "success" ||
+      referenceFormState.mode === "closed"
+    ) {
+      return;
+    }
+
+    setReferenceActionState((current) => ({
+      ...current,
+      isSubmitting: true,
+      submitError: null,
+      fieldErrors: {},
+    }));
+
+    try {
+      const payload =
+        buildProductReferenceWritePayload(
+          loadState.product.id,
+          values,
+        );
+
+      const savedReference =
+        referenceFormState.mode === "create"
+          ? await createProductReference(
+              token,
+              payload,
+            )
+          : await updateProductReference(
+              token,
+              referenceFormState.reference.id,
+              payload,
+            );
+
+      updateReferenceInState(savedReference);
+
+      setReferenceFormState({
+        mode: "closed",
+        reference: null,
+      });
+
+      setReferenceActionState({
+        isSubmitting: false,
+        submitError: null,
+        fieldErrors: {},
+        pendingStateReferenceId: null,
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      if (
+        error instanceof ApiError &&
+        error.status === 403
+      ) {
+        setReferenceActionState((current) => ({
+          ...current,
+          isSubmitting: false,
+          submitError:
+            "Este usuario no tiene permisos para modificar referencias.",
+        }));
+
+        return;
+      }
+
+      if (error instanceof ApiError) {
+        const fieldErrors =
+          mapProductReferenceApiFieldErrors(
+            error.fieldErrors,
+          );
+
+        setReferenceActionState((current) => ({
+          ...current,
+          isSubmitting: false,
+          submitError:
+            Object.keys(fieldErrors).length > 0
+              ? null
+              : error.message,
+          fieldErrors,
+        }));
+
+        return;
+      }
+
+      setReferenceActionState((current) => ({
+        ...current,
+        isSubmitting: false,
+        submitError: getErrorMessage(error),
+      }));
+    }
+  }
+
+  async function handleReferenceStateChange(
+    reference: ProductReference,
+  ): Promise<void> {
+    if (!token) {
+      return;
+    }
+
+    setReferenceActionState((current) => ({
+      ...current,
+      submitError: null,
+      fieldErrors: {},
+      pendingStateReferenceId:
+        reference.id,
+    }));
+
+    try {
+      const updatedReference =
+        await updateProductReferenceState(
+          token,
+          reference.id,
+          !reference.is_active,
+        );
+
+      updateReferenceInState(
+        updatedReference,
+      );
+
+      setReferenceActionState((current) => ({
+        ...current,
+        pendingStateReferenceId: null,
+      }));
+    } catch (error: unknown) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      const message =
+        error instanceof ApiError &&
+        error.status === 403
+          ? "Este usuario no tiene permisos para cambiar el estado de la referencia."
+          : getErrorMessage(error);
+
+      setReferenceActionState((current) => ({
+        ...current,
+        submitError: message,
+        pendingStateReferenceId: null,
+      }));
+    }
+  }
   function goBack(): void {
     router.back();
   }
@@ -515,15 +827,79 @@ export default function ProductDetailPage() {
           </section>
 
           <section className="app-status-card overflow-hidden xl:col-span-2">
-            <div className="border-b border-[var(--color-border-soft)] p-6">
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
-                Referencias equivalentes
-              </h2>
+            <div className="flex flex-col gap-4 border-b border-[var(--color-border-soft)] p-6 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+                  Referencias equivalentes
+                </h2>
 
-              <p className="mt-1 text-sm text-muted-foreground">
-                Códigos comerciales y fabricantes asociados.
-              </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Códigos comerciales y fabricantes asociados.
+                </p>
+              </div>
+
+              {hasWriteAccess &&
+                referenceFormState.mode === "closed" && (
+                  <Button
+                    type="button"
+                    onClick={openCreateReferenceForm}
+                  >
+                    Agregar referencia
+                  </Button>
+                )}
             </div>
+
+            {referenceActionState.submitError &&
+              referenceFormState.mode === "closed" && (
+                <div className="border-b border-[var(--color-border-soft)] p-6">
+                  <FormError
+                    message={
+                      referenceActionState.submitError
+                    }
+                  />
+                </div>
+              )}
+
+            {referenceFormState.mode !== "closed" && (
+              <div className="border-b border-[var(--color-border-soft)] bg-surface-muted/40 p-6">
+                <div className="mb-5">
+                  <h3 className="text-base font-semibold text-foreground">
+                    {referenceFormState.mode === "create"
+                      ? "Nueva referencia"
+                      : "Editar referencia"}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {referenceFormState.mode === "create"
+                      ? "Registre un código comercial o equivalente para este producto."
+                      : "Actualice los datos o el estado de la referencia seleccionada."}
+                  </p>
+                </div>
+
+                <ProductReferenceForm
+                  key={referenceFormKey}
+                  mode={referenceFormState.mode}
+                  initialValues={
+                    referenceFormInitialValues
+                  }
+                  isSubmitting={
+                    referenceActionState.isSubmitting
+                  }
+                  submitError={
+                    referenceActionState.submitError
+                  }
+                  serverErrors={
+                    referenceActionState.fieldErrors
+                  }
+                  onSubmit={
+                    handleReferenceSubmit
+                  }
+                  onCancel={
+                    closeReferenceForm
+                  }
+                />
+              </div>
+            )}
 
             {loadState.references.length === 0 ? (
               <div className="p-6">
@@ -551,6 +927,12 @@ export default function ProductDetailPage() {
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Estado
                       </th>
+
+                      {hasWriteAccess && (
+                        <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                          Acciones
+                        </th>
+                      )}
                     </tr>
                   </thead>
 
@@ -576,10 +958,78 @@ export default function ProductDetailPage() {
                           </td>
 
                           <td className="px-5 py-4">
-                            {reference.is_active
-                              ? "Activa"
-                              : "Inactiva"}
+                            <span
+                              className={[
+                                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                                reference.is_active
+                                  ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
+                                  : "bg-surface-muted text-muted-foreground",
+                              ].join(" ")}
+                            >
+                              {reference.is_active
+                                ? "Activa"
+                                : "Inactiva"}
+                            </span>
                           </td>
+
+                          {hasWriteAccess && (
+                            <td className="px-5 py-4">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    openEditReferenceForm(
+                                      reference,
+                                    );
+                                  }}
+                                  disabled={
+                                    referenceActionState.isSubmitting ||
+                                    referenceActionState.pendingStateReferenceId !==
+                                      null
+                                  }
+                                >
+                                  Editar
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  variant={
+                                    reference.is_active
+                                      ? "danger"
+                                      : "secondary"
+                                  }
+                                  isLoading={
+                                    referenceActionState.pendingStateReferenceId ===
+                                    reference.id
+                                  }
+                                  loadingText={
+                                    reference.is_active
+                                      ? "Inactivando…"
+                                      : "Activando…"
+                                  }
+                                  onClick={() => {
+                                    void handleReferenceStateChange(
+                                      reference,
+                                    );
+                                  }}
+                                  disabled={
+                                    referenceActionState.isSubmitting ||
+                                    (
+                                      referenceActionState.pendingStateReferenceId !==
+                                      null &&
+                                      referenceActionState.pendingStateReferenceId !==
+                                        reference.id
+                                    )
+                                  }
+                                >
+                                  {reference.is_active
+                                    ? "Inactivar"
+                                    : "Activar"}
+                                </Button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ),
                     )}

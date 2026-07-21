@@ -41,6 +41,68 @@ export type ProductReference = {
   updated_at: string;
 };
 
+export type ProductReferenceWritePayload = {
+  product: number;
+  manufacturer: string;
+  reference_code: string;
+  description: string;
+  is_active: boolean;
+};
+
+export type ProductReferenceFormValues = {
+  manufacturer: string;
+  referenceCode: string;
+  description: string;
+  isActive: boolean;
+};
+
+export type ProductReferenceFormField =
+  | "manufacturer"
+  | "referenceCode"
+  | "description"
+  | "isActive";
+
+export type ProductReferenceFormErrors =
+  Partial<
+    Record<
+      ProductReferenceFormField,
+      string
+    >
+  >;
+
+export const EMPTY_PRODUCT_REFERENCE_FORM_VALUES:
+  ProductReferenceFormValues = {
+    manufacturer: "",
+    referenceCode: "",
+    description: "",
+    isActive: true,
+  };
+
+export function productReferenceToFormValues(
+  reference: ProductReference,
+): ProductReferenceFormValues {
+  return {
+    manufacturer: reference.manufacturer,
+    referenceCode: reference.reference_code,
+    description: reference.description,
+    isActive: reference.is_active,
+  };
+}
+
+export function buildProductReferenceWritePayload(
+  productId: number,
+  values: ProductReferenceFormValues,
+): ProductReferenceWritePayload {
+  return {
+    product: productId,
+    manufacturer: values.manufacturer.trim(),
+    reference_code:
+      values.referenceCode.trim(),
+    description: values.description.trim(),
+    is_active: values.isActive,
+  };
+}
+
 export type ProductWritePayload = {
   standard_code: string;
   name: string;
