@@ -241,7 +241,7 @@ export default function EditStorageLocationPage() {
       );
 
       router.replace(
-        "/inventory/locations",
+        `/inventory/locations/${loadState.location.id}`,
       );
     } catch (error) {
       if (
@@ -301,9 +301,9 @@ export default function EditStorageLocationPage() {
     }
   }
 
-  function returnToLocations(): void {
+  function returnToLocationDetail(): void {
     router.push(
-      "/inventory/locations",
+      `/inventory/locations/${locationId}`,
     );
   }
 
@@ -397,9 +397,9 @@ export default function EditStorageLocationPage() {
             <Button
               type="button"
               variant="secondary"
-              onClick={returnToLocations}
+              onClick={returnToLocationDetail}
             >
-              Volver a ubicaciones
+              Volver al detalle
             </Button>
           }
         />
@@ -414,7 +414,11 @@ export default function EditStorageLocationPage() {
             <Button
               type="button"
               variant="secondary"
-              onClick={returnToLocations}
+              onClick={() => {
+                router.replace(
+                  "/inventory/locations",
+                );
+              }}
             >
               Volver a ubicaciones
             </Button>
@@ -451,7 +455,7 @@ export default function EditStorageLocationPage() {
           submitError={submitError}
           serverErrors={serverErrors}
           onSubmit={handleSubmit}
-          onCancel={returnToLocations}
+          onCancel={returnToLocationDetail}
         />
       )}
     </AppShell>

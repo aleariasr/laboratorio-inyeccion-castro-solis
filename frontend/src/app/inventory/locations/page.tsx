@@ -309,15 +309,11 @@ export default function StorageLocationsPage() {
 
   function openLocation(
     locationId: number,
-    ): void {
-    if (!hasWriteAccess) {
-        return;
-    }
-
+  ): void {
     router.push(
-        `/inventory/locations/${locationId}/edit`,
+      `/inventory/locations/${locationId}`,
     );
-    }
+  }
 
   function handleSearchSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -347,22 +343,19 @@ export default function StorageLocationsPage() {
     event: ReactKeyboardEvent<HTMLTableRowElement>,
     rowIndex: number,
   ): void {
-    if (
-        event.key === "Enter" &&
-        hasWriteAccess
-        ) {
-        event.preventDefault();
+    if (event.key === "Enter") {
+      event.preventDefault();
 
-        const location =
-            loadState.status === "success"
-            ? loadState.data.results[rowIndex]
-            : null;
+      const location =
+        loadState.status === "success"
+          ? loadState.data.results[rowIndex]
+          : null;
 
-        if (location) {
-            openLocation(location.id);
-        }
+      if (location) {
+        openLocation(location.id);
+      }
 
-        return;
+      return;
     }
 
     if (event.key === "ArrowDown") {
@@ -663,17 +656,9 @@ export default function StorageLocationsPage() {
                             rowRefs.current[index] =
                               element;
                           }}
-                          tabIndex={hasWriteAccess ? 0 : -1}
-                            role={
-                            hasWriteAccess
-                                ? "link"
-                                : undefined
-                            }
-                            aria-label={
-                            hasWriteAccess
-                                ? `Editar ubicación ${location.code}`
-                                : undefined
-                            }
+                          tabIndex={0}
+                          role="link"
+                          aria-label={`Abrir ubicación ${location.code}`}
                             onClick={() => {
                             openLocation(location.id);
                             }}
@@ -683,12 +668,7 @@ export default function StorageLocationsPage() {
                                 index,
                             );
                             }}
-                            className={[
-                            "border-b border-[var(--color-border-soft)] transition-colors last:border-b-0",
-                            hasWriteAccess
-                                ? "cursor-pointer hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
-                                : "",
-                            ].join(" ")}
+                            className="cursor-pointer border-b border-[var(--color-border-soft)] transition-colors last:border-b-0 hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
                         >
                           <td className="px-5 py-4 align-top">
                             <span className="inline-flex rounded-[var(--radius-sm)] bg-surface-muted px-3 py-1.5 font-mono text-sm font-semibold text-foreground">

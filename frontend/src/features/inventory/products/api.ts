@@ -34,6 +34,15 @@ function buildProductsQuery(
     searchParams.set("is_active", "false");
   }
 
+  if (
+    filters.storageLocationId !== undefined
+  ) {
+    searchParams.set(
+      "storage_location",
+      String(filters.storageLocationId),
+    );
+  }
+
   searchParams.set("page", String(filters.page));
   searchParams.set(
     "page_size",

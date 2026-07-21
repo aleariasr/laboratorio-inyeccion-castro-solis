@@ -20,6 +20,7 @@ export type Product = {
 export type ProductFilters = {
   query: string;
   activeState: "all" | "active" | "inactive";
+  storageLocationId?: number;
   page: number;
   pageSize: number;
 };
