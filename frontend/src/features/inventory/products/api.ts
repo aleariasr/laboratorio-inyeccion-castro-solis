@@ -2,6 +2,7 @@ import {
   apiGet,
   apiPatch,
   apiPost,
+  apiPostBlob,
 } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/lib/api/types";
 
@@ -221,6 +222,22 @@ export function updateProduct(
     payload,
     {
       token,
+    },
+  );
+}
+
+export function generateProductLabels(
+  token: string,
+  productIds: number[],
+): Promise<Blob> {
+  return apiPostBlob(
+    "/api/inventory/products/labels/",
+    {
+      product_ids: productIds,
+    },
+    {
+      token,
+      timeoutMs: 30_000,
     },
   );
 }

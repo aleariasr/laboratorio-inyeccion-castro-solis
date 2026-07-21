@@ -24,7 +24,10 @@ import {
   canReadInventory,
   canWriteInventory,
 } from "@/features/auth/permissions";
-import { getStorageLocations } from "@/features/inventory/locations/api";
+import {
+  generateLocationLabels,
+  getStorageLocations,
+} from "@/features/inventory/locations/api";
 import type {
   StorageLocation,
   StorageLocationFilters,
@@ -50,6 +53,20 @@ type LoadState =
   | {
       status: "forbidden" | "error";
       data: null;
+      message: string;
+    };
+
+type LabelGenerationState =
+  | {
+      status: "idle";
+      message: null;
+    }
+  | {
+      status: "generating";
+      message: null;
+    }
+  | {
+      status: "error";
       message: string;
     };
 
@@ -111,11 +128,44 @@ export default function StorageLocationsPage() {
       message: null,
     });
 
-    const hasInventoryAccess =
-        user ? canReadInventory(user) : false;
+  const [
+    selectedLocationIds,
+    setSelectedLocationIds,
+  ] = useState<Set<number>>(
+    () => new Set<number>(),
+  );
 
-    const hasWriteAccess =
-        user ? canWriteInventory(user) : false;
+  const [
+    labelGenerationState,
+    setLabelGenerationState,
+  ] = useState<LabelGenerationState>({
+    status: "idle",
+    message: null,
+  });
+
+  const hasInventoryAccess =
+    user ? canReadInventory(user) : false;
+
+  const hasWriteAccess =
+    user ? canWriteInventory(user) : false;
+
+  const visibleLocationIds =
+    loadState.status === "success"
+      ? loadState.data.results.map(
+          (location) => location.id,
+        )
+      : [];
+
+  const areAllVisibleLocationsSelected =
+    visibleLocationIds.length > 0 &&
+    visibleLocationIds.every((locationId) =>
+      selectedLocationIds.has(locationId),
+    );
+
+  const areSomeVisibleLocationsSelected =
+    visibleLocationIds.some((locationId) =>
+      selectedLocationIds.has(locationId),
+    );
 
   useEffect(() => {
     if (
@@ -399,6 +449,139 @@ export default function StorageLocationsPage() {
     }
   }
 
+  function toggleLocationSelection(
+    locationId: number,
+  ): void {
+    setSelectedLocationIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(locationId)) {
+        next.delete(locationId);
+      } else {
+        next.add(locationId);
+      }
+
+      return next;
+    });
+
+    setLabelGenerationState({
+      status: "idle",
+      message: null,
+    });
+  }
+
+  function toggleVisibleLocations(): void {
+    setSelectedLocationIds((current) => {
+      const next = new Set(current);
+
+      if (areAllVisibleLocationsSelected) {
+        for (
+          const locationId
+          of visibleLocationIds
+        ) {
+          next.delete(locationId);
+        }
+      } else {
+        for (
+          const locationId
+          of visibleLocationIds
+        ) {
+          next.add(locationId);
+        }
+      }
+
+      return next;
+    });
+
+    setLabelGenerationState({
+      status: "idle",
+      message: null,
+    });
+  }
+
+  function clearLocationSelection(): void {
+    setSelectedLocationIds(
+      new Set<number>(),
+    );
+
+    setLabelGenerationState({
+      status: "idle",
+      message: null,
+    });
+  }
+
+  async function handleGenerateLabels(): Promise<void> {
+    if (
+      !token ||
+      selectedLocationIds.size === 0
+    ) {
+      return;
+    }
+
+    setLabelGenerationState({
+      status: "generating",
+      message: null,
+    });
+
+    try {
+      const blob =
+        await generateLocationLabels(
+          token,
+          Array.from(selectedLocationIds),
+        );
+
+      const downloadUrl =
+        URL.createObjectURL(blob);
+
+      const anchor =
+        document.createElement("a");
+
+      anchor.href = downloadUrl;
+      anchor.download =
+        "etiquetas-ubicaciones.pdf";
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      globalThis.setTimeout(() => {
+        URL.revokeObjectURL(downloadUrl);
+      }, 1_000);
+
+      setLabelGenerationState({
+        status: "idle",
+        message: null,
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      if (
+        error instanceof ApiError &&
+        error.status === 403
+      ) {
+        setLabelGenerationState({
+          status: "error",
+          message:
+            "Este usuario no tiene permisos para generar etiquetas.",
+        });
+
+        return;
+      }
+
+      setLabelGenerationState({
+        status: "error",
+        message: getLoadErrorMessage(error),
+      });
+    }
+  }
+
   if (
     authStatus === "authenticated" &&
     user &&
@@ -431,22 +614,22 @@ export default function StorageLocationsPage() {
 
   return (
     <AppShell
-        title="Ubicaciones"
-        description="Consulte los espacios físicos disponibles para almacenar productos."
-        actions={
-            hasWriteAccess ? (
-            <Button
-                type="button"
-                onClick={() => {
-                router.push(
-                    "/inventory/locations/new",
-                );
-                }}
-            >
-                Nueva ubicación
-            </Button>
-            ) : undefined
-        }
+      title="Ubicaciones"
+      description="Consulte los espacios físicos disponibles para almacenar productos."
+      actions={
+        hasWriteAccess ? (
+          <Button
+            type="button"
+            onClick={() => {
+              router.push(
+                "/inventory/locations/new",
+              );
+            }}
+          >
+            Nueva ubicación
+          </Button>
+        ) : undefined
+      }
     >
       <section
         className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]"
@@ -562,6 +745,68 @@ export default function StorageLocationsPage() {
           )}
         </div>
 
+        {hasWriteAccess &&
+          selectedLocationIds.size > 0 && (
+            <div className="flex flex-col gap-3 border-b border-[var(--color-border-soft)] bg-[var(--color-primary-soft)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {selectedLocationIds.size}{" "}
+                  {selectedLocationIds.size === 1
+                    ? "ubicación seleccionada"
+                    : "ubicaciones seleccionadas"}
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Se generará una etiqueta con
+                  código de barras Code 128 por
+                  cada ubicación.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={
+                    clearLocationSelection
+                  }
+                  disabled={
+                    labelGenerationState.status ===
+                    "generating"
+                  }
+                >
+                  Limpiar selección
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleGenerateLabels();
+                  }}
+                  disabled={
+                    labelGenerationState.status ===
+                    "generating"
+                  }
+                >
+                  {labelGenerationState.status ===
+                  "generating"
+                    ? "Generando PDF…"
+                    : "Generar etiquetas"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+        {labelGenerationState.status ===
+          "error" && (
+          <div
+            className="border-b border-[var(--color-border-soft)] bg-[var(--color-danger-soft)] px-5 py-3 text-sm font-medium text-[var(--color-danger)]"
+            role="alert"
+          >
+            {labelGenerationState.message}
+          </div>
+        )}
+
         {loadState.status === "loading" && (
           <LoadingState message="Consultando ubicaciones…" />
         )}
@@ -630,9 +875,32 @@ export default function StorageLocationsPage() {
           loadState.data.results.length > 0 && (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px] border-collapse">
+                <table className="w-full min-w-[740px] border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
+                      {hasWriteAccess && (
+                        <th className="w-14 px-5 py-3.5">
+                          <input
+                            type="checkbox"
+                            checked={
+                              areAllVisibleLocationsSelected
+                            }
+                            ref={(element) => {
+                              if (element) {
+                                element.indeterminate =
+                                  areSomeVisibleLocationsSelected &&
+                                  !areAllVisibleLocationsSelected;
+                              }
+                            }}
+                            onChange={
+                              toggleVisibleLocations
+                            }
+                            aria-label="Seleccionar todas las ubicaciones visibles"
+                            className="size-4 cursor-pointer accent-[var(--color-primary)]"
+                          />
+                        </th>
+                      )}
+
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Código
                       </th>
@@ -659,17 +927,46 @@ export default function StorageLocationsPage() {
                           tabIndex={0}
                           role="link"
                           aria-label={`Abrir ubicación ${location.code}`}
-                            onClick={() => {
+                          onClick={() => {
                             openLocation(location.id);
-                            }}
-                            onKeyDown={(event) => {
+                          }}
+                          onKeyDown={(event) => {
                             handleRowKeyDown(
-                                event,
-                                index,
+                              event,
+                              index,
                             );
-                            }}
-                            className="cursor-pointer border-b border-[var(--color-border-soft)] transition-colors last:border-b-0 hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
+                          }}
+                          className="cursor-pointer border-b border-[var(--color-border-soft)] transition-colors last:border-b-0 hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
                         >
+                          {hasWriteAccess && (
+                            <td
+                              className="w-14 px-5 py-4 align-top"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedLocationIds.has(
+                                  location.id,
+                                )}
+                                onChange={() => {
+                                  toggleLocationSelection(
+                                    location.id,
+                                  );
+                                }}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                }}
+                                onKeyDown={(event) => {
+                                  event.stopPropagation();
+                                }}
+                                aria-label={`Seleccionar ubicación ${location.code}`}
+                                className="size-4 cursor-pointer accent-[var(--color-primary)]"
+                              />
+                            </td>
+                          )}
+
                           <td className="px-5 py-4 align-top">
                             <span className="inline-flex rounded-[var(--radius-sm)] bg-surface-muted px-3 py-1.5 font-mono text-sm font-semibold text-foreground">
                               {location.code}

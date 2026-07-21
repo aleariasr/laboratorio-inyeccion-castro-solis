@@ -2,6 +2,7 @@ import {
   apiGet,
   apiPatch,
   apiPost,
+  apiPostBlob,
 } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/lib/api/types";
 
@@ -114,6 +115,21 @@ export function updateStorageLocation(
   return apiPatch<StorageLocation>(
     `/api/inventory/locations/${locationId}/`,
     payload,
+    {
+      token,
+    },
+  );
+}
+
+export function generateLocationLabels(
+  token: string,
+  locationIds: number[],
+): Promise<Blob> {
+  return apiPostBlob(
+    "/api/inventory/locations/labels/",
+    {
+      location_ids: locationIds,
+    },
     {
       token,
     },

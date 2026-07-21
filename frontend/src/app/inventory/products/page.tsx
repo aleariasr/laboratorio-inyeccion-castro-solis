@@ -24,7 +24,10 @@ import {
   canReadInventory,
   canWriteInventory,
 } from "@/features/auth/permissions";
-import { getProducts } from "@/features/inventory/products/api";
+import {
+  generateProductLabels,
+  getProducts,
+} from "@/features/inventory/products/api";
 import type {
   Product,
   ProductFilters,
@@ -50,6 +53,20 @@ type LoadState =
   | {
       status: "forbidden" | "error";
       data: null;
+      message: string;
+    };
+
+type LabelGenerationState =
+  | {
+      status: "idle";
+      message: null;
+    }
+  | {
+      status: "generating";
+      message: null;
+    }
+  | {
+      status: "error";
       message: string;
     };
 
@@ -125,11 +142,44 @@ export default function ProductsPage() {
       message: null,
     });
 
+  const [
+    selectedProductIds,
+    setSelectedProductIds,
+  ] = useState<Set<number>>(
+    () => new Set<number>(),
+  );
+
+  const [
+    labelGenerationState,
+    setLabelGenerationState,
+  ] = useState<LabelGenerationState>({
+    status: "idle",
+    message: null,
+  });
+
   const hasInventoryAccess =
     user ? canReadInventory(user) : false;
 
   const hasWriteAccess =
     user ? canWriteInventory(user) : false;
+
+  const visibleProductIds =
+    loadState.status === "success"
+      ? loadState.data.results.map(
+          (product) => product.id,
+        )
+      : [];
+
+  const areAllVisibleProductsSelected =
+    visibleProductIds.length > 0 &&
+    visibleProductIds.every((productId) =>
+      selectedProductIds.has(productId),
+    );
+
+  const areSomeVisibleProductsSelected =
+    visibleProductIds.some((productId) =>
+      selectedProductIds.has(productId),
+    );
 
   useEffect(() => {
     if (
@@ -413,6 +463,132 @@ export default function ProductsPage() {
     }
   }
 
+  function toggleProductSelection(
+    productId: number,
+  ): void {
+    setSelectedProductIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+
+      return next;
+    });
+
+    setLabelGenerationState({
+      status: "idle",
+      message: null,
+    });
+  }
+
+  function toggleVisibleProducts(): void {
+    setSelectedProductIds((current) => {
+      const next = new Set(current);
+
+      if (areAllVisibleProductsSelected) {
+        for (const productId of visibleProductIds) {
+          next.delete(productId);
+        }
+      } else {
+        for (const productId of visibleProductIds) {
+          next.add(productId);
+        }
+      }
+
+      return next;
+    });
+
+    setLabelGenerationState({
+      status: "idle",
+      message: null,
+    });
+  }
+
+  function clearProductSelection(): void {
+    setSelectedProductIds(
+      new Set<number>(),
+    );
+
+    setLabelGenerationState({
+      status: "idle",
+      message: null,
+    });
+  }
+
+  async function handleGenerateLabels(): Promise<void> {
+    if (
+      !token ||
+      selectedProductIds.size === 0
+    ) {
+      return;
+    }
+
+    setLabelGenerationState({
+      status: "generating",
+      message: null,
+    });
+
+    try {
+      const blob = await generateProductLabels(
+        token,
+        Array.from(selectedProductIds),
+      );
+
+      const downloadUrl =
+        URL.createObjectURL(blob);
+
+      const anchor =
+        document.createElement("a");
+
+      anchor.href = downloadUrl;
+      anchor.download =
+        "etiquetas-productos.pdf";
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      globalThis.setTimeout(() => {
+        URL.revokeObjectURL(downloadUrl);
+      }, 1_000);
+
+      setLabelGenerationState({
+        status: "idle",
+        message: null,
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      if (
+        error instanceof ApiError &&
+        error.status === 403
+      ) {
+        setLabelGenerationState({
+          status: "error",
+          message:
+            "Este usuario no tiene permisos para generar etiquetas.",
+        });
+
+        return;
+      }
+
+      setLabelGenerationState({
+        status: "error",
+        message: getLoadErrorMessage(error),
+      });
+    }
+  }
+
   if (
     authStatus === "authenticated" &&
     user &&
@@ -576,6 +752,67 @@ export default function ProductsPage() {
           )}
         </div>
 
+        {hasWriteAccess &&
+          selectedProductIds.size > 0 && (
+            <div className="flex flex-col gap-3 border-b border-[var(--color-border-soft)] bg-[var(--color-primary-soft)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {selectedProductIds.size}{" "}
+                  {selectedProductIds.size === 1
+                    ? "producto seleccionado"
+                    : "productos seleccionados"}
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  El PDF utilizará la ubicación
+                  como código de barras Code 128.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={
+                    clearProductSelection
+                  }
+                  disabled={
+                    labelGenerationState.status ===
+                    "generating"
+                  }
+                >
+                  Limpiar selección
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleGenerateLabels();
+                  }}
+                  disabled={
+                    labelGenerationState.status ===
+                    "generating"
+                  }
+                >
+                  {labelGenerationState.status ===
+                  "generating"
+                    ? "Generando PDF…"
+                    : "Generar etiquetas"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+        {labelGenerationState.status ===
+          "error" && (
+          <div
+            className="border-b border-[var(--color-border-soft)] bg-[var(--color-danger-soft)] px-5 py-3 text-sm font-medium text-[var(--color-danger)]"
+            role="alert"
+          >
+            {labelGenerationState.message}
+          </div>
+        )}
+
         {loadState.status === "loading" && (
           <LoadingState message="Consultando productos…" />
         )}
@@ -644,9 +881,32 @@ export default function ProductsPage() {
           loadState.data.results.length > 0 && (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] border-collapse">
+                <table className="w-full min-w-[960px] border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
+                      {hasWriteAccess && (
+                        <th className="w-14 px-5 py-3.5">
+                          <input
+                            type="checkbox"
+                            checked={
+                              areAllVisibleProductsSelected
+                            }
+                            ref={(element) => {
+                              if (element) {
+                                element.indeterminate =
+                                  areSomeVisibleProductsSelected &&
+                                  !areAllVisibleProductsSelected;
+                              }
+                            }}
+                            onChange={
+                              toggleVisibleProducts
+                            }
+                            aria-label="Seleccionar todos los productos visibles"
+                            className="size-4 cursor-pointer accent-[var(--color-primary)]"
+                          />
+                        </th>
+                      )}
+
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Código
                       </th>
@@ -700,6 +960,35 @@ export default function ProductsPage() {
                             }}
                             className="cursor-pointer border-b border-[var(--color-border-soft)] transition-colors last:border-b-0 hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
                           >
+                            {hasWriteAccess && (
+                              <td
+                                className="w-14 px-5 py-4 align-top"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedProductIds.has(
+                                    product.id,
+                                  )}
+                                  onChange={() => {
+                                    toggleProductSelection(
+                                      product.id,
+                                    );
+                                  }}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                  }}
+                                  onKeyDown={(event) => {
+                                    event.stopPropagation();
+                                  }}
+                                  aria-label={`Seleccionar ${product.standard_code}, ${product.name}`}
+                                  className="size-4 cursor-pointer accent-[var(--color-primary)]"
+                                />
+                              </td>
+                            )}
+
                             <td className="px-5 py-4 align-top">
                               <span className="font-mono text-sm font-semibold text-foreground">
                                 {product.standard_code}

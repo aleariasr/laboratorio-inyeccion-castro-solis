@@ -123,6 +123,111 @@ export async function apiRequest<T>(
   }
 }
 
+export async function apiBlobRequest(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<Blob> {
+  const {
+    token,
+    body,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    headers,
+    signal,
+    ...requestOptions
+  } = options;
+
+  const timeoutController = new AbortController();
+
+  const timeoutId = globalThis.setTimeout(() => {
+    timeoutController.abort();
+  }, timeoutMs);
+
+  const abortRequest = (): void => {
+    timeoutController.abort();
+  };
+
+  signal?.addEventListener(
+    "abort",
+    abortRequest,
+    {
+      once: true,
+    },
+  );
+
+  try {
+    const requestHeaders = createRequestHeaders({
+      headers,
+      token,
+      hasBody: body !== undefined,
+    });
+
+    requestHeaders.set(
+      "Accept",
+      "*/*",
+    );
+
+    const response = await fetch(path, {
+      ...requestOptions,
+      headers: requestHeaders,
+      body:
+        body === undefined
+          ? undefined
+          : JSON.stringify(body),
+      credentials: "same-origin",
+      signal: timeoutController.signal,
+    });
+
+    if (!response.ok) {
+      const payload =
+        await parseResponseBody(response);
+
+      throw new ApiError({
+        message: getApiErrorMessage(payload),
+        status: response.status,
+        payload,
+      });
+    }
+
+    return response.blob();
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    if (
+      error instanceof DOMException &&
+      error.name === "AbortError"
+    ) {
+      if (signal?.aborted) {
+        throw error;
+      }
+
+      throw new ApiTimeoutError();
+    }
+
+    throw new ApiNetworkError();
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+
+    signal?.removeEventListener(
+      "abort",
+      abortRequest,
+    );
+  }
+}
+
+export function apiPostBlob(
+  path: string,
+  body?: unknown,
+  options: ApiRequestOptions = {},
+): Promise<Blob> {
+  return apiBlobRequest(path, {
+    ...options,
+    method: "POST",
+    body,
+  });
+}
+
 export function apiGet<T>(
   path: string,
   options: ApiRequestOptions = {},
