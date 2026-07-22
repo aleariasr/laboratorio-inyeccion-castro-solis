@@ -18,6 +18,9 @@ from .purchase import (
 )
 from .supplier import SupplierViewSet
 from .supplier_product import SupplierProductViewSet
+from .stock_movement import (
+    StockMovementViewSet,
+)
 
 __all__ = [
     "ImportCostCategoryViewSet",
@@ -32,4 +35,5 @@ __all__ = [
     "PurchaseViewSet",
     "SupplierViewSet",
     "SupplierProductViewSet",
+    "StockMovementViewSet",
 ]

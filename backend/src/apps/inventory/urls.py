@@ -13,6 +13,7 @@ from apps.inventory.views import (
     StorageLocationViewSet,
     SupplierProductViewSet,
     SupplierViewSet,
+    StockMovementViewSet,
 )
 
 router = DefaultRouter()
@@ -75,6 +76,11 @@ router.register(
     "product-cost-history",
     ProductCostHistoryViewSet,
     basename="product-cost-history",
+)
+router.register(
+    "stock-movements",
+    StockMovementViewSet,
+    basename="stock-movement",
 )
 
 urlpatterns = router.urls

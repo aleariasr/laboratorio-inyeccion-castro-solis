@@ -21,6 +21,9 @@ from .purchase import (
 )
 from .supplier import SupplierSerializer
 from .supplier_product import SupplierProductSerializer
+from .stock_movement import (
+    StockMovementSerializer,
+)
 
 __all__ = [
     "ImportCostCategorySerializer",
@@ -38,4 +41,5 @@ __all__ = [
     "SupplierProductSerializer",
     "PurchaseCostSummaryInputSerializer",
     "PurchaseCancellationSerializer",
+    "StockMovementSerializer",
 ]

@@ -22,6 +22,7 @@ import {
   createProductReference,
   getProduct,
   getProductReferences,
+  getProductStockMovements,
   updateProductReference,
   updateProductReferenceState,
 } from "@/features/inventory/products/api";
@@ -35,7 +36,9 @@ import {
   type ProductReference,
   type ProductReferenceFormErrors,
   type ProductReferenceFormValues,
+  type StockMovement,
 } from "@/features/inventory/products/types";
+import type { PaginatedResponse } from "@/lib/api/types";
 import {
   ApiError,
   ApiNetworkError,
@@ -83,6 +86,25 @@ type ReferenceActionState = {
   pendingStateReferenceId: number | null;
 };
 
+type MovementLoadState =
+  | {
+      status: "loading";
+      data: null;
+      message: null;
+    }
+  | {
+      status: "success";
+      data: PaginatedResponse<StockMovement>;
+      message: null;
+    }
+  | {
+      status: "forbidden" | "error";
+      data: null;
+      message: string;
+    };
+
+const MOVEMENTS_PAGE_SIZE = 10;
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
     return "La consulta tardó demasiado tiempo en responder.";
@@ -111,6 +133,37 @@ function formatDate(value: string): string {
     timeStyle: "short",
     timeZone: "America/Costa_Rica",
   }).format(date);
+}
+
+function formatSignedQuantity(
+  movement: StockMovement,
+): string {
+  const prefix =
+    movement.direction === "IN"
+      ? "+"
+      : "-";
+
+  return `${prefix}${movement.quantity}`;
+}
+
+function getMovementReference(
+  movement: StockMovement,
+): string {
+  if (movement.purchase_invoice_number) {
+    return `Compra ${movement.purchase_invoice_number}`;
+  }
+
+  if (movement.sale_id !== null) {
+    return `Venta #${movement.sale_id}`;
+  }
+
+  if (
+    movement.reverses_movement !== null
+  ) {
+    return `Revierte movimiento #${movement.reverses_movement}`;
+  }
+
+  return "Sin documento asociado";
 }
 
 function isLowStock(product: Product): boolean {
@@ -156,6 +209,25 @@ export default function ProductDetailPage() {
     pendingStateReferenceId: null,
   });
 
+  const [
+    movementPage,
+    setMovementPage,
+  ] = useState(1);
+
+  const [
+    movementReloadKey,
+    setMovementReloadKey,
+  ] = useState(0);
+
+  const [
+    movementLoadState,
+    setMovementLoadState,
+  ] = useState<MovementLoadState>({
+    status: "loading",
+    data: null,
+    message: null,
+  });
+
   const productId = Number(params.id);
 
   const hasInventoryAccess =
@@ -175,6 +247,17 @@ export default function ProductDetailPage() {
     referenceFormState.mode === "edit"
       ? `edit-${referenceFormState.reference.id}`
       : "create";
+
+  const movementTotalPages =
+    movementLoadState.status === "success"
+      ? Math.max(
+          1,
+          Math.ceil(
+            movementLoadState.data.count /
+              MOVEMENTS_PAGE_SIZE,
+          ),
+        )
+      : 1;
 
   useEffect(() => {
     if (
@@ -274,6 +357,97 @@ export default function ProductDetailPage() {
     authStatus,
     hasInventoryAccess,
     logout,
+    productId,
+    router,
+    token,
+  ]);
+
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      !token ||
+      !hasInventoryAccess ||
+      !Number.isInteger(productId) ||
+      productId <= 0
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    setMovementLoadState({
+      status: "loading",
+      data: null,
+      message: null,
+    });
+
+    getProductStockMovements(
+      token,
+      productId,
+      movementPage,
+      MOVEMENTS_PAGE_SIZE,
+      controller.signal,
+    )
+      .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setMovementLoadState({
+          status: "success",
+          data: response,
+          message: null,
+        });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          error.status === 401
+        ) {
+          void logout().then(() => {
+            router.replace("/login");
+          });
+
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          error.status === 403
+        ) {
+          setMovementLoadState({
+            status: "forbidden",
+            data: null,
+            message:
+              "Este usuario no tiene permisos para consultar movimientos de inventario.",
+          });
+
+          return;
+        }
+
+        setMovementLoadState({
+          status: "error",
+          data: null,
+          message:
+            error instanceof ApiError
+              ? error.message
+              : getErrorMessage(error),
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    authStatus,
+    hasInventoryAccess,
+    logout,
+    movementPage,
+    movementReloadKey,
     productId,
     router,
     token,
@@ -824,6 +998,232 @@ export default function ProductDetailPage() {
             <p className="mt-5 text-xs leading-5 text-muted-foreground">
               El stock se calcula desde movimientos y no puede editarse directamente.
             </p>
+          </section>
+
+          <section className="app-status-card overflow-hidden xl:col-span-2">
+            <div className="flex flex-col gap-2 border-b border-[var(--color-border-soft)] p-6 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+                  Historial de movimientos
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Entradas, salidas, ajustes y reversiones
+                  que determinan la existencia actual.
+                </p>
+              </div>
+
+              {movementLoadState.status ===
+                "success" && (
+                <p className="text-sm text-muted-foreground">
+                  {movementLoadState.data.count}{" "}
+                  {movementLoadState.data.count === 1
+                    ? "movimiento"
+                    : "movimientos"}
+                </p>
+              )}
+            </div>
+
+            {movementLoadState.status ===
+              "loading" && (
+              <div className="p-6">
+                <LoadingState message="Consultando movimientos…" />
+              </div>
+            )}
+
+            {movementLoadState.status ===
+              "forbidden" && (
+              <div className="p-6">
+                <StatePanel
+                  title="Movimientos restringidos"
+                  message={movementLoadState.message}
+                  tone="warning"
+                />
+              </div>
+            )}
+
+            {movementLoadState.status ===
+              "error" && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudo cargar el historial"
+                  message={movementLoadState.message}
+                  tone="error"
+                  action={
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setMovementReloadKey(
+                          (current) => current + 1,
+                        );
+                      }}
+                    >
+                      Reintentar
+                    </Button>
+                  }
+                />
+              </div>
+            )}
+
+            {movementLoadState.status ===
+              "success" &&
+              movementLoadState.data.results.length ===
+                0 && (
+                <div className="p-6">
+                  <p className="text-sm text-muted-foreground">
+                    Este producto todavía no tiene
+                    movimientos de inventario registrados.
+                  </p>
+                </div>
+              )}
+
+            {movementLoadState.status ===
+              "success" &&
+              movementLoadState.data.results.length >
+                0 && (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[920px] border-collapse">
+                      <thead>
+                        <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
+                          <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Fecha
+                          </th>
+
+                          <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Tipo
+                          </th>
+
+                          <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Cantidad
+                          </th>
+
+                          <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Documento
+                          </th>
+
+                          <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Notas
+                          </th>
+
+                          <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Usuario
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {movementLoadState.data.results.map(
+                          (movement) => (
+                            <tr
+                              key={movement.id}
+                              className="border-b border-[var(--color-border-soft)] last:border-b-0"
+                            >
+                              <td className="whitespace-nowrap px-5 py-4 text-sm text-foreground">
+                                {formatDate(
+                                  movement.created_at,
+                                )}
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm font-semibold text-foreground">
+                                    {
+                                      movement.movement_type_display
+                                    }
+                                  </span>
+
+                                  <span className="text-xs text-muted-foreground">
+                                    {
+                                      movement.direction_display
+                                    }
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <span
+                                  className={[
+                                    "font-mono text-sm font-semibold",
+                                    movement.direction ===
+                                    "IN"
+                                      ? "text-[var(--color-success)]"
+                                      : "text-[var(--color-danger)]",
+                                  ].join(" ")}
+                                >
+                                  {formatSignedQuantity(
+                                    movement,
+                                  )}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4 text-sm text-foreground">
+                                {getMovementReference(
+                                  movement,
+                                )}
+                              </td>
+
+                              <td className="max-w-md px-5 py-4 text-sm leading-6 text-muted-foreground">
+                                {movement.notes ||
+                                  "Sin notas"}
+                              </td>
+
+                              <td className="px-5 py-4 text-sm text-muted-foreground">
+                                {movement.created_by_username ||
+                                  "Sistema"}
+                              </td>
+                            </tr>
+                          ),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-[var(--color-border-soft)] p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Página {movementPage} de{" "}
+                      {movementTotalPages}
+                    </p>
+
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={
+                          movementLoadState.data.previous ===
+                          null
+                        }
+                        onClick={() => {
+                          setMovementPage((current) =>
+                            Math.max(1, current - 1),
+                          );
+                        }}
+                      >
+                        Anterior
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={
+                          movementLoadState.data.next ===
+                          null
+                        }
+                        onClick={() => {
+                          setMovementPage((current) =>
+                            Math.min(
+                              movementTotalPages,
+                              current + 1,
+                            ),
+                          );
+                        }}
+                      >
+                        Siguiente
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
           </section>
 
           <section className="app-status-card overflow-hidden xl:col-span-2">

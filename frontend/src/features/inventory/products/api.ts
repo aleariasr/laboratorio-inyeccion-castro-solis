@@ -12,6 +12,7 @@ import type {
   ProductReference,
   ProductReferenceWritePayload,
   ProductWritePayload,
+  StockMovement,
 } from "./types";
 
 import type { StorageLocationSummary } from "../locations/types";
@@ -133,6 +134,30 @@ export function getProductReferences(
     },
     token,
     signal,
+  );
+}
+
+export function getProductStockMovements(
+  token: string,
+  productId: number,
+  page: number,
+  pageSize: number,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<StockMovement>> {
+  const searchParams = new URLSearchParams({
+    product: String(productId),
+    page: String(page),
+    page_size: String(pageSize),
+  });
+
+  return apiGet<
+    PaginatedResponse<StockMovement>
+  >(
+    `/api/inventory/stock-movements/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
   );
 }
 

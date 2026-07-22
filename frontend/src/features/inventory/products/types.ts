@@ -71,6 +71,29 @@ export type ProductReferenceFormErrors =
     >
   >;
 
+export type StockMovement = {
+  id: number;
+  product: number;
+  movement_type:
+    | "ENTRY"
+    | "EXIT"
+    | "ADJUSTMENT"
+    | "INITIAL"
+    | "REVERSAL";
+  movement_type_display: string;
+  direction: "IN" | "OUT";
+  direction_display: string;
+  quantity: number;
+  purchase_item: number | null;
+  purchase_invoice_number: string | null;
+  sale_item: number | null;
+  sale_id: number | null;
+  reverses_movement: number | null;
+  notes: string;
+  created_by_username: string | null;
+  created_at: string;
+};
+
 export const EMPTY_PRODUCT_REFERENCE_FORM_VALUES:
   ProductReferenceFormValues = {
     manufacturer: "",
