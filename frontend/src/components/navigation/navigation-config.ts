@@ -2,6 +2,7 @@ import {
   HomeIcon,
   InventoryIcon,
   LocationIcon,
+  SearchIcon,
   StatusIcon,
 } from "@/components/icons/app-icons";
 
@@ -47,6 +48,12 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Inicio",
     section: "main",
     icon: HomeIcon,
+  },
+  {
+    href: "/search",
+    label: "Búsqueda",
+    section: "main",
+    icon: SearchIcon,
   },
   {
     href: "/inventory/products",
