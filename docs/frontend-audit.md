@@ -6,7 +6,9 @@ Laboratorio de Inyección Castro Solís — LICS
 
 ## Estado de la auditoría
 
-En progreso.
+Parcialmente resuelta. Ver detalle de lo resuelto y lo pendiente al final de este documento.
+
+> Nota: esta auditoría se realizó antes de iniciar la implementación del frontend (fase F0). Desde entonces se construyeron las pantallas de F1 a F9 del [roadmap de frontend](frontend-roadmap.md) (login, sesión, navegación, estado del sistema, búsqueda universal, productos, ubicaciones y proveedores), pero varios de los pendientes de backend que esta auditoría identificó siguen abiertos — en particular filtros de compras y ventas, ampliación de la búsqueda universal y administración de roles de usuario. El detalle verificado está al final de este documento.
 
 ## Objetivo
 
@@ -1002,3 +1004,25 @@ Cada cambio deberá incluir:
 4. documentación;
 5. validación desde la interfaz;
 6. commit independiente.
+
+---
+
+# Estado posterior a esta auditoría
+
+## Resuelto
+
+- Base técnica del frontend, sistema de diseño inicial, autenticación, navegación, estado del sistema, búsqueda universal (interfaz), productos, ubicaciones y proveedores implementados (fases F1 a F9 del [roadmap de frontend](frontend-roadmap.md)).
+- Imports duplicados en `customers/views.py`: resuelto, ya no existen.
+- Filtros de catálogo de inventario (productos, ubicaciones, proveedores, referencias): implementados.
+- Filtros de `customers` (cliente, inyector, estado, registro de servicio): implementados.
+
+## Todavía pendiente (verificado en el código actual)
+
+- La búsqueda universal (`GET /api/search/`) sigue exactamente tan limitada como se describe más arriba en este documento: productos solo por código estándar, clientes solo por nombre visible, sin buscar por identificación ni teléfono, sin cubrir ventas ni servicios de inyector.
+- `apps/inventory/views/purchase.py` no tiene ningún filtro por parámetro de consulta: sin búsqueda, sin filtro por proveedor, estado, moneda ni fechas.
+- `apps/sales/views.py` no tiene ningún filtro por parámetro de consulta.
+- La administración de roles de usuario sigue sin ser posible desde la API: `UserSerializer` expone `groups` como solo lectura y `UserCreateSerializer` ni siquiera incluye el campo.
+
+Estos pendientes deben resolverse junto con las pantallas correspondientes (compras, ventas, administración de usuarios), siguiendo la regla que ya establece este documento: "cada grupo de filtros se implementará junto con su pantalla correspondiente."
+
+El número de pruebas backend mencionado en este documento (269) quedó desactualizado. El número actual está en el [README principal](../README.md).

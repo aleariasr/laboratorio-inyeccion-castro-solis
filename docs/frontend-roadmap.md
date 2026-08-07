@@ -6,7 +6,33 @@ Laboratorio de Inyección Castro Solís — LICS
 
 ## Estado
 
-Planificación inicial.
+En progreso.
+
+## Estado de avance por fase
+
+- F0 auditoría y planificación: completada.
+- F1 preparación backend para listados: completada (paginación implementada en los listados principales).
+- F2 base técnica del frontend: completada.
+- F3 sistema de diseño: mayormente completada (componentes base en uso; se amplía según necesidad real de cada módulo).
+- F4 autenticación y sesión: completada.
+- F5 estructura principal de la aplicación: completada.
+- F6 estado del sistema e inicio: completada.
+- F7 búsqueda universal: completada.
+- F8 productos y ubicaciones: completada.
+- F9 proveedores y referencias: completada.
+- F10 compras: pendiente.
+- F11 costos de importación: pendiente.
+- F12 ventas: pendiente.
+- F13 clientes: pendiente.
+- F14 inyectores y servicios: pendiente.
+- F15 conteos físicos: pendiente.
+- F16 movimientos y existencias: pendiente (el detalle de producto ya muestra su historial de movimientos paginado, construido junto con F8; falta la vista general de movimientos, kardex y stock por ubicación).
+- F17 reportes: pendiente.
+- F18 documentos: pendiente (fuera de las etiquetas de producto, ya implementadas en F8).
+- F19 administración de usuarios: pendiente.
+- F20 configuración y diagnóstico: pendiente (la pantalla de estado del sistema de F6 ya cubre parte de este alcance).
+- F21 validación real: pendiente.
+- F22 endurecimiento y entrega: pendiente.
 
 ## Objetivo
 

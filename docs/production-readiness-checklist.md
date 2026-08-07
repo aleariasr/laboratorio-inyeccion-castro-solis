@@ -18,7 +18,7 @@ Resumen:
 
     Infraestructura productiva base: mayormente completada.
     Backend base: completado.
-    Frontend operativo: pendiente.
+    Frontend operativo: en progreso (login, estado del sistema, búsqueda, productos, ubicaciones, proveedores y etiquetas PDF implementados).
     Validación final en estación gráfica: pendiente.
     Validación con usuarios reales: pendiente.
 
@@ -189,25 +189,25 @@ Documentos relacionados:
 - [x] Reportes JSON.
 - [x] Documentos PDF iniciales.
 - [x] Etiquetas con código de barras real.
-- [x] Suite backend con 226 tests.
+- [x] Suite backend con 317 tests.
 
 ---
 
 # Frontend
 
-- [ ] Login.
-- [ ] Logout.
-- [ ] Estado del sistema.
-- [ ] Búsqueda universal.
-- [ ] Productos.
-- [ ] Ubicaciones.
-- [ ] Proveedores.
+- [x] Login.
+- [x] Logout.
+- [x] Estado del sistema.
+- [x] Búsqueda universal.
+- [x] Productos.
+- [x] Ubicaciones.
+- [x] Proveedores.
 - [ ] Compras.
 - [ ] Ventas.
 - [ ] Clientes.
 - [ ] Inyectores.
 - [ ] Reportes.
-- [ ] Generación de etiquetas PDF desde interfaz.
+- [x] Generación de etiquetas PDF desde interfaz.
 
 ---
 

@@ -20,7 +20,7 @@ Estado resumido:
 
     Infraestructura productiva base: completada.
     Backend base: completado.
-    Frontend operativo: pendiente.
+    Frontend operativo: en progreso (login, sesión, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores y etiquetas PDF implementados; compras, ventas, clientes, inyectores y reportes pendientes).
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: pendiente.
 
@@ -266,7 +266,7 @@ Documento relacionado:
 
 # Fase 7: frontend operativo mínimo
 
-Estado: siguiente fase recomendada.
+Estado: en progreso.
 
 Objetivo:
 
@@ -274,19 +274,19 @@ Construir una interfaz usable que permita validar el backend con pantallas reale
 
 Orden recomendado:
 
-1. Login.
-2. Sesión y logout.
-3. Estado del sistema.
-4. Búsqueda universal.
-5. Productos.
-6. Ubicaciones.
-7. Proveedores.
-8. Compras.
-9. Ventas.
-10. Clientes.
-11. Inyectores.
-12. Reportes.
-13. Generación de etiquetas PDF.
+1. Login. Implementado.
+2. Sesión y logout. Implementado.
+3. Estado del sistema. Implementado.
+4. Búsqueda universal. Implementado.
+5. Productos. Implementado (listado, detalle, creación, edición, referencias, historial de movimientos, generación de etiquetas).
+6. Ubicaciones. Implementado (listado, detalle, creación, edición).
+7. Proveedores. Implementado (listado, detalle, creación, edición, productos asociados).
+8. Compras. Pendiente.
+9. Ventas. Pendiente.
+10. Clientes. Pendiente.
+11. Inyectores. Pendiente.
+12. Reportes. Pendiente.
+13. Generación de etiquetas PDF. Implementado (desde el listado de productos).
 
 Criterio de avance:
 

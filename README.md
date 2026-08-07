@@ -26,7 +26,7 @@ Estado actual:
 
     Backend base cerrado.
     Infraestructura productiva base implementada.
-    Frontend operativo pendiente.
+    Frontend operativo en progreso (login, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores y etiquetas PDF).
     Validación con flujos reales pendiente.
 
 El backend base ya incluye autenticación, usuarios, roles, permisos por módulo, inventario, compras, costos, ventas, clientes, inyectores, búsqueda universal, reportes JSON, endpoint administrativo de estado y generación inicial de documentos PDF con códigos de barras reales.
@@ -96,6 +96,18 @@ Documento principal de cierre:
 - Reportes JSON.
 - Documentos PDF iniciales.
 - Etiquetas PDF con código de barras Code128 real.
+
+## Frontend operativo
+
+- Autenticación con inicio y cierre de sesión.
+- Panel de inicio.
+- Pantalla administrativa de estado del sistema.
+- Búsqueda universal con atajo de teclado y navegación a detalle.
+- Módulo de productos: listado, detalle, creación, edición, referencias equivalentes, historial de movimientos e impresión de etiquetas.
+- Módulo de ubicaciones: listado, detalle, creación y edición.
+- Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
+- Navegación por roles y permisos.
+- Pendiente: compras, ventas, clientes, inyectores y reportes desde la interfaz.
 
 ---
 
@@ -341,7 +353,7 @@ Validación técnica del backend base:
 
     Django check: OK
     Migraciones pendientes: no
-    Tests backend: 226 OK
+    Tests backend: 317 OK
     Build backend Docker: OK
 
 El backend base queda cerrado como `0.2.0-alpha`.
@@ -352,7 +364,7 @@ El backend base queda cerrado como `0.2.0-alpha`.
 
 No se recomienda seguir agregando backend por adelantado sin validación real. Las siguientes fases recomendadas son:
 
-1. Frontend operativo mínimo.
+1. Completar el frontend operativo: compras, ventas, clientes, inyectores y reportes.
 2. Validación de flujos reales con pantallas.
 3. Ajustes del modelo según uso real.
 4. Documentos PDF adicionales.

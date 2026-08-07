@@ -16,9 +16,25 @@ El formato utiliza estas categorías:
 
 ## [Unreleased]
 
+### Added
+
+- Cimientos visuales y sistema de diseño del frontend.
+- Cliente API tipado con manejo centralizado de errores.
+- Autenticación: login, sesión y cierre de sesión desde la interfaz.
+- Pantalla administrativa de estado del sistema.
+- Estructura común de navegación de la aplicación (`AppShell`).
+- Módulo de productos: listado, detalle, creación, edición, referencias equivalentes, historial de movimientos de stock y generación de etiquetas PDF.
+- Módulo de ubicaciones: listado, creación y edición.
+- Búsqueda universal desde la interfaz, con atajo de teclado.
+- Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
+
+### Fixed
+
+- Validación de nombre de proveedor duplicado: ahora detecta coincidencias sin distinguir mayúsculas de minúsculas antes de llegar a la base de datos, evitando un error 500 no controlado.
+
 ### Pending
 
-- Frontend operativo mínimo.
+- Compras, ventas, clientes, inyectores y reportes desde la interfaz.
 - Validación con usuarios reales.
 - Validación con datos reales.
 - Validación final en Linux Mint XFCE o Ubuntu Desktop gráfico.

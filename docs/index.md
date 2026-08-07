@@ -21,6 +21,9 @@ LICS es un sistema local/offline orientado a producción real. La documentación
 11. [Seguridad](security.md)
 12. [Solución de problemas](troubleshooting.md)
 13. [Lista de preparación para producción](production-readiness-checklist.md)
+14. [Auditoría previa al frontend](frontend-audit.md)
+15. [Roadmap de frontend](frontend-roadmap.md)
+16. [Sistema de diseño del frontend](frontend-design-system.md)
 
 ---
 
@@ -184,6 +187,40 @@ Incluye:
 
 ---
 
+# Documentos de frontend
+
+## Auditoría previa al frontend
+
+Archivo:
+
+- [frontend-audit.md](frontend-audit.md)
+
+Propósito:
+
+Registra el estado del backend, la infraestructura y los requerimientos operativos revisados antes de iniciar el frontend, junto con los desajustes documentales detectados en ese momento.
+
+## Roadmap de frontend
+
+Archivo:
+
+- [frontend-roadmap.md](frontend-roadmap.md)
+
+Propósito:
+
+Define las fases de implementación del frontend (F0 a F22), su metodología, criterios de cierre y estrategia de commits.
+
+## Sistema de diseño del frontend
+
+Archivo:
+
+- [frontend-design-system.md](frontend-design-system.md)
+
+Propósito:
+
+Define la paleta, tipografía, componentes, accesibilidad y reglas de interacción compartidas por todo el frontend.
+
+---
+
 # Documentos operativos
 
 ## Desarrollo
@@ -318,11 +355,11 @@ Estado resumido:
 
     Infraestructura productiva base: implementada.
     Backend base: cerrado.
-    Frontend operativo: pendiente.
+    Frontend operativo: en progreso (login, sesión, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores y etiquetas PDF implementados; compras, ventas, clientes, inyectores y reportes pendientes).
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: pendiente.
 
-La siguiente fase recomendada es construir el frontend operativo mínimo para validar el sistema con pantallas reales y flujos del negocio antes de ampliar más módulos backend.
+La fase en curso es completar el frontend operativo mínimo (compras, ventas, clientes, inyectores y reportes) antes de ampliar más módulos backend.
 
 ---
 

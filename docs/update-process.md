@@ -148,7 +148,7 @@ Si ocurre un error antes de modificar la base de datos, la actualización debe c
 
 Si el error ocurre después de modificar la instalación, el procedimiento de recuperación debe apoyarse en el respaldo generado previamente.
 
-La estrategia definitiva de rollback automático se implementará en una etapa posterior del proyecto.
+El sistema cuenta con `scripts/rollback.sh`, validado para revertir la instalación actual a la versión anterior usando el respaldo `pre-update` generado automáticamente por `update.sh`. Su invocación es manual: `update.sh` no dispara el rollback automáticamente ante un fallo, así lo indica explícitamente en su propio encabezado. La automatización de esa llamada, para que el rollback se dispare sin intervención del operador, queda pendiente.
 
 ---
 
@@ -194,6 +194,8 @@ La infraestructura del proyecto ya incorpora los componentes necesarios para sop
 - validación de integridad mediante SHA-256;
 - generación de respaldos verificables;
 - migraciones de base de datos;
-- comprobaciones automáticas de salud.
+- comprobaciones automáticas de salud;
+- `scripts/update.sh`, que ejecuta el flujo completo de actualización offline;
+- `scripts/rollback.sh`, validado para revertir a la versión anterior usando el respaldo `pre-update`.
 
-La automatización completa del proceso de actualización y la estrategia definitiva de rollback forman parte de la fase final de preparación para producción.
+Ambos scripts existen y fueron validados de forma independiente. Lo que queda pendiente es la automatización del disparo del rollback: hoy requiere invocación manual del operador ante un fallo, en vez de activarse automáticamente desde `update.sh`.

@@ -94,7 +94,7 @@ El producto no debe guardar un campo de stock editable directamente.
 
 La existencia actual se obtiene desde los movimientos de inventario.
 
-### ProductAlias
+### ProductAlias (implementado como `ProductReference`)
 
 Representa códigos equivalentes, referencias de proveedor, marcas alternativas o códigos usados para una misma pieza.
 
@@ -113,6 +113,8 @@ Restricciones:
 
 - no debe repetirse el mismo código alternativo para el mismo producto;
 - si un código alternativo identifica de forma única una pieza en el negocio, se debe validar su unicidad según la regla operativa definida.
+
+> Nota de implementación: el modelo implementado se llama `ProductReference`, no `ProductAlias`. Sus campos reales son `product`, `manufacturer`, `reference_code`, `description` e `is_active`, con una restricción única sobre `(product, manufacturer, reference_code)`. La relación con el proveedor no vive en este modelo: se maneja por separado mediante `SupplierProduct` (ver más abajo). Ver [Dominio de inventario](domain/inventory.md) para el detalle actualizado.
 
 ### StockMovement
 
@@ -158,7 +160,7 @@ Campos conceptuales:
 - notas;
 - estado activo/inactivo.
 
-### SupplierProductReference
+### SupplierProductReference (implementado como `SupplierProduct`)
 
 Relaciona proveedores con productos o códigos equivalentes.
 
@@ -172,6 +174,8 @@ Campos conceptuales:
 - marca;
 - notas;
 - estado activo/inactivo.
+
+> Nota de implementación: el modelo implementado se llama `SupplierProduct`, no `SupplierProductReference`. Sus campos reales son `supplier`, `product`, `supplier_reference`, `manufacturer`, `preferred_supplier`, `notes` e `is_active`, con una restricción única sobre `(supplier, product, supplier_reference)`. Ver [Dominio de inventario](domain/inventory.md) para el detalle actualizado.
 
 ## Compras
 
