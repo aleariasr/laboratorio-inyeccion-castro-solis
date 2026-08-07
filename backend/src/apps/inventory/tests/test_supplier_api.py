@@ -125,3 +125,51 @@ class SupplierApiTest(APITestCase):
             response.data["results"][0]["name"],
             "DENSO",
         )
+
+    def test_create_supplier_rejects_case_insensitive_duplicate_name(self):
+        response = self.client.post(
+            "/api/inventory/suppliers/",
+            {
+                "name": "bosch",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("name", response.data)
+
+    def test_update_supplier_keeps_own_name(self):
+        response = self.client.patch(
+            f"/api/inventory/suppliers/{self.supplier.id}/",
+            {
+                "name": "Bosch",
+                "phone": "2222-4444",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_update_supplier_rejects_case_insensitive_duplicate_name(self):
+        other = Supplier.objects.create(
+            name="Denso",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/suppliers/{other.id}/",
+            {
+                "name": "bosch",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("name", response.data)
