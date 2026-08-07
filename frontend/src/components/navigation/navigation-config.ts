@@ -4,6 +4,7 @@ import {
   LocationIcon,
   SearchIcon,
   StatusIcon,
+  TruckIcon,
 } from "@/components/icons/app-icons";
 
 import type {
@@ -75,6 +76,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     "READ_ONLY",
   ],
 },
+{
+    href: "/inventory/suppliers",
+    label: "Proveedores",
+    section: "inventory",
+    icon: TruckIcon,
+    roles: [
+      "INVENTORY",
+      "READ_ONLY",
+    ],
+  },
   {
     href: "/system/status",
     label: "Estado del sistema",

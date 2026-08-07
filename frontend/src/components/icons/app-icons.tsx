@@ -245,3 +245,32 @@ export function LocationIcon({
     </svg>
   );
 }
+
+export function TruckIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M3.5 7h10v9h-10z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M13.5 10.5h3.6l3.4 3v2.5h-2M13.5 16h-8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <circle cx="7" cy="17.3" r="1.7" />
+      <circle cx="16.5" cy="17.3" r="1.7" />
+    </svg>
+  );
+}
