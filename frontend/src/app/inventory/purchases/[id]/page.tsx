@@ -21,6 +21,7 @@ import {
   getPurchase,
   updatePurchaseItem,
 } from "@/features/inventory/purchases/api";
+import { PurchaseCostsSection } from "@/features/inventory/purchases/purchase-costs-section";
 import { mapPurchaseItemApiFieldErrors } from "@/features/inventory/purchases/purchase-item-form-errors";
 import { PurchaseItemForm } from "@/features/inventory/purchases/purchase-item-form";
 import {
@@ -1047,6 +1048,13 @@ export default function PurchaseDetailPage() {
               </div>
             )}
           </section>
+
+          <PurchaseCostsSection
+            purchaseId={loadState.purchase.id}
+            currency={loadState.purchase.currency}
+            token={token ?? ""}
+            hasWriteAccess={hasWriteAccess}
+          />
         </div>
       )}
     </AppShell>

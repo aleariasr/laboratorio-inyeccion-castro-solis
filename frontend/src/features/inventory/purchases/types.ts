@@ -165,3 +165,136 @@ export function buildPurchaseItemWritePayload(
 
 // Reexportado para el combobox de proveedor y de producto-proveedor
 export type { Supplier, SupplierProduct };
+
+// Costos de importación (Paso 4)
+
+export type ImportCostCategory = {
+  id: number;
+  name: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ImportCostCategoryWritePayload = {
+  name: string;
+  description: string;
+};
+
+export type ImportCost = {
+  id: number;
+  purchase: number;
+  purchase_detail: {
+    id: number;
+    invoice_number: string;
+    supplier: string;
+    currency: Currency;
+    status: PurchaseStatus;
+  };
+  category: number;
+  category_detail: ImportCostCategory;
+  description: string;
+  amount: string;
+  currency: Currency;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ImportCostWritePayload = {
+  purchase: number;
+  category: number;
+  description: string;
+  amount: string;
+  currency: Currency;
+};
+
+export type ImportCostFormValues = {
+  categoryId: string;
+  description: string;
+  amount: string;
+  currency: Currency;
+  isActive: boolean;
+};
+
+export type ImportCostFormField =
+  | "categoryId"
+  | "description"
+  | "amount"
+  | "currency"
+  | "isActive";
+
+export type ImportCostFormErrors = Partial<Record<ImportCostFormField, string>>;
+
+export function emptyImportCostFormValues(currency: Currency): ImportCostFormValues {
+  return {
+    categoryId: "",
+    description: "",
+    amount: "",
+    currency,
+    isActive: true,
+  };
+}
+
+export function importCostToFormValues(importCost: ImportCost): ImportCostFormValues {
+  return {
+    categoryId: String(importCost.category),
+    description: importCost.description,
+    amount: importCost.amount,
+    currency: importCost.currency,
+    isActive: importCost.is_active,
+  };
+}
+
+export function buildImportCostWritePayload(
+  purchaseId: number,
+  values: ImportCostFormValues,
+): ImportCostWritePayload {
+  return {
+    purchase: purchaseId,
+    category: Number(values.categoryId),
+    description: values.description.trim(),
+    amount: values.amount.trim(),
+    currency: values.currency,
+  };
+}
+
+export type CostSummary = {
+  purchase: number;
+  invoice_subtotal: string;
+  import_costs_total: string;
+  total_cost: string;
+  cost_factor: string;
+  margin_percentage: string;
+  suggested_total: string;
+  currency: Currency;
+  exchange_rate: string;
+};
+
+export type ProductCostHistory = {
+  id: number;
+  product: number;
+  product_detail: {
+    id: number;
+    standard_code: string;
+    name: string;
+  };
+  purchase: number;
+  purchase_detail: {
+    id: number;
+    invoice_number: string;
+    supplier: string;
+    currency: Currency;
+  };
+  original_unit_cost: string;
+  cost_factor: string;
+  final_unit_cost: string;
+  currency: Currency;
+  exchange_rate: string;
+  margin_percentage: string;
+  suggested_price: string | null;
+  calculated_at: string;
+  created_at: string;
+  updated_at: string;
+};

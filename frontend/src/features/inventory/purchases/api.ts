@@ -7,6 +7,12 @@ import {
 import type { PaginatedResponse } from "@/lib/api/types";
 
 import type {
+  CostSummary,
+  ImportCost,
+  ImportCostCategory,
+  ImportCostCategoryWritePayload,
+  ImportCostWritePayload,
+  ProductCostHistory,
   Purchase,
   PurchaseFilters,
   PurchaseItemInline,
@@ -205,4 +211,169 @@ export function searchSupplierProducts(
       signal,
     },
   ).then((response) => response.results);
+}
+
+async function getAllPages<T>(
+  buildPath: (page: number) => string,
+  token: string,
+  signal?: AbortSignal,
+): Promise<T[]> {
+  const results: T[] = [];
+  let page = 1;
+
+  while (true) {
+    const response = await apiGet<PaginatedResponse<T>>(
+      buildPath(page),
+      {
+        token,
+        signal,
+      },
+    );
+
+    results.push(...response.results);
+
+    if (
+      response.next === null ||
+      response.results.length === 0 ||
+      results.length >= response.count
+    ) {
+      return results;
+    }
+
+    page += 1;
+  }
+}
+
+export function getImportCostCategories(
+  token: string,
+  signal?: AbortSignal,
+): Promise<ImportCostCategory[]> {
+  return getAllPages<ImportCostCategory>(
+    (page) => {
+      const searchParams = new URLSearchParams({
+        is_active: "true",
+        page: String(page),
+        page_size: "100",
+      });
+
+      return `/api/inventory/import-cost-categories/?${searchParams.toString()}`;
+    },
+    token,
+    signal,
+  );
+}
+
+export function createImportCostCategory(
+  token: string,
+  payload: ImportCostCategoryWritePayload,
+): Promise<ImportCostCategory> {
+  return apiPost<ImportCostCategory>(
+    "/api/inventory/import-cost-categories/",
+    payload,
+    {
+      token,
+    },
+  );
+}
+
+export function getImportCosts(
+  token: string,
+  purchaseId: number,
+  signal?: AbortSignal,
+): Promise<ImportCost[]> {
+  return getAllPages<ImportCost>(
+    (page) => {
+      const searchParams = new URLSearchParams({
+        purchase: String(purchaseId),
+        page: String(page),
+        page_size: "100",
+      });
+
+      return `/api/inventory/import-costs/?${searchParams.toString()}`;
+    },
+    token,
+    signal,
+  );
+}
+
+export function createImportCost(
+  token: string,
+  payload: ImportCostWritePayload,
+): Promise<ImportCost> {
+  return apiPost<ImportCost>(
+    "/api/inventory/import-costs/",
+    payload,
+    {
+      token,
+    },
+  );
+}
+
+export function updateImportCost(
+  token: string,
+  importCostId: number,
+  payload: Partial<ImportCostWritePayload> & { is_active?: boolean },
+): Promise<ImportCost> {
+  return apiPatch<ImportCost>(
+    `/api/inventory/import-costs/${importCostId}/`,
+    payload,
+    {
+      token,
+    },
+  );
+}
+
+export function getCostSummary(
+  token: string,
+  purchaseId: number,
+  marginPercentage: string,
+  signal?: AbortSignal,
+): Promise<CostSummary> {
+  const searchParams = new URLSearchParams({
+    margin_percentage: marginPercentage,
+  });
+
+  return apiGet<CostSummary>(
+    `/api/inventory/purchases/${purchaseId}/cost-summary/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+
+export function calculatePurchaseCosts(
+  token: string,
+  purchaseId: number,
+  marginPercentage: string,
+): Promise<ProductCostHistory[]> {
+  return apiPost<ProductCostHistory[]>(
+    `/api/inventory/purchases/${purchaseId}/calculate-costs/`,
+    {
+      margin_percentage: marginPercentage,
+    },
+    {
+      token,
+    },
+  );
+}
+
+export function getProductCostHistory(
+  token: string,
+  purchaseId: number,
+  signal?: AbortSignal,
+): Promise<ProductCostHistory[]> {
+  return getAllPages<ProductCostHistory>(
+    (page) => {
+      const searchParams = new URLSearchParams({
+        purchase: String(purchaseId),
+        page: String(page),
+        page_size: "100",
+      });
+
+      return `/api/inventory/product-cost-history/?${searchParams.toString()}`;
+    },
+    token,
+    signal,
+  );
 }
