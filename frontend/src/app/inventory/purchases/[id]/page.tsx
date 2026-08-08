@@ -1,17 +1,21 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
+import { Field } from "@/components/forms/field";
 import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadInventory, canWriteInventory } from "@/features/auth/permissions";
 import {
+  cancelPurchase,
+  confirmPurchase,
   createPurchaseItem,
   deletePurchaseItem,
   getPurchase,
@@ -57,6 +61,18 @@ type ItemActionState = {
   submitError: string | null;
   fieldErrors: PurchaseItemFormErrors;
   pendingDeleteItemId: number | null;
+};
+
+type ConfirmActionState = {
+  isSubmitting: boolean;
+  error: string | null;
+};
+
+type CancelActionState = {
+  isOpen: boolean;
+  reason: string;
+  isSubmitting: boolean;
+  error: string | null;
 };
 
 const STATUS_LABELS: Record<PurchaseStatus, string> = {
@@ -127,6 +143,18 @@ export default function PurchaseDetailPage() {
     submitError: null,
     fieldErrors: {},
     pendingDeleteItemId: null,
+  });
+
+  const [confirmActionState, setConfirmActionState] = useState<ConfirmActionState>({
+    isSubmitting: false,
+    error: null,
+  });
+
+  const [cancelActionState, setCancelActionState] = useState<CancelActionState>({
+    isOpen: false,
+    reason: "",
+    isSubmitting: false,
+    error: null,
   });
 
   const purchaseId = Number(params.id);
@@ -417,6 +445,120 @@ export default function PurchaseDetailPage() {
     }
   }
 
+  async function handleConfirmPurchase(): Promise<void> {
+    if (!token || loadState.status !== "success") {
+      return;
+    }
+
+    if (
+      !globalThis.confirm(
+        "¿Confirmar esta compra? Se generará el ingreso de inventario correspondiente y ya no podrá editarse.",
+      )
+    ) {
+      return;
+    }
+
+    setConfirmActionState({ isSubmitting: true, error: null });
+
+    try {
+      const updated = await confirmPurchase(token, loadState.purchase.id);
+
+      setLoadState({ status: "success", purchase: updated, message: null });
+
+      setConfirmActionState({ isSubmitting: false, error: null });
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      const message =
+        error instanceof ApiError && error.status === 403
+          ? "Este usuario no tiene permisos para confirmar compras."
+          : getErrorMessage(error);
+
+      setConfirmActionState({ isSubmitting: false, error: message });
+    }
+  }
+
+  function openCancelForm(): void {
+    setCancelActionState({
+      isOpen: true,
+      reason: "",
+      isSubmitting: false,
+      error: null,
+    });
+  }
+
+  function closeCancelForm(): void {
+    if (cancelActionState.isSubmitting) {
+      return;
+    }
+
+    setCancelActionState({
+      isOpen: false,
+      reason: "",
+      isSubmitting: false,
+      error: null,
+    });
+  }
+
+  async function handleCancelSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+
+    if (!token || loadState.status !== "success") {
+      return;
+    }
+
+    const trimmedReason = cancelActionState.reason.trim();
+
+    if (!trimmedReason) {
+      setCancelActionState((current) => ({
+        ...current,
+        error: "El motivo de anulación es obligatorio.",
+      }));
+
+      return;
+    }
+
+    setCancelActionState((current) => ({
+      ...current,
+      isSubmitting: true,
+      error: null,
+    }));
+
+    try {
+      const updated = await cancelPurchase(token, loadState.purchase.id, trimmedReason);
+
+      setLoadState({ status: "success", purchase: updated, message: null });
+
+      setCancelActionState({
+        isOpen: false,
+        reason: "",
+        isSubmitting: false,
+        error: null,
+      });
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      const message =
+        error instanceof ApiError && error.status === 403
+          ? "Este usuario no tiene permisos para anular compras."
+          : getErrorMessage(error);
+
+      setCancelActionState((current) => ({
+        ...current,
+        isSubmitting: false,
+        error: message,
+      }));
+    }
+  }
+
   if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
     return (
       <AppShell
@@ -499,6 +641,38 @@ export default function PurchaseDetailPage() {
               </Button>
             )}
 
+          {loadState.status === "success" &&
+            loadState.purchase.status === "DRAFT" &&
+            hasWriteAccess && (
+              <Button
+                type="button"
+                variant="secondary"
+                isLoading={confirmActionState.isSubmitting}
+                loadingText="Confirmando…"
+                disabled={loadState.purchase.items.length === 0}
+                title={
+                  loadState.purchase.items.length === 0
+                    ? "Agregue al menos una línea antes de confirmar."
+                    : undefined
+                }
+                onClick={() => {
+                  void handleConfirmPurchase();
+                }}
+              >
+                Confirmar compra
+              </Button>
+            )}
+
+          {loadState.status === "success" &&
+            (loadState.purchase.status === "DRAFT" ||
+              loadState.purchase.status === "CONFIRMED") &&
+            hasWriteAccess &&
+            !cancelActionState.isOpen && (
+              <Button type="button" variant="danger" onClick={openCancelForm}>
+                Anular compra
+              </Button>
+            )}
+
           <Button type="button" variant="secondary" onClick={goBack}>
             <ArrowLeftIcon />
             Volver
@@ -551,6 +725,60 @@ export default function PurchaseDetailPage() {
 
       {loadState.status === "success" && (
         <div className="grid gap-6">
+          {confirmActionState.error && <FormError message={confirmActionState.error} />}
+
+          {cancelActionState.isOpen && (
+            <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[rgb(215_0_21_/_18%)]">
+              <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
+                <h2 className="text-lg font-semibold tracking-[-0.02em] text-danger">
+                  Anular compra
+                </h2>
+
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Esta acción no se puede deshacer. Si la compra ya fue confirmada, se revertirá el inventario ingresado.
+                </p>
+              </div>
+
+              <form onSubmit={handleCancelSubmit} className="grid gap-4 p-5 sm:p-6">
+                {cancelActionState.error && <FormError message={cancelActionState.error} />}
+
+                <Field id="purchase-cancel-reason" label="Motivo de anulación" required>
+                  <Textarea
+                    id="purchase-cancel-reason"
+                    value={cancelActionState.reason}
+                    onChange={(event) => {
+                      const reason = event.target.value;
+
+                      setCancelActionState((current) => ({ ...current, reason }));
+                    }}
+                    disabled={cancelActionState.isSubmitting}
+                    autoFocus
+                  />
+                </Field>
+
+                <div className="flex flex-wrap justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={closeCancelForm}
+                    disabled={cancelActionState.isSubmitting}
+                  >
+                    Cancelar
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    variant="danger"
+                    isLoading={cancelActionState.isSubmitting}
+                    loadingText="Anulando…"
+                  >
+                    Confirmar anulación
+                  </Button>
+                </div>
+              </form>
+            </section>
+          )}
+
           <section className="app-status-card overflow-hidden">
             <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between">
               <div>
