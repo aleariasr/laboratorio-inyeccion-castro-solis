@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -798,3 +798,169 @@ class PurchaseApiTest(APITestCase):
                 id=self.purchase_item.id,
             ).exists()
         )
+
+    def test_filter_purchases_by_search_query_matches_invoice_number(self):
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"q": "fac-001"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["invoice_number"],
+            "FAC-001",
+        )
+
+    def test_filter_purchases_by_search_query_matches_supplier_name(self):
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"q": "proveedor"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+    def test_filter_purchases_by_supplier(self):
+        other_supplier = Supplier.objects.create(
+            name="Otro proveedor",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"supplier": other_supplier.id},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 0)
+
+    def test_filter_purchases_by_status(self):
+        self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/confirm/",
+            {},
+            format="json",
+        )
+
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"status": "confirmed"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"status": "draft"},
+        )
+
+        self.assertEqual(response.data["count"], 0)
+
+    def test_filter_purchases_by_currency(self):
+        Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-USD",
+            purchase_date=date.today(),
+            currency="USD",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"currency": "usd"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["invoice_number"],
+            "FAC-USD",
+        )
+
+    def test_filter_purchases_by_date_range(self):
+        Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-OLD",
+            purchase_date=date.today() - timedelta(days=10),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {
+                "date_from": str(date.today() - timedelta(days=1)),
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["invoice_number"],
+            "FAC-001",
+        )
+
+    def test_filter_purchases_rejects_invalid_date_range(self):
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {
+                "date_from": str(date.today()),
+                "date_to": str(date.today() - timedelta(days=1)),
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("date_to", response.data)
+
+    def test_filter_purchases_rejects_invalid_date_format(self):
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"date_from": "not-a-date"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("date_from", response.data)
+
+    def test_filter_purchases_by_is_active(self):
+        self.purchase.is_active = False
+        self.purchase.save(update_fields=["is_active"])
+
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"is_active": "false"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"is_active": "true"},
+        )
+
+        self.assertEqual(response.data["count"], 0)
+
+    def test_order_purchases_by_invoice_number(self):
+        Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="AAA-000",
+            purchase_date=date.today(),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/purchases/",
+            {"ordering": "invoice_number"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        invoice_numbers = [
+            item["invoice_number"] for item in response.data["results"]
+        ]
+        self.assertEqual(invoice_numbers, ["AAA-000", "FAC-001"])

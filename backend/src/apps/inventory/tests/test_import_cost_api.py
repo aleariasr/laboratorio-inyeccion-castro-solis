@@ -143,6 +143,41 @@ class ImportCostApiTest(APITestCase):
 
         self.assertEqual(response.data["results"][0]["name"], "FLETES")
 
+    def test_filter_import_cost_categories_by_search_query(self):
+        ImportCostCategory.objects.create(
+            name="SEGUROS",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/import-cost-categories/",
+            {"q": "flet"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["name"], "FLETES")
+
+    def test_filter_import_cost_categories_by_is_active(self):
+        self.category.is_active = False
+        self.category.save(update_fields=["is_active"])
+
+        response = self.client.get(
+            "/api/inventory/import-cost-categories/",
+            {"is_active": "false"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+        response = self.client.get(
+            "/api/inventory/import-cost-categories/",
+            {"is_active": "true"},
+        )
+
+        self.assertEqual(response.data["count"], 0)
+
     def test_create_import_cost(self):
         response = self.client.post(
             "/api/inventory/import-costs/",

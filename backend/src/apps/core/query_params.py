@@ -1,3 +1,4 @@
+from django.utils.dateparse import parse_date
 
 from rest_framework.exceptions import ValidationError
 
@@ -53,6 +54,27 @@ def parse_positive_integer_query_param(value, *, name):
             {
                 name: [
                     "Debe indicar un número entero positivo.",
+                ]
+            }
+        )
+
+    return parsed_value
+
+def parse_date_query_param(value, *, name):
+    """
+    Convierte un parámetro de consulta opcional a fecha (YYYY-MM-DD).
+    """
+
+    if value is None or value == "":
+        return None
+
+    parsed_value = parse_date(value.strip())
+
+    if parsed_value is None:
+        raise ValidationError(
+            {
+                name: [
+                    "Debe tener formato YYYY-MM-DD.",
                 ]
             }
         )
