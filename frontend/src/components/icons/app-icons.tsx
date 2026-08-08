@@ -274,3 +274,28 @@ export function TruckIcon({
     </svg>
   );
 }
+
+export function ReceiptIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M6 3.5h12v17l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6-2.4-1.6V3.5Z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M9 8h6M9 11.5h6M9 15h4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
