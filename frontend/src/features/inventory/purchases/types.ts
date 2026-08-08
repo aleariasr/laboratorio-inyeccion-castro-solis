@@ -197,6 +197,7 @@ export type ImportCost = {
   description: string;
   amount: string;
   currency: Currency;
+  exchange_rate: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -208,6 +209,7 @@ export type ImportCostWritePayload = {
   description: string;
   amount: string;
   currency: Currency;
+  exchange_rate: string;
 };
 
 export type ImportCostFormValues = {
@@ -215,6 +217,7 @@ export type ImportCostFormValues = {
   description: string;
   amount: string;
   currency: Currency;
+  exchangeRate: string;
   isActive: boolean;
 };
 
@@ -223,6 +226,7 @@ export type ImportCostFormField =
   | "description"
   | "amount"
   | "currency"
+  | "exchangeRate"
   | "isActive";
 
 export type ImportCostFormErrors = Partial<Record<ImportCostFormField, string>>;
@@ -233,6 +237,7 @@ export function emptyImportCostFormValues(currency: Currency): ImportCostFormVal
     description: "",
     amount: "",
     currency,
+    exchangeRate: "1",
     isActive: true,
   };
 }
@@ -243,6 +248,7 @@ export function importCostToFormValues(importCost: ImportCost): ImportCostFormVa
     description: importCost.description,
     amount: importCost.amount,
     currency: importCost.currency,
+    exchangeRate: importCost.exchange_rate,
     isActive: importCost.is_active,
   };
 }
@@ -257,8 +263,20 @@ export function buildImportCostWritePayload(
     description: values.description.trim(),
     amount: values.amount.trim(),
     currency: values.currency,
+    exchange_rate: values.exchangeRate.trim(),
   };
 }
+
+export type CostSummaryItem = {
+  supplier_product: number;
+  product: number;
+  standard_code: string;
+  name: string;
+  quantity: number;
+  original_unit_cost: string;
+  final_unit_cost: string;
+  suggested_price: string;
+};
 
 export type CostSummary = {
   purchase: number;
@@ -270,6 +288,7 @@ export type CostSummary = {
   suggested_total: string;
   currency: Currency;
   exchange_rate: string;
+  items: CostSummaryItem[];
 };
 
 export type ProductCostHistory = {

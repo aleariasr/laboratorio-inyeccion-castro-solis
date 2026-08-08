@@ -431,7 +431,13 @@ export function PurchaseForm({
               name="currency"
               value={values.currency}
               onChange={(event) => {
-                updateValue("currency", event.target.value);
+                const nextCurrency = event.target.value;
+
+                updateValue("currency", nextCurrency);
+
+                if (nextCurrency === "CRC") {
+                  updateValue("exchangeRate", "1");
+                }
               }}
               disabled={isSubmitting}
               className="h-12 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
@@ -445,7 +451,11 @@ export function PurchaseForm({
             id="purchase-exchange-rate"
             label="Tipo de cambio"
             required
-            hint="Tipo de cambio aplicado a la factura."
+            hint={
+              values.currency === "CRC"
+                ? "No aplica: la compra ya está en colones."
+                : "Colones por dólar (₡ por US$1)."
+            }
             error={errors.exchangeRate}
           >
             <Input
@@ -456,7 +466,7 @@ export function PurchaseForm({
               hasError={Boolean(errors.exchangeRate)}
               inputMode="decimal"
               autoComplete="off"
-              disabled={isSubmitting}
+              disabled={isSubmitting || values.currency === "CRC"}
             />
           </Field>
 

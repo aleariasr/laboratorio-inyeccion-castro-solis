@@ -21,6 +21,7 @@ import {
   getPurchase,
   updatePurchaseItem,
 } from "@/features/inventory/purchases/api";
+import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
 import { PurchaseCostsSection } from "@/features/inventory/purchases/purchase-costs-section";
 import { mapPurchaseItemApiFieldErrors } from "@/features/inventory/purchases/purchase-item-form-errors";
 import { PurchaseItemForm } from "@/features/inventory/purchases/purchase-item-form";
@@ -839,13 +840,22 @@ export default function PurchaseDetailPage() {
 
               <div className="app-status-row">
                 <dt>Tipo de cambio</dt>
-                <dd>{loadState.purchase.exchange_rate}</dd>
+                <dd>{formatMoney(loadState.purchase.exchange_rate)}</dd>
               </div>
 
               <div className="app-status-row">
                 <dt>Total de la factura</dt>
                 <dd>
-                  {total.toFixed(2)} {loadState.purchase.currency}
+                  <p className="leading-tight">
+                    {formatMoney(total)} {loadState.purchase.currency}
+                  </p>
+
+                  {loadState.purchase.currency === "USD" &&
+                    crcEquivalent(total, loadState.purchase.exchange_rate) && (
+                      <p className="leading-tight text-xs font-normal text-muted-foreground">
+                        {crcEquivalent(total, loadState.purchase.exchange_rate)}
+                      </p>
+                    )}
                 </dd>
               </div>
 
@@ -999,10 +1009,12 @@ export default function PurchaseDetailPage() {
 
                         <td className="px-5 py-4 text-sm text-foreground">{item.quantity}</td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">{item.unit_cost}</td>
+                        <td className="px-5 py-4 text-sm text-foreground">
+                          {formatMoney(item.unit_cost)}
+                        </td>
 
                         <td className="px-5 py-4 text-sm font-semibold text-foreground">
-                          {item.subtotal}
+                          {formatMoney(item.subtotal)}
                         </td>
 
                         {canManageItems && (

@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -319,6 +320,104 @@ class ImportCostApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_import_cost_requires_exchange_rate_one_when_currency_matches_purchase(self):
+        response = self.client.post(
+            "/api/inventory/import-costs/",
+            {
+                "purchase": self.purchase.id,
+                "category": self.category.id,
+                "amount": "100.0000",
+                "currency": Currency.USD,
+                "exchange_rate": "1.5000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("exchange_rate", response.data)
+
+    def test_import_cost_allows_different_currency_with_custom_exchange_rate(self):
+        response = self.client.post(
+            "/api/inventory/import-costs/",
+            {
+                "purchase": self.purchase.id,
+                "category": self.category.id,
+                "amount": "5000.0000",
+                "currency": Currency.CRC,
+                "exchange_rate": "500.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        import_cost = ImportCost.objects.get(id=response.data["id"])
+
+        self.assertEqual(import_cost.exchange_rate, Decimal("500.0000"))
+
+    def test_import_cost_rejects_exchange_rate_one_when_currency_differs(self):
+        response = self.client.post(
+            "/api/inventory/import-costs/",
+            {
+                "purchase": self.purchase.id,
+                "category": self.category.id,
+                "amount": "5000.0000",
+                "currency": Currency.CRC,
+                "exchange_rate": "1.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("exchange_rate", response.data)
+
+    def test_purchase_cost_summary_converts_import_costs_by_exchange_rate(self):
+        usd_purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-USD",
+            purchase_date=date.today(),
+            currency=Currency.USD,
+            exchange_rate="1.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        PurchaseItem.objects.create(
+            purchase=usd_purchase,
+            supplier_product=self.supplier_product,
+            quantity=1,
+            unit_cost="100.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        ImportCost.objects.create(
+            purchase=usd_purchase,
+            category=self.category,
+            amount="5000.0000",
+            currency=Currency.CRC,
+            exchange_rate="500.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            f"/api/inventory/purchases/{usd_purchase.id}/cost-summary/",
+            {
+                "margin_percentage": "0.0000",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            Decimal(response.data["import_costs_total"]),
+            Decimal("10.0000"),
+        )
+        self.assertEqual(
+            Decimal(response.data["total_cost"]),
+            Decimal("110.0000"),
+        )
 
     def test_list_product_cost_history(self):
         history = ProductCostHistory.objects.create(

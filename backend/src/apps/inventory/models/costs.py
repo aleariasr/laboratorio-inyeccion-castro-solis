@@ -69,6 +69,16 @@ class ImportCost(AuditModel, ActivableModel):
         choices=Currency.choices,
     )
 
+    exchange_rate = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=1,
+        validators=[
+            MinValueValidator(Decimal("0.0001")),
+        ],
+        help_text="Tipo de cambio para convertir este costo a la moneda de la compra.",
+    )
+
     class Meta:
         db_table = "inventory_import_costs"
         verbose_name = "Costo adicional"

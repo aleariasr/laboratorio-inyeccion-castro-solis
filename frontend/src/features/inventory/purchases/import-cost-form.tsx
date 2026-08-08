@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { createImportCostCategory, getImportCostCategories } from "./api";
 import { validateImportCostForm } from "./import-cost-validation";
 import type {
+  Currency,
   ImportCostCategory,
   ImportCostFormErrors,
   ImportCostFormField,
@@ -26,6 +27,7 @@ type ImportCostFormMode = "create" | "edit";
 type ImportCostFormProps = {
   mode: ImportCostFormMode;
   initialValues: ImportCostFormValues;
+  purchaseCurrency: Currency;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -47,6 +49,7 @@ function mergeErrors(
 export function ImportCostForm({
   mode,
   initialValues,
+  purchaseCurrency,
   token,
   isSubmitting = false,
   submitError = null,
@@ -121,7 +124,7 @@ export function ImportCostForm({
   }
 
   function handleTextChange(
-    field: Exclude<ImportCostFormField, "isActive" | "currency" | "categoryId">,
+    field: Exclude<ImportCostFormField, "isActive" | "currency" | "categoryId" | "exchangeRate">,
   ) {
     return (
       event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -168,7 +171,7 @@ export function ImportCostForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
 
-    const validationErrors = validateImportCostForm(values);
+    const validationErrors = validateImportCostForm(values, purchaseCurrency);
 
     setLocalErrors(validationErrors);
 
@@ -272,7 +275,7 @@ export function ImportCostForm({
         />
       </Field>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-3">
         <Field id="import-cost-amount" label="Monto" required error={errors.amount}>
           <Input
             id="import-cost-amount"
@@ -290,7 +293,17 @@ export function ImportCostForm({
             id="import-cost-currency"
             value={values.currency}
             onChange={(event) => {
-              updateValue("currency", event.target.value);
+              const nextCurrency = event.target.value as Currency;
+
+              updateValue("currency", nextCurrency);
+
+              if (nextCurrency === purchaseCurrency) {
+                updateValue("exchangeRate", "1");
+              } else if (values.currency === purchaseCurrency) {
+                // Traía el "1" por defecto de cuando coincidía con la moneda
+                // de la compra: se limpia para obligar a escribir el tipo de cambio real.
+                updateValue("exchangeRate", "");
+              }
             }}
             disabled={isSubmitting}
             className="h-12 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
@@ -298,6 +311,30 @@ export function ImportCostForm({
             <option value="CRC">Colones (CRC)</option>
             <option value="USD">Dólares (USD)</option>
           </select>
+        </Field>
+
+        <Field
+          id="import-cost-exchange-rate"
+          label="Tipo de cambio"
+          required
+          hint={
+            values.currency === purchaseCurrency
+              ? `La compra está en ${purchaseCurrency}, no requiere conversión.`
+              : `Convierte el monto de ${values.currency} a ${purchaseCurrency}.`
+          }
+          error={errors.exchangeRate}
+        >
+          <Input
+            id="import-cost-exchange-rate"
+            value={values.exchangeRate}
+            onChange={(event) => {
+              updateValue("exchangeRate", event.target.value);
+            }}
+            hasError={Boolean(errors.exchangeRate)}
+            inputMode="decimal"
+            autoComplete="off"
+            disabled={isSubmitting || values.currency === purchaseCurrency}
+          />
         </Field>
       </div>
 

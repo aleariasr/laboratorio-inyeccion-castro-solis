@@ -10,6 +10,7 @@ const FIELD_MAP: Record<string, ImportCostFormField> = {
   description: "description",
   amount: "amount",
   currency: "currency",
+  exchange_rate: "exchangeRate",
   is_active: "isActive",
 };
 

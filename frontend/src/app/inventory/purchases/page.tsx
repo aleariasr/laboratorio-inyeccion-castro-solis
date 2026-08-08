@@ -20,6 +20,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { canReadInventory, canWriteInventory } from "@/features/auth/permissions";
 import { getPurchases } from "@/features/inventory/purchases/api";
 import type { Purchase, PurchaseFilters, PurchaseStatus } from "@/features/inventory/purchases/types";
+import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import type { PaginatedResponse } from "@/lib/api/types";
 
@@ -79,13 +80,16 @@ function getLoadErrorMessage(error: unknown): string {
   return "No fue posible consultar las compras.";
 }
 
-function purchaseTotal(purchase: Purchase): string {
-  const total = purchase.items.reduce(
-    (sum, item) => sum + Number(item.subtotal),
-    0,
-  );
+function purchaseTotal(purchase: Purchase): number {
+  return purchase.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+}
 
-  return `${total.toFixed(2)} ${purchase.currency}`;
+function purchaseCrcEquivalent(purchase: Purchase): string | null {
+  if (purchase.currency !== "USD") {
+    return null;
+  }
+
+  return crcEquivalent(purchaseTotal(purchase), purchase.exchange_rate);
 }
 
 export default function PurchasesPage() {
@@ -619,7 +623,15 @@ export default function PurchasesPage() {
                       </td>
 
                       <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        {purchaseTotal(purchase)}
+                        <p className="leading-tight">
+                          {formatMoney(purchaseTotal(purchase))} {purchase.currency}
+                        </p>
+
+                        {purchaseCrcEquivalent(purchase) && (
+                          <p className="leading-tight text-xs text-[var(--color-text-subtle)]">
+                            {purchaseCrcEquivalent(purchase)}
+                          </p>
+                        )}
                       </td>
 
                       <td className="px-5 py-4 align-top">

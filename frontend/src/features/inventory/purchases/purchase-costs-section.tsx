@@ -16,6 +16,7 @@ import {
   getProductCostHistory,
   updateImportCost,
 } from "./api";
+import { crcEquivalent, formatDate, formatMoney, formatNumber } from "./format";
 import { ImportCostForm } from "./import-cost-form";
 import { mapImportCostApiFieldErrors } from "./import-cost-form-errors";
 import {
@@ -80,6 +81,32 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "No fue posible consultar los costos de importación.";
+}
+
+function MoneyCell({
+  amount,
+  currency,
+  exchangeRate,
+}: {
+  amount: string | number;
+  currency: Currency;
+  exchangeRate: string | number;
+}) {
+  const equivalent = currency === "USD" ? crcEquivalent(amount, exchangeRate) : null;
+
+  return (
+    <div>
+      <p className="leading-tight">
+        {formatMoney(amount)} {currency}
+      </p>
+
+      {equivalent && (
+        <p className="leading-tight text-xs text-[var(--color-text-subtle)]">
+          {equivalent}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function PurchaseCostsSection({
@@ -206,6 +233,7 @@ export function PurchaseCostsSection({
               description: values.description.trim(),
               amount: values.amount.trim(),
               currency: values.currency,
+              exchange_rate: values.exchangeRate.trim(),
               is_active: values.isActive,
             });
 
@@ -378,6 +406,7 @@ export function PurchaseCostsSection({
                   key={formKey}
                   mode={formState.mode}
                   initialValues={initialFormValues}
+                  purchaseCurrency={currency}
                   token={token}
                   isSubmitting={actionState.isSubmitting}
                   submitError={actionState.submitError}
@@ -412,6 +441,10 @@ export function PurchaseCostsSection({
                       </th>
 
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Tipo de cambio
+                      </th>
+
+                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Estado
                       </th>
 
@@ -435,7 +468,15 @@ export function PurchaseCostsSection({
                         </td>
 
                         <td className="px-5 py-4 text-sm text-foreground">
-                          {importCost.amount} {importCost.currency}
+                          <MoneyCell
+                            amount={importCost.amount}
+                            currency={importCost.currency}
+                            exchangeRate={importCost.exchange_rate}
+                          />
+                        </td>
+
+                        <td className="px-5 py-4 text-sm text-foreground">
+                          {formatNumber(importCost.exchange_rate, 4)}
                         </td>
 
                         <td className="px-5 py-4">
@@ -560,7 +601,11 @@ export function PurchaseCostsSection({
                     Subtotal factura
                   </dt>
                   <dd className="mt-1 text-sm font-semibold text-foreground">
-                    {summaryState.result.invoice_subtotal} {summaryState.result.currency}
+                    <MoneyCell
+                      amount={summaryState.result.invoice_subtotal}
+                      currency={summaryState.result.currency}
+                      exchangeRate={summaryState.result.exchange_rate}
+                    />
                   </dd>
                 </div>
 
@@ -569,7 +614,11 @@ export function PurchaseCostsSection({
                     Costos adicionales
                   </dt>
                   <dd className="mt-1 text-sm font-semibold text-foreground">
-                    {summaryState.result.import_costs_total} {summaryState.result.currency}
+                    <MoneyCell
+                      amount={summaryState.result.import_costs_total}
+                      currency={summaryState.result.currency}
+                      exchangeRate={summaryState.result.exchange_rate}
+                    />
                   </dd>
                 </div>
 
@@ -578,7 +627,11 @@ export function PurchaseCostsSection({
                     Costo total
                   </dt>
                   <dd className="mt-1 text-sm font-semibold text-foreground">
-                    {summaryState.result.total_cost} {summaryState.result.currency}
+                    <MoneyCell
+                      amount={summaryState.result.total_cost}
+                      currency={summaryState.result.currency}
+                      exchangeRate={summaryState.result.exchange_rate}
+                    />
                   </dd>
                 </div>
 
@@ -587,7 +640,7 @@ export function PurchaseCostsSection({
                     Factor de costo
                   </dt>
                   <dd className="mt-1 text-sm font-semibold text-foreground">
-                    {summaryState.result.cost_factor}
+                    {formatNumber(summaryState.result.cost_factor, 4)}
                   </dd>
                 </div>
 
@@ -596,11 +649,98 @@ export function PurchaseCostsSection({
                     Total sugerido
                   </dt>
                   <dd className="mt-1 text-sm font-semibold text-foreground">
-                    {summaryState.result.suggested_total} {summaryState.result.currency}
+                    <MoneyCell
+                      amount={summaryState.result.suggested_total}
+                      currency={summaryState.result.currency}
+                      exchangeRate={summaryState.result.exchange_rate}
+                    />
                   </dd>
                 </div>
               </dl>
             )}
+
+            {summaryState.result && summaryState.result.items.length > 0 && (() => {
+              const result = summaryState.result;
+
+              return (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Precio sugerido por producto
+                  </p>
+
+                  <div className="overflow-x-auto rounded-[var(--radius-md)] border border-border">
+                    <table className="w-full min-w-[640px] border-collapse">
+                      <thead>
+                        <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Producto
+                          </th>
+
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Cantidad
+                          </th>
+
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Costo original
+                          </th>
+
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Costo final
+                          </th>
+
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Precio sugerido
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {result.items.map((item) => (
+                          <tr
+                            key={item.supplier_product}
+                            className="border-b border-[var(--color-border-soft)] last:border-b-0"
+                          >
+                            <td className="px-4 py-3">
+                              <p className="font-mono text-sm font-semibold text-foreground">
+                                {item.standard_code}
+                              </p>
+
+                              <p className="mt-1 text-sm text-muted-foreground">{item.name}</p>
+                            </td>
+
+                            <td className="px-4 py-3 text-sm text-foreground">{item.quantity}</td>
+
+                            <td className="px-4 py-3 text-sm text-foreground">
+                              <MoneyCell
+                                amount={item.original_unit_cost}
+                                currency={result.currency}
+                                exchangeRate={result.exchange_rate}
+                              />
+                            </td>
+
+                            <td className="px-4 py-3 text-sm text-foreground">
+                              <MoneyCell
+                                amount={item.final_unit_cost}
+                                currency={result.currency}
+                                exchangeRate={result.exchange_rate}
+                              />
+                            </td>
+
+                            <td className="px-4 py-3 text-sm font-semibold text-foreground">
+                              <MoneyCell
+                                amount={item.suggested_price}
+                                currency={result.currency}
+                                exchangeRate={result.exchange_rate}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </section>
       )}
@@ -658,15 +798,37 @@ export function PurchaseCostsSection({
                       <p className="mt-1 text-sm text-muted-foreground">{history.product_detail.name}</p>
                     </td>
 
-                    <td className="px-5 py-4 text-sm text-foreground">{history.original_unit_cost}</td>
+                    <td className="px-5 py-4 text-sm text-foreground">
+                      <MoneyCell
+                        amount={history.original_unit_cost}
+                        currency={history.currency}
+                        exchangeRate={history.exchange_rate}
+                      />
+                    </td>
 
-                    <td className="px-5 py-4 text-sm font-semibold text-foreground">{history.final_unit_cost}</td>
+                    <td className="px-5 py-4 text-sm font-semibold text-foreground">
+                      <MoneyCell
+                        amount={history.final_unit_cost}
+                        currency={history.currency}
+                        exchangeRate={history.exchange_rate}
+                      />
+                    </td>
 
-                    <td className="px-5 py-4 text-sm text-foreground">{history.margin_percentage}%</td>
+                    <td className="px-5 py-4 text-sm text-foreground">{formatNumber(history.margin_percentage)}%</td>
 
-                    <td className="px-5 py-4 text-sm text-foreground">{history.suggested_price ?? "—"}</td>
+                    <td className="px-5 py-4 text-sm text-foreground">
+                      {history.suggested_price ? (
+                        <MoneyCell
+                          amount={history.suggested_price}
+                          currency={history.currency}
+                          exchangeRate={history.exchange_rate}
+                        />
+                      ) : (
+                        "—"
+                      )}
+                    </td>
 
-                    <td className="px-5 py-4 text-sm text-muted-foreground">{history.calculated_at}</td>
+                    <td className="px-5 py-4 text-sm text-muted-foreground">{formatDate(history.calculated_at)}</td>
                   </tr>
                 ))}
               </tbody>

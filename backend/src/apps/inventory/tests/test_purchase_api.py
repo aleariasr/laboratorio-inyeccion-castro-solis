@@ -629,6 +629,28 @@ class PurchaseApiTest(APITestCase):
             Decimal("780.0000"),
         )
 
+        self.assertEqual(len(response.data["items"]), 1)
+
+        item_breakdown = response.data["items"][0]
+
+        self.assertEqual(
+            item_breakdown["supplier_product"],
+            self.supplier_product.id,
+        )
+        self.assertEqual(item_breakdown["quantity"], 5)
+        self.assertEqual(
+            Decimal(item_breakdown["original_unit_cost"]),
+            Decimal("100.0000"),
+        )
+        self.assertEqual(
+            Decimal(item_breakdown["final_unit_cost"]),
+            Decimal("120.0000"),
+        )
+        self.assertEqual(
+            Decimal(item_breakdown["suggested_price"]),
+            Decimal("156.0000"),
+        )
+
     def test_purchase_cost_summary_requires_margin(self):
         response = self.client.get(
             f"/api/inventory/purchases/{self.purchase.id}/cost-summary/",
