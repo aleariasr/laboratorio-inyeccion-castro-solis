@@ -379,3 +379,24 @@ export function DropletIcon({
     </svg>
   );
 }
+
+export function WrenchIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M14.7 6.3a4 4 0 0 0-5.4 4.9L4 16.5l2.5 2.5 5.3-5.3a4 4 0 0 0 4.9-5.4l-2.6 2.6-2.4-.6-.6-2.4 2.6-2.6Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

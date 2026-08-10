@@ -9,6 +9,7 @@ import {
   StatusIcon,
   TruckIcon,
   UsersIcon,
+  WrenchIcon,
 } from "@/components/icons/app-icons";
 
 import type {
@@ -125,6 +126,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Inyectores",
     section: "customers",
     icon: DropletIcon,
+    roles: [
+      "CUSTOMERS",
+      "READ_ONLY",
+    ],
+  },
+  {
+    href: "/services",
+    label: "Servicios",
+    section: "customers",
+    icon: WrenchIcon,
     roles: [
       "CUSTOMERS",
       "READ_ONLY",
