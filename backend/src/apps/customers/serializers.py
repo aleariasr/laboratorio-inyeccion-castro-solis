@@ -116,6 +116,36 @@ class InjectorSerializer(serializers.ModelSerializer):
 
         return value.upper()
 
+    def validate(self, attrs):
+        customer = attrs.get(
+            "customer",
+            self.instance.customer if self.instance else None,
+        )
+        injector_number = attrs.get(
+            "injector_number",
+            self.instance.injector_number if self.instance else None,
+        )
+
+        if customer is not None and injector_number:
+            queryset = Injector.objects.filter(
+                customer=customer,
+                injector_number=injector_number,
+            )
+
+            if self.instance is not None:
+                queryset = queryset.exclude(pk=self.instance.pk)
+
+            if queryset.exists():
+                raise serializers.ValidationError(
+                    {
+                        "injector_number": [
+                            "Este cliente ya tiene un inyector con ese número.",
+                        ]
+                    }
+                )
+
+        return attrs
+
 
 class InjectorSummarySerializer(serializers.ModelSerializer):
     customer_detail = CustomerSummarySerializer(

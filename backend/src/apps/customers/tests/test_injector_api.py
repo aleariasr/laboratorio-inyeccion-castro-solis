@@ -188,3 +188,98 @@ class InjectorApiTest(APITestCase):
             "Notas actualizadas",
         )
         self.assertEqual(self.injector.updated_by, self.user)
+
+    def test_update_injector_with_duplicate_number_returns_400(self):
+        other_injector = Injector.objects.create(
+            customer=self.customer,
+            injector_number="9999999999",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/customers/injectors/{other_injector.id}/",
+            {
+                "injector_number": "0445110183",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        other_injector.refresh_from_db()
+        self.assertEqual(other_injector.injector_number, "9999999999")
+
+    def test_update_injector_keeps_own_number(self):
+        response = self.client.patch(
+            f"/api/customers/injectors/{self.injector.id}/",
+            {
+                "injector_number": "0445110183",
+                "description": "Actualizado",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_filter_injectors_by_query(self):
+        other_customer = Customer.objects.create(
+            customer_type=CustomerType.PERSON,
+            display_name="Ana López",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        Injector.objects.create(
+            customer=other_customer,
+            injector_number="9999999999",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/customers/injectors/",
+            {
+                "q": "0445110183",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+        response = self.client.get(
+            "/api/customers/injectors/",
+            {
+                "q": "lópez",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["injector_number"],
+            "9999999999",
+        )
+
+    def test_filter_injectors_by_is_active(self):
+        Injector.objects.create(
+            customer=self.customer,
+            injector_number="9999999999",
+            created_by=self.user,
+            updated_by=self.user,
+            is_active=False,
+        )
+
+        response = self.client.get(
+            "/api/customers/injectors/",
+            {
+                "is_active": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["injector_number"],
+            "9999999999",
+        )

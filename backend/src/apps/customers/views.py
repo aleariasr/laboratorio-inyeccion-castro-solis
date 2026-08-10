@@ -1,11 +1,15 @@
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import filters, status, viewsets
 
 from apps.core.permissions import CustomersPermission
-from apps.core.query_params import parse_boolean_query_param
+from apps.core.query_params import (
+    parse_boolean_query_param,
+    parse_date_query_param,
+)
 
 from apps.customers.exceptions import (
     CustomerAlreadyExistsError,
@@ -129,17 +133,30 @@ class CustomerViewSet(viewsets.ModelViewSet):
 class InjectorViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorSerializer
     permission_classes = [CustomersPermission]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["injector_number", "created_at"]
+    ordering = ["injector_number"]
 
     def get_queryset(self):
-        queryset = (
-            Injector.objects.select_related("customer")
-            .order_by("injector_number")
+        queryset = Injector.objects.select_related("customer")
+
+        query = self.request.query_params.get("q", "").strip()
+        customer_id = self.request.query_params.get("customer")
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"), name="is_active",
         )
 
-        customer_id = self.request.query_params.get("customer")
+        if query:
+            queryset = queryset.filter(
+                Q(injector_number__icontains=query)
+                | Q(customer__display_name__icontains=query)
+            )
 
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
 
         return queryset
 
@@ -187,22 +204,40 @@ class InjectorViewSet(viewsets.ModelViewSet):
 class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorServiceRecordSerializer
     permission_classes = [CustomersPermission]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["received_at", "delivered_at", "status", "created_at"]
+    ordering = ["-received_at", "-id"]
 
     def get_queryset(self):
-        queryset = (
-            InjectorServiceRecord.objects.select_related(
-                "injector",
-                "injector__customer",
-            )
-            .order_by(
-                "-received_at",
-                "-id",
-            )
+        queryset = InjectorServiceRecord.objects.select_related(
+            "injector",
+            "injector__customer",
         )
 
+        query = self.request.query_params.get("q", "").strip()
         injector_id = self.request.query_params.get("injector")
         customer_id = self.request.query_params.get("customer")
-        status_value = self.request.query_params.get("status")
+        status_value = self.request.query_params.get("status", "").strip()
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"), name="is_active",
+        )
+        received_from = parse_date_query_param(
+            self.request.query_params.get("received_from"), name="received_from",
+        )
+        received_to = parse_date_query_param(
+            self.request.query_params.get("received_to"), name="received_to",
+        )
+
+        if received_from and received_to and received_from > received_to:
+            raise ValidationError(
+                {"received_to": ["received_to no puede ser anterior a received_from."]}
+            )
+
+        if query:
+            queryset = queryset.filter(
+                Q(injector__injector_number__icontains=query)
+                | Q(injector__customer__display_name__icontains=query)
+            )
 
         if injector_id:
             queryset = queryset.filter(injector_id=injector_id)
@@ -211,7 +246,16 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(injector__customer_id=customer_id)
 
         if status_value:
-            queryset = queryset.filter(status=status_value)
+            queryset = queryset.filter(status=status_value.upper())
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
+
+        if received_from:
+            queryset = queryset.filter(received_at__date__gte=received_from)
+
+        if received_to:
+            queryset = queryset.filter(received_at__date__lte=received_to)
 
         return queryset
 
@@ -368,9 +412,29 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
 
 
 class InjectorAccessoryViewSet(viewsets.ModelViewSet):
-    queryset = InjectorAccessory.objects.order_by("name")
     serializer_class = InjectorAccessorySerializer
     permission_classes = [CustomersPermission]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["name", "created_at"]
+    ordering = ["name"]
+
+    def get_queryset(self):
+        queryset = InjectorAccessory.objects.all()
+
+        query = self.request.query_params.get("q", "").strip()
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"), name="is_active",
+        )
+
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query) | Q(description__icontains=query)
+            )
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
+
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(

@@ -282,3 +282,82 @@ class InjectorServiceRecordApiTest(APITestCase):
             self.service_record.observations,
             "No debería cambiar",
         )
+
+    def test_filter_service_records_by_query(self):
+        response = self.client.get(
+            "/api/customers/service-records/",
+            {
+                "q": "0445110183",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+        response = self.client.get(
+            "/api/customers/service-records/",
+            {
+                "q": "pérez",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+    def test_filter_service_records_by_is_active(self):
+        InjectorServiceRecord.objects.create(
+            injector=self.injector,
+            received_at=timezone.now(),
+            created_by=self.user,
+            updated_by=self.user,
+            is_active=False,
+        )
+
+        response = self.client.get(
+            "/api/customers/service-records/",
+            {
+                "is_active": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+    def test_filter_service_records_by_received_date_range(self):
+        old_record = InjectorServiceRecord.objects.create(
+            injector=self.injector,
+            received_at=timezone.now() - timezone.timedelta(days=10),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        date_from = (timezone.now() - timezone.timedelta(days=1)).date().isoformat()
+
+        response = self.client.get(
+            "/api/customers/service-records/",
+            {
+                "received_from": date_from,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["id"],
+            self.service_record.id,
+        )
+        self.assertNotEqual(
+            response.data["results"][0]["id"],
+            old_record.id,
+        )
+
+    def test_filter_service_records_date_range_validates_order(self):
+        response = self.client.get(
+            "/api/customers/service-records/",
+            {
+                "received_from": "2026-01-31",
+                "received_to": "2026-01-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -98,3 +98,42 @@ class InjectorAccessoryApiTest(APITestCase):
             "Descripción actualizada",
         )
         self.assertEqual(self.accessory.updated_by, self.user)
+
+    def test_filter_accessories_by_query(self):
+        InjectorAccessory.objects.create(
+            name="Empaque",
+            description="Empaque de retorno",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/customers/accessories/",
+            {
+                "q": "retorno",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["name"], "EMPAQUE")
+
+    def test_filter_accessories_by_is_active(self):
+        InjectorAccessory.objects.create(
+            name="Empaque",
+            description="",
+            created_by=self.user,
+            updated_by=self.user,
+            is_active=False,
+        )
+
+        response = self.client.get(
+            "/api/customers/accessories/",
+            {
+                "is_active": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["name"], "EMPAQUE")
