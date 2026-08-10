@@ -46,3 +46,20 @@ export function canWriteInventory(
     "INVENTORY",
   ]);
 }
+
+export function canReadSales(
+  user: AuthUser,
+): boolean {
+  return hasAnyRole(user, [
+    "SALES",
+    "READ_ONLY",
+  ]);
+}
+
+export function canWriteSales(
+  user: AuthUser,
+): boolean {
+  return hasAnyRole(user, [
+    "SALES",
+  ]);
+}
