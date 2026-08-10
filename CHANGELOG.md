@@ -27,14 +27,18 @@ El formato utiliza estas categorías:
 - Módulo de ubicaciones: listado, creación y edición.
 - Búsqueda universal desde la interfaz, con atajo de teclado.
 - Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
+- Módulo de compras: listado con filtros (búsqueda, proveedor, estado, moneda, fecha, activo/inactivo), detalle, creación, edición de borrador, líneas de compra, confirmación y anulación con motivo obligatorio.
+- Módulo de costos de importación: categorías con filtros, costos por compra con tipo de cambio propio, resumen de costos con desglose de precio sugerido por producto, aplicación de costos a productos e histórico append-only con equivalente en colones.
 
 ### Fixed
 
 - Validación de nombre de proveedor duplicado: ahora detecta coincidencias sin distinguir mayúsculas de minúsculas antes de llegar a la base de datos, evitando un error 500 no controlado.
+- Cálculo de costos de importación en moneda distinta a la de la compra: ahora convierte correctamente usando el tipo de cambio propio de cada costo (siempre expresado en colones por dólar), en vez de sumar montos de monedas distintas como si valieran lo mismo.
+- Columna "Calculado" del histórico de costos: mostraba la fecha ISO sin formatear.
 
 ### Pending
 
-- Compras, ventas, clientes, inyectores y reportes desde la interfaz.
+- Ventas, clientes, inyectores y reportes desde la interfaz.
 - Validación con usuarios reales.
 - Validación con datos reales.
 - Validación final en Linux Mint XFCE o Ubuntu Desktop gráfico.

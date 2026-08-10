@@ -20,8 +20,8 @@ En progreso.
 - F7 búsqueda universal: completada.
 - F8 productos y ubicaciones: completada.
 - F9 proveedores y referencias: completada.
-- F10 compras: pendiente.
-- F11 costos de importación: pendiente.
+- F10 compras: completada.
+- F11 costos de importación: completada.
 - F12 ventas: pendiente.
 - F13 clientes: pendiente.
 - F14 inyectores y servicios: pendiente.
