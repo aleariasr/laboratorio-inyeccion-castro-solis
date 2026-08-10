@@ -1,5 +1,6 @@
 import {
   CartIcon,
+  DropletIcon,
   HomeIcon,
   InventoryIcon,
   LocationIcon,
@@ -114,6 +115,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Clientes",
     section: "customers",
     icon: UsersIcon,
+    roles: [
+      "CUSTOMERS",
+      "READ_ONLY",
+    ],
+  },
+  {
+    href: "/injectors",
+    label: "Inyectores",
+    section: "customers",
+    icon: DropletIcon,
     roles: [
       "CUSTOMERS",
       "READ_ONLY",

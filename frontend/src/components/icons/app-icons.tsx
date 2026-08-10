@@ -352,3 +352,30 @@ export function UsersIcon({
     </svg>
   );
 }
+
+export function DropletIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M12 3.5c3 4 6 7.7 6 11.2A6 6 0 0 1 6 14.7c0-3.5 3-7.2 6-11.2Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M9.3 16.3a2.8 2.8 0 0 0 2.7 2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
