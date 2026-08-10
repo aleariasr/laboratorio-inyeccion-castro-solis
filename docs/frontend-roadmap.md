@@ -23,7 +23,7 @@ En progreso.
 - F10 compras: completada.
 - F11 costos de importación: completada.
 - F12 ventas: completada.
-- F13 clientes: pendiente.
+- F13 clientes: completada.
 - F14 inyectores y servicios: pendiente.
 - F15 conteos físicos: pendiente.
 - F16 movimientos y existencias: pendiente (el detalle de producto ya muestra su historial de movimientos paginado, construido junto con F8; falta la vista general de movimientos, kardex y stock por ubicación).

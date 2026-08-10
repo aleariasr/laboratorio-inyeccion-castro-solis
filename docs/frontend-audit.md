@@ -8,7 +8,7 @@ Laboratorio de Inyección Castro Solís — LICS
 
 Parcialmente resuelta. Ver detalle de lo resuelto y lo pendiente al final de este documento.
 
-> Nota: esta auditoría se realizó antes de iniciar la implementación del frontend (fase F0). Desde entonces se construyeron las pantallas de F1 a F12 del [roadmap de frontend](frontend-roadmap.md) (login, sesión, navegación, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación y ventas), pero algunos de los pendientes de backend que esta auditoría identificó siguen abiertos — en particular la ampliación de la búsqueda universal y la administración de roles de usuario. El detalle verificado está al final de este documento.
+> Nota: esta auditoría se realizó antes de iniciar la implementación del frontend (fase F0). Desde entonces se construyeron las pantallas de F1 a F13 del [roadmap de frontend](frontend-roadmap.md) (login, sesión, navegación, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación, ventas y clientes), pero algunos de los pendientes de backend que esta auditoría identificó siguen abiertos — en particular la ampliación de la búsqueda universal y la administración de roles de usuario. El detalle verificado está al final de este documento.
 
 ## Objetivo
 
@@ -1011,7 +1011,7 @@ Cada cambio deberá incluir:
 
 ## Resuelto
 
-- Base técnica del frontend, sistema de diseño inicial, autenticación, navegación, estado del sistema, búsqueda universal (interfaz), productos, ubicaciones, proveedores, compras, costos de importación y ventas implementados (fases F1 a F12 del [roadmap de frontend](frontend-roadmap.md)).
+- Base técnica del frontend, sistema de diseño inicial, autenticación, navegación, estado del sistema, búsqueda universal (interfaz), productos, ubicaciones, proveedores, compras, costos de importación, ventas y clientes implementados (fases F1 a F13 del [roadmap de frontend](frontend-roadmap.md)).
 - Imports duplicados en `customers/views.py`: resuelto, ya no existen.
 - Filtros de catálogo de inventario (productos, ubicaciones, proveedores, referencias): implementados.
 - Filtros de `customers` (cliente, inyector, estado, registro de servicio): implementados.
@@ -1019,6 +1019,7 @@ Cada cambio deberá incluir:
 - `apps/inventory/views/costs.py` (`ImportCostCategoryViewSet`): implementado con búsqueda (`q`) y filtro por estado activo.
 - Corregida la mezcla de monedas en el cálculo de costos de importación: cada costo tiene su propio tipo de cambio (colones por dólar) y se convierte correctamente a la moneda de la compra antes de sumarse.
 - `apps/sales/views.py`: implementado con búsqueda (`q`) por nombre de cliente, filtro por cliente, estado, moneda, rango de fechas y estado activo, más ordenamiento configurable.
+- `apps/customers/views.py` (`CustomerViewSet`): implementado con búsqueda (`q`) que ya no fuerza solo clientes activos, filtro por tipo de cliente, estado activo y ordenamiento configurable. Corregida además la validación de identificación duplicada, que antes solo se aplicaba al crear un cliente.
 
 ## Todavía pendiente (verificado en el código actual)
 
