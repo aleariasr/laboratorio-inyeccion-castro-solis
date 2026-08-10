@@ -4,6 +4,7 @@ import type { PaginatedResponse } from "@/lib/api/types";
 import type {
   Injector,
   InjectorFilters,
+  InjectorServiceRecordSummary,
   InjectorWritePayload,
 } from "./types";
 
@@ -78,4 +79,27 @@ export function updateInjector(
   return apiPatch<Injector>(`/api/customers/injectors/${injectorId}/`, payload, {
     token,
   });
+}
+
+// Servicios del inyector (solo lectura hasta implementar el módulo de
+// servicios). Reutiliza el filtro ?injector= que ya expone
+// InjectorServiceRecordViewSet.
+export function getInjectorServiceRecords(
+  token: string,
+  injectorId: number,
+  signal?: AbortSignal,
+): Promise<InjectorServiceRecordSummary[]> {
+  const searchParams = new URLSearchParams({
+    injector: String(injectorId),
+    page: "1",
+    page_size: "20",
+  });
+
+  return apiGet<PaginatedResponse<InjectorServiceRecordSummary>>(
+    `/api/customers/service-records/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
+  ).then((response) => response.results);
 }

@@ -74,3 +74,12 @@ export function buildInjectorWritePayload(
     is_active: values.isActive,
   };
 }
+
+// Resumen de servicios del inyector (solo lectura hasta implementar
+// el módulo de servicios)
+export type InjectorServiceRecordSummary = {
+  id: number;
+  received_at: string;
+  delivered_at: string | null;
+  status: string;
+};
