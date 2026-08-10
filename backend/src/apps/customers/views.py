@@ -1,9 +1,11 @@
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status, viewsets
+from rest_framework import filters, status, viewsets
 
 from apps.core.permissions import CustomersPermission
+from apps.core.query_params import parse_boolean_query_param
 
 from apps.customers.exceptions import (
     CustomerAlreadyExistsError,
@@ -16,7 +18,6 @@ from apps.customers.models import (
     InjectorAccessory,
     InjectorServiceRecord,
 )
-from apps.customers.selectors import customer_search
 
 from apps.customers.serializers import (
     CustomerSerializer,
@@ -47,14 +48,32 @@ from apps.customers.models import (
 class CustomerViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerSerializer
     permission_classes = [CustomersPermission]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["display_name", "created_at"]
+    ordering = ["display_name"]
 
     def get_queryset(self):
-        queryset = Customer.objects.order_by("display_name")
+        queryset = Customer.objects.all()
 
         query = self.request.query_params.get("q", "").strip()
+        customer_type = self.request.query_params.get("customer_type", "").strip()
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"), name="is_active",
+        )
 
         if query:
-            return customer_search(query)
+            queryset = queryset.filter(
+                Q(display_name__icontains=query)
+                | Q(identification__icontains=query)
+                | Q(phone__icontains=query)
+                | Q(email__icontains=query)
+            )
+
+        if customer_type:
+            queryset = queryset.filter(customer_type=customer_type.upper())
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
 
         return queryset
 

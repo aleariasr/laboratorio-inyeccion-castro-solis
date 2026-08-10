@@ -49,7 +49,20 @@ class CustomerSerializer(serializers.ModelSerializer):
         return value
 
     def validate_identification(self, value):
-        return value.strip().upper()
+        value = value.strip().upper()
+
+        if value:
+            queryset = Customer.objects.filter(identification=value)
+
+            if self.instance is not None:
+                queryset = queryset.exclude(pk=self.instance.pk)
+
+            if queryset.exists():
+                raise serializers.ValidationError(
+                    "Ya existe un cliente con esa identificación."
+                )
+
+        return value
 
     def validate_phone(self, value):
         return value.strip()
