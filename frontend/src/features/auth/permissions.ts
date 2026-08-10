@@ -63,3 +63,11 @@ export function canWriteSales(
     "SALES",
   ]);
 }
+
+export function canReadCustomers(user: AuthUser): boolean {
+  return hasAnyRole(user, ["CUSTOMERS", "READ_ONLY"]);
+}
+
+export function canWriteCustomers(user: AuthUser): boolean {
+  return hasAnyRole(user, ["CUSTOMERS"]);
+}

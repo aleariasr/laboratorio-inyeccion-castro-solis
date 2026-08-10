@@ -323,3 +323,32 @@ export function CartIcon({
     </svg>
   );
 }
+
+export function UsersIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="8" r="3.2" />
+
+      <path
+        d="M3.8 19.2c.6-3.2 2.9-5 5.2-5s4.6 1.8 5.2 5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M15.2 6a3.2 3.2 0 0 1 0 6.2M17.5 14.4c2 .5 3.6 2.1 4.1 4.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

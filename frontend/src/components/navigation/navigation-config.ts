@@ -7,6 +7,7 @@ import {
   SearchIcon,
   StatusIcon,
   TruckIcon,
+  UsersIcon,
 } from "@/components/icons/app-icons";
 
 import type {
@@ -105,6 +106,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: CartIcon,
     roles: [
       "SALES",
+      "READ_ONLY",
+    ],
+  },
+  {
+    href: "/customers",
+    label: "Clientes",
+    section: "customers",
+    icon: UsersIcon,
+    roles: [
+      "CUSTOMERS",
       "READ_ONLY",
     ],
   },
