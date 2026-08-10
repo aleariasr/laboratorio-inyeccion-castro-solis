@@ -4,6 +4,7 @@ import type { PaginatedResponse } from "@/lib/api/types";
 import type {
   Customer,
   CustomerFilters,
+  CustomerInjector,
   CustomerWritePayload,
 } from "./types";
 
@@ -78,4 +79,27 @@ export function updateCustomer(
   return apiPatch<Customer>(`/api/customers/customers/${customerId}/`, payload, {
     token,
   });
+}
+
+// Inyectores del cliente (solo lectura hasta implementar el módulo de
+// inyectores y servicios en F14). Reutiliza el filtro ?customer= que ya
+// expone InjectorViewSet.
+export function getCustomerInjectors(
+  token: string,
+  customerId: number,
+  signal?: AbortSignal,
+): Promise<CustomerInjector[]> {
+  const searchParams = new URLSearchParams({
+    customer: String(customerId),
+    page: "1",
+    page_size: "100",
+  });
+
+  return apiGet<PaginatedResponse<CustomerInjector>>(
+    `/api/customers/injectors/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
+  ).then((response) => response.results);
 }

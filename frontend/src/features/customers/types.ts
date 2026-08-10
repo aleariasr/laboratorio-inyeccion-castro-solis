@@ -87,3 +87,11 @@ export function buildCustomerWritePayload(
     is_active: values.isActive,
   };
 }
+
+// Resumen de inyectores del cliente (solo lectura hasta implementar F14)
+export type CustomerInjector = {
+  id: number;
+  injector_number: string;
+  description: string;
+  is_active: boolean;
+};
