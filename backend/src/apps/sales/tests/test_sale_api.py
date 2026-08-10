@@ -103,6 +103,154 @@ class SaleApiTest(APITestCase):
         self.assertIn("cancelled_by", item)
         self.assertEqual(len(item["items"]), 1)
 
+    def test_filter_sales_by_customer_name(self):
+        Customer.objects.create(
+            display_name="Otro cliente",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/sales/sales/",
+            {"q": "prueba"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], self.sale.id)
+
+    def test_filter_sales_by_customer(self):
+        other_customer = Customer.objects.create(
+            display_name="Otro cliente",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        Sale.objects.create(
+            customer=other_customer,
+            sale_date=date.today(),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/sales/sales/",
+            {"customer": self.customer.id},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["customer"], self.customer.id)
+
+    def test_filter_sales_by_status(self):
+        Sale.objects.create(
+            customer=self.customer,
+            sale_date=date.today(),
+            currency="CRC",
+            status=SaleStatus.CANCELLED,
+            cancellation_reason="Prueba",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/sales/sales/",
+            {"status": "cancelled"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["status"], SaleStatus.CANCELLED)
+
+    def test_filter_sales_by_currency(self):
+        Sale.objects.create(
+            customer=self.customer,
+            sale_date=date.today(),
+            currency="USD",
+            exchange_rate=Decimal("515.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/sales/sales/",
+            {"currency": "usd"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["currency"], "USD")
+
+    def test_filter_sales_by_date_range(self):
+        Sale.objects.create(
+            customer=self.customer,
+            sale_date=date(2026, 1, 1),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/sales/sales/",
+            {
+                "date_from": date.today().isoformat(),
+                "date_to": date.today().isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], self.sale.id)
+
+    def test_filter_sales_date_range_validates_order(self):
+        response = self.client.get(
+            "/api/sales/sales/",
+            {
+                "date_from": "2026-06-01",
+                "date_to": "2026-01-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("date_to", response.data)
+
+    def test_filter_sales_by_is_active(self):
+        self.sale.is_active = False
+        self.sale.save(update_fields=["is_active"])
+
+        response = self.client.get(
+            "/api/sales/sales/",
+            {"is_active": "false"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+        response = self.client.get(
+            "/api/sales/sales/",
+            {"is_active": "true"},
+        )
+
+        self.assertEqual(response.data["count"], 0)
+
+    def test_order_sales_by_sale_date(self):
+        older_sale = Sale.objects.create(
+            customer=self.customer,
+            sale_date=date(2020, 1, 1),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/sales/sales/",
+            {"ordering": "sale_date"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"][0]["id"], older_sale.id)
+
     def test_create_sale(self):
         response = self.client.post(
             "/api/sales/sales/",

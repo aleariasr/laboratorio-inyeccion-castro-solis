@@ -1,8 +1,13 @@
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from rest_framework import status, viewsets
+from rest_framework import filters, status, viewsets
 
 from apps.core.permissions import SalesPermission
+from apps.core.query_params import (
+    parse_boolean_query_param,
+    parse_date_query_param,
+)
 
 from apps.sales.exceptions import (
     InsufficientStockError,
@@ -29,19 +34,64 @@ from apps.sales.services import (
 
 
 class SaleViewSet(viewsets.ModelViewSet):
-    queryset = (
-        Sale.objects.select_related("customer")
-        .prefetch_related(
-            "items",
-            "items__product",
-        )
-        .order_by(
-            "-sale_date",
-            "-id",
-        )
-    )
     serializer_class = SaleSerializer
     permission_classes = [SalesPermission]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["sale_date", "status", "created_at"]
+    ordering = ["-sale_date", "-id"]
+
+    def get_queryset(self):
+        queryset = (
+            Sale.objects.select_related("customer")
+            .prefetch_related("items", "items__product")
+        )
+
+        query = self.request.query_params.get("q", "").strip()
+        customer_id = self.request.query_params.get("customer")
+        status_value = self.request.query_params.get("status", "").strip()
+        currency_value = self.request.query_params.get("currency", "").strip()
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"),
+            name="is_active",
+        )
+        date_from = parse_date_query_param(
+            self.request.query_params.get("date_from"),
+            name="date_from",
+        )
+        date_to = parse_date_query_param(
+            self.request.query_params.get("date_to"),
+            name="date_to",
+        )
+
+        if date_from and date_to and date_from > date_to:
+            raise ValidationError(
+                {"date_to": ["date_to no puede ser anterior a date_from."]}
+            )
+
+        if query:
+            queryset = queryset.filter(
+                customer__display_name__icontains=query
+            )
+
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+
+        if status_value:
+            queryset = queryset.filter(status=status_value.upper())
+
+        if currency_value:
+            queryset = queryset.filter(currency=currency_value.upper())
+
+        if date_from:
+            queryset = queryset.filter(sale_date__gte=date_from)
+
+        if date_to:
+            queryset = queryset.filter(sale_date__lte=date_to)
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
+
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(
