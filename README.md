@@ -26,7 +26,7 @@ Estado actual:
 
     Backend base cerrado.
     Infraestructura productiva base implementada.
-    Frontend operativo en progreso (login, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras y costos de importación).
+    Frontend operativo en progreso (login, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación y ventas).
     Validación con flujos reales pendiente.
 
 El backend base ya incluye autenticación, usuarios, roles, permisos por módulo, inventario, compras, costos, ventas, clientes, inyectores, búsqueda universal, reportes JSON, endpoint administrativo de estado y generación inicial de documentos PDF con códigos de barras reales.
@@ -108,8 +108,9 @@ Documento principal de cierre:
 - Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
 - Módulo de compras: listado con filtros, detalle, creación, edición de borrador, líneas de compra, confirmación y anulación con motivo.
 - Módulo de costos de importación: categorías, costos por compra con conversión de moneda mediante tipo de cambio, resumen de costos con desglose por producto, aplicación de costos e histórico append-only.
+- Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido y validación de stock disponible, confirmación y anulación con motivo.
 - Navegación por roles y permisos.
-- Pendiente: ventas, clientes, inyectores y reportes desde la interfaz.
+- Pendiente: clientes, inyectores y reportes desde la interfaz.
 
 ---
 
@@ -355,7 +356,7 @@ Validación técnica del backend base:
 
     Django check: OK
     Migraciones pendientes: no
-    Tests backend: 333 OK
+    Tests backend: 341 OK
     Build backend Docker: OK
 
 El backend base queda cerrado como `0.2.0-alpha`.
@@ -366,7 +367,7 @@ El backend base queda cerrado como `0.2.0-alpha`.
 
 No se recomienda seguir agregando backend por adelantado sin validación real. Las siguientes fases recomendadas son:
 
-1. Completar el frontend operativo: ventas, clientes, inyectores y reportes.
+1. Completar el frontend operativo: clientes, inyectores y reportes.
 2. Validación de flujos reales con pantallas.
 3. Ajustes del modelo según uso real.
 4. Documentos PDF adicionales.

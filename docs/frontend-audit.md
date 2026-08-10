@@ -8,7 +8,7 @@ Laboratorio de Inyección Castro Solís — LICS
 
 Parcialmente resuelta. Ver detalle de lo resuelto y lo pendiente al final de este documento.
 
-> Nota: esta auditoría se realizó antes de iniciar la implementación del frontend (fase F0). Desde entonces se construyeron las pantallas de F1 a F9 del [roadmap de frontend](frontend-roadmap.md) (login, sesión, navegación, estado del sistema, búsqueda universal, productos, ubicaciones y proveedores), pero varios de los pendientes de backend que esta auditoría identificó siguen abiertos — en particular filtros de compras y ventas, ampliación de la búsqueda universal y administración de roles de usuario. El detalle verificado está al final de este documento.
+> Nota: esta auditoría se realizó antes de iniciar la implementación del frontend (fase F0). Desde entonces se construyeron las pantallas de F1 a F12 del [roadmap de frontend](frontend-roadmap.md) (login, sesión, navegación, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación y ventas), pero algunos de los pendientes de backend que esta auditoría identificó siguen abiertos — en particular la ampliación de la búsqueda universal y la administración de roles de usuario. El detalle verificado está al final de este documento.
 
 ## Objetivo
 
@@ -1011,18 +1011,18 @@ Cada cambio deberá incluir:
 
 ## Resuelto
 
-- Base técnica del frontend, sistema de diseño inicial, autenticación, navegación, estado del sistema, búsqueda universal (interfaz), productos, ubicaciones, proveedores, compras y costos de importación implementados (fases F1 a F11 del [roadmap de frontend](frontend-roadmap.md)).
+- Base técnica del frontend, sistema de diseño inicial, autenticación, navegación, estado del sistema, búsqueda universal (interfaz), productos, ubicaciones, proveedores, compras, costos de importación y ventas implementados (fases F1 a F12 del [roadmap de frontend](frontend-roadmap.md)).
 - Imports duplicados en `customers/views.py`: resuelto, ya no existen.
 - Filtros de catálogo de inventario (productos, ubicaciones, proveedores, referencias): implementados.
 - Filtros de `customers` (cliente, inyector, estado, registro de servicio): implementados.
 - `apps/inventory/views/purchase.py`: implementado con búsqueda (`q`), filtro por proveedor, estado, moneda, rango de fechas y estado activo, más ordenamiento configurable.
 - `apps/inventory/views/costs.py` (`ImportCostCategoryViewSet`): implementado con búsqueda (`q`) y filtro por estado activo.
 - Corregida la mezcla de monedas en el cálculo de costos de importación: cada costo tiene su propio tipo de cambio (colones por dólar) y se convierte correctamente a la moneda de la compra antes de sumarse.
+- `apps/sales/views.py`: implementado con búsqueda (`q`) por nombre de cliente, filtro por cliente, estado, moneda, rango de fechas y estado activo, más ordenamiento configurable.
 
 ## Todavía pendiente (verificado en el código actual)
 
 - La búsqueda universal (`GET /api/search/`) sigue exactamente tan limitada como se describe más arriba en este documento: productos solo por código estándar, clientes solo por nombre visible, sin buscar por identificación ni teléfono, sin cubrir ventas ni servicios de inyector.
-- `apps/sales/views.py` no tiene ningún filtro por parámetro de consulta.
 - La administración de roles de usuario sigue sin ser posible desde la API: `UserSerializer` expone `groups` como solo lectura y `UserCreateSerializer` ni siquiera incluye el campo.
 
 Estos pendientes deben resolverse junto con las pantallas correspondientes (compras, ventas, administración de usuarios), siguiendo la regla que ya establece este documento: "cada grupo de filtros se implementará junto con su pantalla correspondiente."

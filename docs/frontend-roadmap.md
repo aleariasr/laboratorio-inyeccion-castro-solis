@@ -22,7 +22,7 @@ En progreso.
 - F9 proveedores y referencias: completada.
 - F10 compras: completada.
 - F11 costos de importación: completada.
-- F12 ventas: pendiente.
+- F12 ventas: completada.
 - F13 clientes: pendiente.
 - F14 inyectores y servicios: pendiente.
 - F15 conteos físicos: pendiente.

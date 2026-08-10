@@ -29,6 +29,7 @@ El formato utiliza estas categorías:
 - Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
 - Módulo de compras: listado con filtros (búsqueda, proveedor, estado, moneda, fecha, activo/inactivo), detalle, creación, edición de borrador, líneas de compra, confirmación y anulación con motivo obligatorio.
 - Módulo de costos de importación: categorías con filtros, costos por compra con tipo de cambio propio, resumen de costos con desglose de precio sugerido por producto, aplicación de costos a productos e histórico append-only con equivalente en colones.
+- Módulo de ventas: listado con filtros (búsqueda por cliente, cliente, estado, moneda, fecha, activo/inactivo), detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido desde el histórico de costos y validación de stock disponible, confirmación y anulación con motivo obligatorio.
 
 ### Fixed
 
@@ -38,7 +39,7 @@ El formato utiliza estas categorías:
 
 ### Pending
 
-- Ventas, clientes, inyectores y reportes desde la interfaz.
+- Clientes, inyectores y reportes desde la interfaz.
 - Validación con usuarios reales.
 - Validación con datos reales.
 - Validación final en Linux Mint XFCE o Ubuntu Desktop gráfico.
