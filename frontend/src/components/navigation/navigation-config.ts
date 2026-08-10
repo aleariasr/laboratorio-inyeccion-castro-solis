@@ -1,4 +1,5 @@
 import {
+  CartIcon,
   HomeIcon,
   InventoryIcon,
   LocationIcon,
@@ -94,6 +95,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: ReceiptIcon,
     roles: [
       "INVENTORY",
+      "READ_ONLY",
+    ],
+  },
+  {
+    href: "/sales",
+    label: "Ventas",
+    section: "sales",
+    icon: CartIcon,
+    roles: [
+      "SALES",
       "READ_ONLY",
     ],
   },

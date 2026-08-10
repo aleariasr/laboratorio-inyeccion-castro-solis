@@ -299,3 +299,27 @@ export function ReceiptIcon({
     </svg>
   );
 }
+
+export function CartIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M3.5 4.5h2.1l1 12.4a2 2 0 0 0 2 1.85h8.3a2 2 0 0 0 2-1.7l1.1-7.3H6.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <circle cx="10" cy="20" r="1.3" />
+      <circle cx="17" cy="20" r="1.3" />
+    </svg>
+  );
+}
