@@ -400,3 +400,35 @@ export function WrenchIcon({
     </svg>
   );
 }
+
+export function ClipboardCheckIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M8.5 4.5h7v2.4h-7z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M8.5 5.7H6.3A1.8 1.8 0 0 0 4.5 7.5v11.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8V7.5a1.8 1.8 0 0 0-1.8-1.8h-2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M8.7 13.4 11 15.7l4.5-5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

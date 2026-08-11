@@ -1,5 +1,6 @@
 import {
   CartIcon,
+  ClipboardCheckIcon,
   DropletIcon,
   HomeIcon,
   InventoryIcon,
@@ -96,6 +97,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Compras",
     section: "inventory",
     icon: ReceiptIcon,
+    roles: [
+      "INVENTORY",
+      "READ_ONLY",
+    ],
+  },
+  {
+    href: "/inventory/counts",
+    label: "Conteos físicos",
+    section: "inventory",
+    icon: ClipboardCheckIcon,
     roles: [
       "INVENTORY",
       "READ_ONLY",
