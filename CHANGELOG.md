@@ -31,6 +31,7 @@ El formato utiliza estas categorías:
 - Módulo de costos de importación: categorías con filtros, costos por compra con tipo de cambio propio, resumen de costos con desglose de precio sugerido por producto, aplicación de costos a productos e histórico append-only con equivalente en colones.
 - Módulo de ventas: listado con filtros (búsqueda por cliente, cliente, estado, moneda, fecha, activo/inactivo), detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido desde el histórico de costos y validación de stock disponible, confirmación y anulación con motivo obligatorio.
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
+- Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición) y bandeja operativa de servicios de inyector (recepción, inicio, marcar listo, entrega y anulación), con datos técnicos editables mientras el servicio está abierto y gestión de accesorios utilizados con catálogo creado en línea.
 
 ### Fixed
 
@@ -38,10 +39,11 @@ El formato utiliza estas categorías:
 - Cálculo de costos de importación en moneda distinta a la de la compra: ahora convierte correctamente usando el tipo de cambio propio de cada costo (siempre expresado en colones por dólar), en vez de sumar montos de monedas distintas como si valieran lo mismo.
 - Columna "Calculado" del histórico de costos: mostraba la fecha ISO sin formatear.
 - Validación de identificación duplicada de clientes: antes solo se aplicaba al crear un cliente; ahora también se aplica al editar, evitando que dos clientes queden con la misma identificación.
+- Validación de número de inyector duplicado por cliente: antes solo se aplicaba al crear; editar un inyector hacia un número ya usado por el mismo cliente producía un error 500 no controlado en vez de un error de validación.
 
 ### Pending
 
-- Inyectores y reportes desde la interfaz.
+- Reportes desde la interfaz.
 - Validación con usuarios reales.
 - Validación con datos reales.
 - Validación final en Linux Mint XFCE o Ubuntu Desktop gráfico.

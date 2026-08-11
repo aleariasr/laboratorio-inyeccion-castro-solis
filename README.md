@@ -26,7 +26,7 @@ Estado actual:
 
     Backend base cerrado.
     Infraestructura productiva base implementada.
-    Frontend operativo en progreso (login, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación, ventas y clientes).
+    Frontend operativo en progreso (login, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores y servicios).
     Validación con flujos reales pendiente.
 
 El backend base ya incluye autenticación, usuarios, roles, permisos por módulo, inventario, compras, costos, ventas, clientes, inyectores, búsqueda universal, reportes JSON, endpoint administrativo de estado y generación inicial de documentos PDF con códigos de barras reales.
@@ -110,8 +110,9 @@ Documento principal de cierre:
 - Módulo de costos de importación: categorías, costos por compra con conversión de moneda mediante tipo de cambio, resumen de costos con desglose por producto, aplicación de costos e histórico append-only.
 - Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido y validación de stock disponible, confirmación y anulación con motivo.
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
+- Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), y bandeja operativa de servicios (recepción, iniciar, marcar listo, entregar, anular) con datos técnicos editables y gestión de accesorios utilizados.
 - Navegación por roles y permisos.
-- Pendiente: inyectores y reportes desde la interfaz.
+- Pendiente: reportes desde la interfaz.
 
 ---
 
@@ -357,7 +358,7 @@ Validación técnica del backend base:
 
     Django check: OK
     Migraciones pendientes: no
-    Tests backend: 347 OK
+    Tests backend: 357 OK
     Build backend Docker: OK
 
 El backend base queda cerrado como `0.2.0-alpha`.
@@ -368,7 +369,7 @@ El backend base queda cerrado como `0.2.0-alpha`.
 
 No se recomienda seguir agregando backend por adelantado sin validación real. Las siguientes fases recomendadas son:
 
-1. Completar el frontend operativo: inyectores y reportes.
+1. Completar el frontend operativo: reportes.
 2. Validación de flujos reales con pantallas.
 3. Ajustes del modelo según uso real.
 4. Documentos PDF adicionales.
