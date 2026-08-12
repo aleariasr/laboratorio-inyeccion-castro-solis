@@ -587,3 +587,158 @@ class InventoryCountApiTest(APITestCase):
                 id=self.inventory_count.id,
             ).exists()
         )
+
+    def test_cancel_draft_inventory_count(self):
+        response = self.client.post(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/cancel/"
+            ),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.inventory_count.refresh_from_db()
+
+        self.assertEqual(
+            self.inventory_count.status,
+            InventoryCountStatus.CANCELLED,
+        )
+        self.assertEqual(self.inventory_count.updated_by, self.user)
+
+    def test_cannot_cancel_approved_inventory_count(self):
+        approve_response = self.client.post(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/approve/"
+            ),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
+
+        response = self.client.post(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/cancel/"
+            ),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.inventory_count.refresh_from_db()
+
+        self.assertEqual(
+            self.inventory_count.status,
+            InventoryCountStatus.APPROVED,
+        )
+
+    def test_cannot_cancel_already_cancelled_inventory_count(self):
+        first_response = self.client.post(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/cancel/"
+            ),
+            {},
+            format="json",
+        )
+
+        second_response = self.client.post(
+            (
+                "/api/inventory/inventory-counts/"
+                f"{self.inventory_count.id}/cancel/"
+            ),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            second_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    def test_filter_inventory_counts_by_query(self):
+        InventoryCount.objects.create(
+            reference="CNT-XYZ",
+            count_date=date.today(),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/inventory-counts/",
+            {
+                "q": "xyz",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["reference"],
+            "CNT-XYZ",
+        )
+
+    def test_filter_inventory_counts_by_is_active(self):
+        InventoryCount.objects.create(
+            reference="CNT-INACTIVE",
+            count_date=date.today(),
+            created_by=self.user,
+            updated_by=self.user,
+            is_active=False,
+        )
+
+        response = self.client.get(
+            "/api/inventory/inventory-counts/",
+            {
+                "is_active": "false",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["reference"],
+            "CNT-INACTIVE",
+        )
+
+    def test_filter_inventory_counts_by_date_range(self):
+        from datetime import timedelta
+
+        InventoryCount.objects.create(
+            reference="CNT-OLD",
+            count_date=date.today() - timedelta(days=30),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/inventory-counts/",
+            {
+                "date_from": (date.today() - timedelta(days=1)).isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["reference"],
+            "CNT-001",
+        )
+
+    def test_filter_inventory_counts_date_range_validates_order(self):
+        response = self.client.get(
+            "/api/inventory/inventory-counts/",
+            {
+                "date_from": "2026-01-31",
+                "date_to": "2026-01-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

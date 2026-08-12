@@ -1,5 +1,6 @@
 from .inventory_count import (
     approve_inventory_count,
+    cancel_inventory_count,
 )
 from .purchases import (
     cancel_purchase,
@@ -17,6 +18,7 @@ from .costs import (
 
 __all__ = [
     "approve_inventory_count",
+    "cancel_inventory_count",
     "confirm_purchase",
     "cancel_purchase",
     "initial_inventory",

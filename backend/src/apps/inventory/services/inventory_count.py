@@ -67,3 +67,34 @@ def approve_inventory_count(
     )
 
     return inventory_count
+
+@transaction.atomic
+def cancel_inventory_count(
+    *,
+    inventory_count: InventoryCount,
+    user,
+):
+    """
+    Anula un conteo físico en borrador.
+
+    Solo un conteo en borrador puede anularse: una vez aprobado, ya
+    generó movimientos de ajuste y no debe revertirse desde aquí.
+    """
+
+    if inventory_count.status != InventoryCountStatus.DRAFT:
+        raise InventoryError(
+            "Solo un conteo en borrador puede anularse."
+        )
+
+    inventory_count.status = InventoryCountStatus.CANCELLED
+    inventory_count.updated_by = user
+
+    inventory_count.save(
+        update_fields=[
+            "status",
+            "updated_by",
+            "updated_at",
+        ]
+    )
+
+    return inventory_count
