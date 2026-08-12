@@ -36,6 +36,15 @@ if (-not $isAdmin) {
     exit
 }
 
+# --- Registro para soporte tecnico --------------------------------------------
+# Si algo falla, esta ventana no se cierra sola y ademas queda un archivo de
+# log completo que se puede enviar a soporte.
+
+$LogPath = Join-Path $env:TEMP ("lics-instalacion-{0}.log" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+Start-Transcript -Path $LogPath -Append | Out-Null
+
+try {
+
 # --- Rutas -------------------------------------------------------------------
 
 $AppRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -308,3 +317,32 @@ Write-Host ""
 Start-Process $AppUrl
 
 Read-Host "Presiona Enter para cerrar esta ventana (la aplicacion sigue corriendo)"
+
+}
+catch {
+    Write-Host ""
+    Log-Err "La instalacion o el inicio de LICS fallaron."
+    Log-Err $_.Exception.Message
+
+    if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) {
+        Write-Host ""
+        Write-Host $_.InvocationInfo.PositionMessage -ForegroundColor DarkGray
+    }
+
+    Write-Host ""
+    Log-Info "Para ayudar a diagnosticar el problema, revisa tambien:"
+    Write-Host "  - docker compose --env-file `"$EnvFile`" --file `"$ComposeFile`" logs backend" -ForegroundColor DarkGray
+    Write-Host "  - docker compose --env-file `"$EnvFile`" --file `"$ComposeFile`" logs postgres" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "Registro completo de esta ejecucion: $LogPath" -ForegroundColor Yellow
+    Write-Host "Comparte ese archivo con soporte tecnico." -ForegroundColor Yellow
+    Write-Host ""
+
+    Read-Host "Presiona Enter para cerrar esta ventana"
+
+    Stop-Transcript | Out-Null
+
+    exit 1
+}
+
+Stop-Transcript | Out-Null
