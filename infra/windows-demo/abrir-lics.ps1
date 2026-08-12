@@ -126,15 +126,31 @@ function Wait-Http([string]$Url, [int]$TimeoutSeconds = 120) {
 
 # --- Paso 1: WSL2 --------------------------------------------------------------
 
-Log-Info "Verificando WSL2..."
-& wsl --install --no-distribution 2>$null | Out-Null
-
-if (Test-PendingReboot) {
-    Log-Warn "Windows necesita reiniciarse para terminar de habilitar WSL2."
-    Log-Warn "Reinicia la computadora y vuelve a ejecutar Abrir-LICS.bat. Este mismo archivo continua donde quedo."
-    Read-Host "Presiona Enter para cerrar"
-    exit 1
+function Test-WslReady {
+    try {
+        $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction Stop
+        $vmpFeature = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction Stop
+        return (($wslFeature.State -eq "Enabled") -and ($vmpFeature.State -eq "Enabled"))
+    } catch {
+        return $false
+    }
 }
+
+Log-Info "Verificando WSL2..."
+
+if (-not (Test-WslReady)) {
+    Log-Info "Habilitando WSL2 (puede tardar unos minutos)..."
+    & wsl --install --no-distribution 2>$null | Out-Null
+
+    if (-not (Test-WslReady)) {
+        Log-Warn "Windows necesita reiniciarse para terminar de habilitar WSL2."
+        Log-Warn "Reinicia la computadora y vuelve a ejecutar Abrir-LICS.bat."
+        Read-Host "Presiona Enter para cerrar"
+        exit 1
+    }
+}
+
+Log-Ok "WSL2 esta habilitado."
 
 # --- Paso 2: Docker Desktop ------------------------------------------------------
 
@@ -150,13 +166,6 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Start-Process -FilePath $installerPath -ArgumentList "install", "--quiet", "--accept-license" -Wait
 
     Refresh-Path
-
-    if (Test-PendingReboot) {
-        Log-Warn "Windows necesita reiniciarse tras instalar Docker Desktop."
-        Log-Warn "Reinicia la computadora y vuelve a ejecutar Abrir-LICS.bat."
-        Read-Host "Presiona Enter para cerrar"
-        exit 1
-    }
 
     Log-Ok "Docker Desktop instalado."
 }
