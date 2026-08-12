@@ -109,7 +109,6 @@ export default function CustomerDetailPage() {
           query: "",
           customerId,
           status: "",
-          currency: "",
           dateFrom: "",
           dateTo: "",
           activeState: "all",
@@ -509,7 +508,7 @@ export default function CustomerDetailPage() {
                         <td className="px-5 py-4 text-sm text-foreground">{sale.sale_date}</td>
 
                         <td className="px-5 py-4 text-sm font-semibold text-foreground">
-                          {formatMoney(sale.total)} {sale.currency}
+                          {formatMoney(sale.total)} CRC
                         </td>
 
                         <td className="px-5 py-4 text-sm text-muted-foreground">

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadSales, canWriteSales } from "@/features/auth/permissions";
-import { crcEquivalent, formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import {
   cancelSale,
   confirmSale,
@@ -811,29 +811,8 @@ export default function SaleDetailPage() {
               </div>
 
               <div className="app-status-row">
-                <dt>Moneda</dt>
-                <dd>{loadState.sale.currency}</dd>
-              </div>
-
-              <div className="app-status-row">
-                <dt>Tipo de cambio</dt>
-                <dd>{formatMoney(loadState.sale.exchange_rate)}</dd>
-              </div>
-
-              <div className="app-status-row">
                 <dt>Total de la venta</dt>
-                <dd>
-                  <p className="leading-tight">
-                    {formatMoney(loadState.sale.total)} {loadState.sale.currency}
-                  </p>
-
-                  {loadState.sale.currency === "USD" &&
-                    crcEquivalent(loadState.sale.total, loadState.sale.exchange_rate) && (
-                      <p className="leading-tight text-xs font-normal text-muted-foreground">
-                        {crcEquivalent(loadState.sale.total, loadState.sale.exchange_rate)}
-                      </p>
-                    )}
-                </dd>
+                <dd>{formatMoney(loadState.sale.total)} CRC</dd>
               </div>
 
               {loadState.sale.confirmed_at && (

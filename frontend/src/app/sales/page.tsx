@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadSales, canWriteSales } from "@/features/auth/permissions";
-import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
+import { formatMoney } from "@/features/inventory/purchases/format";
 import { getSales } from "@/features/sales/api";
 import type { Sale, SaleFilters, SaleStatus } from "@/features/sales/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -44,7 +44,6 @@ type LoadState =
 const INITIAL_FILTERS: SaleFilters = {
   query: "",
   status: "",
-  currency: "",
   dateFrom: "",
   dateTo: "",
   activeState: "active",
@@ -78,14 +77,6 @@ function getLoadErrorMessage(error: unknown): string {
   }
 
   return "No fue posible consultar las ventas.";
-}
-
-function saleCrcEquivalent(sale: Sale): string | null {
-  if (sale.currency !== "USD") {
-    return null;
-  }
-
-  return crcEquivalent(sale.total, sale.exchange_rate);
 }
 
 export default function SalesPage() {
@@ -437,21 +428,6 @@ export default function SalesPage() {
             </select>
 
             <select
-              value={filters.currency}
-              onChange={(event) => {
-                const currency = event.target.value as SaleFilters["currency"];
-
-                updateFilters((current) => ({ ...current, currency, page: 1 }));
-              }}
-              className="h-11 rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
-              aria-label="Filtrar por moneda"
-            >
-              <option value="">Todas las monedas</option>
-              <option value="CRC">Colones (CRC)</option>
-              <option value="USD">Dólares (USD)</option>
-            </select>
-
-            <select
               value={filters.activeState}
               onChange={(event) => {
                 const activeState =
@@ -613,15 +589,7 @@ export default function SalesPage() {
                       </td>
 
                       <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        <p className="leading-tight">
-                          {formatMoney(sale.total)} {sale.currency}
-                        </p>
-
-                        {saleCrcEquivalent(sale) && (
-                          <p className="leading-tight text-xs text-[var(--color-text-subtle)]">
-                            {saleCrcEquivalent(sale)}
-                          </p>
-                        )}
+                        {formatMoney(sale.total)} CRC
                       </td>
 
                       <td className="px-5 py-4 align-top">

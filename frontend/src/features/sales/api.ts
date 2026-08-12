@@ -33,10 +33,6 @@ function buildSalesQuery(filters: SaleFilters): string {
     searchParams.set("status", filters.status);
   }
 
-  if (filters.currency) {
-    searchParams.set("currency", filters.currency);
-  }
-
   if (filters.dateFrom) {
     searchParams.set("date_from", filters.dateFrom);
   }

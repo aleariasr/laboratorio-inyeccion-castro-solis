@@ -46,8 +46,6 @@ function areValuesEqual(
   return (
     left.customerId === right.customerId &&
     left.saleDate === right.saleDate &&
-    left.currency === right.currency &&
-    left.exchangeRate === right.exchangeRate &&
     left.notes === right.notes &&
     left.isActive === right.isActive
   );
@@ -196,7 +194,7 @@ export function SaleForm({
   }
 
   function handleTextChange(
-    field: Exclude<SaleFormField, "isActive" | "customerId" | "currency">,
+    field: Exclude<SaleFormField, "isActive" | "customerId">,
   ) {
     return (
       event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -393,56 +391,6 @@ export function SaleForm({
               onChange={handleTextChange("saleDate")}
               hasError={Boolean(errors.saleDate)}
               disabled={isSubmitting}
-            />
-          </Field>
-
-          <Field
-            id="sale-currency"
-            label="Moneda"
-            required
-            error={errors.currency}
-          >
-            <select
-              id="sale-currency"
-              name="currency"
-              value={values.currency}
-              onChange={(event) => {
-                const nextCurrency = event.target.value;
-
-                updateValue("currency", nextCurrency);
-
-                if (nextCurrency === "CRC") {
-                  updateValue("exchangeRate", "1");
-                }
-              }}
-              disabled={isSubmitting}
-              className="h-12 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
-            >
-              <option value="CRC">Colones (CRC)</option>
-              <option value="USD">Dólares (USD)</option>
-            </select>
-          </Field>
-
-          <Field
-            id="sale-exchange-rate"
-            label="Tipo de cambio"
-            required
-            hint={
-              values.currency === "CRC"
-                ? "No aplica: la venta ya está en colones."
-                : "Colones por dólar (₡ por US$1). Ej.: si hoy US$1 vale ₡520, escriba 520."
-            }
-            error={errors.exchangeRate}
-          >
-            <Input
-              id="sale-exchange-rate"
-              name="exchangeRate"
-              value={values.exchangeRate}
-              onChange={handleTextChange("exchangeRate")}
-              hasError={Boolean(errors.exchangeRate)}
-              inputMode="decimal"
-              autoComplete="off"
-              disabled={isSubmitting || values.currency === "CRC"}
             />
           </Field>
 

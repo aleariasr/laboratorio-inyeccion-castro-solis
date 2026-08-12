@@ -38,6 +38,9 @@ import {
   type ProductReferenceFormValues,
   type StockMovement,
 } from "@/features/inventory/products/types";
+import { getLatestProductCostHistory } from "@/features/inventory/purchases/api";
+import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
+import type { ProductCostHistory } from "@/features/inventory/purchases/types";
 import type { PaginatedResponse } from "@/lib/api/types";
 import {
   ApiError,
@@ -228,6 +231,11 @@ export default function ProductDetailPage() {
     message: null,
   });
 
+  const [
+    costHistory,
+    setCostHistory,
+  ] = useState<ProductCostHistory | null>(null);
+
   const productId = Number(params.id);
 
   const hasInventoryAccess =
@@ -283,8 +291,13 @@ export default function ProductDetailPage() {
         productId,
         controller.signal,
       ),
+      getLatestProductCostHistory(
+        token,
+        productId,
+        controller.signal,
+      ).catch(() => null),
     ])
-      .then(([product, references]) => {
+      .then(([product, references, latestCostHistory]) => {
         if (controller.signal.aborted) {
           return;
         }
@@ -295,6 +308,8 @@ export default function ProductDetailPage() {
           references,
           message: null,
         });
+
+        setCostHistory(latestCostHistory);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
@@ -998,6 +1013,68 @@ export default function ProductDetailPage() {
             <p className="mt-5 text-xs leading-5 text-muted-foreground">
               El stock se calcula desde movimientos y no puede editarse directamente.
             </p>
+          </section>
+
+          <section className="app-status-card p-6 xl:col-span-2">
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+              Costos y precio
+            </h2>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Últimos valores calculados a partir de la compra más reciente con costos aplicados.
+            </p>
+
+            {costHistory ? (
+              <dl className="mt-6 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
+                  <dt className="text-sm text-muted-foreground">
+                    Precio sin costos
+                  </dt>
+                  <dd className="mt-2 font-mono text-lg font-semibold text-foreground">
+                    {formatMoney(costHistory.original_unit_cost)} {costHistory.currency}
+                  </dd>
+                  {costHistory.currency === "USD" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {crcEquivalent(costHistory.original_unit_cost, costHistory.exchange_rate)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
+                  <dt className="text-sm text-muted-foreground">
+                    Último precio de costo
+                  </dt>
+                  <dd className="mt-2 font-mono text-lg font-semibold text-foreground">
+                    {formatMoney(costHistory.final_unit_cost)} {costHistory.currency}
+                  </dd>
+                  {costHistory.currency === "USD" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {crcEquivalent(costHistory.final_unit_cost, costHistory.exchange_rate)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
+                  <dt className="text-sm text-muted-foreground">
+                    Precio de venta sugerido
+                  </dt>
+                  <dd className="mt-2 font-mono text-lg font-semibold text-foreground">
+                    {costHistory.suggested_price
+                      ? `${formatMoney(costHistory.suggested_price)} ${costHistory.currency}`
+                      : "No calculado"}
+                  </dd>
+                  {costHistory.currency === "USD" && costHistory.suggested_price && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {crcEquivalent(costHistory.suggested_price, costHistory.exchange_rate)}
+                    </p>
+                  )}
+                </div>
+              </dl>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Este producto todavía no tiene costos calculados a partir de una compra.
+              </p>
+            )}
           </section>
 
           <section className="app-status-card overflow-hidden xl:col-span-2">

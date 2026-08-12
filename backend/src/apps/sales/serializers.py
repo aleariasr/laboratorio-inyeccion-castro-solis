@@ -94,7 +94,6 @@ class SaleItemInlineSerializer(serializers.ModelSerializer):
 
 
 class SaleSerializer(serializers.ModelSerializer):
-    currency = serializers.CharField(max_length=3)
     customer_detail = CustomerSummarySerializer(
         source="customer",
         read_only=True,
@@ -128,6 +127,8 @@ class SaleSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = (
+            "currency",
+            "exchange_rate",
             "status",
             "confirmed_at",
             "confirmed_by",
@@ -138,21 +139,6 @@ class SaleSerializer(serializers.ModelSerializer):
             "updated_at",
             "total",
         )
-
-    def validate_currency(self, value):
-        normalized_currency = value.strip().upper()
-
-        valid_currencies = {
-            "CRC",
-            "USD",
-        }
-
-        if normalized_currency not in valid_currencies:
-            raise serializers.ValidationError(
-                "Moneda inválida."
-            )
-
-        return normalized_currency
 
     def validate(self, attrs):
         if self.instance is not None and self.instance.status != SaleStatus.DRAFT:

@@ -53,7 +53,6 @@ export type SaleFilters = {
   query: string;
   customerId?: number;
   status: "" | SaleStatus;
-  currency: "" | Currency;
   dateFrom: string;
   dateTo: string;
   activeState: "all" | "active" | "inactive";
@@ -64,8 +63,6 @@ export type SaleFilters = {
 export type SaleWritePayload = {
   customer: number | null;
   sale_date: string;
-  currency: Currency;
-  exchange_rate: string;
   notes: string;
   is_active: boolean;
 };
@@ -73,8 +70,6 @@ export type SaleWritePayload = {
 export type SaleFormValues = {
   customerId: string;
   saleDate: string;
-  currency: Currency;
-  exchangeRate: string;
   notes: string;
   isActive: boolean;
 };
@@ -82,8 +77,6 @@ export type SaleFormValues = {
 export type SaleFormField =
   | "customerId"
   | "saleDate"
-  | "currency"
-  | "exchangeRate"
   | "notes"
   | "isActive";
 
@@ -92,8 +85,6 @@ export type SaleFormErrors = Partial<Record<SaleFormField, string>>;
 export const EMPTY_SALE_FORM_VALUES: SaleFormValues = {
   customerId: "",
   saleDate: "",
-  currency: "CRC",
-  exchangeRate: "1",
   notes: "",
   isActive: true,
 };
@@ -102,8 +93,6 @@ export function saleToFormValues(sale: Sale): SaleFormValues {
   return {
     customerId: sale.customer ? String(sale.customer) : "",
     saleDate: sale.sale_date,
-    currency: sale.currency,
-    exchangeRate: sale.exchange_rate,
     notes: sale.notes,
     isActive: sale.is_active,
   };
@@ -115,8 +104,6 @@ export function buildSaleWritePayload(
   return {
     customer: values.customerId ? Number(values.customerId) : null,
     sale_date: values.saleDate,
-    currency: values.currency,
-    exchange_rate: values.exchangeRate.trim(),
     notes: values.notes.trim(),
     is_active: values.isActive,
   };

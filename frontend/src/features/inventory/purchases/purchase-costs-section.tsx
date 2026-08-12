@@ -634,28 +634,6 @@ export function PurchaseCostsSection({
                     />
                   </dd>
                 </div>
-
-                <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    Factor de costo
-                  </dt>
-                  <dd className="mt-1 text-sm font-semibold text-foreground">
-                    {formatNumber(summaryState.result.cost_factor, 4)}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    Total sugerido
-                  </dt>
-                  <dd className="mt-1 text-sm font-semibold text-foreground">
-                    <MoneyCell
-                      amount={summaryState.result.suggested_total}
-                      currency={summaryState.result.currency}
-                      exchangeRate={summaryState.result.exchange_rate}
-                    />
-                  </dd>
-                </div>
               </dl>
             )}
 

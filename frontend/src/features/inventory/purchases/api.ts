@@ -377,3 +377,20 @@ export function getProductCostHistory(
     signal,
   );
 }
+
+export function getLatestProductCostHistory(
+  token: string,
+  productId: number,
+  signal?: AbortSignal,
+): Promise<ProductCostHistory | null> {
+  const searchParams = new URLSearchParams({
+    product: String(productId),
+    page: "1",
+    page_size: "1",
+  });
+
+  return apiGet<PaginatedResponse<ProductCostHistory>>(
+    `/api/inventory/product-cost-history/?${searchParams.toString()}`,
+    { token, signal },
+  ).then((response) => response.results[0] ?? null);
+}

@@ -13,6 +13,7 @@ import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { formatMoney } from "../inventory/purchases/format";
 import { getProducts } from "../inventory/products/api";
 import type { Product } from "../inventory/products/types";
 import { getLatestProductCostHistory } from "./api";
@@ -234,6 +235,23 @@ export function SaleItemForm({
 
   const submittingLabel = mode === "create" ? "Agregando línea…" : "Guardando cambios…";
 
+  const priceReferenceHint = (() => {
+    if (!priceReference || !priceReference.suggested_price) {
+      return undefined;
+    }
+
+    const suggestedCrc =
+      priceReference.currency === "USD"
+        ? Number(priceReference.suggested_price) * Number(priceReference.exchange_rate)
+        : Number(priceReference.suggested_price);
+
+    if (!Number.isFinite(suggestedCrc)) {
+      return undefined;
+    }
+
+    return `Referencia: último precio sugerido ₡${formatMoney(suggestedCrc)} (compra del ${priceReference.calculated_at.slice(0, 10)}).`;
+  })();
+
   return (
     <form
       ref={formRef}
@@ -369,11 +387,7 @@ export function SaleItemForm({
           id="sale-item-unit-price"
           label="Precio unitario"
           required
-          hint={
-            priceReference
-              ? `Referencia: último precio sugerido ${priceReference.suggested_price ?? "—"} ${priceReference.currency} (compra del ${priceReference.calculated_at.slice(0, 10)}).`
-              : undefined
-          }
+          hint={priceReferenceHint}
           error={errors.unitPrice}
         >
           <Input
