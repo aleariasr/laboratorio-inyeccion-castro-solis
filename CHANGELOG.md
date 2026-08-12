@@ -32,6 +32,7 @@ El formato utiliza estas categorías:
 - Módulo de ventas: listado con filtros (búsqueda por cliente, cliente, estado, moneda, fecha, activo/inactivo), detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido desde el histórico de costos y validación de stock disponible, confirmación y anulación con motivo obligatorio.
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
 - Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición) y bandeja operativa de servicios de inyector (recepción, inicio, marcar listo, entrega y anulación), con datos técnicos editables mientras el servicio está abierto y gestión de accesorios utilizados con catálogo creado en línea.
+- Módulo de conteos físicos: listado con filtros (búsqueda por referencia, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con `Enter`, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas mientras el conteo está en borrador, aprobación (genera automáticamente movimientos de ajuste de inventario por cada diferencia) y anulación (acción nueva en el backend; antes solo existía aprobar y el estado `CANCELLED` no era alcanzable desde la API).
 
 ### Fixed
 
