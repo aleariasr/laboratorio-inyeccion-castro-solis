@@ -16,6 +16,7 @@ class StockMovementSerializer(
         source="get_direction_display",
         read_only=True,
     )
+    product_detail = serializers.SerializerMethodField()
     purchase_id = serializers.SerializerMethodField()
     purchase_invoice_number = (
         serializers.SerializerMethodField()
@@ -33,6 +34,7 @@ class StockMovementSerializer(
         fields = (
             "id",
             "product",
+            "product_detail",
             "movement_type",
             "movement_type_display",
             "direction",
@@ -51,6 +53,16 @@ class StockMovementSerializer(
             "created_at",
         )
         read_only_fields = fields
+
+    def get_product_detail(
+        self,
+        obj: StockMovement,
+    ) -> dict:
+        return {
+            "id": obj.product_id,
+            "standard_code": obj.product.standard_code,
+            "name": obj.product.name,
+        }
 
     def get_purchase_id(
         self,

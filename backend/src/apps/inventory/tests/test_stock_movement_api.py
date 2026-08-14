@@ -221,6 +221,15 @@ class StockMovementApiTest(APITestCase):
             result["inventory_count_reference"],
         )
 
+        self.assertEqual(
+            result["product_detail"],
+            {
+                "id": self.product.id,
+                "standard_code": self.product.standard_code,
+                "name": self.product.name,
+            },
+        )
+
     def test_list_only_returns_requested_product(
         self,
     ):
