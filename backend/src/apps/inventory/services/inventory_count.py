@@ -43,6 +43,7 @@ def approve_inventory_count(
 
         StockMovement.create_from_service(
             product=item.product,
+            inventory_count=inventory_count,
             movement_type=StockMovementType.ADJUSTMENT,
             direction=(
                 MovementDirection.IN

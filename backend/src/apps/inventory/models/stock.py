@@ -64,6 +64,14 @@ class StockMovement(AuditModel):
         blank=True,
     )
 
+    inventory_count = models.ForeignKey(
+        "InventoryCount",
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+        null=True,
+        blank=True,
+    )
+
     reverses_movement = models.OneToOneField(
         "self",
         on_delete=models.PROTECT,

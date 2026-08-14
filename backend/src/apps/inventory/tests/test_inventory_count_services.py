@@ -129,6 +129,11 @@ class InventoryCountServiceTest(TestCase):
             MovementDirection.OUT,
         )
 
+        self.assertEqual(
+            movement.inventory_count_id,
+            self.inventory_count.id,
+        )
+
     def test_generates_adjustment_when_stock_is_lower(self):
         initial_inventory(
             product=self.product,
