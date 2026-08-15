@@ -26,7 +26,7 @@ Estado actual:
 
     Backend base cerrado.
     Infraestructura productiva base implementada.
-    Frontend operativo en progreso (login, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores y servicios, conteos físicos).
+    Frontend operativo en progreso (login, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores y servicios, conteos físicos, movimientos de inventario).
     Validación con flujos reales pendiente.
 
 El backend base ya incluye autenticación, usuarios, roles, permisos por módulo, inventario, compras, costos, ventas, clientes, inyectores, búsqueda universal, reportes JSON, endpoint administrativo de estado y generación inicial de documentos PDF con códigos de barras reales.
@@ -113,6 +113,7 @@ Documento principal de cierre:
 - Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), y bandeja operativa de servicios (recepción, iniciar, marcar listo, entregar, anular) con datos técnicos editables y gestión de accesorios utilizados.
 - Módulo de conteos físicos: listado con filtros (búsqueda, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con Enter, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas en borrador, aprobación y anulación.
 - Navegación por roles y permisos.
+- Módulo de movimientos de inventario: listado general paginado con filtros (producto, ubicación, tipo, dirección, rango de fechas), modo kardex automático con saldo corriente al filtrar por un solo producto, y enlace desde cada movimiento a su origen (compra, venta o conteo físico). Reporte de stock por ubicación conectado a una pantalla propia, accesible por URL sin entrada de menú.
 - Pendiente: reportes desde la interfaz.
 
 ---
@@ -359,7 +360,7 @@ Validación técnica del backend base:
 
     Django check: OK
     Migraciones pendientes: no
-    Tests backend: 364 OK
+    Tests backend: 372 OK
     Build backend Docker: OK
 
 El backend base queda cerrado como `0.2.0-alpha`.

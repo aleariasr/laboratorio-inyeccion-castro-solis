@@ -26,7 +26,7 @@ En progreso.
 - F13 clientes: completada.
 - F14 inyectores y servicios: completada.
 - F15 conteos físicos: completada.
-- F16 movimientos y existencias: pendiente (el detalle de producto ya muestra su historial de movimientos paginado, construido junto con F8; falta la vista general de movimientos, kardex y stock por ubicación).
+- F16 movimientos y existencias: completada (la pantalla de stock por ubicación existe pero sin entrada en el menú, por solaparse con el filtro de ubicación de Productos).
 - F17 reportes: pendiente.
 - F18 documentos: pendiente (fuera de las etiquetas de producto, ya implementadas en F8).
 - F19 administración de usuarios: pendiente.

@@ -1011,7 +1011,7 @@ Cada cambio deberá incluir:
 
 ## Resuelto
 
-- Base técnica del frontend, sistema de diseño inicial, autenticación, navegación, estado del sistema, búsqueda universal (interfaz), productos, ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores, servicios y conteos físicos implementados (fases F1 a F15 del [roadmap de frontend](frontend-roadmap.md)).
+- Base técnica del frontend, sistema de diseño inicial, autenticación, navegación, estado del sistema, búsqueda universal (interfaz), productos, ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores, servicios, conteos físicos y movimientos de inventario implementados (fases F1 a F16 del [roadmap de frontend](frontend-roadmap.md)).
 - Imports duplicados en `customers/views.py`: resuelto, ya no existen.
 - Filtros de catálogo de inventario (productos, ubicaciones, proveedores, referencias): implementados.
 - Filtros de `customers` (cliente, inyector, estado, registro de servicio): implementados.
@@ -1022,6 +1022,7 @@ Cada cambio deberá incluir:
 - `apps/customers/views.py` (`CustomerViewSet`): implementado con búsqueda (`q`) que ya no fuerza solo clientes activos, filtro por tipo de cliente, estado activo y ordenamiento configurable. Corregida además la validación de identificación duplicada, que antes solo se aplicaba al crear un cliente.
 - `apps/customers/views.py` (`InjectorViewSet`, `InjectorServiceRecordViewSet`, `InjectorAccessoryViewSet`): implementados con búsqueda, filtros (cliente, inyector, estado, activo, rango de fechas de recepción) y ordenamiento configurable. Corregido además un bug real: editar un inyector con número duplicado para el mismo cliente causaba un `IntegrityError` 500 no controlado en vez de un error de validación.
 - `apps/inventory/views/inventory_count.py` (`InventoryCountViewSet`): implementado con búsqueda (`q` por referencia), filtro por estado, rango de fechas y estado activo, ordenamiento configurable, y nueva acción `cancel` (antes solo existía `approve`; el estado `CANCELLED` estaba definido en el modelo pero no era alcanzable desde la API).
+- `apps/inventory/views/stock_movement.py` (`StockMovementViewSet`): implementado con filtros opcionales (antes exigía `product`) por ubicación, tipo, dirección, rango de fechas, compra, venta y conteo físico, más ordenamiento configurable. `StockMovement` gana FK opcional a `InventoryCount` (migración `0018`) para vincular los ajustes generados por un conteo físico con el conteo que los originó, y el serializer expone `product_detail`, `purchase_id` e `inventory_count_reference` para trazabilidad completa desde el frontend.
 
 ## Todavía pendiente (verificado en el código actual)
 

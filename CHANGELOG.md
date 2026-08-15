@@ -33,6 +33,7 @@ El formato utiliza estas categorías:
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
 - Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición) y bandeja operativa de servicios de inyector (recepción, inicio, marcar listo, entrega y anulación), con datos técnicos editables mientras el servicio está abierto y gestión de accesorios utilizados con catálogo creado en línea.
 - Módulo de conteos físicos: listado con filtros (búsqueda por referencia, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con `Enter`, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas mientras el conteo está en borrador, aprobación (genera automáticamente movimientos de ajuste de inventario por cada diferencia) y anulación (acción nueva en el backend; antes solo existía aprobar y el estado `CANCELLED` no era alcanzable desde la API).
+- Módulo de movimientos de inventario: `StockMovementViewSet` ya no exige `product` (antes era obligatorio) y ahora acepta filtros opcionales por ubicación, tipo, dirección, rango de fechas, compra, venta y conteo físico, con ordenamiento configurable; `StockMovement` gana una FK opcional a `InventoryCount` para vincular cada ajuste generado por un conteo físico con el conteo que lo originó. Pantalla `/inventory/movements`: listado general paginado con esos mismos filtros y modo kardex automático (saldo corriente) al filtrar por un solo producto; cada movimiento enlaza a su origen (compra, venta o conteo físico). Reporte de stock por ubicación (`GET /api/reports/stock-by-location/`, ya existente en el backend) conectado a una pantalla propia (`/inventory/stock-by-location`), accesible por URL sin entrada de menú por solaparse con el filtro de ubicación ya existente en Productos.
 
 ### Fixed
 
@@ -41,6 +42,7 @@ El formato utiliza estas categorías:
 - Columna "Calculado" del histórico de costos: mostraba la fecha ISO sin formatear.
 - Validación de identificación duplicada de clientes: antes solo se aplicaba al crear un cliente; ahora también se aplica al editar, evitando que dos clientes queden con la misma identificación.
 - Validación de número de inyector duplicado por cliente: antes solo se aplicaba al crear; editar un inyector hacia un número ya usado por el mismo cliente producía un error 500 no controlado en vez de un error de validación.
+- El detalle de producto mostraba "Sin documento asociado" en ajustes generados por un conteo físico aprobado; ahora reconoce el conteo como origen.
 
 ### Pending
 
