@@ -1,0 +1,11 @@
+[Unit]
+Description=LICS - Vigilar y reconciliar servicios cada 2 minutos
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=10s
+Unit=lics-watchdog.service
+
+[Install]
+WantedBy=timers.target

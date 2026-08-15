@@ -1,0 +1,9 @@
+[Unit]
+Description=LICS - Reconciliar servicios productivos (autocuracion)
+Requires=docker.service
+After=docker.service lics.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/lics
+ExecStart=/opt/lics/scripts/start.sh

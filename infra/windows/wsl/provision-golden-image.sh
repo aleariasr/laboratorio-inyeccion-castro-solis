@@ -170,12 +170,31 @@ run_initial_migrations() {
 }
 
 install_systemd_units() {
-    log_info "Instalando lics.service y lics-backup.timer (sin modificar)..."
+    log_info "Instalando lics.service, lics-backup.timer y lics-watchdog.timer (sin modificar)..."
 
     /opt/lics/scripts/install-systemd.sh
     /opt/lics/scripts/install-backup-timer.sh
+    /opt/lics/scripts/install-watchdog-timer.sh
 
     log_ok "Unidades systemd instaladas y habilitadas."
+}
+
+disable_wsl_pro_service() {
+    # wsl-pro.service (agente de Ubuntu Pro) viene habilitado por defecto en
+    # las imagenes de Ubuntu para WSL y no lo usa LICS para nada. En una
+    # maquina real entro en crash-loop cada ~2 segundos porque no puede
+    # invocar interop hacia Windows (con appendWindowsPath=false en
+    # wsl.conf), generando ruido constante en el journal. Se enmascara
+    # siempre: es idempotente y no tiene efecto si el servicio ya no existe
+    # en una imagen base futura.
+    if ! command -v systemctl >/dev/null 2>&1; then
+        return
+    fi
+
+    log_info "Deshabilitando wsl-pro.service (no lo usa LICS, causaba crash-loop)..."
+    systemctl disable --now wsl-pro.service >/dev/null 2>&1 || true
+    systemctl mask wsl-pro.service >/dev/null 2>&1 || true
+    log_ok "wsl-pro.service enmascarado."
 }
 
 validate_start_and_health() {
@@ -199,6 +218,7 @@ main() {
     generate_env_file
     run_initial_migrations
     install_systemd_units
+    disable_wsl_pro_service
     validate_start_and_health
 
     log_ok "Aprovisionamiento completado. build-golden-image.ps1 continúa con el export."
