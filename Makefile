@@ -63,3 +63,5 @@ test-documents:
 
 run:
 	$(BACKEND) runserver 0.0.0.0:8000
+release:
+	./scripts/build-offline-release.sh
