@@ -1,28 +1,28 @@
-<#
+﻿<#
 .SYNOPSIS
     Construye la imagen dorada de WSL2 para LICS de punta a punta, en un solo
-    comando — incluyendo el reinicio de Windows si hace falta habilitar WSL2
+    comando - incluyendo el reinicio de Windows si hace falta habilitar WSL2
     por primera vez.
 
 .DESCRIPTION
-    Lo ÚNICO que este script NO puede hacer por vos es activar la
-    virtualización en BIOS/UEFI (Intel VT-x / AMD-V). Eso es un ajuste de
-    firmware; ningún script de Windows puede tocarlo. Si no está activa, el
+    Lo UNICO que este script NO puede hacer por vos es activar la
+    virtualizacion en BIOS/UEFI (Intel VT-x / AMD-V). Eso es un ajuste de
+    firmware; ningun script de Windows puede tocarlo. Si no esta activa, el
     script se detiene con un mensaje claro en vez de fallar a medias.
 
-    Todo lo demás es automático y reanudable:
+    Todo lo demas es automatico y reanudable:
       1. Habilita las funciones de Windows para WSL2 (reinicia solo si hace
-         falta, y se reanuda solo al volver a iniciar sesión, vía RunOnce).
+         falta, y se reanuda solo al volver a iniciar sesion, via RunOnce).
       2. Descarga el rootfs oficial de Ubuntu para WSL directamente de
-         Canonical e importa la distro con "wsl --import" — a propósito NO
+         Canonical e importa la distro con "wsl --import" - a proposito NO
          se usa "wsl --install", porque ese camino puede disparar un
-         asistente interactivo de creación de usuario. "--import" nunca lo
+         asistente interactivo de creacion de usuario. "--import" nunca lo
          hace: es solo un sistema de archivos, sin asistente.
       3. Activa systemd dentro de la distro (reinicia solo la distro, no
-         Windows — es liviano, unos segundos).
-      4. Corre provision-golden-image.sh (Docker, la app, imágenes, .env.prod,
+         Windows - es liviano, unos segundos).
+      4. Corre provision-golden-image.sh (Docker, la app, imagenes, .env.prod,
          migraciones, lics.service/lics-backup.timer, y valida start.sh y
-         healthcheck.sh tal cual están, sin tocarlos).
+         healthcheck.sh tal cual estan, sin tocarlos).
       5. Exporta la imagen dorada lista para el instalador de Windows.
 
 .PARAMETER ReleaseDir
@@ -30,7 +30,7 @@
     generado con scripts/build-offline-release.sh.
 
 .PARAMETER OutputPath
-    Dónde dejar el .tar final (ej. C:\lics-build\lics-wsl-rootfs.tar).
+    Donde dejar el .tar final (ej. C:\lics-build\lics-wsl-rootfs.tar).
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File build-golden-image.ps1 `
@@ -45,8 +45,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OutputPath,
 
-    # Uso interno: la marca este mismo script vía RunOnce para reanudarse
-    # automáticamente después de un reinicio de Windows. No se pasa a mano.
+    # Uso interno: la marca este mismo script via RunOnce para reanudarse
+    # automaticamente despues de un reinicio de Windows. No se pasa a mano.
     [switch]$Resume
 )
 
@@ -74,7 +74,7 @@ function Restore-StateIfResuming {
         $saved = Get-Content $StateFile -Raw | ConvertFrom-Json
         $script:ReleaseDir = $saved.releaseDir
         $script:OutputPath = $saved.outputPath
-        Write-Log "Reanudando después del reinicio (release: $ReleaseDir)"
+        Write-Log "Reanudando despues del reinicio (release: $ReleaseDir)"
     }
 }
 
@@ -85,7 +85,7 @@ function Register-ResumeAfterReboot {
     $command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -ReleaseDir `"$ReleaseDir`" -OutputPath `"$OutputPath`" -Resume"
     New-Item -Path $RunOnceKey -Force | Out-Null
     New-ItemProperty -Path $RunOnceKey -Name 'LICSBuildResume' -Value $command -PropertyType String -Force | Out-Null
-    Write-Log "Reanudación automática registrada para después del reinicio."
+    Write-Log "Reanudacion automatica registrada para despues del reinicio."
 }
 
 function Test-VirtualizationEnabled {
@@ -104,7 +104,7 @@ function Test-VirtualizationEnabled {
         $cpu = Get-CimInstance Win32_Processor -ErrorAction Stop
         $signals += [bool]$cpu.VirtualizationFirmwareEnabled
     } catch {
-        # sin señal de este lado
+        # sin senal de este lado
     }
 
     try {
@@ -113,7 +113,7 @@ function Test-VirtualizationEnabled {
             $signals += ($info -match ':\s*Yes')
         }
     } catch {
-        # sin señal de este lado
+        # sin senal de este lado
     }
 
     if ($signals.Count -eq 0) {
@@ -127,7 +127,7 @@ function Test-VirtualizationEnabled {
 
 function Step-EnableFeatures {
     if (-not (Test-VirtualizationEnabled)) {
-        Write-Log "AVISO: Windows reporta la virtualizacion como desactivada (Win32_Processor / systeminfo), pero esa señal es poco confiable en varios equipos reales."
+        Write-Log "AVISO: Windows reporta la virtualizacion como desactivada (Win32_Processor / systeminfo), pero esa senal es poco confiable en varios equipos reales."
         Write-Log "Como ya confirmaste que esta activa en BIOS/UEFI, se continua igual. Si de verdad no estuviera activa, va a fallar mas adelante con un error explicito de WSL (no a medias)."
     }
 
@@ -147,7 +147,7 @@ function Step-EnableFeatures {
 
     if ($needsReboot) {
         Write-Log "Windows necesita reiniciar para terminar de activar WSL2."
-        Write-Log "Se va a reiniciar en 15 segundos y va a CONTINUAR SOLO al volver a iniciar sesión con este mismo usuario."
+        Write-Log "Se va a reiniciar en 15 segundos y va a CONTINUAR SOLO al volver a iniciar sesion con este mismo usuario."
         Save-State
         Register-ResumeAfterReboot
         Start-Sleep -Seconds 15
@@ -159,12 +159,12 @@ function Step-EnableFeatures {
 }
 
 function Test-GzipFileValid {
-    # El .tar.gz pesa varios cientos de MB; si la conexión se corta a mitad
-    # de la descarga (como pasó acá: "se ha forzado la interrupción de una
-    # conexión existente por el host remoto"), Invoke-WebRequest puede dejar
+    # El .tar.gz pesa varios cientos de MB; si la conexion se corta a mitad
+    # de la descarga (como paso aca: "se ha forzado la interrupcion de una
+    # conexion existente por el host remoto"), Invoke-WebRequest puede dejar
     # un archivo parcial en disco SIN lanzar error. Esto lo detecta leyendo
-    # el gzip completo hasta el final; si está truncado, falla acá y no en
-    # medio de "wsl --import" con un error críptico de bsdtar.
+    # el gzip completo hasta el final; si esta truncado, falla aca y no en
+    # medio de "wsl --import" con un error criptico de bsdtar.
     param([string]$Path)
     try {
         $fs = [System.IO.File]::OpenRead($Path)
@@ -189,29 +189,29 @@ function Get-ValidRootfsFile {
     param([string]$Path)
 
     if ((Test-Path $Path) -and -not (Test-GzipFileValid -Path $Path)) {
-        Write-Log "El rootfs descargado antes está incompleto o dañado (se cortó la descarga), se borra y se descarga de nuevo."
+        Write-Log "El rootfs descargado antes esta incompleto o danado (se corto la descarga), se borra y se descarga de nuevo."
         Remove-Item -Path $Path -Force
     }
 
     if (Test-Path $Path) {
-        Write-Log "El rootfs base ya estaba descargado y es válido, se reutiliza."
+        Write-Log "El rootfs base ya estaba descargado y es valido, se reutiliza."
         return
     }
 
     $maxAttempts = 3
     for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
         try {
-            Write-Log "Descargando rootfs oficial de Ubuntu 24.04 para WSL (Canonical, sin asistente interactivo) — intento $attempt de $maxAttempts..."
+            Write-Log "Descargando rootfs oficial de Ubuntu 24.04 para WSL (Canonical, sin asistente interactivo) - intento $attempt de $maxAttempts..."
             Invoke-WebRequest -Uri $RootfsUrl -OutFile $Path
             if (Test-GzipFileValid -Path $Path) {
                 return
             }
-            throw "El archivo descargado no es un gzip válido (descarga incompleta)."
+            throw "El archivo descargado no es un gzip valido (descarga incompleta)."
         } catch {
-            Write-Log "Intento $attempt falló: $($_.Exception.Message)"
+            Write-Log "Intento $attempt fallo: $($_.Exception.Message)"
             Remove-Item -Path $Path -Force -ErrorAction SilentlyContinue
             if ($attempt -eq $maxAttempts) {
-                throw "No se pudo descargar un rootfs válido tras $maxAttempts intentos. Puede ser la conexión de esta red; volvé a correr el script."
+                throw "No se pudo descargar un rootfs valido tras $maxAttempts intentos. Puede ser la conexion de esta red; volve a correr el script."
             }
             Start-Sleep -Seconds 5
         }
@@ -221,7 +221,7 @@ function Get-ValidRootfsFile {
 function Step-InstallDistro {
     $existing = (wsl -l -q) 2>$null
     if ($existing -contains $DistroName) {
-        Write-Log "La distro $DistroName ya existe, se omite instalación."
+        Write-Log "La distro $DistroName ya existe, se omite instalacion."
         return
     }
 
@@ -238,17 +238,17 @@ function Step-InstallDistro {
 
     wsl -d $DistroName -- true
     if ($LASTEXITCODE -ne 0) {
-        throw "La distro $DistroName no arrancó tras importarla (código $LASTEXITCODE). Esta es la prueba real de si WSL2 puede correr: si el error de arriba menciona virtualización, Hyper-V o 'Virtual Machine Platform', entonces sí es la BIOS/UEFI, revisala de nuevo. Si el error es otro, no es un problema de virtualización."
+        throw "La distro $DistroName no arranco tras importarla (codigo $LASTEXITCODE). Esta es la prueba real de si WSL2 puede correr: si el error de arriba menciona virtualizacion, Hyper-V o 'Virtual Machine Platform', entonces si es la BIOS/UEFI, revisala de nuevo. Si el error es otro, no es un problema de virtualizacion."
     }
 
-    Write-Log "Distro base importada sin ninguna intervención manual."
+    Write-Log "Distro base importada sin ninguna intervencion manual."
 }
 
 function Step-EnableSystemdAndRootUser {
     $currentConf = (wsl -d $DistroName -- cat /etc/wsl.conf) 2>$null
 
     if ($currentConf -match 'systemd\s*=\s*true') {
-        Write-Log "systemd ya está activo dentro de la distro."
+        Write-Log "systemd ya esta activo dentro de la distro."
         return
     }
 
@@ -264,7 +264,7 @@ function Step-EnableSystemdAndRootUser {
     Write-Log "Estado de systemd tras reiniciar la distro: $status"
 
     if ($status -notmatch 'running|degraded') {
-        throw "systemd no arrancó correctamente dentro de la distro (estado: $status)."
+        throw "systemd no arranco correctamente dentro de la distro (estado: $status)."
     }
 }
 
@@ -286,7 +286,7 @@ function Step-Provision {
 
     Write-Log "Ejecutando provision-golden-image.sh como root dentro de la distro (esto tarda varios minutos)..."
     wsl -d $DistroName -- bash "$wslScriptPath" "$wslReleasePath"
-    if ($LASTEXITCODE -ne 0) { throw "provision-golden-image.sh terminó con errores (código $LASTEXITCODE). Revisá el log de arriba." }
+    if ($LASTEXITCODE -ne 0) { throw "provision-golden-image.sh termino con errores (codigo $LASTEXITCODE). Revisa el log de arriba." }
 }
 
 function Step-Export {
@@ -320,7 +320,7 @@ try {
 
     Remove-Item -Path $StateFile -ErrorAction SilentlyContinue
 
-    Write-Log "LISTO. Copiá '$OutputPath' a infra\windows\electron\resources\windows\lics-wsl-rootfs.tar y corré 'npm run dist' dentro de electron\."
+    Write-Log "LISTO. Copia '$OutputPath' a infra\windows\electron\resources\windows\lics-wsl-rootfs.tar y corre 'npm run dist' dentro de electron\."
 
 } catch {
     Write-Log "ERROR: $($_.Exception.Message)"
