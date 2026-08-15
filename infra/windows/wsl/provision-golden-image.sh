@@ -42,8 +42,16 @@ require_release_dir() {
 }
 
 install_docker_engine() {
-    if command -v docker >/dev/null 2>&1; then
-        log_ok "Docker ya está instalado, se omite instalación."
+    # Ojo: "command -v docker" solo no alcanza. Si esta maquina Windows tiene
+    # Docker Desktop instalado, puede inyectar un "docker" que en realidad
+    # es un stub (o el binario de Windows reenviado por WSL) que imprime
+    # "activate the WSL integration in Docker Desktop settings" en vez de
+    # funcionar — command -v lo encuentra igual, y esta función daba por
+    # buena una instalación que no existía. dpkg -s docker-ce solo da true
+    # si el paquete real de Docker Engine quedó instalado por este mismo
+    # script dentro de esta distro.
+    if dpkg -s docker-ce >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
+        log_ok "Docker Engine ya está instalado (docker-ce), se omite instalación."
         return
     fi
 

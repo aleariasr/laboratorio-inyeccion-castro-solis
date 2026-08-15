@@ -244,15 +244,24 @@ function Step-InstallDistro {
 }
 
 function Step-EnableSystemdAndRootUser {
+    # appendWindowsPath=false es a proposito: por defecto WSL2 mete el PATH
+    # de Windows dentro de la distro. Si esta maquina tiene Docker Desktop
+    # instalado (aunque sea sin usar), "docker" dentro de la distro resuelve
+    # al ejecutable de Windows en vez de al Docker Engine real de Linux, y
+    # ese ejecutable de Windows imprime "The command 'docker' could not be
+    # found in this WSL 2 distro" en vez de fallar limpio - lo cual hace que
+    # install_docker_engine() crea que Docker YA esta instalado (encuentra
+    # el comando) y se salte la instalacion real. Esta distro es un
+    # appliance de un solo proposito: no necesita nada del PATH de Windows.
     $currentConf = (wsl -d $DistroName -- cat /etc/wsl.conf) 2>$null
 
-    if ($currentConf -match 'systemd\s*=\s*true') {
-        Write-Log "systemd ya esta activo dentro de la distro."
+    if (($currentConf -match 'systemd\s*=\s*true') -and ($currentConf -match 'appendWindowsPath\s*=\s*false')) {
+        Write-Log "systemd y el aislamiento de PATH de Windows ya estaban activos dentro de la distro."
         return
     }
 
-    Write-Log "Activando systemd y usuario por defecto root dentro de la distro..."
-    $wslConf = "[boot]`nsystemd=true`n`n[user]`ndefault=root`n"
+    Write-Log "Activando systemd, usuario por defecto root y aislando el PATH de Windows dentro de la distro..."
+    $wslConf = "[boot]`nsystemd=true`n`n[user]`ndefault=root`n`n[interop]`nappendWindowsPath=false`n"
     $wslConf | wsl -d $DistroName -- tee /etc/wsl.conf | Out-Null
 
     Write-Log "Reiniciando la distro (solo la distro, no Windows) para aplicar systemd..."
