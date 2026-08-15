@@ -17,6 +17,7 @@ LICS es un sistema local/offline orientado a producción real. La documentación
 7. [Desarrollo](development.md)
 8. [Despliegue](deployment.md)
 8b. [Despliegue en Windows (app de escritorio)](../infra/windows/README.md)
+8c. [Cierre de etapa: app de escritorio para Windows](windows-desktop-stage-closure.md)
 9. [Backups y restauración](backup-restore.md)
 10. [Proceso de actualización](update-process.md)
 11. [Seguridad](security.md)
@@ -67,6 +68,28 @@ Incluye:
 - actualización;
 - rollback;
 - pruebas sobre Linux x86_64.
+
+## Cierre de etapa: app de escritorio para Windows
+
+Archivo:
+
+- [windows-desktop-stage-closure.md](windows-desktop-stage-closure.md)
+
+Propósito:
+
+Registra el cierre de la etapa de empaquetado de LICS como app de
+escritorio nativa para Windows, incluyendo detalle que no vive en ningún
+otro documento del repo.
+
+Incluye:
+
+- decisión de arquitectura (WSL2 + Docker Engine, sin modo kiosco);
+- flujo de release de dos máquinas reducido a un comando por máquina;
+- configuración completa del runner self-hosted de GitHub Actions;
+- todos los bugs reales encontrados y corregidos en hardware Windows real;
+- instalación y primer uso;
+- problema conocido de caídas intermitentes de conexión (mitigado, no resuelto);
+- pruebas realizadas y decisiones pendientes.
 
 ## Lista de preparación para producción
 
