@@ -7,6 +7,9 @@ name: build-windows-installer
 # tiene que existir en el disco de ese runner ANTES de correr este workflow
 # (se genera una sola vez, a mano, con wsl/build-golden-image.ps1 — ver
 # infra/windows/README.md).
+#
+# shell: powershell (no pwsh) porque este runner self-hosted solo tiene
+# Windows PowerShell 5.1 instalado, no PowerShell 7.
 
 on:
   workflow_dispatch:
@@ -17,6 +20,7 @@ jobs:
     defaults:
       run:
         working-directory: infra/windows/electron
+        shell: powershell
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +29,6 @@ jobs:
           node-version: 20
 
       - name: Verificar que la imagen dorada ya está en el runner
-        shell: pwsh
         run: |
           $tarPath = "resources\windows\lics-wsl-rootfs.tar"
           if (-not (Test-Path $tarPath)) {
