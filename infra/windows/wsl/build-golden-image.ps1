@@ -158,6 +158,66 @@ function Step-EnableFeatures {
     Write-Log "WSL2 y VirtualMachinePlatform ya estaban habilitados, no hace falta reiniciar."
 }
 
+function Test-GzipFileValid {
+    # El .tar.gz pesa varios cientos de MB; si la conexión se corta a mitad
+    # de la descarga (como pasó acá: "se ha forzado la interrupción de una
+    # conexión existente por el host remoto"), Invoke-WebRequest puede dejar
+    # un archivo parcial en disco SIN lanzar error. Esto lo detecta leyendo
+    # el gzip completo hasta el final; si está truncado, falla acá y no en
+    # medio de "wsl --import" con un error críptico de bsdtar.
+    param([string]$Path)
+    try {
+        $fs = [System.IO.File]::OpenRead($Path)
+        try {
+            $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Decompress)
+            $buffer = New-Object byte[] 1MB
+            while ($true) {
+                $read = $gz.Read($buffer, 0, $buffer.Length)
+                if ($read -le 0) { break }
+            }
+            $gz.Dispose()
+            return $true
+        } finally {
+            $fs.Dispose()
+        }
+    } catch {
+        return $false
+    }
+}
+
+function Get-ValidRootfsFile {
+    param([string]$Path)
+
+    if ((Test-Path $Path) -and -not (Test-GzipFileValid -Path $Path)) {
+        Write-Log "El rootfs descargado antes está incompleto o dañado (se cortó la descarga), se borra y se descarga de nuevo."
+        Remove-Item -Path $Path -Force
+    }
+
+    if (Test-Path $Path) {
+        Write-Log "El rootfs base ya estaba descargado y es válido, se reutiliza."
+        return
+    }
+
+    $maxAttempts = 3
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        try {
+            Write-Log "Descargando rootfs oficial de Ubuntu 24.04 para WSL (Canonical, sin asistente interactivo) — intento $attempt de $maxAttempts..."
+            Invoke-WebRequest -Uri $RootfsUrl -OutFile $Path
+            if (Test-GzipFileValid -Path $Path) {
+                return
+            }
+            throw "El archivo descargado no es un gzip válido (descarga incompleta)."
+        } catch {
+            Write-Log "Intento $attempt falló: $($_.Exception.Message)"
+            Remove-Item -Path $Path -Force -ErrorAction SilentlyContinue
+            if ($attempt -eq $maxAttempts) {
+                throw "No se pudo descargar un rootfs válido tras $maxAttempts intentos. Puede ser la conexión de esta red; volvé a correr el script."
+            }
+            Start-Sleep -Seconds 5
+        }
+    }
+}
+
 function Step-InstallDistro {
     $existing = (wsl -l -q) 2>$null
     if ($existing -contains $DistroName) {
@@ -170,12 +230,7 @@ function Step-InstallDistro {
     New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
     $rootfsPath = Join-Path $BuildDir 'ubuntu-base.tar.gz'
 
-    if (-not (Test-Path $rootfsPath)) {
-        Write-Log "Descargando rootfs oficial de Ubuntu 24.04 para WSL (Canonical, sin asistente interactivo)..."
-        Invoke-WebRequest -Uri $RootfsUrl -OutFile $rootfsPath
-    } else {
-        Write-Log "El rootfs base ya estaba descargado, se reutiliza."
-    }
+    Get-ValidRootfsFile -Path $rootfsPath
 
     Write-Log "Importando como distro '$DistroName' (wsl --import nunca dispara asistentes)..."
     wsl --import $DistroName $BuildDir $rootfsPath --version 2
