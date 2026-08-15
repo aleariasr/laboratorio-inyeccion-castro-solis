@@ -89,17 +89,46 @@ function Register-ResumeAfterReboot {
 }
 
 function Test-VirtualizationEnabled {
+    # Win32_Processor.VirtualizationFirmwareEnabled es conocido por dar falsos
+    # negativos en hardware real (WMI mal poblado por el fabricante, o no se
+    # actualiza sin un reinicio completo desde frio tras el cambio en BIOS).
+    # Por eso NO se usa como bloqueo duro: se combina con una segunda fuente
+    # (systeminfo, que usa una ruta distinta por debajo) y, si ninguna de las
+    # dos confirma que esta activa, se deja pasar con una advertencia en vez
+    # de frenar el script. La prueba real y confiable es mas abajo: si de
+    # verdad no hay virtualizacion, "wsl -d $DistroName -- true" en
+    # Step-InstallDistro va a fallar con un error explicito de WSL.
+    $signals = @()
+
     try {
         $cpu = Get-CimInstance Win32_Processor -ErrorAction Stop
-        return [bool]$cpu.VirtualizationFirmwareEnabled
+        $signals += [bool]$cpu.VirtualizationFirmwareEnabled
     } catch {
+        # sin señal de este lado
+    }
+
+    try {
+        $info = systeminfo 2>$null | Select-String 'Virtualization Enabled In Firmware'
+        if ($info) {
+            $signals += ($info -match ':\s*Yes')
+        }
+    } catch {
+        # sin señal de este lado
+    }
+
+    if ($signals.Count -eq 0) {
+        # Ninguna de las dos fuentes pudo responder: no bloquear por algo que
+        # no se pudo medir.
         return $true
     }
+
+    return ($signals -contains $true)
 }
 
 function Step-EnableFeatures {
     if (-not (Test-VirtualizationEnabled)) {
-        throw "La virtualizacion no esta activa en BIOS/UEFI (Intel VT-x / AMD-V). Esto NO se puede activar por software: entra a la BIOS, activala, y volve a correr este script."
+        Write-Log "AVISO: Windows reporta la virtualizacion como desactivada (Win32_Processor / systeminfo), pero esa señal es poco confiable en varios equipos reales."
+        Write-Log "Como ya confirmaste que esta activa en BIOS/UEFI, se continua igual. Si de verdad no estuviera activa, va a fallar mas adelante con un error explicito de WSL (no a medias)."
     }
 
     $features = @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform')
@@ -153,7 +182,9 @@ function Step-InstallDistro {
     if ($LASTEXITCODE -ne 0) { throw "wsl --import fallo con codigo $LASTEXITCODE" }
 
     wsl -d $DistroName -- true
-    if ($LASTEXITCODE -ne 0) { throw "La distro $DistroName no arrancó correctamente tras importarla." }
+    if ($LASTEXITCODE -ne 0) {
+        throw "La distro $DistroName no arrancó tras importarla (código $LASTEXITCODE). Esta es la prueba real de si WSL2 puede correr: si el error de arriba menciona virtualización, Hyper-V o 'Virtual Machine Platform', entonces sí es la BIOS/UEFI, revisala de nuevo. Si el error es otro, no es un problema de virtualización."
+    }
 
     Write-Log "Distro base importada sin ninguna intervención manual."
 }
