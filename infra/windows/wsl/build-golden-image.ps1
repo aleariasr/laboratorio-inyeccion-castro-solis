@@ -158,28 +158,26 @@ function Step-EnableFeatures {
     Write-Log "WSL2 y VirtualMachinePlatform ya estaban habilitados, no hace falta reiniciar."
 }
 
-function Test-GzipFileValid {
+function Test-RootfsArchiveValid {
     # El .tar.gz pesa varios cientos de MB; si la conexion se corta a mitad
-    # de la descarga (como paso aca: "se ha forzado la interrupcion de una
-    # conexion existente por el host remoto"), Invoke-WebRequest puede dejar
-    # un archivo parcial en disco SIN lanzar error. Esto lo detecta leyendo
-    # el gzip completo hasta el final; si esta truncado, falla aca y no en
-    # medio de "wsl --import" con un error criptico de bsdtar.
+    # de la descarga, Invoke-WebRequest puede dejar un archivo parcial en
+    # disco SIN lanzar error. Un primer intento de validar esto leyendo el
+    # stream de gzip con [System.IO.Compression.GZipStream] resulto NO
+    # confiable: .NET puede reportar "fin de stream" en un archivo truncado
+    # sin lanzar excepcion, dando un falso positivo (paso en la practica).
+    #
+    # Por eso esto usa tar.exe -tzf: el mismo bsdtar que "wsl --import" usa
+    # por debajo (se ve literal en sus mensajes de error), listando cada
+    # entrada del archivo de punta a punta. Si el archivo esta truncado,
+    # falla con codigo de salida distinto de 0 - exactamente lo mismo que
+    # WSL_E_IMPORT_FAILED iba a fallar despues, pero detectado antes y con
+    # un mensaje claro.
     param([string]$Path)
     try {
-        $fs = [System.IO.File]::OpenRead($Path)
-        try {
-            $gz = New-Object System.IO.Compression.GZipStream($fs, [System.IO.Compression.CompressionMode]::Decompress)
-            $buffer = New-Object byte[] 1MB
-            while ($true) {
-                $read = $gz.Read($buffer, 0, $buffer.Length)
-                if ($read -le 0) { break }
-            }
-            $gz.Dispose()
-            return $true
-        } finally {
-            $fs.Dispose()
-        }
+        $tarExe = Join-Path $env:WINDIR 'System32\tar.exe'
+        if (-not (Test-Path $tarExe)) { $tarExe = 'tar.exe' }
+        & $tarExe -tzf $Path *>$null
+        return ($LASTEXITCODE -eq 0)
     } catch {
         return $false
     }
@@ -188,13 +186,13 @@ function Test-GzipFileValid {
 function Get-ValidRootfsFile {
     param([string]$Path)
 
-    if ((Test-Path $Path) -and -not (Test-GzipFileValid -Path $Path)) {
-        Write-Log "El rootfs descargado antes esta incompleto o danado (se corto la descarga), se borra y se descarga de nuevo."
+    if ((Test-Path $Path) -and -not (Test-RootfsArchiveValid -Path $Path)) {
+        Write-Log "El rootfs descargado antes esta incompleto o danado (se corto la descarga o quedo a medias), se borra y se descarga de nuevo."
         Remove-Item -Path $Path -Force
     }
 
     if (Test-Path $Path) {
-        Write-Log "El rootfs base ya estaba descargado y es valido, se reutiliza."
+        Write-Log "El rootfs base ya estaba descargado y es valido (verificado con tar -tzf), se reutiliza."
         return
     }
 
@@ -203,10 +201,11 @@ function Get-ValidRootfsFile {
         try {
             Write-Log "Descargando rootfs oficial de Ubuntu 24.04 para WSL (Canonical, sin asistente interactivo) - intento $attempt de $maxAttempts..."
             Invoke-WebRequest -Uri $RootfsUrl -OutFile $Path
-            if (Test-GzipFileValid -Path $Path) {
+            if (Test-RootfsArchiveValid -Path $Path) {
+                Write-Log "Descarga verificada con tar -tzf: el archivo esta completo."
                 return
             }
-            throw "El archivo descargado no es un gzip valido (descarga incompleta)."
+            throw "El archivo descargado no paso la verificacion de tar -tzf (descarga incompleta)."
         } catch {
             Write-Log "Intento $attempt fallo: $($_.Exception.Message)"
             Remove-Item -Path $Path -Force -ErrorAction SilentlyContinue
