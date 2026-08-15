@@ -432,3 +432,63 @@ export function ClipboardCheckIcon({
     </svg>
   );
 }
+
+export function ArrowsUpDownIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M7 4.5v15M7 4.5 3.5 8M7 4.5 10.5 8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M17 19.5v-15M17 19.5 13.5 16M17 19.5 20.5 16"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function LayersIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M12 4.5 4 9l8 4.5L20 9z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="m4 13 8 4.5L20 13"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="m4 17 8 4.5L20 17"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

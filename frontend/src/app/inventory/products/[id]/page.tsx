@@ -160,6 +160,10 @@ function getMovementReference(
     return `Venta #${movement.sale_id}`;
   }
 
+  if (movement.inventory_count_reference) {
+    return `Conteo ${movement.inventory_count_reference}`;
+  }
+
   if (
     movement.reverses_movement !== null
   ) {
