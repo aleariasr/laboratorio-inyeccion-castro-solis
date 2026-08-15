@@ -34,6 +34,10 @@ El formato utiliza estas categorías:
 - Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición) y bandeja operativa de servicios de inyector (recepción, inicio, marcar listo, entrega y anulación), con datos técnicos editables mientras el servicio está abierto y gestión de accesorios utilizados con catálogo creado en línea.
 - Módulo de conteos físicos: listado con filtros (búsqueda por referencia, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con `Enter`, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas mientras el conteo está en borrador, aprobación (genera automáticamente movimientos de ajuste de inventario por cada diferencia) y anulación (acción nueva en el backend; antes solo existía aprobar y el estado `CANCELLED` no era alcanzable desde la API).
 - Módulo de movimientos de inventario: `StockMovementViewSet` ya no exige `product` (antes era obligatorio) y ahora acepta filtros opcionales por ubicación, tipo, dirección, rango de fechas, compra, venta y conteo físico, con ordenamiento configurable; `StockMovement` gana una FK opcional a `InventoryCount` para vincular cada ajuste generado por un conteo físico con el conteo que lo originó. Pantalla `/inventory/movements`: listado general paginado con esos mismos filtros y modo kardex automático (saldo corriente) al filtrar por un solo producto; cada movimiento enlaza a su origen (compra, venta o conteo físico). Reporte de stock por ubicación (`GET /api/reports/stock-by-location/`, ya existente en el backend) conectado a una pantalla propia (`/inventory/stock-by-location`), accesible por URL sin entrada de menú por solaparse con el filtro de ubicación ya existente en Productos.
+- `infra/systemd/lics-watchdog.service` y `lics-watchdog.timer`, instalados por `scripts/install-watchdog-timer.sh`: corren `start.sh` cada 2 minutos dentro de la distro para reconciliar cualquier servicio productivo (típicamente `nginx`) que haya quedado caído tras un reinicio inesperado del daemon de Docker. Ver `infra/windows/README.md` (sección "Problema conocido") para el detalle de la investigación.
+- `infra/windows/wsl/cut-release.ps1`: un solo comando en la Windows que detecta la carpeta de release offline más nueva en `C:\lics-dev\`, reconstruye la imagen dorada y dispara el workflow de Actions (`gh workflow run`, si está disponible GitHub CLI).
+- Target `make release` como atajo de `scripts/build-offline-release.sh`.
+- Validación en Windows 11 real de la app de escritorio (`infra/windows/`): imagen dorada, instalador `.exe` vía runner self-hosted de GitHub Actions, instalación, primera sesión y uso real.
 
 ### Fixed
 
@@ -43,6 +47,15 @@ El formato utiliza estas categorías:
 - Validación de identificación duplicada de clientes: antes solo se aplicaba al crear un cliente; ahora también se aplica al editar, evitando que dos clientes queden con la misma identificación.
 - Validación de número de inyector duplicado por cliente: antes solo se aplicaba al crear; editar un inyector hacia un número ya usado por el mismo cliente producía un error 500 no controlado en vez de un error de validación.
 - El detalle de producto mostraba "Sin documento asociado" en ajustes generados por un conteo físico aprobado; ahora reconoce el conteo como origen.
+- `build-golden-image.ps1`: el chequeo de virtualización (`Win32_Processor.VirtualizationFirmwareEnabled`) daba falso negativo en hardware real y bloqueaba la instalación aun con la BIOS/UEFI bien configurada; ahora es una advertencia, no un bloqueo — el chequeo real y definitivo es el intento de arranque de WSL2.
+- `build-golden-image.ps1`: una descarga de rootfs interrumpida dejaba un archivo corrupto que el script daba por válido solo por existir; ahora se valida con `tar -tzf` (la misma herramienta que usa WSL internamente) y se reintenta la descarga si falla.
+- `build-golden-image.ps1`: el script fallaba con un error de parseo de PowerShell ("Falta la cadena en el terminador") únicamente en Windows PowerShell 5.1 real, nunca en el entorno de desarrollo — causado por caracteres acentuados sin BOM UTF-8, que 5.1 decodifica mal con la codepage ANSI del sistema. Reescrito sin caracteres no-ASCII y guardado con BOM.
+- `provision-golden-image.sh`: `install_docker_engine()` daba por instalado Docker Engine con solo `command -v docker`, lo cual encontraba un stub de Docker Desktop (si estaba instalado en la Windows) sin que hubiera Docker Engine real dentro de la distro; ahora exige además `dpkg -s docker-ce`.
+- `build-golden-image.ps1`: aísla el `PATH` de Windows dentro de la distro (`[interop] appendWindowsPath=false` en `wsl.conf`) para que binarios del lado Windows no se filtren dentro de WSL2.
+- `wsl-pro.service` (agente de Ubuntu Pro, no usado por LICS) entraba en crash-loop constante por un problema de interop tras aislar el `PATH`; se enmascara por defecto en `provision-golden-image.sh`.
+- Workflow `build-windows-installer.yml`: usaba `shell: pwsh`, pero el runner self-hosted solo tiene Windows PowerShell 5.1 instalado (no PowerShell 7); cambiado a `shell: powershell`.
+- Workflow `build-windows-installer.yml`: el checkout del runner es una carpeta de trabajo aislada, distinta de cualquier clon manual en la máquina, y el `.tar` de la imagen dorada está en `.gitignore` a propósito (pesa varios GB); se agregó un paso que lo copia desde `C:\lics-build\` en cada corrida.
+- `npm run dist` (electron-builder) fallaba al extraer `winCodeSign` por falta de privilegio para crear symlinks (paquete trae `.dylib` de macOS aunque el build sea solo para Windows); resuelto activando el Modo de Desarrollador de Windows, no con una variable de entorno.
 
 ### Pending
 
@@ -56,6 +69,10 @@ El formato utiliza estas categorías:
 - Migración legacy DBF con archivos reales o muestras representativas.
 - Documentos PDF adicionales según validación real.
 - Caja y procesos financieros si el levantamiento lo confirma.
+- Causa raíz de por qué `docker.service` se reinicia solo dentro de WSL2 (mitigado con `lics-watchdog.timer`, no resuelto — ver `infra/windows/README.md`).
+- `provision-golden-image.sh` no crea un usuario administrador inicial (falta `createsuperuser`); hoy es un paso manual documentado, pendiente de automatizar antes de una versión estable.
+- `install_application()`/`install_docker_engine()` en `provision-golden-image.sh` omiten la reinstalación si ya existen; reconstruir la imagen dorada sobre una distro `lics-build` ya aprovisionada no recoge una versión nueva de la app.
+- Reemplazar `infra/windows/electron/build/icon.ico` (placeholder) por el logo real.
 
 ---
 

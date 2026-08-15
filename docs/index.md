@@ -16,6 +16,7 @@ LICS es un sistema local/offline orientado a producción real. La documentación
 6. [Dominio de inventario](domain/inventory.md)
 7. [Desarrollo](development.md)
 8. [Despliegue](deployment.md)
+8b. [Despliegue en Windows (app de escritorio)](../infra/windows/README.md)
 9. [Backups y restauración](backup-restore.md)
 10. [Proceso de actualización](update-process.md)
 11. [Seguridad](security.md)
