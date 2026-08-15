@@ -61,3 +61,8 @@ repo-audit.txt
 
 # Generated offline release packages
 /release/
+
+# App de escritorio Windows (imagen WSL2 y artefactos de build, nunca a git)
+/infra/windows/electron/resources/windows/*.tar
+/infra/windows/electron/dist/
+/infra/windows/electron/node_modules/

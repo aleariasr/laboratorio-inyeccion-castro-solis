@@ -82,80 +82,71 @@ virtualización en BIOS/UEFI**. Si no está activa, el script para con un
 mensaje claro en vez de fallar a medias — eso seguís teniendo que hacerlo vos
 a mano, una vez, antes de correr el script.
 
-Con el `.tar` ya generado:
+Con el `.tar` ya generado, dejalo en:
+
+```
+C:\lics-build\lics-wsl-rootfs.tar
+```
+
+(ya está listo `electron/build/icon.ico`, un placeholder con el nombre LICS —
+reemplazalo cuando tengan un logo real).
+
+### Compilar el `.exe`: GitHub Actions con runner self-hosted, no `windows-latest`
+
+Un runner `windows-latest` de GitHub **no sirve acá**: el instalador final
+incluye adentro toda la imagen de WSL2 (Ubuntu + Docker + la app + las 4
+imágenes cargadas), que pesa varios GB. No hay forma sana de mover eso a
+través de la nube de GitHub, y además esos runners no traen WSL2 utilizable
+(soportan virtualización anidada desde 2024, pero activar WSL2 pide un
+reinicio que un job de CI no puede dar).
+
+La solución es registrar la misma PC Windows donde ya generaste el `.tar`
+como **runner self-hosted** de GitHub Actions — el job corre en esa máquina,
+el archivo ya está ahí, nada pesado viaja por internet. Seguís usando la
+pestaña Actions de GitHub para dispararlo y bajar el instalador.
+
+Una sola vez, en esa Windows: **Settings > Actions > Runners > New
+self-hosted runner > Windows**, en tu repo de GitHub. Copiá y corré tal cual
+los comandos que GitHub te genera ahí (traen un token único por repo, no los
+copies de acá porque van a estar vencidos). Cuando `config.cmd` te pregunte
+por labels adicionales, agregá `lics-windows`. Al final, en vez de correrlo
+interactivo, instalalo como servicio de Windows para que quede siempre
+disponible:
 
 ```powershell
-copy C:\lics-build\lics-wsl-rootfs.tar electron\resources\windows\lics-wsl-rootfs.tar
+.\svc.cmd install
+.\svc.cmd start
 ```
 
-Agregá un ícono en `electron/build/icon.ico`, y compilá el instalador (podés
-hacerlo en la misma Windows, o desde tu Mac vía GitHub Actions — ver más
-abajo):
+Con el runner ya registrado y corriendo, agregá
+`.github/workflows/build-windows-installer.yml` (ya te lo dejé armado en el
+zip, en la raíz del repo, no dentro de `infra/windows/`). Cada vez que saques
+una versión nueva: pestaña **Actions > build-windows-installer > Run
+workflow**, y descargá `LICS-Setup` de los artefactos cuando termine.
 
-```powershell
-cd electron
-npm install
-npm run dist
-```
+Ojo, dos cosas:
 
-Esto produce `electron/dist/LICS-Setup-x.y.z.exe`.
-
-### Compilar el instalador desde Mac (sin necesitar Windows para esta parte)
-
-Electron-builder necesita Wine para armar el `.exe` cuando no corrés en
-Windows, y en Apple Silicon esa ruta está rota (falla con segfault). La forma
-confiable de compilarlo desde una Mac es un runner `windows-latest` de GitHub
-Actions — es una Windows real de Microsoft, sin Wine de por medio. Agregá
-`.github/workflows/build-windows-installer.yml`:
-
-```yaml
-name: build-windows-installer
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'infra/windows/electron/**'
-
-jobs:
-  build:
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: infra/windows/electron
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install
-      - run: npm run dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: LICS-Setup
-          path: infra/windows/electron/dist/*.exe
-```
-
-Dispará el workflow desde la pestaña Actions de GitHub y descargá el `.exe`
-generado. Ojo: sin certificado de firma de código, Windows va a mostrar
-SmartScreen ("Windows protegió su PC") al instalarlo — esperado, "Más
-información > Ejecutar de todas formas".
-
-Importante: esto compila el `.exe`, pero **no reemplaza** correr
-`build-golden-image.ps1` en una Windows real con virtualización activa — esa
-parte no se puede hacer en los runners de GitHub Actions (no traen WSL2
-utilizable: soportan virtualización anidada desde 2024, pero activar WSL2
-pide un reinicio que un job de CI no puede dar). Podés probar el instalador
-sin el `.tar` todavía — llega hasta "falta la imagen" y para ahí en vez de
-fallar feo, así que sirve para validar que el instalador en sí funciona
-mientras conseguís la Windows real para el resto.
+- Esto compila el `.exe`. **No reemplaza** correr `build-golden-image.ps1` —
+  ese paso sigue siendo manual, una sola vez (o cada vez que cambie la
+  versión de la app y quieras refrescar la imagen dorada), porque implica un
+  reinicio de Windows que un job de Actions no puede sobrevivir.
+- Sin certificado de firma de código, Windows va a mostrar SmartScreen
+  ("Windows protegió su PC") al instalar el `.exe` resultante — esperado,
+  "Más información > Ejecutar de todas formas".
+- **Nunca commitees el `.tar`** a git — agregá esto a `.gitignore`:
+  ```
+  infra/windows/electron/resources/windows/*.tar
+  infra/windows/electron/dist/
+  ```
 
 ---
 
 ## Estructura de este directorio
 
 ```
+.github/workflows/
+  build-windows-installer.yml        corre en el runner self-hosted (tu PC Windows)
+
 infra/windows/
   README.md                          este archivo
   wsl/

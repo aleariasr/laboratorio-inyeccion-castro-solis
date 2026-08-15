@@ -1,25 +1,43 @@
 name: build-windows-installer
 
+# Corre en un runner self-hosted (tu propia PC Windows), no en windows-latest
+# de GitHub: el instalador final incluye la imagen completa de WSL2 (varios
+# GB), y eso no tiene sentido subirlo/bajarlo a través de la nube de GitHub.
+# El .tar (infra/windows/electron/resources/windows/lics-wsl-rootfs.tar) ya
+# tiene que existir en el disco de ese runner ANTES de correr este workflow
+# (se genera una sola vez, a mano, con wsl/build-golden-image.ps1 — ver
+# infra/windows/README.md).
+
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'infra/windows/electron/**'
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, lics-windows]
     defaults:
       run:
         working-directory: infra/windows/electron
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Verificar que la imagen dorada ya está en el runner
+        shell: pwsh
+        run: |
+          $tarPath = "resources\windows\lics-wsl-rootfs.tar"
+          if (-not (Test-Path $tarPath)) {
+            Write-Error "Falta $tarPath en este runner. Corré wsl/build-golden-image.ps1 una vez en esta misma máquina antes de disparar este workflow (ver infra/windows/README.md)."
+            exit 1
+          }
+          Write-Host "Imagen dorada encontrada: $((Get-Item $tarPath).Length / 1GB) GB"
+
       - run: npm install
+
       - run: npm run dist
+
       - uses: actions/upload-artifact@v4
         with:
           name: LICS-Setup
