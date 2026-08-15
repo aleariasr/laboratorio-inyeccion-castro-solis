@@ -198,62 +198,88 @@ Con el `.exe` (artefacto `LICS-Setup` de Actions) ya en la máquina destino:
 
 ---
 
-## Problema conocido: caídas intermitentes de conexión (mitigado, no resuelto)
+## Problema conocido: caídas intermitentes de conexión (causa probable identificada, mitigada)
 
 Durante la validación en hardware real, la app perdía la conexión de forma
 espontánea navegando entre pantallas ("No fue posible comunicarse con el
-sistema local"). Investigado a fondo; esto es lo que se confirmó y lo que
-quedó sin confirmar:
+sistema local"). Investigado a fondo, en dos rondas — la primera quedó sin
+causa raíz confirmada, la segunda (con logs más precisos) encontró la causa
+más probable real:
 
-**Confirmado por evidencia real** (no por descarte a ciegas):
+**Causa más probable (identificada en la segunda ronda, con log exacto):**
 
-- `docker.service` (el daemon de Docker, no un contenedor puntual) se
-  reinicia solo dentro de la distro `lics-wsl`, en intervalos irregulares.
-  Cuando pasa, para todos los contenedores con su señal de parada respectiva.
-  `backend`, `frontend` y `postgres` vuelven solos al reiniciar el daemon,
-  pero `nginx` no — porque depende de que `backend`/`frontend` ya estén
-  resueltos por DNS (`depends_on: condition: service_healthy` en
-  `compose.prod.yml`), y esa lógica de orden es de `docker compose`, no del
-  daemon crudo. `nginx` se queda caído hasta que alguien lo levante a mano.
-- Al menos una vez, no solo `docker.service` sino la VM entera de WSL2 se
-  reinició ("uncleanly shutdown" en el journal de systemd).
+No es `docker.service` reiniciándose solo. Es **la distro `lics-wsl`
+completa arrancando desde cero y, segundos después de terminar de arrancar,
+recibiendo una orden de apagado** (`systemd-logind: The system will power
+off now!`, `poweroff.target` completo — todo `systemd`, no solo Docker; por
+eso `lics-watchdog.timer` también aparecía reiniciado, no solo
+`docker.service`). El propio WSL dejó la pista en su journal:
+
+```
+WSL (2 - init-systemd(lics-wsl)) ERROR: WaitForBootProcess:3488: /sbin/init failed to start within 10000ms
+```
+
+El arranque de `systemd` tardó 22.8 segundos — más que el timeout interno de
+10 segundos de WSL2 para considerar que la distro arrancó. Se comprobó que
+**no era WSL desactualizado** (`wsl --version` daba la última versión
+disponible) y **no era la app Electron** (revisado `lib/backend.js` y
+`main.js` completos: no hay ningún `wsl --terminate`/`--shutdown` ni
+polling automático en el código). Lo que sí se encontró: el directorio de
+la distro (`C:\ProgramData\LICS\wsl`, con el `.vhdx` adentro) **no tenía
+ninguna exclusión en Windows Defender** (`Get-MpPreference
+-ExclusionPath` vacío) — el escenario clásico donde el antivirus escaneando
+el disco en tiempo real frena el I/O lo suficiente como para que systemd
+tarde más de 10 segundos en arrancar, WSL se rinda esperando, y mate la
+distro justo después de que termina de levantar.
+
+**Mitigación aplicada, dos capas:**
+
+1. **Exclusión de Windows Defender**, agregada ahora a mano
+   (`Add-MpPreference -ExclusionPath "C:\ProgramData\LICS\wsl"`) y
+   **automatizada en el instalador** desde esta versión —
+   `install-wsl-distro.ps1` y `build-golden-image.ps1` la agregan solos, sin
+   intervención manual, en cada instalación e imagen dorada nuevas.
+2. **`lics-watchdog.timer`** (ver más abajo) sigue instalado como red de
+   seguridad: si esto (o cualquier otra causa) vuelve a tumbar la distro, se
+   reconcilia solo en menos de 2 minutos.
+
+Esto todavía no está confirmado al 100% con uso extendido real después de la
+exclusión — es la explicación más consistente con toda la evidencia
+juntada, no una certeza absoluta. Si vuelve a pasar con la exclusión ya
+puesta, el siguiente sospechoso a revisar es presión de memoria (límite
+`memory=` en `.wslconfig` demasiado ajustado, o RAM del lado Windows
+agotándose en el momento exacto).
+
+**Confirmado en la primera ronda de investigación** (sigue siendo cierto,
+aunque ya no se cree que sea la causa principal):
+
+- Cuando `docker.service`/la distro se reinician, `backend`, `frontend` y
+  `postgres` vuelven solos, pero `nginx` no — porque depende de que
+  `backend`/`frontend` ya estén resueltos por DNS (`depends_on: condition:
+  service_healthy` en `compose.prod.yml`), y esa lógica de orden es de
+  `docker compose`, no del daemon crudo. `nginx` se queda caído hasta que
+  alguien lo levante a mano (o hasta que pase el watchdog).
 - `wsl-pro.service` (agente de Ubuntu Pro, viene de fábrica en la imagen de
   Ubuntu, LICS no lo usa) estaba en crash-loop constante por un problema de
-  interop con Windows — generaba ruido pero **no era la causa principal**:
-  se enmascaró (`provision-golden-image.sh` lo hace por defecto ahora) y el
-  problema de fondo siguió pasando igual.
+  interop con Windows — generaba ruido pero no era la causa principal; se
+  enmascaró (`provision-golden-image.sh` lo hace por defecto) igual.
 
-**Descartado con evidencia, no por suposición:**
+**Descartado con evidencia, no por suposición, en cualquiera de las dos
+rondas:** apagado por inactividad de WSL2 (`vmIdleTimeout=-1`, correcto),
+Docker Desktop instalado (desinstalado por completo, el problema siguió),
+suspensión/hibernación de Windows (cero eventos `Kernel-Power`), crash de
+Hyper-V (cero eventos), WSL desactualizado, código de la app Electron.
 
-- Apagado por inactividad de WSL2 (`vmIdleTimeout`) — está correctamente
-  configurado en `-1` para el usuario de Windows real que usa la app.
-- Docker Desktop instalado en la misma máquina — se desinstaló por completo
-  y el problema siguió.
-- Suspensión/hibernación de Windows — cero eventos `Kernel-Power` en el
-  Visor de Eventos en el momento exacto de una caída.
-- Un crash de Hyper-V logueado por Windows — cero eventos también.
-
-**Sin confirmar todavía:** quién o qué reinicia `docker.service` (y, al
-menos una vez, la VM completa). No dejó rastro en el Visor de Eventos de
-Windows, lo que sugiere algo a nivel de `wsl.exe --shutdown`/`--terminate` o
-un problema interno de la VM (se llegó a ver un journal marcado como
-`corrupted or uncleanly shutdown`, compatible con corrupción del disco
-virtual de la distro tras varios ciclos de apagado forzado durante la propia
-sesión de debugging). La distro se reconstruyó desde cero como medida de
-precaución; si el síntoma reaparece en una imagen construida limpia, la
-corrupción queda descartada también.
-
-**Mitigación instalada (`lics-watchdog.timer`):** corre `start.sh` cada 2
-minutos dentro de la distro. Como `start.sh` pasa por `docker compose up`
-(que sí respeta `depends_on`), cualquier servicio que haya quedado caído por
-un reinicio crudo del daemon se reconcilia solo en menos de 2 minutos, sin
-que el usuario tenga que notar nada ni tocar el menú "Reiniciar servicios".
-No arregla la causa de fondo — la esconde lo suficiente para que no sea un
-problema de uso diario mientras se sigue investigando.
+**Mitigación de red de seguridad (`lics-watchdog.timer`):** corre
+`start.sh` cada 2 minutos dentro de la distro. Como `start.sh` pasa por
+`docker compose up` (que sí respeta `depends_on`), cualquier servicio que
+haya quedado caído se reconcilia solo en menos de 2 minutos, sin que el
+usuario tenga que notar nada ni tocar el menú "Reiniciar servicios".
 
 Si esto vuelve a aparecer: `docs/troubleshooting.md` tiene la sección
 "Windows: caídas intermitentes de conexión" con los comandos de diagnóstico
-ya probados.
+ya probados, incluyendo cómo leer el journal para confirmar si es este mismo
+patrón (arranque + apagado a los pocos segundos) u otro nuevo.
 
 ---
 

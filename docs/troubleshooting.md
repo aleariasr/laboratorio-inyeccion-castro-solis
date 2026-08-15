@@ -179,9 +179,9 @@ La restauración requiere una confirmación explícita y crea automáticamente u
 
 Síntoma: usando la app de escritorio en Windows (ver `infra/windows/README.md`), en algún momento navegando entre pantallas aparece "No fue posible comunicarse con el sistema local", y si se sigue navegando puede llegar a quedar la pantalla en blanco.
 
-Causa raíz confirmada en al menos una investigación real: `docker.service` (el daemon, no un contenedor) se reinicia solo dentro de la distro WSL2. `nginx` no vuelve solo después de ese reinicio porque depende de que `backend`/`frontend` ya estén resueltos por DNS, y esa lógica de orden es de `docker compose`, no del daemon. Ver el detalle completo, lo confirmado y lo que quedó sin explicar, en la sección "Problema conocido" de `infra/windows/README.md`.
+Causa más probable, identificada con evidencia real: no es `docker.service` reiniciándose solo, es la distro `lics-wsl` completa arrancando y, segundos después de terminar de arrancar, recibiendo una orden de apagado (`poweroff.target` completo) — probablemente porque el antivirus escanea en tiempo real el disco de la distro y frena el arranque de `systemd` más allá del timeout interno de WSL2 (10 segundos). `nginx` no vuelve solo tras esto porque depende de que `backend`/`frontend` ya estén resueltos por DNS, y esa lógica de orden es de `docker compose`, no del daemon. Ver el detalle completo, con el log exacto que lo confirmó, en la sección "Problema conocido" de `infra/windows/README.md`.
 
-Desde la versión con `lics-watchdog.timer` instalado, esto se autocorrige solo en menos de 2 minutos. Si igual se repite seguido, diagnosticar en este orden, todo vía PowerShell en la Windows contra la distro `lics-wsl`:
+Mitigación aplicada en dos capas: exclusión de Windows Defender sobre `C:\ProgramData\LICS\wsl` (automatizada en el instalador desde esta versión) y `lics-watchdog.timer`, que autocorrige cualquier servicio caído en menos de 2 minutos pase lo que pase. Si igual se repite seguido, diagnosticar en este orden, todo vía PowerShell en la Windows contra la distro `lics-wsl`:
 
 ## 1. Ver qué contenedor quedó caído
 
@@ -214,3 +214,23 @@ wsl -d lics-wsl -- bash -c "cd /opt/lics/infra/docker && docker compose --env-fi
 ```
 
 `docker compose up -d` es seguro de repetir: no reconstruye ni descarga nada, solo levanta lo que esté caído respetando el orden de dependencias.
+
+## 5. Confirmar si es el mismo patrón (arranque + apagado a los pocos segundos)
+
+```powershell
+wsl -d lics-wsl -- bash -c "journalctl --no-pager -u docker.service -u lics-watchdog.timer -n 40"
+```
+
+Buscar `Started docker.service`/`Started lics-watchdog.timer` seguido, un minuto o dos después, de `Stopped` de ambos al mismo tiempo — eso es el patrón ya identificado (distro completa reiniciándose, no solo Docker). Si aparece, revisar la línea `WaitForBootProcess ... failed to start within 10000ms` cerca del arranque: confirma que fue el timeout de WSL2, no otra cosa.
+
+## 6. Confirmar la exclusión de Windows Defender
+
+```powershell
+Get-MpPreference | Select-Object -ExpandProperty ExclusionPath
+```
+
+Debe aparecer `C:\ProgramData\LICS\wsl`. Si no está (por ejemplo, en una instalación hecha antes de que el instalador la agregara sola), agregarla a mano:
+
+```powershell
+Add-MpPreference -ExclusionPath "C:\ProgramData\LICS\wsl"
+```

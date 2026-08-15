@@ -68,6 +68,20 @@ try {
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     }
 
+    # El disco de la distro (.vhdx) vive en $InstallDir. Sin excluirlo del
+    # antivirus en tiempo real, el escaneo puede frenar el I/O lo suficiente
+    # como para que el arranque de systemd supere el timeout interno de WSL2
+    # (10s) y WSL termine apagando la distro justo despues de terminar de
+    # arrancarla -- visto en validacion real como cortes intermitentes de
+    # conexion. No es fatal si falla (puede haber otro antivirus, o esto no
+    # correr como admin todavia en ese punto).
+    try {
+        Add-MpPreference -ExclusionPath $InstallDir -ErrorAction Stop
+        Write-Log "Excluido $InstallDir del escaneo en tiempo real de Windows Defender."
+    } catch {
+        Write-Log "ADVERTENCIA: no se pudo agregar $InstallDir a las exclusiones de Windows Defender ($($_.Exception.Message)). Si usan otro antivirus, agreguen esa exclusion a mano."
+    }
+
     $existingDistros = (wsl -l -q) 2>$null
     if ($existingDistros -notcontains $DistroName) {
         Write-Log "Importando distro $DistroName desde $RootfsPath (puede tardar varios minutos)..."

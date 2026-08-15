@@ -265,26 +265,47 @@ espontánea navegando entre pantallas ("No fue posible comunicarse con el
 sistema local"), llegando incluso a pantallas en blanco si se seguía
 navegando.
 
-Investigación completa (confirmado con evidencia, descartado con evidencia,
-y lo que quedó sin confirmar) documentada en `infra/windows/README.md`,
-sección "Problema conocido: caídas intermitentes de conexión". Resumen:
+Investigada en dos rondas. La primera (evidencia indirecta, journal general)
+no encontró causa raíz confirmada. La segunda, con `journalctl` acotado a
+las unidades exactas y a la ventana de tiempo exacta del corte, sí encontró
+una causa concreta y consistente con toda la evidencia. Documentado en
+detalle, con el log exacto, en `infra/windows/README.md`, sección "Problema
+conocido". Resumen:
 
-- Causa confirmada: `docker.service` se reinicia solo dentro de la distro
-  en intervalos irregulares; `nginx` no se recupera solo porque su
-  `depends_on: condition: service_healthy` es lógica de `docker compose`,
-  no del daemon crudo. Al menos una vez se reinició la VM de WSL2 entera,
-  no solo el daemon.
-- Descartado con evidencia real (no por suposición): `vmIdleTimeout`,
-  Docker Desktop residual, suspensión/hibernación de Windows, crash de
-  Hyper-V — los cuatro con verificación explícita, no asumidos.
-- Causa raíz de fondo: **sin confirmar**. No queda rastro en el Visor de
-  Eventos de Windows.
-- Mitigado, no resuelto, con `lics-watchdog.timer` (§10): reconcilia
-  cualquier servicio caído en menos de 2 minutos sin intervención del
-  usuario.
+- **No es `docker.service` reiniciándose solo.** Es la distro `lics-wsl`
+  completa arrancando (`systemd` completo, no solo Docker — por eso
+  `lics-watchdog.timer` también aparecía reiniciado) y, entre 2 y 15
+  segundos después de terminar de arrancar, recibiendo una orden de apagado
+  limpia (`systemd-logind: The system will power off now!`,
+  `poweroff.target` completo).
+- El propio journal de WSL dejó la pista: `WaitForBootProcess:3488: /sbin/init
+  failed to start within 10000ms` — el arranque de `systemd` tardó 22.8
+  segundos, más que el timeout interno de WSL2 (10 segundos) para considerar
+  que la distro arrancó.
+- Descartado con evidencia real en esta segunda ronda: WSL desactualizado
+  (`wsl --version` ya en la última versión) y código de la app Electron
+  (`lib/backend.js`/`main.js` revisados completos: no hay ningún `wsl
+  --terminate`/`--shutdown` ni polling automático).
+- Causa más probable encontrada: el directorio de la distro
+  (`C:\ProgramData\LICS\wsl`, con el `.vhdx` adentro) no tenía ninguna
+  exclusión configurada en Windows Defender (`Get-MpPreference
+  -ExclusionPath` vacío) — el escenario típico donde el antivirus escaneando
+  el disco en tiempo real frena el I/O lo suficiente como para disparar el
+  timeout de 10 segundos de WSL2.
+- Descartado con evidencia real en la primera ronda (sigue siendo válido):
+  `vmIdleTimeout`, Docker Desktop residual, suspensión/hibernación de
+  Windows, crash de Hyper-V.
+- Mitigado en dos capas: exclusión de Windows Defender (aplicada a mano y
+  automatizada en `install-wsl-distro.ps1`/`build-golden-image.ps1` desde
+  esta versión) y `lics-watchdog.timer` (§10) como red de seguridad.
+- **Todavía no confirmado al 100%** con uso extendido real después de la
+  exclusión — es la explicación más consistente con la evidencia, no una
+  certeza absoluta.
 
 Comandos de diagnóstico si reaparece: `docs/troubleshooting.md`, sección
-"Windows: caídas intermitentes de conexión".
+"Windows: caídas intermitentes de conexión" — incluye cómo confirmar si es
+el mismo patrón (arranque + apagado a los pocos segundos) u otra causa
+nueva.
 
 ## 10. Mitigación: `lics-watchdog.timer`
 
@@ -320,8 +341,10 @@ Validación en Windows 11 real, 15/08/2026:
 
 ## 12. Riesgos y limitaciones actuales
 
-- La causa raíz de los reinicios de `docker.service`/VM sigue sin
-  confirmarse; la mitigación depende de que el watchdog esté corriendo.
+- La causa más probable de las caídas intermitentes (exclusión de Windows
+  Defender faltante) no está confirmada al 100% con uso extendido real
+  todavía; `lics-watchdog.timer` sigue como red de seguridad de todas
+  formas.
 - No hay puente automático de archivos entre la máquina de build y la
   Windows — la transferencia del release es manual.
 - `provision-golden-image.sh` no automatiza `createsuperuser`.
@@ -336,9 +359,8 @@ Validación en Windows 11 real, 15/08/2026:
 - Automatizar `createsuperuser` (o un flujo equivalente de primer usuario)
   dentro de `provision-golden-image.sh`.
 - Resolver skip-if-exists en `install_application()`/`install_docker_engine()`.
-- Confirmar la causa raíz del problema del §9, o aceptar la mitigación como
-  solución definitiva si el síntoma no reaparece en la imagen reconstruida
-  desde cero.
+- Confirmar con uso extendido real que la exclusión de Windows Defender
+  (§9) elimina las caídas intermitentes de forma definitiva.
 - Reemplazar el ícono placeholder por el logo real de LICS.
 - Evaluar certificado de firma de código si SmartScreen se vuelve un
   problema para usuarios finales no técnicos.

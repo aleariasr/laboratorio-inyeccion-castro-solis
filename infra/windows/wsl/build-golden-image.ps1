@@ -227,6 +227,18 @@ function Step-InstallDistro {
     wsl --set-default-version 2 | Out-Null
 
     New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
+
+    # Mismo motivo que en install-wsl-distro.ps1: sin excluir el .vhdx del
+    # antivirus en tiempo real, el escaneo puede frenar el arranque de
+    # systemd lo suficiente como para que WSL2 lo mate por timeout (10s) justo
+    # despues de terminar de arrancar. No es fatal si falla.
+    try {
+        Add-MpPreference -ExclusionPath $BuildDir -ErrorAction Stop
+        Write-Log "Excluido $BuildDir del escaneo en tiempo real de Windows Defender."
+    } catch {
+        Write-Log "ADVERTENCIA: no se pudo agregar $BuildDir a las exclusiones de Windows Defender ($($_.Exception.Message))."
+    }
+
     $rootfsPath = Join-Path $BuildDir 'ubuntu-base.tar.gz'
 
     Get-ValidRootfsFile -Path $rootfsPath
