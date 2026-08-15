@@ -1,4 +1,5 @@
 import {
+  ArrowsUpDownIcon,
   CartIcon,
   ClipboardCheckIcon,
   DropletIcon,
@@ -107,6 +108,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Conteos físicos",
     section: "inventory",
     icon: ClipboardCheckIcon,
+    roles: [
+      "INVENTORY",
+      "READ_ONLY",
+    ],
+  },
+  {
+    href: "/inventory/movements",
+    label: "Movimientos",
+    section: "inventory",
+    icon: ArrowsUpDownIcon,
     roles: [
       "INVENTORY",
       "READ_ONLY",
