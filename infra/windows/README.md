@@ -175,6 +175,29 @@ Ojo, dos cosas:
 
 ---
 
+## Instalación y primer uso (repetir en cada instalación nueva)
+
+Con el `.exe` (artefacto `LICS-Setup` de Actions) ya en la máquina destino:
+
+1. Correr el instalador. El NSIS importa la distro `lics-wsl` desde el
+   `.tar` embebido y registra la tarea programada de inicio
+   (`register-scheduled-task.ps1`).
+2. Abrir el ícono "LICS" del escritorio. Primera vez: pantalla de
+   "Iniciando…" mientras arrancan Docker/PostgreSQL/backend/frontend/nginx
+   dentro de WSL2; las siguientes veces, si ya estaban corriendo, es casi
+   instantáneo.
+3. **Crear el primer usuario administrador.** Todavía no está automatizado
+   en `provision-golden-image.sh` (ver `docs/windows-desktop-stage-closure.md`,
+   §13) — es un paso manual, una sola vez por instalación nueva, en
+   PowerShell contra la distro `lics-wsl`:
+   ```powershell
+   wsl -d lics-wsl -- bash -c "cd /opt/lics/infra/docker && docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps backend python src/manage.py createsuperuser"
+   ```
+   Pide usuario, correo (opcional) y contraseña por teclado.
+4. Iniciar sesión en la app con ese usuario.
+
+---
+
 ## Problema conocido: caídas intermitentes de conexión (mitigado, no resuelto)
 
 Durante la validación en hardware real, la app perdía la conexión de forma
