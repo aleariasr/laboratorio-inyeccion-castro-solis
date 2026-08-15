@@ -3,10 +3,14 @@ name: build-windows-installer
 # Corre en un runner self-hosted (tu propia PC Windows), no en windows-latest
 # de GitHub: el instalador final incluye la imagen completa de WSL2 (varios
 # GB), y eso no tiene sentido subirlo/bajarlo a través de la nube de GitHub.
-# El .tar (infra/windows/electron/resources/windows/lics-wsl-rootfs.tar) ya
-# tiene que existir en el disco de ese runner ANTES de correr este workflow
-# (se genera una sola vez, a mano, con wsl/build-golden-image.ps1 — ver
-# infra/windows/README.md).
+#
+# El runner clona el repo en su propia carpeta de trabajo interna en cada
+# corrida (no reutiliza C:\lics-dev\laboratorio-inyeccion-castro-solis), y
+# el .tar está en .gitignore a propósito (pesa varios GB, nunca va a git).
+# Por eso este workflow lo copia en cada corrida desde C:\lics-build\ (fuera
+# del repo, generado una sola vez con wsl/build-golden-image.ps1) hacia
+# adentro del checkout — así no depende de una copia manual que además se
+# borraría con cada checkout limpio.
 #
 # shell: powershell (no pwsh) porque este runner self-hosted solo tiene
 # Windows PowerShell 5.1 instalado, no PowerShell 7.
@@ -28,14 +32,17 @@ jobs:
         with:
           node-version: 20
 
-      - name: Verificar que la imagen dorada ya está en el runner
+      - name: Copiar la imagen dorada desde C:\lics-build
         run: |
-          $tarPath = "resources\windows\lics-wsl-rootfs.tar"
-          if (-not (Test-Path $tarPath)) {
-            Write-Error "Falta $tarPath en este runner. Corré wsl/build-golden-image.ps1 una vez en esta misma máquina antes de disparar este workflow (ver infra/windows/README.md)."
+          $source = "C:\lics-build\lics-wsl-rootfs.tar"
+          $dest = "resources\windows\lics-wsl-rootfs.tar"
+          if (-not (Test-Path $source)) {
+            Write-Error "Falta $source en este runner. Corré wsl/build-golden-image.ps1 una vez en esta misma máquina antes de disparar este workflow (ver infra/windows/README.md)."
             exit 1
           }
-          Write-Host "Imagen dorada encontrada: $((Get-Item $tarPath).Length / 1GB) GB"
+          New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
+          Copy-Item -Path $source -Destination $dest -Force
+          Write-Host "Imagen dorada copiada: $((Get-Item $dest).Length / 1GB) GB"
 
       - run: npm install
 
