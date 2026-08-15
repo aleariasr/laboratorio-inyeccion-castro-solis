@@ -1,0 +1,46 @@
+{
+  "name": "lics-desktop",
+  "version": "0.1.0",
+  "description": "Aplicacion de escritorio LICS (Laboratorio de Inyeccion Castro Solis)",
+  "main": "main.js",
+  "author": "Castro Solis",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "cr.castrosolis.lics",
+    "productName": "LICS",
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**/*",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/windows",
+        "to": "windows"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LICS",
+      "include": "build/installer.nsh"
+    }
+  }
+}
