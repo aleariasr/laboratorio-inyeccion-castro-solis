@@ -13,7 +13,10 @@ aparecieron (y se arreglaron) varios bugs reales de
 Actions — están todos descritos en `CHANGELOG.md`. También apareció un bug
 de conexión intermitente que llevó una investigación larga hasta encontrar
 la causa raíz real y confirmarla resuelta con uso extendido — ver
-**"Problema conocido: caídas intermitentes de conexión"** más abajo.
+**"Problema conocido: caídas intermitentes de conexión"** más abajo. También
+se corrigió un bug de foco de Electron (cuadros de texto que dejaban de
+responder tras un rato) y se automatizó la creación del administrador
+inicial — ver las secciones correspondientes más abajo y `CHANGELOG.md`.
 
 ---
 
@@ -181,21 +184,24 @@ Ojo, dos cosas:
 Con el `.exe` (artefacto `LICS-Setup` de Actions) ya en la máquina destino:
 
 1. Correr el instalador. El NSIS importa la distro `lics-wsl` desde el
-   `.tar` embebido y registra la tarea programada de inicio
-   (`register-scheduled-task.ps1`).
+   `.tar` embebido y registra las tareas programadas de inicio
+   (`register-scheduled-task.ps1`: arranque de servicios y mantener sesión
+   WSL activa).
 2. Abrir el ícono "LICS" del escritorio. Primera vez: pantalla de
    "Iniciando…" mientras arrancan Docker/PostgreSQL/backend/frontend/nginx
    dentro de WSL2; las siguientes veces, si ya estaban corriendo, es casi
    instantáneo.
-3. **Crear el primer usuario administrador.** Todavía no está automatizado
-   en `provision-golden-image.sh` (ver `docs/windows-desktop-stage-closure.md`,
-   §13) — es un paso manual, una sola vez por instalación nueva, en
-   PowerShell contra la distro `lics-wsl`:
+3. **Iniciar sesión con el administrador inicial.** Ya no es un paso
+   manual: `provision-golden-image.sh` crea un usuario `admin` con
+   contraseña aleatoria al construir la imagen dorada (distinta en cada
+   build). Para verla:
    ```powershell
-   wsl -d lics-wsl -- bash -c "cd /opt/lics/infra/docker && docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps backend python src/manage.py createsuperuser"
+   wsl -d lics-wsl -- sudo cat /opt/lics/ADMIN_CREDENTIALS_INICIALES.txt
    ```
-   Pide usuario, correo (opcional) y contraseña por teclado.
-4. Iniciar sesión en la app con ese usuario.
+4. **Cambiar esa contraseña de inmediato** desde dentro de la app (o crear
+   un usuario administrador propio y desactivar este). Todas las
+   instalaciones hechas desde la misma imagen dorada comparten esa
+   contraseña hasta que se cambie.
 
 ---
 
@@ -273,6 +279,31 @@ Si esto vuelve a aparecer: `docs/troubleshooting.md` tiene la sección
 "Windows: caídas intermitentes de conexión" con los comandos de diagnóstico
 ya probados, incluyendo cómo leer el journal para confirmar si es este mismo
 patrón (arranque + apagado a los pocos segundos) u otro nuevo.
+
+---
+
+## Problema conocido: cuadros de texto dejan de responder tras un rato (corregido)
+
+Reportado en uso real: tras un rato usando la app, los cuadros de texto
+dejaban de aceptar clics aunque la ventana se veía normal y enfocada.
+Cerrar y volver a abrir la app lo arreglaba, y también abrir el menú
+"LICS > Ver estado" (cualquier diálogo nativo).
+
+**Causa:** bug conocido de Electron en Windows — la ventana (`BrowserWindow`)
+puede recuperar el foco del sistema operativo (tras alt-tab, un diálogo
+nativo, minimizar/restaurar) sin que el contenido web (`webContents`)
+recupere el foco con ella. Visualmente se ve enfocada, pero los clics no le
+llegan a los inputs hasta que algo fuerza el refoco del `webContents` —
+por eso un diálogo nativo lo "arreglaba" sin que nadie lo hubiera diseñado
+así.
+
+**Fix aplicado** (`infra/windows/electron/main.js`): se fuerza
+`win.webContents.focus()` cada vez que la ventana gana foco
+(`win.on('focus', ...)`), en vez de depender de que el usuario note el
+síntoma y abra un diálogo. Este fix vive en el código de Electron, no en la
+imagen dorada de WSL2: para llegar a una instalación existente hace falta
+un `.exe` nuevo (compilado por el runner self-hosted), no reconstruir la
+imagen dorada.
 
 ---
 

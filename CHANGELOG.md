@@ -39,6 +39,7 @@ El formato utiliza estas categorías:
 - Target `make release` como atajo de `scripts/build-offline-release.sh`.
 - Validación en Windows 11 real de la app de escritorio (`infra/windows/`): imagen dorada, instalador `.exe` vía runner self-hosted de GitHub Actions, instalación, primera sesión y uso real.
 - Tarea programada "LICS - Mantener sesion WSL activa" en `register-scheduled-task.ps1`: mantiene un proceso `wsl.exe` conectado a la distro de forma indefinida para evitar que WSL2 la apague por quedarse sin clientes (causa raíz real de las caídas intermitentes de conexión — ver Fixed).
+- `create_initial_admin()` en `provision-golden-image.sh`: crea automáticamente un usuario `admin` con contraseña aleatoria (`openssl rand -base64 24`) al construir la imagen dorada, en vez de requerir `createsuperuser` manual tras cada instalación. La contraseña queda en `/opt/lics/ADMIN_CREDENTIALS_INICIALES.txt` (permisos 600, solo root) con instrucciones de cambiarla de inmediato; si ese archivo ya existe no se genera otro admin. Todas las instalaciones hechas desde la misma imagen dorada comparten esa contraseña hasta que se cambie.
 
 ### Fixed
 
@@ -59,6 +60,9 @@ El formato utiliza estas categorías:
 - `npm run dist` (electron-builder) fallaba al extraer `winCodeSign` por falta de privilegio para crear symlinks (paquete trae `.dylib` de macOS aunque el build sea solo para Windows); resuelto activando el Modo de Desarrollador de Windows, no con una variable de entorno.
 - Exclusión de Windows Defender faltante sobre el directorio de la distro (`C:\ProgramData\LICS\wsl`, con el `.vhdx`); el escaneo en tiempo real podía frenar el I/O. `install-wsl-distro.ps1` y `build-golden-image.ps1` la agregan automáticamente ahora. Buena práctica, pero investigación posterior confirmó que no era la causa raíz de las caídas intermitentes (ver el siguiente punto).
 - **Causa raíz confirmada y resuelta de las caídas intermitentes de conexión** (ver `infra/windows/README.md`, sección "Problema conocido"): WSL2 apagaba la distro `lics-wsl` completa (todo `systemd`, no solo Docker) segundos después de terminar de arrancar, cuando no quedaba ningún proceso `wsl.exe` conectado como cliente — la única tarea programada que arrancaba la distro corría `start.sh` y terminaba en cuanto ese script terminaba, sin dejar ningún cliente conectado detrás. `systemd=true` en `wsl.conf` (correctamente configurado) no fue suficiente por sí solo en esta versión de WSL2. Confirmado con `journalctl` acotado al segundo exacto: apagado limpio de toda la distro, siempre 2 segundos después de terminar de arrancar. `register-scheduled-task.ps1` ahora registra una segunda tarea programada ("LICS - Mantener sesion WSL activa") que mantiene un `wsl.exe -d lics-wsl -- sleep infinity` corriendo de forma indefinida. Confirmado resuelto con uso real extendido tras aplicar el fix.
+- Bug de foco de Electron en Windows: tras un rato de uso (o tras alt-tab, un diálogo nativo, minimizar/restaurar), los campos de texto dejaban de responder a clics aunque la ventana se veía enfocada — la ventana recuperaba el foco del sistema operativo sin que el `webContents` (el contenido web) recuperara el foco con ella. Por eso abrir y cerrar "Ver estado" "arreglaba" el síntoma: cualquier diálogo nativo forzaba el refoco. `main.js` ahora fuerza `win.webContents.focus()` cada vez que la ventana gana foco, en vez de depender de que el usuario note el síntoma y abra un diálogo.
+- `provision-golden-image.sh`: `install_application()` se saltaba por completo la sincronización de la app si `/opt/lics` ya existía; reconstruir la imagen dorada sobre una distro `lics-build` ya aprovisionada no recogía una versión nueva de la app. Ahora siempre resincroniza (`cp -a` del release sobre `/opt/lics`); es seguro porque `.env.prod` no forma parte del payload del release y nunca se sobreescribe.
+- `wait_for_all_services()` en `scripts/lib/common.sh`: le daba a cada uno de los 4 servicios (postgres/backend/frontend/nginx) el timeout completo por separado en vez de un presupuesto compartido, así que el peor caso real era timeout × 4 (720s con el default de 180s) — supera el `TimeoutStartSec=300` de `lics.service`, que mata el script a mitad de camino sin que el propio script llegue a loguear su error (SIGTERM/SIGKILL de systemd, no una falla de comando que un `trap ERR` pueda capturar). Ahora comparte un presupuesto total entre los 4 servicios, acotado con margen real contra `TimeoutStartSec`.
 
 ### Pending
 
@@ -72,9 +76,10 @@ El formato utiliza estas categorías:
 - Migración legacy DBF con archivos reales o muestras representativas.
 - Documentos PDF adicionales según validación real.
 - Caja y procesos financieros si el levantamiento lo confirma.
-- `provision-golden-image.sh` no crea un usuario administrador inicial (falta `createsuperuser`); hoy es un paso manual documentado, pendiente de automatizar antes de una versión estable.
-- `install_application()`/`install_docker_engine()` en `provision-golden-image.sh` omiten la reinstalación si ya existen; reconstruir la imagen dorada sobre una distro `lics-build` ya aprovisionada no recoge una versión nueva de la app.
+- `install_docker_engine()` en `provision-golden-image.sh` sigue omitiendo la reinstalación si Docker Engine ya está presente (a diferencia de `install_application()`, que ya se corrigió); no suele importar en la práctica porque la versión de Docker Engine no cambia entre releases de la app, pero queda documentado.
 - Reemplazar `infra/windows/electron/build/icon.ico` (placeholder) por el logo real.
+- Evaluar certificado de firma de código si SmartScreen se vuelve un problema para usuarios finales no técnicos.
+- No hay puente automático de archivos entre la máquina de build y la Windows; la transferencia del release sigue siendo manual (USB, red).
 
 ---
 

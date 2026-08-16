@@ -251,12 +251,16 @@ Dos notas operativas:
    "Iniciando…" mientras arrancan Docker/PostgreSQL/backend/frontend/nginx
    dentro de WSL2; siguientes veces, si ya estaban corriendo, es
    prácticamente instantáneo.
-3. **Crear el primer usuario administrador** — todavía no está
-   automatizado (ver §11), es un paso manual una sola vez:
+3. **Ya no es un paso manual**: `provision-golden-image.sh` crea un usuario
+   `admin` con contraseña aleatoria (`openssl rand -base64 24`) al construir
+   la imagen dorada, distinta en cada build. Para verla:
    ```powershell
-   wsl -d lics-wsl -- bash -c "cd /opt/lics/infra/docker && docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps backend python src/manage.py createsuperuser"
+   wsl -d lics-wsl -- sudo cat /opt/lics/ADMIN_CREDENTIALS_INICIALES.txt
    ```
-4. Iniciar sesión en la app con ese usuario.
+4. Iniciar sesión en la app con ese usuario y **cambiar esa contraseña de
+   inmediato** (o crear un usuario administrador propio y desactivar este).
+   Todas las instalaciones hechas desde la misma imagen dorada comparten esa
+   contraseña hasta que se cambie.
 
 ## 9. Problema conocido: caídas intermitentes de conexión
 
@@ -333,6 +337,51 @@ usuario tenga que notar nada. Instalado por
 `provision-golden-image.sh`. Se mantiene aunque la causa raíz de §9 ya esté
 resuelta, como capa adicional de resiliencia.
 
+## 10.1 Otros fixes de estabilización
+
+Encontrados y corregidos por revisión de código tras cerrar el problema del
+§9-§10, sin requerir hardware Windows para reproducirlos (verificables por
+inspección; los dos primeros sí necesitan una imagen dorada nueva para
+tomar efecto en una instalación real, el tercero solo necesita un `.exe`
+nuevo):
+
+- **`install_application()` no resincronizaba sobre una distro ya
+  aprovisionada**: se saltaba por completo la copia de la app si `/opt/lics`
+  ya existía (`if [[ -d /opt/lics ]]; then ... return; fi`), así que
+  reconstruir la imagen dorada sobre una distro `lics-build` ya aprovisionada
+  no recogía una versión nueva de la app — quedaba silenciosamente con la
+  versión vieja. Se quitó ese salto: ahora siempre resincroniza con `cp -a
+  "${RELEASE_DIR}/app/." /opt/lics/`. Es seguro porque `.env.prod` no forma
+  parte del payload del release (se genera aparte) y nunca se sobreescribe.
+- **Desajuste de timeouts entre `wait_for_all_services` y
+  `TimeoutStartSec`**: cada uno de los 4 servicios (postgres/backend/
+  frontend/nginx) recibía el timeout completo por separado en vez de un
+  presupuesto compartido, así que el peor caso real era
+  `timeout_seconds x 4` (720s con el default de 180s de `start.sh`) —
+  supera el `TimeoutStartSec=300` de `lics.service`. Si ese peor caso
+  llegara a darse, systemd mata el script a mitad de camino con
+  SIGTERM/SIGKILL, sin que el propio script llegue a loguear ningún error
+  (un `trap ERR` no captura señales). `wait_for_all_services()` en
+  `scripts/lib/common.sh` ahora reparte un presupuesto total entre los 4
+  servicios, con margen real contra `TimeoutStartSec`.
+- **Creación automática del administrador inicial**: ver §8 y §9 de este
+  documento — `create_initial_admin()`, nueva función en
+  `provision-golden-image.sh`, reemplaza el paso manual de
+  `createsuperuser`.
+- **Bug de foco de Electron en Windows** (reportado en uso real, no en la
+  validación inicial): tras un rato, los campos de texto dejaban de
+  responder a clics aunque la ventana se veía enfocada — hasta cerrar y
+  reabrir la app, o abrir "Ver estado". Causa: en Windows, una
+  `BrowserWindow` puede recuperar el foco del sistema operativo (tras
+  alt-tab, un diálogo nativo, minimizar/restaurar) sin que el `webContents`
+  recupere el foco con ella; visualmente se ve enfocada pero los clics no
+  llegan a los inputs. Por eso un diálogo nativo "arreglaba" el síntoma sin
+  que nadie lo hubiera diseñado así. `main.js` ahora fuerza
+  `win.webContents.focus()` cada vez que la ventana gana foco
+  (`win.on('focus', ...)`), en vez de depender de que el usuario note el
+  síntoma. Este fix vive en `main.js`, no en la imagen dorada: solo
+  requiere compilar un `.exe` nuevo, no reconstruir `lics-wsl-rootfs.tar`.
+
 ## 11. Pruebas realizadas
 
 Validación en Windows 11 real, 15-16/08/2026:
@@ -359,47 +408,52 @@ Validación en Windows 11 real, 15-16/08/2026:
 
 - No hay puente automático de archivos entre la máquina de build y la
   Windows — la transferencia del release es manual.
-- `provision-golden-image.sh` no automatiza `createsuperuser`.
-- `install_application()`/`install_docker_engine()` no manejan
-  reinstalación sobre una distro `lics-build` ya aprovisionada.
+- `install_docker_engine()` (a diferencia de `install_application()`, ya
+  corregido en §10.1) sigue sin manejar reinstalación sobre una distro
+  `lics-build` ya aprovisionada; en la práctica importa poco porque la
+  versión de Docker Engine no cambia entre releases de la app.
 - El ícono de la app (`icon.ico`) sigue siendo un placeholder.
 - Sin certificado de firma de código: SmartScreen aparece siempre al
   instalar.
-- Un desajuste de timeouts real (aunque no era la causa de las caídas
-  intermitentes) sigue sin corregirse: `wait_for_all_services` puede tardar
-  hasta 720s en el peor caso (4 servicios × 180s), más que el
-  `TimeoutStartSec=300` de `lics.service` — ver §13.
+- El administrador inicial (`create_initial_admin()`, §10.1) usa una
+  contraseña compartida entre todas las instalaciones hechas desde la misma
+  imagen dorada hasta que se cambie manualmente; depende de que quien
+  instale la app siga la instrucción de cambiarla de inmediato.
 
 ## 13. Decisiones pendientes
 
-- Automatizar `createsuperuser` (o un flujo equivalente de primer usuario)
-  dentro de `provision-golden-image.sh`.
-- Resolver skip-if-exists en `install_application()`/`install_docker_engine()`.
+- Resolver skip-if-exists en `install_docker_engine()` (menor prioridad,
+  ver §12).
 - Reemplazar el ícono placeholder por el logo real de LICS.
 - Evaluar certificado de firma de código si SmartScreen se vuelve un
   problema para usuarios finales no técnicos.
-- Corregir el desajuste de timeouts entre `wait_for_all_services` (hasta
-  720s peor caso) y `TimeoutStartSec=300` de `lics.service`: o se comparte
-  un presupuesto de tiempo total entre los 4 servicios en vez de darle el
-  timeout completo a cada uno, o se sube `TimeoutStartSec` para cubrir el
-  peor caso real.
+- Evaluar un puente automático de archivos entre la máquina de build y la
+  Windows si el paso manual (USB/red) se vuelve un cuello de botella
+  operativo.
 
 ## 14. Criterio de cierre de esta etapa
 
 Esta etapa se considera cerrada como versión funcional inicial validada en
 hardware real: el instalador se genera de punta a punta, se instala, y la
-app funciona para uso real, con un problema conocido mitigado (no
-resuelto) y documentado. No es un cierre definitivo — quedan las
-decisiones pendientes del §13 antes de considerar esto listo para
-distribuir a un usuario final no técnico sin supervisión.
+app funciona para uso real, con la causa raíz de su problema conocido
+confirmada y resuelta (§9-§10), y con los gaps de automatización que
+requerían intervención manual del usuario (primer administrador,
+resincronización de la imagen dorada) cerrados por revisión de código
+(§10.1). No es un cierre definitivo — quedan las decisiones pendientes del
+§13 (todas de menor prioridad: ícono, certificado de firma, puente de
+archivos entre máquinas) antes de considerar esto listo para distribuir a
+un usuario final no técnico sin supervisión.
 
 ## 15. Estado general
 
-    App de escritorio Windows: validada en hardware real, funcional con mitigación activa.
+    App de escritorio Windows: validada en hardware real, funcional y estable.
     Runner self-hosted de GitHub Actions: configurado y documentado (este documento, §7).
     Pipeline de release: reducido a un comando por máquina.
-    Causa raíz de caídas intermitentes: sin confirmar, mitigada.
-    Primer usuario administrador: manual, sin automatizar.
+    Causa raíz de caídas intermitentes: confirmada y resuelta, validada con uso real extendido.
+    Bug de foco de Electron (inputs no clicables tras un rato): corregido, pendiente de validar con un .exe nuevo.
+    Primer usuario administrador: automatizado en la imagen dorada, con contraseña aleatoria por build.
+    Resincronización de la app en imagen dorada reconstruida: corregida (antes se saltaba si la distro ya existía).
+    Pendiente real: ícono placeholder, certificado de firma de código, puente de archivos entre máquinas — todo de menor prioridad, sin bloquear uso en producción.
 
 ## Documentación relacionada
 

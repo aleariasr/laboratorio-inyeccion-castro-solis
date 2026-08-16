@@ -78,17 +78,21 @@ install_docker_engine() {
 }
 
 install_application() {
-    if [[ -d /opt/lics ]]; then
-        log_info "/opt/lics ya existe, se omite copia (borralo primero si querés reinstalar limpio)."
-        return
-    fi
-
-    log_info "Copiando aplicación a /opt/lics..."
+    # A proposito NO se salta si /opt/lics ya existe: reconstruir la imagen
+    # dorada reutilizando una distro lics-build ya aprovisionada (en vez de
+    # una fresca) es un caso real de uso, y antes esto dejaba silenciosamente
+    # la version vieja de la app sin actualizar. cp -a sobreescribe los
+    # archivos del release sin tocar lo que el release no incluye -- en
+    # particular no toca infra/docker/.env.prod (el release solo trae
+    # .env.prod.example; .env.prod es generado localmente por
+    # generate_env_file, que ya tiene su propio chequeo de "no regenerar si
+    # ya existe" mas abajo) ni los volumenes de Docker.
+    log_info "Sincronizando aplicación en /opt/lics..."
     mkdir -p /opt/lics
     cp -a "${RELEASE_DIR}/app/." /opt/lics/
     chmod 750 /opt/lics/scripts/*.sh /opt/lics/scripts/lib/common.sh
 
-    log_ok "Aplicación copiada."
+    log_ok "Aplicación sincronizada (no se tocó .env.prod ni datos de PostgreSQL)."
 }
 
 load_images() {
@@ -169,6 +173,63 @@ run_initial_migrations() {
     log_ok "Migraciones iniciales completadas."
 }
 
+create_initial_admin() {
+    # No hay auto-registro en LICS a proposito (ver docs de seguridad): la
+    # primera cuenta siempre fue un paso manual documentado. Esto lo
+    # automatiza generando un administrador con contraseña aleatoria en
+    # cada build de la imagen dorada, en vez de una contraseña fija
+    # (evita el antipatron clasico de "admin/admin" en todas las
+    # instalaciones). La contraseña queda en un archivo protegido dentro de
+    # la propia imagen y tambien impresa en este log -- debe cambiarse en
+    # el primer inicio de sesion. Idempotente: si el archivo ya existe, no
+    # se crea otro administrador (ni se pisa la contraseña ya entregada).
+    local compose_file="/opt/lics/infra/docker/compose.prod.yml"
+    local env_file="/opt/lics/infra/docker/.env.prod"
+    local creds_file="/opt/lics/ADMIN_CREDENTIALS_INICIALES.txt"
+    local admin_password
+
+    if [[ -f "${creds_file}" ]]; then
+        log_ok "Ya existe un administrador inicial generado (${creds_file}), no se crea otro."
+        return
+    fi
+
+    log_info "Creando administrador inicial..."
+
+    admin_password="$(openssl rand -base64 24)"
+
+    DJANGO_SUPERUSER_USERNAME=admin \
+    DJANGO_SUPERUSER_EMAIL=admin@localhost \
+    DJANGO_SUPERUSER_PASSWORD="${admin_password}" \
+    docker compose --env-file "${env_file}" -f "${compose_file}" run --rm --no-deps backend \
+        python src/manage.py createsuperuser --noinput
+
+    cat > "${creds_file}" <<EOF
+LICS - Administrador inicial, generado automáticamente al construir esta
+imagen dorada.
+
+Usuario: admin
+Contraseña: ${admin_password}
+
+IMPORTANTE: cambiar esta contraseña en el primer inicio de sesión (dentro
+de la app), o crear un usuario administrador propio y desactivar este.
+Todas las instalaciones hechas desde esta MISMA imagen dorada comparten
+esta contraseña hasta que se cambie -- cada build nueva genera una
+contraseña distinta.
+
+Este archivo solo lo puede leer root. Para volver a verlo:
+  wsl -d lics-wsl -- sudo cat /opt/lics/ADMIN_CREDENTIALS_INICIALES.txt
+EOF
+    chmod 600 "${creds_file}"
+
+    log_ok "Administrador inicial creado."
+    log_info "=================================================================="
+    log_info " USUARIO INICIAL: admin"
+    log_info " CONTRASEÑA INICIAL: ${admin_password}"
+    log_info " Guardada tambien en ${creds_file} (0600, solo root)."
+    log_info " CAMBIARLA en el primer inicio de sesion."
+    log_info "=================================================================="
+}
+
 install_systemd_units() {
     log_info "Instalando lics.service, lics-backup.timer y lics-watchdog.timer (sin modificar)..."
 
@@ -217,6 +278,7 @@ main() {
     load_images
     generate_env_file
     run_initial_migrations
+    create_initial_admin
     install_systemd_units
     disable_wsl_pro_service
     validate_start_and_health

@@ -283,11 +283,35 @@ wait_for_service() {
 }
 
 wait_for_all_services() {
+    # timeout_seconds es un presupuesto TOTAL compartido entre los 4
+    # servicios, no el timeout de cada uno por separado. Antes cada llamada
+    # a wait_for_service recibía el timeout completo, así que el peor caso
+    # real era timeout_seconds x 4 (720s con el default de 180s) -- eso
+    # supera el TimeoutStartSec=300 de infra/systemd/lics.service, que mata
+    # el script a mitad de camino sin que llegue a loguear su propio error
+    # (systemd manda SIGTERM/SIGKILL, no es una falla de comando que el
+    # trap ERR pueda capturar). Con presupuesto compartido, el peor caso
+    # real queda acotado a timeout_seconds, con margen real contra
+    # TimeoutStartSec.
     local timeout_seconds="${1:-120}"
     local service
+    local start_time
+    local elapsed
+    local remaining
+
+    start_time="$(date +%s)"
 
     for service in postgres backend frontend nginx; do
-        wait_for_service "${service}" "${timeout_seconds}" || return 1
+        elapsed=$(( $(date +%s) - start_time ))
+        remaining=$(( timeout_seconds - elapsed ))
+
+        if (( remaining <= 0 )); then
+            log_error \
+                "Se agotó el presupuesto total de ${timeout_seconds}s antes de revisar ${service}."
+            return 1
+        fi
+
+        wait_for_service "${service}" "${remaining}" || return 1
     done
 }
 
