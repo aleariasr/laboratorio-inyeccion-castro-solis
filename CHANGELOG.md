@@ -38,6 +38,7 @@ El formato utiliza estas categorías:
 - `infra/windows/wsl/cut-release.ps1`: un solo comando en la Windows que detecta la carpeta de release offline más nueva en `C:\lics-dev\`, reconstruye la imagen dorada y dispara el workflow de Actions (`gh workflow run`, si está disponible GitHub CLI).
 - Target `make release` como atajo de `scripts/build-offline-release.sh`.
 - Validación en Windows 11 real de la app de escritorio (`infra/windows/`): imagen dorada, instalador `.exe` vía runner self-hosted de GitHub Actions, instalación, primera sesión y uso real.
+- Tarea programada "LICS - Mantener sesion WSL activa" en `register-scheduled-task.ps1`: mantiene un proceso `wsl.exe` conectado a la distro de forma indefinida para evitar que WSL2 la apague por quedarse sin clientes (causa raíz real de las caídas intermitentes de conexión — ver Fixed).
 
 ### Fixed
 
@@ -56,7 +57,8 @@ El formato utiliza estas categorías:
 - Workflow `build-windows-installer.yml`: usaba `shell: pwsh`, pero el runner self-hosted solo tiene Windows PowerShell 5.1 instalado (no PowerShell 7); cambiado a `shell: powershell`.
 - Workflow `build-windows-installer.yml`: el checkout del runner es una carpeta de trabajo aislada, distinta de cualquier clon manual en la máquina, y el `.tar` de la imagen dorada está en `.gitignore` a propósito (pesa varios GB); se agregó un paso que lo copia desde `C:\lics-build\` en cada corrida.
 - `npm run dist` (electron-builder) fallaba al extraer `winCodeSign` por falta de privilegio para crear symlinks (paquete trae `.dylib` de macOS aunque el build sea solo para Windows); resuelto activando el Modo de Desarrollador de Windows, no con una variable de entorno.
-- Causa más probable de las caídas intermitentes de conexión (ver `infra/windows/README.md`, sección "Problema conocido"): el directorio de la distro (`C:\ProgramData\LICS\wsl`, con el `.vhdx`) no tenía exclusión de Windows Defender; el escaneo en tiempo real frenaba el arranque de `systemd` más allá del timeout interno de WSL2 (10s, confirmado con `WaitForBootProcess ... failed to start within 10000ms` en el journal), y WSL apagaba la distro completa segundos después de terminar de arrancarla — no era `docker.service` reiniciándose solo, era la distro entera. `install-wsl-distro.ps1` y `build-golden-image.ps1` agregan la exclusión automáticamente ahora.
+- Exclusión de Windows Defender faltante sobre el directorio de la distro (`C:\ProgramData\LICS\wsl`, con el `.vhdx`); el escaneo en tiempo real podía frenar el I/O. `install-wsl-distro.ps1` y `build-golden-image.ps1` la agregan automáticamente ahora. Buena práctica, pero investigación posterior confirmó que no era la causa raíz de las caídas intermitentes (ver el siguiente punto).
+- **Causa raíz confirmada y resuelta de las caídas intermitentes de conexión** (ver `infra/windows/README.md`, sección "Problema conocido"): WSL2 apagaba la distro `lics-wsl` completa (todo `systemd`, no solo Docker) segundos después de terminar de arrancar, cuando no quedaba ningún proceso `wsl.exe` conectado como cliente — la única tarea programada que arrancaba la distro corría `start.sh` y terminaba en cuanto ese script terminaba, sin dejar ningún cliente conectado detrás. `systemd=true` en `wsl.conf` (correctamente configurado) no fue suficiente por sí solo en esta versión de WSL2. Confirmado con `journalctl` acotado al segundo exacto: apagado limpio de toda la distro, siempre 2 segundos después de terminar de arrancar. `register-scheduled-task.ps1` ahora registra una segunda tarea programada ("LICS - Mantener sesion WSL activa") que mantiene un `wsl.exe -d lics-wsl -- sleep infinity` corriendo de forma indefinida. Confirmado resuelto con uso real extendido tras aplicar el fix.
 
 ### Pending
 
@@ -70,7 +72,6 @@ El formato utiliza estas categorías:
 - Migración legacy DBF con archivos reales o muestras representativas.
 - Documentos PDF adicionales según validación real.
 - Caja y procesos financieros si el levantamiento lo confirma.
-- Confirmar con uso extendido real que la exclusión de Windows Defender resuelve las caídas intermitentes de conexión de forma definitiva (identificada como causa más probable, no verificada al 100% todavía — ver `infra/windows/README.md`). `lics-watchdog.timer` sigue instalado como red de seguridad de todas formas.
 - `provision-golden-image.sh` no crea un usuario administrador inicial (falta `createsuperuser`); hoy es un paso manual documentado, pendiente de automatizar antes de una versión estable.
 - `install_application()`/`install_docker_engine()` en `provision-golden-image.sh` omiten la reinstalación si ya existen; reconstruir la imagen dorada sobre una distro `lics-build` ya aprovisionada no recoge una versión nueva de la app.
 - Reemplazar `infra/windows/electron/build/icon.ico` (placeholder) por el logo real.
