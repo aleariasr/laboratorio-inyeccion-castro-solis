@@ -33,6 +33,18 @@ function createWindow() {
     }
   });
 
+  // Bug conocido de Electron en Windows: la ventana puede recuperar el foco
+  // del sistema operativo (tras alt-tab, un dialogo nativo, minimizar y
+  // restaurar, etc.) sin que el contenido web recupere el foco con ella.
+  // Visualmente se ve enfocada, pero los clics no le llegan a los inputs
+  // hasta que algo fuerza el foco de vuelta al webContents -- por eso abrir
+  // y cerrar un dialogo nativo (como "Ver estado") "arregla" el sintoma.
+  // Forzamos ese refoco nosotros mismos cada vez que la ventana gana foco,
+  // en vez de depender de que el usuario abra un dialogo para notarlo.
+  win.on('focus', () => {
+    win.webContents.focus();
+  });
+
   return win;
 }
 
