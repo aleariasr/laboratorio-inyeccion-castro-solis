@@ -205,6 +205,60 @@ Con el `.exe` (artefacto `LICS-Setup` de Actions) ya en la máquina destino:
 
 ---
 
+## Actualizar la aplicación (Django/Next) en una instalación existente
+
+Importante, porque no es obvio: **volver a correr el `.exe` en una máquina
+que ya tiene LICS instalado no actualiza el backend ni el frontend.**
+`install-wsl-distro.ps1` se salta a propósito la reimportación del `.tar`
+si la distro `lics-wsl` ya existe (para no perder la base de datos ni los
+respaldos), así que la imagen dorada nueva nunca llega a una instalación
+existente por esa vía — solo sirve para instalaciones limpias en máquinas
+nuevas. Reinstalar el `.exe` sobre una instalación existente solo actualiza
+los archivos del lado Windows (la app Electron: `main.js`, el menú, fixes
+como el de foco), nunca lo que corre dentro de WSL2.
+
+Para actualizar Django/Next en una instalación existente, sin perder datos,
+usar el menú **LICS > Actualizar aplicación (Django/Next)…**. Requisitos y
+comportamiento:
+
+1. Generar un release offline nuevo en el Mac (`./scripts/build-offline-release.sh`,
+   igual que para una imagen dorada) y copiar la carpeta resultante
+   (`lics-<versión>-linux-amd64/`, con `app\` e `images\` adentro) a
+   `C:\lics-dev\` en esta Windows — el mismo lugar que ya se usa para
+   `cut-release.ps1`. Si hay varias carpetas ahí, se usa la más nueva por
+   fecha de modificación.
+2. Abrir el menú **LICS > Actualizar aplicación (Django/Next)…**. Aparece
+   una confirmación explícita antes de tocar nada (no es automático ni se
+   dispara solo).
+3. Al confirmar, corre `infra/windows/electron/resources/windows/update-application.sh`
+   dentro de la distro `lics-wsl` ya viva, que a su vez invoca el
+   actualizador oficial (`scripts/update.sh`, ya existía, nunca se expuso
+   antes desde Windows): verifica checksums del paquete, exige que la
+   instalación actual esté saludable, hace un **respaldo obligatorio**
+   antes de tocar nada, detiene los servicios, carga las 4 imágenes
+   Docker nuevas, reemplaza `/opt/lics` (conservando `.env.prod` y el
+   historial de respaldos), corre migraciones y `setup_roles`, vuelve a
+   levantar todo y termina con un healthcheck final. Puede tardar varios
+   minutos.
+4. Se conserva una copia completa de la instalación anterior en
+   `/opt/lics.previous.<timestamp>` dentro de la distro. **No hay rollback
+   automático** — si algo falla a mitad de camino, hay que revisar a mano
+   (ver `docs/troubleshooting.md`, sección "Windows: 'Actualizar
+   aplicación' falla").
+
+Este mecanismo vive en el código de Electron (`lib/backend.js`,
+`update-application.sh`), no en la imagen dorada — por eso sí puede llegar
+a una instalación existente sin reimportar nada: corre dentro de la distro
+que ya está viva, usando `wsl.exe` igual que el resto de los botones del
+menú (backup, reiniciar, ver estado). Solo hace falta un `.exe` nuevo para
+que el menú tenga esta opción, no una imagen dorada nueva.
+
+`restore.sh` y `rollback.sh` siguen sin exponerse en la app a propósito —
+son procedimientos de recuperación distintos a una actualización normal, y
+siguen siendo manuales por WSL con confirmación escrita.
+
+---
+
 ## Problema conocido: caídas intermitentes de conexión (causa raíz confirmada y resuelta)
 
 Durante la validación en hardware real, la app perdía la conexión de forma
@@ -328,7 +382,8 @@ infra/windows/
     build/installer.nsh              hooks NSIS: importa la distro durante la instalación
     resources/windows/
       install-wsl-distro.ps1         corre el instalador durante el setup
-      register-scheduled-task.ps1    tarea "iniciar backend al iniciar sesión" (dispara una sola vez por login)
+      register-scheduled-task.ps1    tareas "iniciar backend" + "mantener sesión WSL activa"
+      update-application.sh          corre "LICS > Actualizar aplicación" (ver sección de arriba)
       (lics-wsl-rootfs.tar va acá, generado en el paso de arriba)
 
 infra/systemd/
@@ -337,4 +392,6 @@ infra/systemd/
 
 scripts/
   install-watchdog-timer.sh          instala lics-watchdog.{service,timer}, lo invoca provision-golden-image.sh
+  update.sh                          actualizador oficial (checksums, respaldo, migraciones); ahora también
+                                      invocado desde Windows por update-application.sh, ver arriba
 ```

@@ -223,3 +223,52 @@ wsl -d lics-wsl -- bash -c "journalctl --no-pager -u docker.service -u lics-watc
 ```
 
 Buscar `Started docker.service`/`Started lics-watchdog.timer` seguido, un minuto o dos después, de `Stopped` de ambos al mismo tiempo — eso es el patrón de la distro completa apagándose. Si aparece junto con el paso 1 mostrando que no hay ningún `wsl.exe` corriendo, es exactamente esta causa reapareciendo (la tarea de mantener sesión se cayó o nunca se activó).
+
+---
+
+# Windows: "Actualizar aplicación" falla desde el menú de LICS
+
+Ver `infra/windows/README.md`, sección "Actualizar la aplicación", para el
+procedimiento completo. Diagnóstico si el menú "LICS > Actualizar
+aplicación" muestra un error:
+
+## 1. "No se encontró ningún release válido bajo /mnt/c/lics-dev"
+
+Falta copiar el release offline nuevo (carpeta `lics-<versión>-linux-amd64`
+con `app\` e `images\` adentro, generada en el Mac con
+`build-offline-release.sh`) a `C:\lics-dev\` en esta Windows. Confirmar:
+
+```powershell
+Get-ChildItem C:\lics-dev
+```
+
+## 2. Falló a mitad de camino (código de error visible en la ventana)
+
+`update.sh` (el actualizador real, dentro de `scripts/`) no hace rollback
+automático, pero sí conserva evidencia. Revisar en ese orden:
+
+```powershell
+wsl -d lics-wsl -- bash -c "ls -la /opt/lics.previous.* 2>/dev/null"
+wsl -d lics-wsl -- bash -c "ls -la /opt/lics-updates/ 2>/dev/null"
+wsl -d lics-wsl -- bash -c "cd /opt/lics/infra/docker && docker compose --env-file .env.prod -f compose.prod.yml ps -a"
+```
+
+- `/opt/lics.previous.<timestamp>` es la instalación anterior completa,
+  intacta — si hace falta volver atrás a mano, ahí está.
+- `/opt/lics-updates/<release>-<timestamp>` es la copia del release que
+  se estaba usando; solo queda si la actualización falló (si terminó bien,
+  se borra sola). Sirve para diagnosticar sin tener que volver a copiar
+  nada desde Windows.
+- Si `postgres`/`backend`/`frontend`/`nginx` quedaron caídos, `docker
+  compose up -d` (ver sección anterior) es seguro de repetir.
+
+## 3. Liberar espacio en disco tras varias actualizaciones fallidas
+
+Cada intento fallido deja su copia en `/opt/lics-updates/`, y son varios GB
+por copia (incluye las 4 imágenes Docker). Si se acumulan varias, borrar a
+mano las que ya no hagan falta para diagnóstico:
+
+```powershell
+wsl -d lics-wsl -- bash -c "du -sh /opt/lics-updates/* 2>/dev/null"
+wsl -d lics-wsl -- bash -c "rm -rf /opt/lics-updates/<carpeta-vieja>"
+```

@@ -59,6 +59,8 @@ infra/systemd/
 scripts/
   install-watchdog-timer.sh          instala el watchdog, invocado por provision-golden-image.sh
   build-offline-release.sh           ya existía; es el primer comando del flujo de release
+  update.sh                          actualizador oficial de Django/Next; ya existía, ahora también
+                                      invocado desde Windows (ver §10.2) sin cambios
 ```
 
 ## 4. Flujo de release: dos máquinas, un comando cada una
@@ -382,6 +384,55 @@ nuevo):
   síntoma. Este fix vive en `main.js`, no en la imagen dorada: solo
   requiere compilar un `.exe` nuevo, no reconstruir `lics-wsl-rootfs.tar`.
 
+## 10.2 Actualizar Django/Next en una instalación existente
+
+Gap real detectado al revisar cómo se propagan cambios de backend/frontend
+a una máquina que ya tiene LICS instalado: **no había forma limpia de
+hacerlo.** `install-wsl-distro.ps1` se salta a propósito la reimportación
+del `.tar` si `lics-wsl` ya existe (para no perder la base de datos ni los
+respaldos — ver §9), así que la imagen dorada nueva nunca llega a una
+instalación existente. Reinstalar el `.exe` solo actualiza los archivos del
+lado Windows (Electron), nunca lo que corre dentro de WSL2. El único
+mecanismo real para esto, `scripts/update.sh`, ya existía (checksums,
+respaldo obligatorio, migraciones, healthcheck, conserva la versión
+anterior) pero nunca estuvo conectado a nada del lado Windows — era un
+procedimiento manual por consola.
+
+Se agregó el menú **LICS > Actualizar aplicación (Django/Next)…**, con
+confirmación explícita antes de correr nada:
+
+- `infra/windows/electron/resources/windows/update-application.sh`
+  (nuevo): corre dentro de la distro `lics-wsl` que ya está viva. Detecta
+  el release offline más nuevo en `C:\lics-dev\` (mismo criterio que usa
+  `cut-release.ps1`: carpeta `lics-<versión>-linux-amd64` con `app/` e
+  `images/`, la más nueva por fecha), lo copia a un directorio nativo de
+  WSL (no corre directo sobre `/mnt/c/`: más lento cruzando drvfs y con
+  semántica de permisos distinta) y recién ahí invoca `update.sh` sin
+  modificarlo. Si `update.sh` falla, conserva la copia para diagnóstico en
+  vez de borrarla; si termina bien, la borra sola.
+- `lib/backend.js` gana `updateApplication()`, que manda ese script por
+  `stdin` a `wsl.exe -d lics-wsl -- bash -l -s` (no lo copia primero
+  dentro de la distro). Se refactorizó el `spawn` compartido con
+  `runInDistro()` en una función común (`spawnInDistro()`) sin cambiar el
+  comportamiento de las llamadas existentes.
+- `main.js` agrega el ítem de menú con un diálogo de confirmación
+  explicando el requisito (release ya copiado a `C:\lics-dev\`), qué va a
+  pasar (respaldo obligatorio, servicios detenidos brevemente,
+  migraciones) y que no hay rollback automático.
+
+Por qué esto sí llega a una instalación existente y la imagen dorada no:
+corre en **runtime**, dentro de la distro que ya está viva, igual que el
+resto de los botones del menú (backup, reiniciar, ver estado) — no
+depende de reimportar el `.tar` en ningún momento. Solo requiere un `.exe`
+nuevo (como el fix de foco), no una imagen dorada nueva.
+
+**No probado contra hardware real** al momento de escribir esto — es
+código revisado por lectura (sintaxis de bash y JS validada), pero nadie
+corrió una actualización real de punta a punta contra una instalación
+viva. Antes de confiar en esto en producción, hay que generar un release
+nuevo real, copiarlo a `C:\lics-dev\`, y correr "Actualizar aplicación"
+contra una instalación de verdad al menos una vez.
+
 ## 11. Pruebas realizadas
 
 Validación en Windows 11 real, 15-16/08/2026:
@@ -419,6 +470,11 @@ Validación en Windows 11 real, 15-16/08/2026:
   contraseña compartida entre todas las instalaciones hechas desde la misma
   imagen dorada hasta que se cambie manualmente; depende de que quien
   instale la app siga la instrucción de cambiarla de inmediato.
+- **"Actualizar aplicación" (§10.2) no está probado contra hardware real
+  todavía.** Es código nuevo (bash + JS), revisado por lectura y validado
+  solo en sintaxis; nadie corrió una actualización real de punta a punta
+  todavía. Es el riesgo más alto de esta lista hasta que se pruebe una vez
+  con un release real.
 
 ## 13. Decisiones pendientes
 
@@ -430,6 +486,10 @@ Validación en Windows 11 real, 15-16/08/2026:
 - Evaluar un puente automático de archivos entre la máquina de build y la
   Windows si el paso manual (USB/red) se vuelve un cuello de botella
   operativo.
+- **Validar "Actualizar aplicación" (§10.2) contra hardware real**: generar
+  un release nuevo real, copiarlo a `C:\lics-dev\`, y correr el menú
+  "Actualizar aplicación" contra una instalación viva al menos una vez
+  antes de confiar en este camino para producción.
 
 ## 14. Criterio de cierre de esta etapa
 
@@ -438,11 +498,13 @@ hardware real: el instalador se genera de punta a punta, se instala, y la
 app funciona para uso real, con la causa raíz de su problema conocido
 confirmada y resuelta (§9-§10), y con los gaps de automatización que
 requerían intervención manual del usuario (primer administrador,
-resincronización de la imagen dorada) cerrados por revisión de código
-(§10.1). No es un cierre definitivo — quedan las decisiones pendientes del
-§13 (todas de menor prioridad: ícono, certificado de firma, puente de
-archivos entre máquinas) antes de considerar esto listo para distribuir a
-un usuario final no técnico sin supervisión.
+resincronización de la imagen dorada, actualización de una instalación
+existente) cerrados por revisión de código (§10.1, §10.2). No es un cierre
+definitivo — falta validar contra hardware real el flujo de actualización
+(§10.2, el riesgo más alto pendiente) y quedan las decisiones pendientes
+del §13 (todas de menor prioridad aparte de esa: ícono, certificado de
+firma, puente de archivos entre máquinas) antes de considerar esto listo
+para distribuir a un usuario final no técnico sin supervisión.
 
 ## 15. Estado general
 
@@ -453,7 +515,8 @@ un usuario final no técnico sin supervisión.
     Bug de foco de Electron (inputs no clicables tras un rato): corregido, pendiente de validar con un .exe nuevo.
     Primer usuario administrador: automatizado en la imagen dorada, con contraseña aleatoria por build.
     Resincronización de la app en imagen dorada reconstruida: corregida (antes se saltaba si la distro ya existía).
-    Pendiente real: ícono placeholder, certificado de firma de código, puente de archivos entre máquinas — todo de menor prioridad, sin bloquear uso en producción.
+    Actualizar Django/Next en una instalación existente: implementado (menú "Actualizar aplicación"), sin probar contra hardware real todavía -- riesgo más alto pendiente.
+    Pendiente real: ícono placeholder, certificado de firma de código, puente de archivos entre máquinas, validar "Actualizar aplicación" en hardware real.
 
 ## Documentación relacionada
 

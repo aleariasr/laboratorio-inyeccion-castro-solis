@@ -131,6 +131,39 @@ function buildMenu() {
         },
         { type: 'separator' },
         {
+          label: 'Actualizar aplicación (Django/Next)…',
+          click: async () => {
+            if (!mainWindow || mainWindow.isDestroyed()) return;
+
+            const { response } = await dialog.showMessageBox(mainWindow, {
+              type: 'question',
+              buttons: ['Cancelar', 'Actualizar'],
+              defaultId: 0,
+              cancelId: 0,
+              title: 'Actualizar LICS',
+              message: 'Esto actualiza el backend (Django) y el frontend (Next) a una versión nueva.',
+              detail: [
+                'Requisito: ya copiaste la carpeta de release nueva ' +
+                  '(lics-<versión>-linux-amd64, con app\\ e images\\ adentro) ' +
+                  'a C:\\lics-dev\\ en esta máquina.',
+                '',
+                'Qué va a pasar: valida el paquete, hace un respaldo obligatorio antes de tocar nada, ' +
+                  'detiene los servicios, carga las imágenes nuevas, corre migraciones y vuelve a ' +
+                  'levantar todo. Puede tardar varios minutos.',
+                '',
+                'Guarda una copia completa de la versión anterior por si algo sale mal, pero no hay ' +
+                  'rollback automático: si falla a mitad de camino, hay que revisar manualmente ' +
+                  '(ver infra/windows/README.md, sección "Actualizar la aplicación").',
+              ].join('\n'),
+            });
+
+            if (response !== 1) return;
+
+            await withBusyMenuAction('Actualizando aplicación', backend.updateApplication)();
+          },
+        },
+        { type: 'separator' },
+        {
           label: 'Salir',
           click: () => app.quit(),
         },
