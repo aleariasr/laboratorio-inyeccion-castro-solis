@@ -66,3 +66,5 @@ repo-audit.txt
 /infra/windows/electron/resources/windows/*.tar
 /infra/windows/electron/dist/
 /infra/windows/electron/node_modules/
+
+_to_delete
