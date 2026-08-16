@@ -289,6 +289,56 @@ reinicio automático si el proceso muere igual). Mientras ese proceso esté
 vivo, WSL2 nunca ve la distro sin clientes y no la apaga. Confirmado con
 uso real extendido: sin caídas.
 
+**Ronda extra de endurecimiento (16/08/2026): el fix de arriba podía
+morir si el usuario cerraba la ventana equivocada.** Reapareció el mismo
+síntoma después de varios días funcionando bien; el usuario recordó haber
+cerrado "unas terminales abiertas" antes de que pasara. Diagnóstico:
+`Get-ScheduledTaskInfo` de la tarea "Mantener sesion WSL activa" mostraba
+`LastTaskResult = 3221225786` (`0xC000013A`, `STATUS_CONTROL_C_EXIT` — el
+código que deja Windows cuando se cierra la consola de un proceso que no
+maneja esa señal) y `Get-Process wsl` no encontraba nada corriendo.
+
+La causa: `-Hidden` en `New-ScheduledTaskSettingsSet` **no oculta la
+ventana del proceso lanzado** — solo oculta la tarea de la lista del
+Programador de Tareas (confirmado contra la documentación oficial de
+Microsoft, `ITaskSettings::put_Hidden`). La tarea corre en la sesión
+interactiva del usuario (necesario para funcionar con cualquier usuario
+que inicie sesión, sin guardar contraseña), así que `wsl.exe -d lics-wsl
+-- sleep infinity` sí abría una ventana de consola real — indistinguible a
+simple vista de cualquier otra terminal abierta. Cerrarla por error mataba
+el proceso exactamente como cerrar cualquier `cmd`/`powershell` a mano.
+
+**Fix real:** la acción de ambas tareas ahora es `powershell.exe
+-WindowStyle Hidden` envolviendo un `Start-Process ... -WindowStyle
+Hidden` hacia `wsl.exe`. Con `-WindowStyle Hidden` en los dos niveles, el
+proceso final no tiene ninguna ventana que mostrar: no aparece en la barra
+de tareas, no hay nada a lo que hacer Alt-Tab, y sobre todo no hay nada
+que el usuario pueda cerrar sin querer. La tarea de mantener sesión además
+gana un bucle propio de reintento (en vez de depender solo del
+`RestartCount` de Task Scheduler) para relanzar `wsl.exe` en segundos si
+muere por cualquier otra razón. Ver
+`infra/windows/electron/resources/windows/register-scheduled-task.ps1`
+para el detalle completo, incluida la explicación de por qué la versión
+anterior parecía correcta pero no lo era.
+
+**Importante:** este fix vive en `register-scheduled-task.ps1`, que corre
+durante la instalación del `.exe` (`install-wsl-distro.ps1` lo invoca
+siempre, en cada instalación, incluso sobre una distro que ya existe — a
+diferencia de la reimportación del `.tar`, que sí se salta). Un `.exe`
+nuevo lo aplica solo con reinstalar, sin reconstruir la imagen dorada. En
+una instalación existente que todavía no recibió este fix, la mitigación
+inmediata mientras tanto es relanzar la tarea a mano:
+
+```powershell
+Start-ScheduledTask -TaskName 'LICS - Mantener sesion WSL activa'
+```
+
+**No probado con uso real extendido todavía** (a diferencia del fix
+original de más arriba, que sí lo tiene) — es la corrección más reciente,
+validada por revisión de código y contra la documentación oficial de
+Microsoft, pendiente de confirmar con tiempo real corriendo sin que nadie
+la mate por accidente.
+
 **Causas insuficientes investigadas antes de llegar a esta** (documentadas
 para no repetir el camino si algo similar reaparece):
 

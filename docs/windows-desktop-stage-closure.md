@@ -433,6 +433,66 @@ viva. Antes de confiar en esto en producción, hay que generar un release
 nuevo real, copiarlo a `C:\lics-dev\`, y correr "Actualizar aplicación"
 contra una instalación de verdad al menos una vez.
 
+## 10.3 El fix de §10 se rompió solo (reapareció el mismo síntoma)
+
+Días después de validar §10 con uso real extendido, reapareció "No fue
+posible comunicarse con el sistema local". El usuario recordó haber
+cerrado "unas terminales abiertas" justo antes. Diagnóstico:
+`Get-ScheduledTaskInfo` de "LICS - Mantener sesion WSL activa" mostraba
+`LastTaskResult = 3221225786` (`0xC000013A`, `STATUS_CONTROL_C_EXIT`) y
+`Get-Process wsl` no encontraba nada corriendo — el proceso de la tarea
+estaba muerto.
+
+**Causa real, confirmada contra la documentación oficial de Microsoft
+(`ITaskSettings::put_Hidden`), no por suposición:** `-Hidden` en
+`New-ScheduledTaskSettingsSet` **no oculta la ventana del proceso
+lanzado** — solo oculta la tarea de la lista del Programador de Tareas
+(la UI de administración). Al confiar en ese parámetro para "que no
+moleste al usuario", `register-scheduled-task.ps1` seguía lanzando
+`wsl.exe -d lics-wsl -- sleep infinity` directo, con una ventana de
+consola real y visible en la sesión interactiva del usuario —
+indistinguible a simple vista de cualquier otra terminal abierta. El
+usuario la cerró sin saber qué era, matando el proceso, y con eso WSL2
+volvió a quedarse sin clientes conectados: el mismo problema de §9,
+reproducido por un camino distinto (cierre accidental en vez de "nunca
+hubo cliente conectado en primer lugar").
+
+Este es un error real de diseño del fix de §10, no una regresión externa
+ni un problema nuevo de WSL2/Windows — la causa raíz de §9 (WSL2 apaga la
+distro sin clientes) sigue siendo correcta; lo que falló fue la
+implementación del mecanismo que debía mantener el cliente conectado sin
+molestar al usuario.
+
+**Fix real:** la acción de ambas tareas (`register-scheduled-task.ps1`)
+ahora es `powershell.exe -WindowStyle Hidden` envolviendo un
+`Start-Process ... -WindowStyle Hidden` hacia `wsl.exe`. Con
+`-WindowStyle Hidden` en los dos niveles, el proceso final no tiene
+ninguna ventana que mostrar: no aparece en la barra de tareas, no hay
+nada a lo que hacer Alt-Tab, y sobre todo no hay nada que el usuario
+pueda cerrar sin querer. La tarea de mantener sesión suma además un
+bucle de reintento propio (relanza `wsl.exe` en segundos si muere por
+cualquier otra razón), en vez de depender solo del `RestartCount` de
+Task Scheduler.
+
+Como `install-wsl-distro.ps1` invoca `register-scheduled-task.ps1` en
+**cada** instalación (a diferencia de la reimportación del `.tar`, que sí
+se salta si la distro ya existe), este fix llega a una instalación
+existente con solo reinstalar el `.exe` — no requiere imagen dorada
+nueva. Mitigación inmediata mientras tanto, en una instalación que
+todavía no recibió el `.exe` nuevo:
+
+```powershell
+Start-ScheduledTask -TaskName 'LICS - Mantener sesion WSL activa'
+```
+
+**No probado con uso real extendido todavía** — a diferencia del fix de
+§10, que sí tiene esa validación. Esta corrección se hizo por revisión de
+código y contra la documentación oficial de Microsoft, pendiente de
+confirmar con tiempo real corriendo sin que nadie la mate por accidente
+(exactamente lo que falló la primera vez, así que vale la pena ser
+explícito sobre no repetir el mismo error de "declarar esto resuelto" sin
+uso real extendido de por medio).
+
 ## 11. Pruebas realizadas
 
 Validación en Windows 11 real, 15-16/08/2026:
@@ -473,8 +533,13 @@ Validación en Windows 11 real, 15-16/08/2026:
 - **"Actualizar aplicación" (§10.2) no está probado contra hardware real
   todavía.** Es código nuevo (bash + JS), revisado por lectura y validado
   solo en sintaxis; nadie corrió una actualización real de punta a punta
-  todavía. Es el riesgo más alto de esta lista hasta que se pruebe una vez
-  con un release real.
+  todavía.
+- **El endurecimiento de §10.3 (ventanas realmente ocultas en las tareas
+  programadas) tampoco está probado con uso real extendido.** Es el
+  riesgo más alto de esta lista: el fix que reemplaza (§10) sí tenía esa
+  validación y aun así resultó tener una falla real (ver §10.3) que tardó
+  días en manifestarse. No declarar esto "resuelto" otra vez sin uso real
+  extendido de por medio.
 
 ## 13. Decisiones pendientes
 
@@ -490,33 +555,40 @@ Validación en Windows 11 real, 15-16/08/2026:
   un release nuevo real, copiarlo a `C:\lics-dev\`, y correr el menú
   "Actualizar aplicación" contra una instalación viva al menos una vez
   antes de confiar en este camino para producción.
+- **Validar el endurecimiento de §10.3 con uso real extendido** (días, no
+  minutos) antes de considerar cerrado el problema de §9 por segunda vez.
 
 ## 14. Criterio de cierre de esta etapa
 
 Esta etapa se considera cerrada como versión funcional inicial validada en
 hardware real: el instalador se genera de punta a punta, se instala, y la
 app funciona para uso real, con la causa raíz de su problema conocido
-confirmada y resuelta (§9-§10), y con los gaps de automatización que
-requerían intervención manual del usuario (primer administrador,
-resincronización de la imagen dorada, actualización de una instalación
-existente) cerrados por revisión de código (§10.1, §10.2). No es un cierre
-definitivo — falta validar contra hardware real el flujo de actualización
-(§10.2, el riesgo más alto pendiente) y quedan las decisiones pendientes
-del §13 (todas de menor prioridad aparte de esa: ícono, certificado de
-firma, puente de archivos entre máquinas) antes de considerar esto listo
-para distribuir a un usuario final no técnico sin supervisión.
+identificada correctamente desde §9 (WSL2 apaga la distro sin clientes
+conectados), y con los gaps de automatización que requerían intervención
+manual del usuario (primer administrador, resincronización de la imagen
+dorada, actualización de una instalación existente) cerrados por revisión
+de código (§10.1, §10.2). **No es un cierre definitivo, y en particular el
+mecanismo que evita que WSL2 apague la distro (§10, endurecido en §10.3)
+ya demostró una vez que "validado con uso real" no significa
+"inmune a fallar de otra forma"** — sigue siendo el punto de mayor riesgo
+de toda esta etapa. Antes de considerar esto listo para distribuir a un
+usuario final no técnico sin supervisión falta: validar con uso real
+extendido el endurecimiento de §10.3, validar contra hardware real el
+flujo de actualización de §10.2, y las decisiones pendientes del §13 (de
+menor prioridad: ícono, certificado de firma, puente de archivos entre
+máquinas).
 
 ## 15. Estado general
 
-    App de escritorio Windows: validada en hardware real, funcional y estable.
+    App de escritorio Windows: validada en hardware real, funcional, con el mecanismo anti-caidas en su segunda iteracion (ver Causa raiz mas abajo).
     Runner self-hosted de GitHub Actions: configurado y documentado (este documento, §7).
     Pipeline de release: reducido a un comando por máquina.
-    Causa raíz de caídas intermitentes: confirmada y resuelta, validada con uso real extendido.
+    Causa raíz de caídas intermitentes (§9): diagnostico correcto y estable. Mecanismo que la evita (§10): tuvo una falla real tras dias funcionando bien (§10.3, tareas con ventana visible que el usuario cerro sin saber que era), corregido, AUN NO validado con uso real extendido -- riesgo mas alto pendiente de toda la etapa.
     Bug de foco de Electron (inputs no clicables tras un rato): corregido, pendiente de validar con un .exe nuevo.
     Primer usuario administrador: automatizado en la imagen dorada, con contraseña aleatoria por build.
     Resincronización de la app en imagen dorada reconstruida: corregida (antes se saltaba si la distro ya existía).
-    Actualizar Django/Next en una instalación existente: implementado (menú "Actualizar aplicación"), sin probar contra hardware real todavía -- riesgo más alto pendiente.
-    Pendiente real: ícono placeholder, certificado de firma de código, puente de archivos entre máquinas, validar "Actualizar aplicación" en hardware real.
+    Actualizar Django/Next en una instalación existente: implementado (menú "Actualizar aplicación"), sin probar contra hardware real todavía.
+    Pendiente real: validar con uso real extendido el fix de §10.3 (mayor prioridad), validar "Actualizar aplicación" en hardware real, ícono placeholder, certificado de firma de código, puente de archivos entre máquinas.
 
 ## Documentación relacionada
 

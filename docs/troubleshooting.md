@@ -190,7 +190,24 @@ Get-ScheduledTask -TaskName 'LICS - Mantener sesion WSL activa' | Get-ScheduledT
 Get-Process wsl -ErrorAction SilentlyContinue
 ```
 
-Si la tarea no existe, no está habilitada, o no hay ningún proceso `wsl.exe` corriendo, ese es el problema — instalarla o reactivarla (ver `infra/windows/electron/resources/windows/register-scheduled-task.ps1`, o correrla directo: `Start-ScheduledTask -TaskName 'LICS - Mantener sesion WSL activa'`).
+Si la tarea no existe, no está habilitada, o no hay ningún proceso `wsl.exe` corriendo, ese es el problema. Mitigación inmediata (relanza la tarea ahora mismo, sin esperar un `.exe` nuevo):
+
+```powershell
+Start-ScheduledTask -TaskName 'LICS - Mantener sesion WSL activa'
+```
+
+Si `LastTaskResult` en el primer comando muestra `3221225786` (`0xC000013A`,
+`STATUS_CONTROL_C_EXIT`): es el bug ya identificado y corregido de
+`register-scheduled-task.ps1` — la versión vieja de esa tarea corría
+`wsl.exe` con una ventana de consola real y visible (`-Hidden` en Task
+Scheduler solo oculta la tarea de su propia lista, no la ventana del
+proceso), indistinguible de cualquier otra terminal abierta; cerrarla por
+error mataba el proceso y con eso la distro se quedaba sin clientes otra
+vez. La corrección (tareas relanzadas con `Start-Process -WindowStyle
+Hidden`, sin ninguna ventana que se pueda cerrar) ya está en el repo — la
+mitigación de arriba resuelve el síntoma ahora mismo, pero para que no
+vuelva a pasar hace falta reinstalar el `.exe` más reciente (que
+reregistra las tareas automáticamente al instalar).
 
 ## 2. Ver qué contenedor quedó caído
 
