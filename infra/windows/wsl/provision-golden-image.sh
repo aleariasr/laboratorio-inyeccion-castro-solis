@@ -197,10 +197,20 @@ create_initial_admin() {
 
     admin_password="$(openssl rand -base64 24)"
 
-    DJANGO_SUPERUSER_USERNAME=admin \
-    DJANGO_SUPERUSER_EMAIL=admin@localhost \
-    DJANGO_SUPERUSER_PASSWORD="${admin_password}" \
-    docker compose --env-file "${env_file}" -f "${compose_file}" run --rm --no-deps backend \
+    # "VAR=valor docker compose run ..." NO alcanza: eso exporta la variable
+    # para el proceso "docker compose" en sí (el cliente CLI), no para el
+    # contenedor que ese comando lanza -- "docker compose run" no reenvía
+    # automáticamente el entorno del shell que lo invoca hacia adentro del
+    # contenedor salvo que compose.prod.yml lo declare explícitamente en
+    # "environment:" (no es el caso acá). Confirmado en validación real:
+    # sin "-e", Django ni se entera de que existen esas variables y falla
+    # con "You must use --username with --noinput." Con "-e VAR=valor" sí
+    # quedan seteadas dentro del contenedor.
+    docker compose --env-file "${env_file}" -f "${compose_file}" run --rm --no-deps \
+        -e DJANGO_SUPERUSER_USERNAME=admin \
+        -e DJANGO_SUPERUSER_EMAIL=admin@localhost \
+        -e DJANGO_SUPERUSER_PASSWORD="${admin_password}" \
+        backend \
         python src/manage.py createsuperuser --noinput
 
     cat > "${creds_file}" <<EOF
