@@ -72,3 +72,18 @@ class CustomersPermission(BaseRolePermission):
     required_roles = {
         ROLE_CUSTOMERS,
     }
+
+
+class ReportsPermission(BaseRolePermission):
+    """
+    Permiso para los reportes operativos.
+
+    Los reportes de inventario y de negocio (compras, ventas) los
+    consultan usuarios de ambos dominios, así que se acepta cualquiera
+    de los dos roles en vez de exigir uno solo.
+    """
+
+    required_roles = {
+        ROLE_INVENTORY,
+        ROLE_SALES,
+    }

@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import InventoryPermission
+from apps.core.permissions import ReportsPermission
 from apps.inventory.models import (
     Currency,
     Product,
@@ -21,7 +21,7 @@ from apps.sales.models import Sale, SaleItem, SaleStatus
 
 
 class LowStockProductsReportView(APIView):
-    permission_classes = [InventoryPermission]
+    permission_classes = [ReportsPermission]
 
     def get(self, request):
         products = (
@@ -50,7 +50,7 @@ class LowStockProductsReportView(APIView):
 
 
 class StockByLocationReportView(APIView):
-    permission_classes = [InventoryPermission]
+    permission_classes = [ReportsPermission]
 
     def get(self, request):
         products = (
@@ -96,7 +96,7 @@ class StockByLocationReportView(APIView):
 
 
 class ProductMovementsReportView(APIView):
-    permission_classes = [InventoryPermission]
+    permission_classes = [ReportsPermission]
 
     def get(self, request):
         product_id = request.query_params.get("product")
@@ -215,7 +215,7 @@ def _convert_purchase_subtotal_to_crc(subtotal, purchase):
 
 
 class PurchasesBySupplierReportView(APIView):
-    permission_classes = [InventoryPermission]
+    permission_classes = [ReportsPermission]
 
     def get(self, request):
         date_from, date_to, error_response = parse_report_dates(request)
@@ -295,7 +295,7 @@ class PurchasesBySupplierReportView(APIView):
 
 
 class SalesByDateReportView(APIView):
-    permission_classes = [InventoryPermission]
+    permission_classes = [ReportsPermission]
 
     def get(self, request):
         date_from, date_to, error_response = parse_report_dates(request)
@@ -360,7 +360,7 @@ class SalesByDateReportView(APIView):
 
 
 class TopSellingProductsReportView(APIView):
-    permission_classes = [InventoryPermission]
+    permission_classes = [ReportsPermission]
 
     def get(self, request):
         date_from, date_to, error_response = parse_report_dates(request)

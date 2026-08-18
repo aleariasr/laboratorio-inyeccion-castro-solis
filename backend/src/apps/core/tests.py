@@ -749,6 +749,25 @@ class InventoryReportsApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_reports_allow_sales_only_user_to_read(self):
+        sales_user = User.objects.create_user(
+            username="reports-sales-only",
+            password="12345678",
+        )
+
+        sales_group, _ = Group.objects.get_or_create(
+            name=ROLE_SALES,
+        )
+        sales_user.groups.add(sales_group)
+
+        self.client.force_authenticate(sales_user)
+
+        response = self.client.get(
+            "/api/reports/low-stock-products/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
 class BusinessReportsApiTest(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -970,3 +989,30 @@ class BusinessReportsApiTest(APITestCase):
             Decimal(item["invoice_subtotal"]),
             Decimal("10800.0000"),
         )
+
+    def test_business_reports_allow_sales_only_user(self):
+        sales_user = User.objects.create_user(
+            username="reports-sales-only",
+            password="12345678",
+        )
+
+        sales_group, _ = Group.objects.get_or_create(
+            name=ROLE_SALES,
+        )
+        sales_user.groups.add(sales_group)
+
+        self.client.force_authenticate(sales_user)
+
+        purchases_response = self.client.get(
+            "/api/reports/purchases-by-supplier/"
+        )
+        sales_response = self.client.get(
+            "/api/reports/sales-by-date/"
+        )
+        top_selling_response = self.client.get(
+            "/api/reports/top-selling-products/"
+        )
+
+        self.assertEqual(purchases_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(sales_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(top_selling_response.status_code, status.HTTP_200_OK)
