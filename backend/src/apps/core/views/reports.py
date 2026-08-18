@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from apps.core.permissions import InventoryPermission
 from apps.inventory.models import (
+    Currency,
     Product,
     Purchase,
     PurchaseStatus,
@@ -193,6 +194,26 @@ def parse_report_dates(request):
     return date_from, date_to, None
 
 
+def _convert_purchase_subtotal_to_crc(subtotal, purchase):
+    """
+    Convierte el subtotal de una compra a colones.
+
+    El tipo de cambio de Purchase siempre se expresa como colones por
+    dólar, sin importar la moneda de la compra (misma convención que
+    apps.inventory.services.costs._convert_import_cost_to_purchase_currency,
+    usada para los costos de importación).
+
+    Este reporte agrupa compras de un mismo proveedor que pueden estar
+    en monedas distintas; sin esta conversión el total sumaría montos
+    en colones y en dólares como si fueran la misma unidad.
+    """
+
+    if purchase.currency == Currency.USD:
+        return subtotal * purchase.exchange_rate
+
+    return subtotal
+
+
 class PurchasesBySupplierReportView(APIView):
     permission_classes = [InventoryPermission]
 
@@ -241,8 +262,13 @@ class PurchasesBySupplierReportView(APIView):
                 Decimal("0"),
             )
 
+            subtotal_crc = _convert_purchase_subtotal_to_crc(
+                subtotal,
+                purchase,
+            )
+
             results_by_supplier[supplier.id]["purchase_count"] += 1
-            results_by_supplier[supplier.id]["invoice_subtotal"] += subtotal
+            results_by_supplier[supplier.id]["invoice_subtotal"] += subtotal_crc
 
         results = []
 
@@ -252,6 +278,7 @@ class PurchasesBySupplierReportView(APIView):
                     "supplier": item["supplier"],
                     "purchase_count": item["purchase_count"],
                     "invoice_subtotal": item["invoice_subtotal"],
+                    "currency": "CRC",
                 }
             )
 

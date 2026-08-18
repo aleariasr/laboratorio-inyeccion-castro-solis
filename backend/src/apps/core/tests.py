@@ -925,3 +925,48 @@ class BusinessReportsApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_purchases_by_supplier_report_converts_mixed_currencies_to_crc(self):
+        second_purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="REP-FAC-002",
+            purchase_date=date(2026, 7, 15),
+            currency="USD",
+            exchange_rate=Decimal("520.0000"),
+            status=PurchaseStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        PurchaseItem.objects.create(
+            purchase=second_purchase,
+            supplier_product=self.supplier_product,
+            quantity=2,
+            unit_cost=Decimal("10.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/reports/purchases-by-supplier/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+
+        item = response.data["results"][0]
+
+        # Primera compra (setUp): 4 x 100.0000 CRC = 400.0000 CRC, sin conversión.
+        # Segunda compra: 2 x 10.0000 USD = 20.0000 USD, convertidos con su
+        # propio tipo de cambio: 20.0000 x 520.0000 = 10400.0000 CRC.
+        # Total esperado: 400.0000 + 10400.0000 = 10800.0000 CRC.
+        self.assertEqual(item["purchase_count"], 2)
+        self.assertEqual(item["currency"], "CRC")
+        self.assertEqual(
+            Decimal(item["invoice_subtotal"]),
+            Decimal("10800.0000"),
+        )
