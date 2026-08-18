@@ -43,6 +43,25 @@
 # manual, lo que sea), en vez de depender solo del RestartCount de Task
 # Scheduler -- ese sigue configurado igual, como red de seguridad adicional
 # por si el wrapper mismo muere.
+#
+# SEGUNDA RONDA (18/08/2026): "LICS - Mantener sesion WSL activa" quedó
+# confirmada realmente invisible (verificado en validación real: proceso
+# corriendo, sin ninguna ventana). "LICS - Iniciar backend", con el mismo
+# wrapper Start-Process -WindowStyle Hidden, SÍ aparecía -- minimizada,
+# en negro, sin poder usarse -- al iniciar sesión. Causa real: -WindowStyle
+# Hidden en Start-Process oculta la ventana DESPUÉS de creada
+# (ShowWindow(SW_HIDE)), no impide que se cree. Para "sleep infinity" (sin
+# salida) esa ventana, si llega a existir un instante, no muestra nada y
+# nadie la nota. Para start.sh (docker compose, migraciones, con salida
+# real durante segundos o minutos) esa ventana existe el tiempo suficiente
+# para ser visible antes de que el ocultamiento termine de aplicarse.
+#
+# Fix real: en vez de crear la ventana y ocultarla, evitar que se cree del
+# todo, con el flag CreateNoWindow de .NET (System.Diagnostics.Process),
+# que se aplica en el momento mismo de crear el proceso (a nivel de
+# CreateProcess de Windows), no después. Es un mecanismo distinto y más
+# confiable que Start-Process -WindowStyle Hidden para procesos de consola
+# que sí producen salida.
 
 $ErrorActionPreference = 'Stop'
 
@@ -70,17 +89,27 @@ function Register-LicsTask {
     $escapedWslArgument = $WslArgument.Replace("'", "''")
     $escapedWslExe = $WslExe.Replace("'", "''")
 
+    # CreateNoWindow=$true evita que se cree la ventana de consola de raíz
+    # (a diferencia de Start-Process -WindowStyle Hidden, que la crea y
+    # recién después la oculta -- ver comentario de cabecera, "SEGUNDA
+    # RONDA"). UseShellExecute debe ir en $false para que CreateNoWindow
+    # tenga efecto.
+    $psiCommand = "`$psi = New-Object System.Diagnostics.ProcessStartInfo; " +
+        "`$psi.FileName = '$escapedWslExe'; " +
+        "`$psi.Arguments = '$escapedWslArgument'; " +
+        "`$psi.UseShellExecute = `$false; " +
+        "`$psi.CreateNoWindow = `$true; " +
+        "`$proc = [System.Diagnostics.Process]::Start(`$psi); " +
+        "`$proc.WaitForExit()"
+
     if ($KeepAlive) {
         # Bucle infinito propio en vez de depender solo de RestartCount de
         # Task Scheduler: si wsl.exe muere por lo que sea, se relanza solo
         # en segundos, sin esperar a que Task Scheduler decida que la tarea
         # "falló" y aplique su propio intervalo de reintento.
-        $psCommand = "while (`$true) { " +
-            "try { Start-Process -FilePath '$escapedWslExe' -ArgumentList '$escapedWslArgument' -WindowStyle Hidden -Wait } catch { } " +
-            "Start-Sleep -Seconds 5 " +
-            "}"
+        $psCommand = "while (`$true) { try { $psiCommand } catch { } Start-Sleep -Seconds 5 }"
     } else {
-        $psCommand = "Start-Process -FilePath '$escapedWslExe' -ArgumentList '$escapedWslArgument' -WindowStyle Hidden -Wait"
+        $psCommand = $psiCommand
     }
 
     $psArgument = "-NoProfile -WindowStyle Hidden -Command `"$psCommand`""

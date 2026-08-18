@@ -339,6 +339,36 @@ validada por revisión de código y contra la documentación oficial de
 Microsoft, pendiente de confirmar con tiempo real corriendo sin que nadie
 la mate por accidente.
 
+**Tercera ronda (18/08/2026): "LICS - Iniciar backend" seguía mostrando
+una ventana, aunque "LICS - Mantener sesion WSL activa" ya estaba
+confirmada invisible.** Reportado en uso real: al prender la computadora
+se abría una ventana minimizada, en negro, que no se podía usar —
+distinta del bug original (esta no mataba el proceso al cerrarla, así que
+no reproducía la caída de conexión, pero seguía siendo una ventana no
+deseada). Diagnóstico en vivo confirmó que las dos tareas tenían la
+misma configuración (`Principal`, `Settings`) y la misma acción
+(`Start-Process -WindowStyle Hidden`), así que no era un tema de permisos
+ni de la tarea en sí.
+
+**Causa real:** `-WindowStyle Hidden` en `Start-Process` oculta la
+ventana *después* de creada (`ShowWindow(SW_HIDE)`), no impide que se
+cree. Para `sleep infinity` (sin salida) esa ventana, si llega a existir
+un instante, no muestra nada y nadie la nota. Para `start.sh` (`docker
+compose`, migraciones, con salida real durante segundos o minutos) esa
+ventana existe el tiempo suficiente para ser visible antes de que el
+ocultamiento termine de aplicarse.
+
+**Fix real:** en `register-scheduled-task.ps1`, reemplazado
+`Start-Process -WindowStyle Hidden` por `System.Diagnostics.Process` con
+`CreateNoWindow=$true` y `UseShellExecute=$false` — un mecanismo
+distinto, que evita la creación de la ventana a nivel de `CreateProcess`
+de Windows en vez de crearla y ocultarla después. Aplicado a las dos
+tareas por consistencia, aunque el síntoma solo se había observado en
+"Iniciar backend". **Tampoco probado todavía con uso real** — mismo
+patrón de honestidad que las rondas anteriores: validado por revisión de
+código y por el mecanismo documentado de Windows, pendiente de confirmar
+con un reinicio real de la máquina.
+
 **Causas insuficientes investigadas antes de llegar a esta** (documentadas
 para no repetir el camino si algo similar reaparece):
 
