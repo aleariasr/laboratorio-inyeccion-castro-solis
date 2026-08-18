@@ -1,5 +1,11 @@
 # Estructura de instalación en producción
 
+> **Nota:** este documento sigue vigente para lo que describe (la
+> estructura de `/opt/lics` dentro de la distro WSL2 en la instalación de
+> Windows), no solo para el plan Linux original. `/opt/lics` es la misma
+> ruta que usa la app de escritorio de Windows, corriendo dentro de la
+> distro `lics-wsl` — ver [Despliegue en Windows](../infra/windows/README.md).
+
 LICS utiliza /opt/lics como raíz de instalación productiva actual.
 
 ## Estado actual

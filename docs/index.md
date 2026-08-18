@@ -18,11 +18,12 @@ LICS es un sistema local/offline orientado a producción real. La documentación
 8. [Despliegue](deployment.md)
 8b. [Despliegue en Windows (app de escritorio)](../infra/windows/README.md)
 8c. [Cierre de etapa: app de escritorio para Windows](windows-desktop-stage-closure.md)
+8d. [Lista de preparación para producción — Windows](windows-production-checklist.md)
 9. [Backups y restauración](backup-restore.md)
 10. [Proceso de actualización](update-process.md)
 11. [Seguridad](security.md)
 12. [Solución de problemas](troubleshooting.md)
-13. [Lista de preparación para producción](production-readiness-checklist.md)
+13. [Lista de preparación para producción (histórica, plan Linux/kiosco superado)](production-readiness-checklist.md)
 14. [Auditoría previa al frontend](frontend-audit.md)
 15. [Roadmap de frontend](frontend-roadmap.md)
 16. [Sistema de diseño del frontend](frontend-design-system.md)
@@ -88,10 +89,34 @@ Incluye:
 - configuración completa del runner self-hosted de GitHub Actions;
 - todos los bugs reales encontrados y corregidos en hardware Windows real;
 - instalación y primer uso;
-- problema conocido de caídas intermitentes de conexión (mitigado, no resuelto);
+- causa raíz confirmada de las caídas intermitentes de conexión, con una
+  ronda posterior de endurecimiento tras una reaparición real;
 - pruebas realizadas y decisiones pendientes.
 
-## Lista de preparación para producción
+## Lista de preparación para producción — Windows
+
+Archivo:
+
+- [windows-production-checklist.md](windows-production-checklist.md)
+
+Propósito:
+
+Checklist vigente para tratar una instalación de LICS en Windows como la
+instalación de producción real, con datos reales del negocio — reemplaza,
+para el objetivo actual, a la lista histórica de más abajo (pensada para
+el plan de despliegue Linux/kiosco ya superado).
+
+Incluye:
+
+- diferencia entre máquina de pruebas y máquina de producción;
+- requisitos de hardware/software previos;
+- checklist de instalación;
+- validación mínima antes de confiar datos reales (uso extendido,
+  backup verificado, "Actualizar aplicación" probado);
+- pendientes conocidos no bloqueantes;
+- criterio de liberación para esta plataforma.
+
+## Lista de preparación para producción (histórica)
 
 Archivo:
 

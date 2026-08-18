@@ -1,5 +1,14 @@
 # Lista de preparación para producción
 
+> **Histórico — plan de despliegue superado.** Este documento describe el
+> plan original de despliegue en Ubuntu Desktop/Linux Mint con Chromium en
+> modo kiosco. Ese plan quedó reemplazado por la app de escritorio nativa
+> para Windows (WSL2 + Docker Engine + Electron). El checklist vigente es
+> [windows-production-checklist.md](windows-production-checklist.md). Se
+> conserva este documento como registro histórico, no como referencia
+> operativa actual — varios de sus requisitos (SSH con llaves, firewall,
+> autologin gráfico, modo kiosco) no aplican al objetivo real de hoy.
+
 ## Objetivo
 
 Esta lista define los criterios mínimos que debe cumplir una versión antes de ser considerada apta para una instalación de producción.

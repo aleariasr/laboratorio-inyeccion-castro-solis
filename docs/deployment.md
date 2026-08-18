@@ -1,5 +1,13 @@
 # Despliegue
 
+> **Histórico — plan de despliegue superado.** Este documento describe el
+> despliegue en un equipo Linux (Ubuntu Desktop/Linux Mint) con Chromium
+> en modo kiosco. Ese plan quedó reemplazado por la app de escritorio
+> nativa para Windows (WSL2 + Docker Engine + Electron) — ver
+> [Despliegue en Windows](../infra/windows/README.md) y el checklist
+> vigente en [windows-production-checklist.md](windows-production-checklist.md).
+> Se conserva este documento como registro histórico.
+
 > Estado actualizado: la instalación offline base y el backend operativo inicial ya fueron validados. Las validaciones finales pendientes corresponden principalmente al entorno gráfico objetivo, hardening, soporte técnico y operación con usuarios reales.
 
 ## Objetivo
