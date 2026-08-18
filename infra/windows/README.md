@@ -386,7 +386,7 @@ patrón (arranque + apagado a los pocos segundos) u otro nuevo.
 
 ---
 
-## Problema conocido: cuadros de texto dejan de responder tras un rato (corregido)
+## Problema conocido: cuadros de texto dejan de responder tras un rato (mitigado, no resuelto — bug upstream de Electron)
 
 Reportado en uso real: tras un rato usando la app, los cuadros de texto
 dejaban de aceptar clics aunque la ventana se veía normal y enfocada.
@@ -401,13 +401,41 @@ llegan a los inputs hasta que algo fuerza el refoco del `webContents` —
 por eso un diálogo nativo lo "arreglaba" sin que nadie lo hubiera diseñado
 así.
 
-**Fix aplicado** (`infra/windows/electron/main.js`): se fuerza
-`win.webContents.focus()` cada vez que la ventana gana foco
-(`win.on('focus', ...)`), en vez de depender de que el usuario note el
-síntoma y abra un diálogo. Este fix vive en el código de Electron, no en la
-imagen dorada de WSL2: para llegar a una instalación existente hace falta
-un `.exe` nuevo (compilado por el runner self-hosted), no reconstruir la
-imagen dorada.
+**Primer fix aplicado** (`infra/windows/electron/main.js`): se forzaba
+`win.webContents.focus()` cada vez que la ventana ganaba foco
+(`win.on('focus', ...)`). Este fix se había declarado corregido, pero el
+síntoma **reapareció** en uso real: el desenfoque puede ocurrir sin que la
+ventana pase por un ciclo real de blur/focus a nivel de sistema operativo
+(por ejemplo, tras ciertos reflows internos de Chromium), así que un
+handler que solo escucha el evento `'focus'` no cubre todos los casos.
+
+**Investigación confirmó que es un bug real de Electron/Chromium en
+Windows, no algo que se pueda resolver por completo desde el código de la
+app**: `electron/electron#20464` ("BrowserWindow.isFocused() can return
+true when it's not (Windows only)") describe exactamente este síntoma y
+fue cerrado por los mantenedores de Electron como "not planned" — lo
+reconocen como real pero no lo van a arreglar upstream.
+`electron/electron#19977` documenta el mismo workaround que ya se había
+observado acá de forma empírica: cambiar el foco a otra ventana y volver
+"arregla" el síntoma temporalmente.
+
+**Segunda capa de mitigación aplicada** (`infra/windows/electron/main.js`):
+además del handler de `'focus'`, ahora hay un chequeo periódico (cada 1.5s)
+que revisa si la ventana está enfocada a nivel de sistema operativo pero el
+`webContents` no, y en ese caso fuerza el refoco. La condición exige
+`win.isFocused()` primero, para no robarle nunca el foco a otra aplicación
+(Word, Excel) cuando LICS está en segundo plano — importante porque esta
+app no corre en modo kiosco.
+
+**Honestidad sobre el estado real:** esto es una mitigación adicional
+contra un bug confirmado como no resuelto por el propio equipo de
+Electron, no una garantía de que el síntoma no vuelva a aparecer nunca.
+Si vuelve a pasar después de esta segunda capa, no es un indicio de que
+el código esté mal escrito — es el límite real de lo que se puede hacer
+desde una app Electron contra este bug específico de Windows. Este fix
+vive en el código de Electron, no en la imagen dorada de WSL2: para
+llegar a una instalación existente hace falta un `.exe` nuevo (compilado
+por el runner self-hosted), no reconstruir la imagen dorada.
 
 ---
 

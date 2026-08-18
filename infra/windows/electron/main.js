@@ -45,6 +45,33 @@ function createWindow() {
     win.webContents.focus();
   });
 
+  // El fix de arriba (win.on('focus', ...)) NO alcanza: es un bug confirmado
+  // de Electron/Chromium en Windows (electron/electron#20464), cerrado por
+  // los mantenedores como "not planned" -- no lo van a arreglar upstream.
+  // El desenfoque puede aparecer SIN que la ventana pase por un ciclo real
+  // de blur/focus a nivel de sistema operativo (por ejemplo, tras ciertos
+  // reflows internos de Chromium), así que un handler que solo escucha
+  // 'focus' se lo pierde. Como mitigación adicional -- no una solución
+  // garantizada -- revisamos periódicamente si la ventana está enfocada a
+  // nivel de SO pero el webContents no, y forzamos el refoco en ese caso.
+  // Importante: la condición exige win.isFocused() primero, para no robarle
+  // nunca el foco del sistema operativo a otra aplicación (Word, Excel,
+  // etc.) cuando LICS está en segundo plano -- esta app no corre en modo
+  // kiosco y tiene que convivir con el resto del escritorio.
+  const focusWatchdog = setInterval(() => {
+    if (win.isDestroyed()) {
+      clearInterval(focusWatchdog);
+      return;
+    }
+    if (win.isFocused() && !win.webContents.isFocused()) {
+      win.webContents.focus();
+    }
+  }, 1500);
+
+  win.on('closed', () => {
+    clearInterval(focusWatchdog);
+  });
+
   return win;
 }
 
