@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.pagination import StandardResultsSetPagination
 from apps.core.permissions import ReportsPermission
 from apps.inventory.models import (
     Currency,
@@ -22,31 +23,33 @@ from apps.sales.models import Sale, SaleItem, SaleStatus
 
 class LowStockProductsReportView(APIView):
     permission_classes = [ReportsPermission]
+    pagination_class = StandardResultsSetPagination
 
     def get(self, request):
-        products = (
+        queryset = (
             low_stock_products()
-            .select_related("storage_location")[:100]
+            .select_related("storage_location")
         )
 
-        return Response(
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+
+        results = [
             {
-                "results": [
-                    {
-                        "id": product.id,
-                        "standard_code": product.standard_code,
-                        "name": product.name,
-                        "minimum_stock": product.minimum_stock,
-                        "current_stock": product.current_stock,
-                        "storage_location": {
-                            "id": product.storage_location_id,
-                            "code": product.storage_location.code,
-                        },
-                    }
-                    for product in products
-                ]
+                "id": product.id,
+                "standard_code": product.standard_code,
+                "name": product.name,
+                "minimum_stock": product.minimum_stock,
+                "current_stock": product.current_stock,
+                "storage_location": {
+                    "id": product.storage_location_id,
+                    "code": product.storage_location.code,
+                },
             }
-        )
+            for product in page
+        ]
+
+        return paginator.get_paginated_response(results)
 
 
 class StockByLocationReportView(APIView):
@@ -216,6 +219,7 @@ def _convert_purchase_subtotal_to_crc(subtotal, purchase):
 
 class PurchasesBySupplierReportView(APIView):
     permission_classes = [ReportsPermission]
+    pagination_class = StandardResultsSetPagination
 
     def get(self, request):
         date_from, date_to, error_response = parse_report_dates(request)
@@ -270,32 +274,32 @@ class PurchasesBySupplierReportView(APIView):
             results_by_supplier[supplier.id]["purchase_count"] += 1
             results_by_supplier[supplier.id]["invoice_subtotal"] += subtotal_crc
 
-        results = []
-
-        for item in results_by_supplier.values():
-            results.append(
+        results = sorted(
+            (
                 {
                     "supplier": item["supplier"],
                     "purchase_count": item["purchase_count"],
                     "invoice_subtotal": item["invoice_subtotal"],
                     "currency": "CRC",
                 }
-            )
-
-        return Response(
-            {
-                "date_from": date_from,
-                "date_to": date_to,
-                "results": sorted(
-                    results,
-                    key=lambda item: item["supplier"]["name"],
-                ),
-            }
+                for item in results_by_supplier.values()
+            ),
+            key=lambda item: item["supplier"]["name"],
         )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(results, request, view=self)
+
+        response = paginator.get_paginated_response(page)
+        response.data["date_from"] = date_from
+        response.data["date_to"] = date_to
+
+        return response
 
 
 class SalesByDateReportView(APIView):
     permission_classes = [ReportsPermission]
+    pagination_class = StandardResultsSetPagination
 
     def get(self, request):
         date_from, date_to, error_response = parse_report_dates(request)
@@ -340,27 +344,24 @@ class SalesByDateReportView(APIView):
             results_by_date[sale_date]["sale_count"] += 1
             results_by_date[sale_date]["total"] += total
 
-        return Response(
-            {
-                "date_from": date_from,
-                "date_to": date_to,
-                "results": [
-                    {
-                        "date": item["date"],
-                        "sale_count": item["sale_count"],
-                        "total": item["total"],
-                    }
-                    for item in sorted(
-                        results_by_date.values(),
-                        key=lambda item: item["date"],
-                    )
-                ],
-            }
+        results = sorted(
+            results_by_date.values(),
+            key=lambda item: item["date"],
         )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(results, request, view=self)
+
+        response = paginator.get_paginated_response(page)
+        response.data["date_from"] = date_from
+        response.data["date_to"] = date_to
+
+        return response
 
 
 class TopSellingProductsReportView(APIView):
     permission_classes = [ReportsPermission]
+    pagination_class = StandardResultsSetPagination
 
     def get(self, request):
         date_from, date_to, error_response = parse_report_dates(request)
@@ -406,16 +407,19 @@ class TopSellingProductsReportView(APIView):
                 item.quantity * item.unit_price
             )
 
-        return Response(
-            {
-                "date_from": date_from,
-                "date_to": date_to,
-                "results": sorted(
-                    results_by_product.values(),
-                    key=lambda item: (
-                        -item["quantity_sold"],
-                        item["product"]["standard_code"],
-                    ),
-                )[:20],
-            }
+        results = sorted(
+            results_by_product.values(),
+            key=lambda item: (
+                -item["quantity_sold"],
+                item["product"]["standard_code"],
+            ),
         )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(results, request, view=self)
+
+        response = paginator.get_paginated_response(page)
+        response.data["date_from"] = date_from
+        response.data["date_to"] = date_to
+
+        return response

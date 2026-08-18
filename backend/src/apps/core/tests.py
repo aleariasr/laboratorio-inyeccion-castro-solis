@@ -768,6 +768,40 @@ class InventoryReportsApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_low_stock_report_is_paginated(self):
+        Product.objects.create(
+            standard_code="REP-003",
+            name="Segundo producto bajo mínimo",
+            description="Otro producto para probar paginación",
+            storage_location=self.location,
+            minimum_stock=5,
+            created_by=self.inventory_user,
+            updated_by=self.inventory_user,
+        )
+
+        self.client.force_authenticate(self.inventory_user)
+
+        first_page = self.client.get(
+            "/api/reports/low-stock-products/",
+            {"page_size": 1},
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data["count"], 2)
+        self.assertEqual(len(first_page.data["results"]), 1)
+        self.assertIsNotNone(first_page.data["next"])
+        self.assertIsNone(first_page.data["previous"])
+
+        second_page = self.client.get(
+            "/api/reports/low-stock-products/",
+            {"page_size": 1, "page": 2},
+        )
+
+        self.assertEqual(second_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second_page.data["results"]), 1)
+        self.assertIsNone(second_page.data["next"])
+        self.assertIsNotNone(second_page.data["previous"])
+
 class BusinessReportsApiTest(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -1016,3 +1050,159 @@ class BusinessReportsApiTest(APITestCase):
         self.assertEqual(purchases_response.status_code, status.HTTP_200_OK)
         self.assertEqual(sales_response.status_code, status.HTTP_200_OK)
         self.assertEqual(top_selling_response.status_code, status.HTTP_200_OK)
+
+    def test_purchases_by_supplier_report_is_paginated(self):
+        second_supplier = Supplier.objects.create(
+            name="Proveedor Reportes Dos",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        second_supplier_product = SupplierProduct.objects.create(
+            supplier=second_supplier,
+            product=self.product,
+            supplier_reference="SUP-TOP-002",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        second_purchase = Purchase.objects.create(
+            supplier=second_supplier,
+            invoice_number="REP-FAC-010",
+            purchase_date=date(2026, 7, 10),
+            currency="CRC",
+            status=PurchaseStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        PurchaseItem.objects.create(
+            purchase=second_purchase,
+            supplier_product=second_supplier_product,
+            quantity=1,
+            unit_cost=Decimal("50.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        first_page = self.client.get(
+            "/api/reports/purchases-by-supplier/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "page_size": 1,
+            },
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data["count"], 2)
+        self.assertEqual(len(first_page.data["results"]), 1)
+        self.assertIsNotNone(first_page.data["next"])
+        self.assertEqual(first_page.data["date_from"], date(2026, 7, 1))
+
+        second_page = self.client.get(
+            "/api/reports/purchases-by-supplier/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "page_size": 1,
+                "page": 2,
+            },
+        )
+
+        self.assertEqual(second_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second_page.data["results"]), 1)
+        self.assertIsNone(second_page.data["next"])
+
+    def test_sales_by_date_report_is_paginated(self):
+        second_sale = Sale.objects.create(
+            customer=self.customer,
+            sale_date=date(2026, 7, 3),
+            currency="CRC",
+            status=SaleStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        SaleItem.objects.create(
+            sale=second_sale,
+            product=self.product,
+            quantity=1,
+            unit_price=Decimal("100.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        first_page = self.client.get(
+            "/api/reports/sales-by-date/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "page_size": 1,
+            },
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data["count"], 2)
+        self.assertEqual(len(first_page.data["results"]), 1)
+        self.assertIsNotNone(first_page.data["next"])
+
+        second_page = self.client.get(
+            "/api/reports/sales-by-date/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "page_size": 1,
+                "page": 2,
+            },
+        )
+
+        self.assertEqual(second_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second_page.data["results"]), 1)
+        self.assertIsNone(second_page.data["next"])
+
+    def test_top_selling_products_report_is_paginated(self):
+        second_product = Product.objects.create(
+            standard_code="TOP-002",
+            name="Segundo producto vendido",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        SaleItem.objects.create(
+            sale=self.sale,
+            product=second_product,
+            quantity=1,
+            unit_price=Decimal("100.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        first_page = self.client.get(
+            "/api/reports/top-selling-products/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "page_size": 1,
+            },
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data["count"], 2)
+        self.assertEqual(len(first_page.data["results"]), 1)
+        self.assertIsNotNone(first_page.data["next"])
+
+        second_page = self.client.get(
+            "/api/reports/top-selling-products/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "page_size": 1,
+                "page": 2,
+            },
+        )
+
+        self.assertEqual(second_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second_page.data["results"]), 1)
+        self.assertIsNone(second_page.data["next"])
