@@ -113,8 +113,8 @@ Documento principal de cierre:
 - Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), y bandeja operativa de servicios (recepción, iniciar, marcar listo, entregar, anular) con datos técnicos editables y gestión de accesorios utilizados.
 - Módulo de conteos físicos: listado con filtros (búsqueda, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con Enter, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas en borrador, aprobación y anulación.
 - Navegación por roles y permisos.
-- Módulo de movimientos de inventario: listado general paginado con filtros (producto, ubicación, tipo, dirección, rango de fechas), modo kardex automático con saldo corriente al filtrar por un solo producto, y enlace desde cada movimiento a su origen (compra, venta o conteo físico). Reporte de stock por ubicación conectado a una pantalla propia, accesible por URL sin entrada de menú.
-- Pendiente: reportes desde la interfaz.
+- Módulo de movimientos de inventario: listado general paginado con filtros (producto, ubicación, tipo, dirección, rango de fechas), modo kardex automático con saldo corriente al filtrar por un solo producto, y enlace desde cada movimiento a su origen (compra, venta o conteo físico).
+- Módulo de reportes: 8 reportes operativos (bajo mínimo, stock por ubicación, movimientos, compras por proveedor, comparación de precios por proveedor, ventas por fecha, productos más vendidos, clientes con más ventas), accesibles desde una galería en `/reports` y una única entrada "Reportes" en el menú lateral.
 
 ---
 
@@ -316,9 +316,11 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/reports/low-stock-products/
     GET /api/reports/stock-by-location/
     GET /api/reports/product-movements/?product=<id>
+    GET /api/reports/product-supplier-prices/?product=<id>
     GET /api/reports/purchases-by-supplier/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
     GET /api/reports/sales-by-date/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
     GET /api/reports/top-selling-products/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+    GET /api/reports/top-customers/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&ordering=total
     GET /api/documents/product-labels/?product=<id>&product=<id>
 
 ---

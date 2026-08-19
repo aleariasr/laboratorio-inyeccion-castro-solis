@@ -27,7 +27,7 @@ En progreso.
 - F14 inyectores y servicios: completada.
 - F15 conteos físicos: completada.
 - F16 movimientos y existencias: completada (la pantalla de stock por ubicación existe pero sin entrada en el menú, por solaparse con el filtro de ubicación de Productos).
-- F17 reportes: pendiente.
+- F17 reportes: completada (8 reportes: bajo mínimo, stock por ubicación, movimientos, compras por proveedor, comparación de precios por proveedor, ventas por fecha, productos más vendidos y clientes con más ventas; galería `/reports` con el mismo estilo visual que `/dashboard` y una única entrada "Reportes" en el menú, en vez de una entrada por reporte).
 - F18 documentos: pendiente (fuera de las etiquetas de producto, ya implementadas en F8).
 - F19 administración de usuarios: pendiente.
 - F20 configuración y diagnóstico: pendiente (la pantalla de estado del sistema de F6 ya cubre parte de este alcance).
@@ -1047,8 +1047,12 @@ Presentar información operativa útil.
 - stock por ubicación;
 - movimientos;
 - compras por proveedor;
+- comparación de precios por proveedor;
 - ventas por fecha;
-- productos más vendidos.
+- productos más vendidos;
+- clientes con más ventas.
+
+Los dos últimos (comparación de precios por proveedor y clientes con más ventas) se agregaron durante la fase, a partir de necesidades reales planteadas al usar los primeros reportes — no estaban en el alcance original de este documento.
 
 ## Reglas
 
