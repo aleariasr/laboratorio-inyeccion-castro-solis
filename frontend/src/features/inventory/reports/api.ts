@@ -7,6 +7,8 @@ import type {
   ReportDateFilters,
   SalesByDateReport,
   StockByLocationReport,
+  TopCustomersFilters,
+  TopCustomersReport,
   TopSellingProductsReport,
 } from "./types";
 
@@ -97,6 +99,24 @@ export function getTopSellingProductsReport(
 
   return apiGet<TopSellingProductsReport>(
     `/api/reports/top-selling-products/?${query}`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+
+export function getTopCustomersReport(
+  token: string,
+  filters: TopCustomersFilters,
+  signal?: AbortSignal,
+): Promise<TopCustomersReport> {
+  const searchParams = new URLSearchParams(buildReportDateQuery(filters));
+
+  searchParams.set("ordering", filters.ordering);
+
+  return apiGet<TopCustomersReport>(
+    `/api/reports/top-customers/?${searchParams.toString()}`,
     {
       token,
       signal,

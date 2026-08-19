@@ -98,3 +98,29 @@ export const EMPTY_REPORT_DATE_FILTERS: ReportDateFilters = {
   page: 1,
   pageSize: 50,
 };
+
+export type TopCustomer = {
+  customer: {
+    id: number;
+    display_name: string;
+  };
+  sale_count: number;
+  total: string;
+};
+
+export type TopCustomersOrdering = "total" | "sale_count";
+
+export type TopCustomersReport = PaginatedResponse<TopCustomer> & {
+  date_from: string | null;
+  date_to: string | null;
+  ordering: TopCustomersOrdering;
+};
+
+export type TopCustomersFilters = ReportDateFilters & {
+  ordering: TopCustomersOrdering;
+};
+
+export const EMPTY_TOP_CUSTOMERS_FILTERS: TopCustomersFilters = {
+  ...EMPTY_REPORT_DATE_FILTERS,
+  ordering: "total",
+};
