@@ -6,20 +6,44 @@ import type {
   PurchasesBySupplierReport,
   ReportDateFilters,
   SalesByDateReport,
+  StockByLocationFilters,
   StockByLocationReport,
   TopCustomersFilters,
   TopCustomersReport,
   TopSellingProductsReport,
 } from "./types";
 
+function buildStockByLocationQuery(filters: StockByLocationFilters): string {
+  const searchParams = new URLSearchParams();
+
+  if (filters.location !== null) {
+    searchParams.set("location", String(filters.location));
+  }
+
+  if (filters.q) {
+    searchParams.set("q", filters.q);
+  }
+
+  searchParams.set("page", String(filters.page));
+  searchParams.set("page_size", String(filters.pageSize));
+
+  return searchParams.toString();
+}
+
 export function getStockByLocationReport(
   token: string,
+  filters: StockByLocationFilters,
   signal?: AbortSignal,
 ): Promise<StockByLocationReport> {
-  return apiGet<StockByLocationReport>("/api/reports/stock-by-location/", {
-    token,
-    signal,
-  });
+  const query = buildStockByLocationQuery(filters);
+
+  return apiGet<StockByLocationReport>(
+    `/api/reports/stock-by-location/?${query}`,
+    {
+      token,
+      signal,
+    },
+  );
 }
 
 export function getLowStockProductsReport(

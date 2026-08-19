@@ -16,8 +16,23 @@ export type StockByLocationEntry = {
   products: StockByLocationProduct[];
 };
 
-export type StockByLocationReport = {
-  results: StockByLocationEntry[];
+export type StockByLocationReport = PaginatedResponse<StockByLocationEntry> & {
+  location: number | null;
+  q: string | null;
+};
+
+export type StockByLocationFilters = {
+  location: number | null;
+  q: string;
+  page: number;
+  pageSize: number;
+};
+
+export const EMPTY_STOCK_BY_LOCATION_FILTERS: StockByLocationFilters = {
+  location: null,
+  q: "",
+  page: 1,
+  pageSize: 50,
 };
 
 export type LowStockProduct = {
