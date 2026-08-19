@@ -334,6 +334,7 @@ class ProductSupplierPricesReportView(APIView):
                     "total_unit_cost": Decimal("0"),
                     "last_purchase_date": purchase.purchase_date,
                     "last_unit_cost": unit_cost_crc,
+                    "purchases": [],
                 }
 
             entry = results_by_supplier[supplier.id]
@@ -343,6 +344,16 @@ class ProductSupplierPricesReportView(APIView):
             if purchase.purchase_date >= entry["last_purchase_date"]:
                 entry["last_purchase_date"] = purchase.purchase_date
                 entry["last_unit_cost"] = unit_cost_crc
+
+            entry["purchases"].append(
+                {
+                    "id": purchase.id,
+                    "invoice_number": purchase.invoice_number,
+                    "purchase_date": purchase.purchase_date,
+                    "unit_cost": unit_cost_crc,
+                    "currency": "CRC",
+                }
+            )
 
         results = []
 
@@ -354,6 +365,17 @@ class ProductSupplierPricesReportView(APIView):
                 rounding=ROUND_HALF_UP,
             )
 
+            # Historial de compras a este proveedor en orden cronológico,
+            # para poder ver si el precio cambió con el tiempo (no solo
+            # el último precio y el promedio).
+            purchases = sorted(
+                entry["purchases"],
+                key=lambda purchase_entry: (
+                    purchase_entry["purchase_date"],
+                    purchase_entry["id"],
+                ),
+            )
+
             results.append(
                 {
                     "supplier": entry["supplier"],
@@ -362,6 +384,7 @@ class ProductSupplierPricesReportView(APIView):
                     "last_unit_cost": entry["last_unit_cost"],
                     "average_unit_cost": average_unit_cost,
                     "currency": "CRC",
+                    "purchases": purchases,
                 }
             )
 

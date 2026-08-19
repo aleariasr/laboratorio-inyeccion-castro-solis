@@ -139,3 +139,38 @@ export const EMPTY_TOP_CUSTOMERS_FILTERS: TopCustomersFilters = {
   ...EMPTY_REPORT_DATE_FILTERS,
   ordering: "total",
 };
+
+export type ProductSupplierPriceHistoryEntry = {
+  id: number;
+  invoice_number: string;
+  purchase_date: string;
+  unit_cost: string;
+  currency: "CRC";
+};
+
+export type ProductSupplierPriceEntry = {
+  supplier: {
+    id: number;
+    name: string;
+  };
+  purchase_count: number;
+  last_purchase_date: string;
+  last_unit_cost: string;
+  average_unit_cost: string;
+  currency: "CRC";
+  purchases: ProductSupplierPriceHistoryEntry[];
+};
+
+export type ProductSupplierPricesReport = PaginatedResponse<ProductSupplierPriceEntry> & {
+  product: {
+    id: number;
+    standard_code: string;
+    name: string;
+  };
+};
+
+export type ProductSupplierPricesFilters = {
+  productId: number;
+  page: number;
+  pageSize: number;
+};

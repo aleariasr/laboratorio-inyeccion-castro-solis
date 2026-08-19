@@ -1570,6 +1570,15 @@ class BusinessReportsApiTest(APITestCase):
             Decimal(cheapest["average_unit_cost"]),
             Decimal("90.0000"),
         )
+        self.assertEqual(len(cheapest["purchases"]), 1)
+        self.assertEqual(
+            cheapest["purchases"][0]["invoice_number"],
+            "REP-FAC-004",
+        )
+        self.assertEqual(
+            Decimal(cheapest["purchases"][0]["unit_cost"]),
+            Decimal("90.0000"),
+        )
 
         # Proveedor original: dos compras en colones, sin conversión.
         # Último precio: 120.0000 (2026-07-20). Promedio: (100+120)/2=110.0000.
@@ -1587,6 +1596,26 @@ class BusinessReportsApiTest(APITestCase):
         self.assertEqual(
             Decimal(other["average_unit_cost"]),
             Decimal("110.0000"),
+        )
+
+        # Historial de compras a este proveedor en orden cronológico,
+        # para poder ver si el precio cambió con el tiempo.
+        self.assertEqual(len(other["purchases"]), 2)
+
+        first_purchase_entry = other["purchases"][0]
+        self.assertEqual(first_purchase_entry["invoice_number"], "REP-FAC-001")
+        self.assertEqual(first_purchase_entry["purchase_date"], date(2026, 7, 1))
+        self.assertEqual(
+            Decimal(first_purchase_entry["unit_cost"]),
+            Decimal("100.0000"),
+        )
+
+        second_purchase_entry = other["purchases"][1]
+        self.assertEqual(second_purchase_entry["invoice_number"], "REP-FAC-003")
+        self.assertEqual(second_purchase_entry["purchase_date"], date(2026, 7, 20))
+        self.assertEqual(
+            Decimal(second_purchase_entry["unit_cost"]),
+            Decimal("120.0000"),
         )
 
     def test_product_supplier_prices_report_requires_product(self):

@@ -3,6 +3,8 @@ import { apiGet } from "@/lib/api/client";
 import type {
   LowStockProductsFilters,
   LowStockProductsReport,
+  ProductSupplierPricesFilters,
+  ProductSupplierPricesReport,
   PurchasesBySupplierReport,
   ReportDateFilters,
   SalesByDateReport,
@@ -141,6 +143,26 @@ export function getTopCustomersReport(
 
   return apiGet<TopCustomersReport>(
     `/api/reports/top-customers/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+
+export function getProductSupplierPricesReport(
+  token: string,
+  filters: ProductSupplierPricesFilters,
+  signal?: AbortSignal,
+): Promise<ProductSupplierPricesReport> {
+  const searchParams = new URLSearchParams();
+
+  searchParams.set("product", String(filters.productId));
+  searchParams.set("page", String(filters.page));
+  searchParams.set("page_size", String(filters.pageSize));
+
+  return apiGet<ProductSupplierPricesReport>(
+    `/api/reports/product-supplier-prices/?${searchParams.toString()}`,
     {
       token,
       signal,
