@@ -1206,3 +1206,189 @@ class BusinessReportsApiTest(APITestCase):
         self.assertEqual(second_page.status_code, status.HTTP_200_OK)
         self.assertEqual(len(second_page.data["results"]), 1)
         self.assertIsNone(second_page.data["next"])
+
+    def test_top_customers_report_orders_by_total_by_default(self):
+        second_customer = Customer.objects.create(
+            display_name="Cliente Frecuente",
+            phone="8888-2222",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        first_frequent_sale = Sale.objects.create(
+            customer=second_customer,
+            sale_date=date(2026, 7, 5),
+            currency="CRC",
+            status=SaleStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        SaleItem.objects.create(
+            sale=first_frequent_sale,
+            product=self.product,
+            quantity=1,
+            unit_price=Decimal("50.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        second_frequent_sale = Sale.objects.create(
+            customer=second_customer,
+            sale_date=date(2026, 7, 6),
+            currency="CRC",
+            status=SaleStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        SaleItem.objects.create(
+            sale=second_frequent_sale,
+            product=self.product,
+            quantity=1,
+            unit_price=Decimal("50.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        by_total_response = self.client.get(
+            "/api/reports/top-customers/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+            },
+        )
+
+        self.assertEqual(by_total_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(by_total_response.data["results"]), 2)
+
+        # Por defecto ordena por monto total: Cliente Reportes (750.0000
+        # en una sola venta) va antes que Cliente Frecuente (100.0000 en
+        # dos ventas).
+        first_by_total = by_total_response.data["results"][0]
+        self.assertEqual(
+            first_by_total["customer"]["display_name"],
+            "CLIENTE REPORTES",
+        )
+        self.assertEqual(first_by_total["sale_count"], 1)
+        self.assertEqual(
+            Decimal(first_by_total["total"]),
+            Decimal("750.0000"),
+        )
+
+        by_sale_count_response = self.client.get(
+            "/api/reports/top-customers/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "ordering": "sale_count",
+            },
+        )
+
+        self.assertEqual(by_sale_count_response.status_code, status.HTTP_200_OK)
+
+        # Ordenando por cantidad de ventas, Cliente Frecuente (2 ventas)
+        # pasa a estar antes que Cliente Reportes (1 venta), aunque su
+        # monto total sea menor.
+        first_by_sale_count = by_sale_count_response.data["results"][0]
+        self.assertEqual(
+            first_by_sale_count["customer"]["display_name"],
+            "CLIENTE FRECUENTE",
+        )
+        self.assertEqual(first_by_sale_count["sale_count"], 2)
+
+    def test_top_customers_report_rejects_invalid_ordering(self):
+        response = self.client.get(
+            "/api/reports/top-customers/",
+            {"ordering": "invalid-value"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_top_customers_report_excludes_sales_without_customer(self):
+        anonymous_sale = Sale.objects.create(
+            customer=None,
+            sale_date=date(2026, 7, 7),
+            currency="CRC",
+            status=SaleStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        SaleItem.objects.create(
+            sale=anonymous_sale,
+            product=self.product,
+            quantity=1,
+            unit_price=Decimal("999.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/reports/top-customers/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(
+            response.data["results"][0]["customer"]["display_name"],
+            "CLIENTE REPORTES",
+        )
+
+    def test_top_customers_report_is_paginated(self):
+        second_customer = Customer.objects.create(
+            display_name="Cliente Reportes Dos",
+            phone="8888-3333",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        second_customer_sale = Sale.objects.create(
+            customer=second_customer,
+            sale_date=date(2026, 7, 8),
+            currency="CRC",
+            status=SaleStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        SaleItem.objects.create(
+            sale=second_customer_sale,
+            product=self.product,
+            quantity=1,
+            unit_price=Decimal("10.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        first_page = self.client.get(
+            "/api/reports/top-customers/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "page_size": 1,
+            },
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data["count"], 2)
+        self.assertEqual(len(first_page.data["results"]), 1)
+        self.assertIsNotNone(first_page.data["next"])
+
+        second_page = self.client.get(
+            "/api/reports/top-customers/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "page_size": 1,
+                "page": 2,
+            },
+        )
+
+        self.assertEqual(second_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second_page.data["results"]), 1)
+        self.assertIsNone(second_page.data["next"])

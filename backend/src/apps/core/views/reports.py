@@ -197,6 +197,36 @@ def parse_report_dates(request):
     return date_from, date_to, None
 
 
+def parse_report_ordering(request, *, allowed_values, default):
+    """
+    Valida el parámetro opcional `ordering` contra una lista blanca.
+
+    Devuelve (valor, respuesta_de_error). Si `ordering` no viene en la
+    solicitud, devuelve `default`. Si viene pero no es uno de los
+    valores permitidos, devuelve un 400 explícito en vez de aplicar un
+    orden arbitrario o ignorar el parámetro en silencio.
+    """
+
+    value = request.query_params.get("ordering")
+
+    if not value:
+        return default, None
+
+    if value not in allowed_values:
+        return None, Response(
+            {
+                "detail": (
+                    "ordering debe ser uno de: "
+                    + ", ".join(sorted(allowed_values))
+                    + "."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return value, None
+
+
 def _convert_purchase_subtotal_to_crc(subtotal, purchase):
     """
     Convierte el subtotal de una compra a colones.
@@ -421,5 +451,94 @@ class TopSellingProductsReportView(APIView):
         response = paginator.get_paginated_response(page)
         response.data["date_from"] = date_from
         response.data["date_to"] = date_to
+
+        return response
+
+
+class TopCustomersReportView(APIView):
+    permission_classes = [ReportsPermission]
+    pagination_class = StandardResultsSetPagination
+
+    def get(self, request):
+        date_from, date_to, error_response = parse_report_dates(request)
+
+        if error_response is not None:
+            return error_response
+
+        ordering, ordering_error_response = parse_report_ordering(
+            request,
+            allowed_values={"total", "sale_count"},
+            default="total",
+        )
+
+        if ordering_error_response is not None:
+            return ordering_error_response
+
+        sales = Sale.objects.select_related(
+            "customer",
+        ).filter(
+            status=SaleStatus.CONFIRMED,
+            customer__isnull=False,
+        ).prefetch_related("items")
+
+        if date_from:
+            sales = sales.filter(
+                sale_date__gte=date_from,
+            )
+
+        if date_to:
+            sales = sales.filter(
+                sale_date__lte=date_to,
+            )
+
+        results_by_customer = {}
+
+        for sale in sales:
+            customer = sale.customer
+
+            if customer.id not in results_by_customer:
+                results_by_customer[customer.id] = {
+                    "customer": {
+                        "id": customer.id,
+                        "display_name": customer.display_name,
+                    },
+                    "sale_count": 0,
+                    "total": Decimal("0"),
+                }
+
+            total = sum(
+                (
+                    item.quantity * item.unit_price
+                    for item in sale.items.all()
+                ),
+                Decimal("0"),
+            )
+
+            results_by_customer[customer.id]["sale_count"] += 1
+            results_by_customer[customer.id]["total"] += total
+
+        if ordering == "sale_count":
+            sort_key = lambda item: (
+                -item["sale_count"],
+                item["customer"]["display_name"],
+            )
+        else:
+            sort_key = lambda item: (
+                -item["total"],
+                item["customer"]["display_name"],
+            )
+
+        results = sorted(
+            results_by_customer.values(),
+            key=sort_key,
+        )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(results, request, view=self)
+
+        response = paginator.get_paginated_response(page)
+        response.data["date_from"] = date_from
+        response.data["date_to"] = date_to
+        response.data["ordering"] = ordering
 
         return response

@@ -7,6 +7,7 @@ from .views import (
     UniversalSearchView,
     PurchasesBySupplierReportView,
     SalesByDateReportView,
+    TopCustomersReportView,
     TopSellingProductsReportView,
 )
 
@@ -43,5 +44,10 @@ urlpatterns = [
         "reports/top-selling-products/",
         TopSellingProductsReportView.as_view(),
         name="report-top-selling-products",
+    ),
+    path(
+        "reports/top-customers/",
+        TopCustomersReportView.as_view(),
+        name="report-top-customers",
     ),
 ]

@@ -4,6 +4,7 @@ from .reports import (
     PurchasesBySupplierReportView,
     SalesByDateReportView,
     StockByLocationReportView,
+    TopCustomersReportView,
     TopSellingProductsReportView,
 )
 from .search import UniversalSearchView
@@ -14,6 +15,7 @@ __all__ = [
     "PurchasesBySupplierReportView",
     "SalesByDateReportView",
     "StockByLocationReportView",
+    "TopCustomersReportView",
     "TopSellingProductsReportView",
     "UniversalSearchView",
 ]
