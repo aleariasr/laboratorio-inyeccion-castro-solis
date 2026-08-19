@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db.models import Q
 from django.utils.dateparse import parse_date
 from rest_framework import status
 from rest_framework.response import Response
@@ -7,6 +8,7 @@ from rest_framework.views import APIView
 
 from apps.core.pagination import StandardResultsSetPagination
 from apps.core.permissions import ReportsPermission
+from apps.core.query_params import parse_positive_integer_query_param
 from apps.inventory.models import (
     Currency,
     Product,
@@ -54,12 +56,32 @@ class LowStockProductsReportView(APIView):
 
 class StockByLocationReportView(APIView):
     permission_classes = [ReportsPermission]
+    pagination_class = StandardResultsSetPagination
 
     def get(self, request):
+        location_id = parse_positive_integer_query_param(
+            request.query_params.get("location"),
+            name="location",
+        )
+
+        query = request.query_params.get("q", "").strip()
+
         products = (
             current_stock_bulk()
             .select_related("storage_location")
         )
+
+        if location_id is not None:
+            products = products.filter(
+                storage_location_id=location_id,
+            )
+
+        if query:
+            products = products.filter(
+                Q(standard_code__icontains=query)
+                | Q(name__icontains=query)
+                | Q(description__icontains=query)
+            )
 
         locations = {}
 
@@ -86,16 +108,19 @@ class StockByLocationReportView(APIView):
                 }
             )
 
-        return Response(
-            {
-                "results": list(
-                    sorted(
-                        locations.values(),
-                        key=lambda item: item["code"],
-                    )
-                )
-            }
+        results = sorted(
+            locations.values(),
+            key=lambda item: item["code"],
         )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(results, request, view=self)
+
+        response = paginator.get_paginated_response(page)
+        response.data["location"] = location_id
+        response.data["q"] = query or None
+
+        return response
 
 
 class ProductMovementsReportView(APIView):

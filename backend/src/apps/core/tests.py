@@ -802,6 +802,100 @@ class InventoryReportsApiTest(APITestCase):
         self.assertIsNone(second_page.data["next"])
         self.assertIsNotNone(second_page.data["previous"])
 
+    def test_stock_by_location_report_is_paginated(self):
+        second_location = StorageLocation.objects.create(
+            code="B201",
+            description="Estante B2",
+            created_by=self.inventory_user,
+            updated_by=self.inventory_user,
+        )
+
+        Product.objects.create(
+            standard_code="REP-004",
+            name="Producto en otra ubicación",
+            storage_location=second_location,
+            created_by=self.inventory_user,
+            updated_by=self.inventory_user,
+        )
+
+        self.client.force_authenticate(self.inventory_user)
+
+        first_page = self.client.get(
+            "/api/reports/stock-by-location/",
+            {"page_size": 1},
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data["count"], 2)
+        self.assertEqual(len(first_page.data["results"]), 1)
+        self.assertIsNotNone(first_page.data["next"])
+        self.assertIsNone(first_page.data["previous"])
+
+        second_page = self.client.get(
+            "/api/reports/stock-by-location/",
+            {"page_size": 1, "page": 2},
+        )
+
+        self.assertEqual(second_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second_page.data["results"]), 1)
+        self.assertIsNone(second_page.data["next"])
+        self.assertIsNotNone(second_page.data["previous"])
+
+    def test_stock_by_location_report_filters_by_exact_location(self):
+        second_location = StorageLocation.objects.create(
+            code="B202",
+            description="Estante B3",
+            created_by=self.inventory_user,
+            updated_by=self.inventory_user,
+        )
+
+        Product.objects.create(
+            standard_code="REP-005",
+            name="Producto en tercera ubicación",
+            storage_location=second_location,
+            created_by=self.inventory_user,
+            updated_by=self.inventory_user,
+        )
+
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.get(
+            "/api/reports/stock-by-location/",
+            {"location": self.location.id},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["code"], "B200")
+
+    def test_stock_by_location_report_rejects_invalid_location(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.get(
+            "/api/reports/stock-by-location/",
+            {"location": "not-a-number"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_stock_by_location_report_filters_by_product_search(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.get(
+            "/api/reports/stock-by-location/",
+            {"q": "REP-002"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+
+        product_codes = {
+            item["standard_code"]
+            for item in response.data["results"][0]["products"]
+        }
+
+        self.assertEqual(product_codes, {"REP-002"})
+
 class BusinessReportsApiTest(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
