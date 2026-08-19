@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pagination } from "@/components/data-display/pagination";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { ArrowsUpDownIcon } from "@/components/icons/app-icons";
+import { ArrowLeftIcon, ArrowsUpDownIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -386,6 +386,10 @@ export default function StockMovementsPage() {
     setFilters(EMPTY_STOCK_MOVEMENT_FILTERS);
   }
 
+  function goBack(): void {
+    router.back();
+  }
+
   if (authStatus === "authenticated" && user && !hasInventoryAccess) {
     return (
       <AppShell
@@ -416,6 +420,12 @@ export default function StockMovementsPage() {
     <AppShell
       title="Movimientos de inventario"
       description="Consulte el historial de entradas, salidas y ajustes de existencias."
+      actions={
+        <Button type="button" variant="secondary" onClick={goBack}>
+          <ArrowLeftIcon />
+          Volver
+        </Button>
+      }
     >
       <section
         className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]"

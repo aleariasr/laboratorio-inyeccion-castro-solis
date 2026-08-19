@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Pagination } from "@/components/data-display/pagination";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { AlertIcon } from "@/components/icons/app-icons";
+import { AlertIcon, ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
@@ -113,6 +113,10 @@ export default function LowStockProductsPage() {
     setFilters((current) => ({ ...current }));
   }
 
+  function goBack(): void {
+    router.back();
+  }
+
   if (authStatus === "authenticated" && user && !hasReportsAccess) {
     return (
       <AppShell
@@ -143,6 +147,12 @@ export default function LowStockProductsPage() {
     <AppShell
       title="Bajo mínimo"
       description="Productos cuya existencia actual está en o por debajo del mínimo establecido."
+      actions={
+        <Button type="button" variant="secondary" onClick={goBack}>
+          <ArrowLeftIcon />
+          Volver
+        </Button>
+      }
     >
       {loadState.status === "loading" && (
         <div className="rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">

@@ -6,6 +6,7 @@ import {
   InventoryIcon,
   LocationIcon,
   ReceiptIcon,
+  ReportsIcon,
   SearchIcon,
   StatusIcon,
   TruckIcon,
@@ -149,6 +150,17 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: WrenchIcon,
     roles: [
       "CUSTOMERS",
+      "READ_ONLY",
+    ],
+  },
+  {
+    href: "/reports",
+    label: "Reportes",
+    section: "reports",
+    icon: ReportsIcon,
+    roles: [
+      "INVENTORY",
+      "SALES",
       "READ_ONLY",
     ],
   },

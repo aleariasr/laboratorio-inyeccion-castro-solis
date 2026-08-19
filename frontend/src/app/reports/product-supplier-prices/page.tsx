@@ -7,7 +7,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { Pagination } from "@/components/data-display/pagination";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { TruckIcon } from "@/components/icons/app-icons";
+import { ArrowLeftIcon, TruckIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -231,6 +231,10 @@ export default function ProductSupplierPricesReportPage() {
     setRefreshKey((current) => current + 1);
   }
 
+  function goBack(): void {
+    router.back();
+  }
+
   if (authStatus === "authenticated" && user && !hasReportsAccess) {
     return (
       <AppShell
@@ -261,6 +265,12 @@ export default function ProductSupplierPricesReportPage() {
     <AppShell
       title="Comparación de precios por proveedor"
       description="Busque un producto para comparar el precio pagado a cada proveedor, en colones."
+      actions={
+        <Button type="button" variant="secondary" onClick={goBack}>
+          <ArrowLeftIcon />
+          Volver
+        </Button>
+      }
     >
       <div className="mb-5 rounded-[var(--radius-xl)] bg-surface p-5 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)] sm:p-6">
         <div className="w-full sm:max-w-md">

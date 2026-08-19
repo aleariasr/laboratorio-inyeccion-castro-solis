@@ -7,7 +7,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Pagination } from "@/components/data-display/pagination";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { LayersIcon } from "@/components/icons/app-icons";
+import { ArrowLeftIcon, LayersIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,6 +215,10 @@ export default function StockByLocationPage() {
     updateFilters(() => EMPTY_STOCK_BY_LOCATION_FILTERS);
   }
 
+  function goBack(): void {
+    router.back();
+  }
+
   if (authStatus === "authenticated" && user && !hasInventoryAccess) {
     return (
       <AppShell
@@ -245,6 +249,12 @@ export default function StockByLocationPage() {
     <AppShell
       title="Stock por ubicación"
       description="Existencias actuales agrupadas por ubicación de almacenamiento."
+      actions={
+        <Button type="button" variant="secondary" onClick={goBack}>
+          <ArrowLeftIcon />
+          Volver
+        </Button>
+      }
     >
       <div className="mb-5 rounded-[var(--radius-xl)] bg-surface p-5 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)] sm:p-6">
         <form
