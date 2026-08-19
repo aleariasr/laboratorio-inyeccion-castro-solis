@@ -71,3 +71,11 @@ export function canReadCustomers(user: AuthUser): boolean {
 export function canWriteCustomers(user: AuthUser): boolean {
   return hasAnyRole(user, ["CUSTOMERS"]);
 }
+
+export function canReadReports(user: AuthUser): boolean {
+  return hasAnyRole(user, [
+    "INVENTORY",
+    "SALES",
+    "READ_ONLY",
+  ]);
+}

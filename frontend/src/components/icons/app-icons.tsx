@@ -492,3 +492,56 @@ export function LayersIcon({
     </svg>
   );
 }
+
+export function ReportsIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M5 19V5M5 19h14"
+        strokeLinecap="round"
+      />
+
+      <path
+        d="m8 15 3-3 2.5 2 4.5-6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function AlertIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M12 4.5 21 19H3L12 4.5Z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M12 10v4.2"
+        strokeLinecap="round"
+      />
+
+      <circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
