@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db.models import Q
 from django.utils.dateparse import parse_date
@@ -13,6 +13,7 @@ from apps.inventory.models import (
     Currency,
     Product,
     Purchase,
+    PurchaseItem,
     PurchaseStatus,
 )
 from apps.inventory.selectors import (
@@ -252,24 +253,136 @@ def parse_report_ordering(request, *, allowed_values, default):
     return value, None
 
 
-def _convert_purchase_subtotal_to_crc(subtotal, purchase):
+def _convert_purchase_amount_to_crc(amount, purchase):
     """
-    Convierte el subtotal de una compra a colones.
+    Convierte un monto en la moneda de una compra a colones.
 
     El tipo de cambio de Purchase siempre se expresa como colones por
     dólar, sin importar la moneda de la compra (misma convención que
     apps.inventory.services.costs._convert_import_cost_to_purchase_currency,
     usada para los costos de importación).
 
-    Este reporte agrupa compras de un mismo proveedor que pueden estar
-    en monedas distintas; sin esta conversión el total sumaría montos
-    en colones y en dólares como si fueran la misma unidad.
+    Se usa tanto para sumar subtotales de compras de un mismo proveedor
+    que pueden estar en monedas distintas (reporte de compras por
+    proveedor), como para comparar precios unitarios pagados a distintos
+    proveedores por un mismo producto (reporte de comparación de
+    precios); sin esta conversión los montos en colones y en dólares se
+    mezclarían como si fueran la misma unidad.
     """
 
     if purchase.currency == Currency.USD:
-        return subtotal * purchase.exchange_rate
+        return amount * purchase.exchange_rate
 
-    return subtotal
+    return amount
+
+
+class ProductSupplierPricesReportView(APIView):
+    permission_classes = [ReportsPermission]
+    pagination_class = StandardResultsSetPagination
+
+    def get(self, request):
+        product_id = request.query_params.get("product")
+
+        if not product_id:
+            return Response(
+                {
+                    "detail": "Debe indicar el producto."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            product = Product.objects.get(
+                id=product_id,
+            )
+        except Product.DoesNotExist:
+            return Response(
+                {
+                    "detail": "Producto no encontrado."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        items = PurchaseItem.objects.select_related(
+            "purchase__supplier",
+        ).filter(
+            supplier_product__product=product,
+            purchase__status=PurchaseStatus.CONFIRMED,
+        )
+
+        results_by_supplier = {}
+
+        for item in items:
+            purchase = item.purchase
+            supplier = purchase.supplier
+
+            unit_cost_crc = _convert_purchase_amount_to_crc(
+                item.unit_cost,
+                purchase,
+            ).quantize(
+                Decimal("0.0001"),
+                rounding=ROUND_HALF_UP,
+            )
+
+            if supplier.id not in results_by_supplier:
+                results_by_supplier[supplier.id] = {
+                    "supplier": {
+                        "id": supplier.id,
+                        "name": supplier.name,
+                    },
+                    "purchase_count": 0,
+                    "total_unit_cost": Decimal("0"),
+                    "last_purchase_date": purchase.purchase_date,
+                    "last_unit_cost": unit_cost_crc,
+                }
+
+            entry = results_by_supplier[supplier.id]
+            entry["purchase_count"] += 1
+            entry["total_unit_cost"] += unit_cost_crc
+
+            if purchase.purchase_date >= entry["last_purchase_date"]:
+                entry["last_purchase_date"] = purchase.purchase_date
+                entry["last_unit_cost"] = unit_cost_crc
+
+        results = []
+
+        for entry in results_by_supplier.values():
+            average_unit_cost = (
+                entry["total_unit_cost"] / entry["purchase_count"]
+            ).quantize(
+                Decimal("0.0001"),
+                rounding=ROUND_HALF_UP,
+            )
+
+            results.append(
+                {
+                    "supplier": entry["supplier"],
+                    "purchase_count": entry["purchase_count"],
+                    "last_purchase_date": entry["last_purchase_date"],
+                    "last_unit_cost": entry["last_unit_cost"],
+                    "average_unit_cost": average_unit_cost,
+                    "currency": "CRC",
+                }
+            )
+
+        results.sort(
+            key=lambda item: (
+                item["last_unit_cost"],
+                item["supplier"]["name"],
+            ),
+        )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(results, request, view=self)
+
+        response = paginator.get_paginated_response(page)
+        response.data["product"] = {
+            "id": product.id,
+            "standard_code": product.standard_code,
+            "name": product.name,
+        }
+
+        return response
 
 
 class PurchasesBySupplierReportView(APIView):
@@ -321,7 +434,7 @@ class PurchasesBySupplierReportView(APIView):
                 Decimal("0"),
             )
 
-            subtotal_crc = _convert_purchase_subtotal_to_crc(
+            subtotal_crc = _convert_purchase_amount_to_crc(
                 subtotal,
                 purchase,
             )

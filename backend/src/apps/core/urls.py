@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     LowStockProductsReportView,
     ProductMovementsReportView,
+    ProductSupplierPricesReportView,
     StockByLocationReportView,
     UniversalSearchView,
     PurchasesBySupplierReportView,
@@ -29,6 +30,11 @@ urlpatterns = [
         "reports/product-movements/",
         ProductMovementsReportView.as_view(),
         name="report-product-movements",
+    ),
+    path(
+        "reports/product-supplier-prices/",
+        ProductSupplierPricesReportView.as_view(),
+        name="report-product-supplier-prices",
     ),
     path(
         "reports/purchases-by-supplier/",

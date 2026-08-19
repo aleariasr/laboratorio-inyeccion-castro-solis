@@ -1,6 +1,7 @@
 from .reports import (
     LowStockProductsReportView,
     ProductMovementsReportView,
+    ProductSupplierPricesReportView,
     PurchasesBySupplierReportView,
     SalesByDateReportView,
     StockByLocationReportView,
@@ -12,6 +13,7 @@ from .search import UniversalSearchView
 __all__ = [
     "LowStockProductsReportView",
     "ProductMovementsReportView",
+    "ProductSupplierPricesReportView",
     "PurchasesBySupplierReportView",
     "SalesByDateReportView",
     "StockByLocationReportView",

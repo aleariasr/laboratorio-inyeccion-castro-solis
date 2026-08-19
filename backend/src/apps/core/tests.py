@@ -1486,3 +1486,182 @@ class BusinessReportsApiTest(APITestCase):
         self.assertEqual(second_page.status_code, status.HTTP_200_OK)
         self.assertEqual(len(second_page.data["results"]), 1)
         self.assertIsNone(second_page.data["next"])
+
+    def test_product_supplier_prices_report_compares_suppliers_and_converts_currency(self):
+        second_purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="REP-FAC-003",
+            purchase_date=date(2026, 7, 20),
+            currency="CRC",
+            status=PurchaseStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        PurchaseItem.objects.create(
+            purchase=second_purchase,
+            supplier_product=self.supplier_product,
+            quantity=2,
+            unit_cost=Decimal("120.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        cheap_supplier = Supplier.objects.create(
+            name="Proveedor Barato",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        cheap_supplier_product = SupplierProduct.objects.create(
+            supplier=cheap_supplier,
+            product=self.product,
+            supplier_reference="SUP-TOP-BARATO",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        cheap_purchase = Purchase.objects.create(
+            supplier=cheap_supplier,
+            invoice_number="REP-FAC-004",
+            purchase_date=date(2026, 7, 15),
+            currency="USD",
+            exchange_rate=Decimal("600.0000"),
+            status=PurchaseStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        PurchaseItem.objects.create(
+            purchase=cheap_purchase,
+            supplier_product=cheap_supplier_product,
+            quantity=5,
+            unit_cost=Decimal("0.1500"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/reports/product-supplier-prices/",
+            {
+                "product": self.product.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["product"]["standard_code"],
+            "TOP-001",
+        )
+        self.assertEqual(len(response.data["results"]), 2)
+
+        # Ordenado por precio unitario más reciente ascendente: el
+        # proveedor más barato primero, aunque su compra en dólares
+        # requiera conversión.
+        cheapest = response.data["results"][0]
+        self.assertEqual(cheapest["supplier"]["name"], "PROVEEDOR BARATO")
+        self.assertEqual(cheapest["purchase_count"], 1)
+        self.assertEqual(cheapest["currency"], "CRC")
+        self.assertEqual(
+            Decimal(cheapest["last_unit_cost"]),
+            Decimal("90.0000"),
+        )
+        self.assertEqual(
+            Decimal(cheapest["average_unit_cost"]),
+            Decimal("90.0000"),
+        )
+
+        # Proveedor original: dos compras en colones, sin conversión.
+        # Último precio: 120.0000 (2026-07-20). Promedio: (100+120)/2=110.0000.
+        other = response.data["results"][1]
+        self.assertEqual(other["supplier"]["name"], "PROVEEDOR REPORTES")
+        self.assertEqual(other["purchase_count"], 2)
+        self.assertEqual(
+            other["last_purchase_date"],
+            date(2026, 7, 20),
+        )
+        self.assertEqual(
+            Decimal(other["last_unit_cost"]),
+            Decimal("120.0000"),
+        )
+        self.assertEqual(
+            Decimal(other["average_unit_cost"]),
+            Decimal("110.0000"),
+        )
+
+    def test_product_supplier_prices_report_requires_product(self):
+        response = self.client.get(
+            "/api/reports/product-supplier-prices/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_product_supplier_prices_report_rejects_unknown_product(self):
+        response = self.client.get(
+            "/api/reports/product-supplier-prices/",
+            {
+                "product": 999999,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_product_supplier_prices_report_is_paginated(self):
+        second_supplier = Supplier.objects.create(
+            name="Proveedor Reportes Dos",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        second_supplier_product = SupplierProduct.objects.create(
+            supplier=second_supplier,
+            product=self.product,
+            supplier_reference="SUP-TOP-003",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        second_purchase = Purchase.objects.create(
+            supplier=second_supplier,
+            invoice_number="REP-FAC-005",
+            purchase_date=date(2026, 7, 12),
+            currency="CRC",
+            status=PurchaseStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        PurchaseItem.objects.create(
+            purchase=second_purchase,
+            supplier_product=second_supplier_product,
+            quantity=1,
+            unit_cost=Decimal("50.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        first_page = self.client.get(
+            "/api/reports/product-supplier-prices/",
+            {
+                "product": self.product.id,
+                "page_size": 1,
+            },
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data["count"], 2)
+        self.assertEqual(len(first_page.data["results"]), 1)
+        self.assertIsNotNone(first_page.data["next"])
+
+        second_page = self.client.get(
+            "/api/reports/product-supplier-prices/",
+            {
+                "product": self.product.id,
+                "page_size": 1,
+                "page": 2,
+            },
+        )
+
+        self.assertEqual(second_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second_page.data["results"]), 1)
+        self.assertIsNone(second_page.data["next"])
