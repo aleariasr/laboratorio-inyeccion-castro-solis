@@ -4,6 +4,14 @@
 
 El sistema está diseñado para operar localmente en una computadora dedicada sin depender de una conexión permanente a Internet.
 
+> **Nota:** en producción sobre Windows, todo este stack (Nginx, Next.js,
+> Django, PostgreSQL) corre dentro de una distro WSL2, arrancada por una
+> app de escritorio Electron en vez de por Chromium en modo kiosco — ver
+> [Despliegue en Windows](../infra/windows/README.md). Los componentes y
+> el flujo interno descritos en este documento no cambian entre
+> plataformas; la única capa que varía es la de "interfaz final" (kiosco
+> Linux vs. ventana Electron en Windows).
+
 La arquitectura prioriza:
 
 - estabilidad;
@@ -67,7 +75,7 @@ Los datos se almacenan en un volumen nombrado administrado por Docker. Los respa
 Usuario
   |
   v
-Chromium en modo kiosco
+App de escritorio (Electron) o Chromium en modo kiosco
   |
   v
 Nginx :80

@@ -64,7 +64,8 @@ Documento principal de cierre:
 - Generación de paquetes offline.
 - Imágenes Docker orientadas a `linux/amd64`.
 - Arranque automático preparado mediante systemd.
-- Modo kiosco preparado para estaciones gráficas Linux.
+- Modo kiosco preparado para estaciones gráficas Linux (`infra/systemd/lics-kiosk.service`), documentado pero ya no es el plan de producción vigente.
+- App de escritorio nativa para Windows (Electron + WSL2 + Docker Engine): instalador `.exe`, imagen dorada, arranque y actualización automáticos — ver [Despliegue en Windows](infra/windows/README.md).
 
 ## Backend operativo
 
@@ -123,7 +124,7 @@ Documento principal de cierre:
     Usuario
       |
       v
-    Chromium en modo kiosco
+    App de escritorio (Electron) o navegador
       |
       v
     http://localhost
@@ -140,13 +141,16 @@ Documento principal de cierre:
 
 Todos los componentes se ejecutan como servicios independientes mediante Docker Compose.
 
+En producción sobre Windows, todo este stack corre dentro de una distro WSL2 (Ubuntu 24.04 + Docker Engine); la app de escritorio Electron lo arranca, lo verifica y muestra la interfaz en una ventana nativa — sin modo kiosco, porque la misma computadora también se usa para otras tareas. El modo kiosco con Chromium sobre Linux (Ubuntu Desktop / Linux Mint) se mantiene documentado como alternativa, pero ya no es el plan de producción vigente.
+
 En producción, solamente Nginx publica un puerto hacia el equipo anfitrión. PostgreSQL, backend y frontend permanecen dentro de la red interna de Docker.
 
 Documentación relacionada:
 
 - [Arquitectura del sistema](docs/architecture.md)
 - [Estructura de instalación en producción](docs/production-layout.md)
-- [Despliegue](docs/deployment.md)
+- [Despliegue en Windows (app de escritorio)](infra/windows/README.md)
+- [Despliegue (histórico, plan Linux/kiosco)](docs/deployment.md)
 
 ---
 
@@ -154,18 +158,19 @@ Documentación relacionada:
 
 | Área | Tecnología |
 |---|---|
-| Sistema operativo objetivo | Linux Mint XFCE / Ubuntu Desktop minimal |
-| Contenedores | Docker Engine + Docker Compose |
+| Plataforma de producción | Windows 10/11 con WSL2 (Ubuntu 24.04) |
+| App de escritorio | Electron + electron-builder (instalador NSIS) |
+| Contenedores | Docker Engine (dentro de WSL2) + Docker Compose |
 | Backend | Python, Django, Django REST Framework |
 | Servidor backend | Gunicorn |
 | Frontend | Next.js, React, TypeScript |
 | Base de datos | PostgreSQL 17 |
 | Proxy local | Nginx |
 | Documentos PDF | ReportLab |
-| Interfaz final | Chromium en modo kiosco |
-| Soporte técnico | SSH |
+| Interfaz final | Ventana nativa de Electron (Chromium en modo kiosco, documentado como alternativa Linux) |
+| Soporte técnico | `docs/troubleshooting.md` + `infra/windows/README.md` (vía WSL, sin SSH) |
 | Versionado | Git y GitHub |
-| Distribución | Paquetes offline por USB |
+| Distribución | Instalador `.exe` (imagen dorada embebida), por USB o red |
 
 ---
 

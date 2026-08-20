@@ -30,6 +30,8 @@ Documentos relacionados:
 - [Índice de documentación](index.md)
 - [Cierre de backend base](backend-base-closure.md)
 - [Cierre de infraestructura productiva base](infrastructure-stage-closure.md)
+- [Despliegue en Windows (app de escritorio, plan vigente)](../infra/windows/README.md)
+- [Cierre de etapa: app de escritorio para Windows](windows-desktop-stage-closure.md)
 - [Lista de preparación para producción](production-readiness-checklist.md)
 
 ---
@@ -149,6 +151,12 @@ Documentos relacionados:
 
 Estado: completada como base.
 
+> El mecanismo descrito acá (paquete offline, checksums, `install-preflight.sh`,
+> `update.sh`, `rollback.sh`) se reutiliza sin cambios dentro de la distro
+> WSL2 de la app de escritorio para Windows — ver
+> [Despliegue en Windows](../infra/windows/README.md). La única capa nueva
+> es el instalador `.exe` que prepara WSL2 y arranca este mismo flujo.
+
 Incluye:
 
 - paquete offline versionado;
@@ -166,21 +174,35 @@ Incluye:
 
 Pendiente de validación final:
 
-- probar el flujo completo sobre la estación gráfica objetivo;
+- validar el flujo completo sobre el equipo Windows objetivo (dentro de
+  WSL2) — ver checklist vigente en
+  [windows-production-checklist.md](windows-production-checklist.md);
 - validar recuperación después de reiniciar el equipo;
 - validar recuperación después de apagón o corte inesperado.
 
 Documentos relacionados:
 
-- [Despliegue](deployment.md)
+- [Despliegue en Windows (app de escritorio)](../infra/windows/README.md)
+- [Cierre de etapa: app de escritorio para Windows](windows-desktop-stage-closure.md)
+- [Despliegue (histórico, plan Linux/kiosco)](deployment.md)
 - [Proceso de actualización](update-process.md)
-- [Lista de preparación para producción](production-readiness-checklist.md)
+- [Lista de preparación para producción — Windows](windows-production-checklist.md)
 
 ---
 
 # Fase 5: sistema operativo, soporte y modo kiosco
 
-Estado: parcialmente completada.
+> **Histórico — plan de despliegue superado.** Esta fase asumía Linux
+> (Ubuntu Desktop/Linux Mint) con Chromium en modo kiosco como plataforma
+> final. Ese plan quedó reemplazado por la app de escritorio nativa para
+> Windows (WSL2 + Docker Engine + Electron), sin modo kiosco — ver
+> [Despliegue en Windows](../infra/windows/README.md) y
+> [Cierre de etapa: app de escritorio para Windows](windows-desktop-stage-closure.md).
+> Varios de los pendientes de abajo (autologin, modo kiosco, migración a
+> Linux Mint/Ubuntu Desktop) no aplican al plan vigente; se conservan como
+> registro histórico.
+
+Estado: parcialmente completada (bajo el plan Linux/kiosco original).
 
 Completado:
 
@@ -190,7 +212,9 @@ Completado:
 - instalación validada en Ubuntu Server x86_64;
 - base para operación offline.
 
-Pendiente:
+Pendiente (bajo el plan histórico; ver checklist vigente en
+[windows-production-checklist.md](windows-production-checklist.md) para
+el plan real de hoy):
 
 - validación limpia en Linux Mint XFCE o Ubuntu Desktop gráfico;
 - usuario operativo dedicado;
@@ -206,7 +230,10 @@ Pendiente:
 
 Documentos relacionados:
 
-- [Despliegue](deployment.md)
+- [Despliegue en Windows (app de escritorio)](../infra/windows/README.md)
+- [Cierre de etapa: app de escritorio para Windows](windows-desktop-stage-closure.md)
+- [Lista de preparación para producción — Windows](windows-production-checklist.md)
+- [Despliegue (histórico, plan Linux/kiosco)](deployment.md)
 - [Seguridad](security.md)
 - [Solución de problemas](troubleshooting.md)
 
