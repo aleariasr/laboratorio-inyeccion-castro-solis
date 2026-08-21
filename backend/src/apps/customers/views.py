@@ -5,7 +5,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import filters, status, viewsets
 
-from apps.core.permissions import CustomersPermission
+from apps.core.permissions import (
+    CustomersPermission,
+    InjectorsPermission,
+    ServicesPermission,
+)
 from apps.core.query_params import (
     parse_boolean_query_param,
     parse_date_query_param,
@@ -132,7 +136,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
 class InjectorViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorSerializer
-    permission_classes = [CustomersPermission]
+    permission_classes = [InjectorsPermission]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["injector_number", "created_at"]
     ordering = ["injector_number"]
@@ -203,7 +207,7 @@ class InjectorViewSet(viewsets.ModelViewSet):
 
 class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorServiceRecordSerializer
-    permission_classes = [CustomersPermission]
+    permission_classes = [ServicesPermission]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["received_at", "delivered_at", "status", "created_at"]
     ordering = ["-received_at", "-id"]
@@ -413,7 +417,7 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
 
 class InjectorAccessoryViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorAccessorySerializer
-    permission_classes = [CustomersPermission]
+    permission_classes = [InjectorsPermission]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
@@ -449,7 +453,7 @@ class InjectorAccessoryViewSet(viewsets.ModelViewSet):
 
 class InjectorServiceAccessoryViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorServiceAccessorySerializer
-    permission_classes = [CustomersPermission]
+    permission_classes = [ServicesPermission]
 
     def get_queryset(self):
         queryset = (

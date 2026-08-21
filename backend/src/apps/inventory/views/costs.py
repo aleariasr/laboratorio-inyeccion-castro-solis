@@ -2,7 +2,7 @@ from django.db.models import Q
 
 from rest_framework import viewsets
 
-from apps.core.permissions import InventoryPermission
+from apps.core.permissions import ProductsPermission, PurchasesPermission
 from apps.core.query_params import parse_boolean_query_param
 
 from apps.inventory.models import (
@@ -19,7 +19,7 @@ from apps.inventory.serializers import (
 
 class ImportCostCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ImportCostCategorySerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [PurchasesPermission]
 
     def get_queryset(self):
         queryset = ImportCostCategory.objects.order_by("name")
@@ -55,7 +55,7 @@ class ImportCostCategoryViewSet(viewsets.ModelViewSet):
 
 class ImportCostViewSet(viewsets.ModelViewSet):
     serializer_class = ImportCostSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [PurchasesPermission]
 
     def get_queryset(self):
         queryset = (
@@ -97,7 +97,7 @@ class ImportCostViewSet(viewsets.ModelViewSet):
 
 class ProductCostHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductCostHistorySerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [ProductsPermission]
 
     def get_queryset(self):
         queryset = (

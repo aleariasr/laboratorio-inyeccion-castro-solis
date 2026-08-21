@@ -2,7 +2,7 @@
 from django.db.models import Q
 from rest_framework import viewsets
 
-from apps.core.permissions import InventoryPermission
+from apps.core.permissions import SuppliersPermission
 from apps.core.query_params import parse_boolean_query_param
 
 from apps.inventory.models import Supplier
@@ -11,7 +11,7 @@ from apps.inventory.serializers import SupplierSerializer
 
 class SupplierViewSet(viewsets.ModelViewSet):
     serializer_class = SupplierSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [SuppliersPermission]
 
     def get_queryset(self):
         queryset = Supplier.objects.order_by("name")

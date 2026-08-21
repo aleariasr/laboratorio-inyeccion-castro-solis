@@ -3,14 +3,14 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import InventoryPermission
+from apps.core.permissions import DocumentsPermission
 from apps.inventory.models import Product
 
 from .pdf import build_product_labels_pdf
 
 
 class ProductLabelsPdfView(APIView):
-    permission_classes = [InventoryPermission]
+    permission_classes = [DocumentsPermission]
 
     def get(self, request):
         product_ids = request.query_params.getlist("product")

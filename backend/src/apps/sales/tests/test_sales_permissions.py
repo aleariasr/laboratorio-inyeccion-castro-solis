@@ -2,6 +2,7 @@ from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -17,23 +18,23 @@ User = get_user_model()
 
 class SalesPermissionApiTest(APITestCase):
     def setUp(self):
+        call_command("setup_roles")
+
         self.sales_user = User.objects.create_user(
             username="sales",
             password="12345678",
         )
-        sales_group, _ = Group.objects.get_or_create(
-            name=ROLE_SALES,
+        self.sales_user.groups.add(
+            Group.objects.get(name=ROLE_SALES),
         )
-        self.sales_user.groups.add(sales_group)
 
         self.read_only_user = User.objects.create_user(
             username="readonly-sales",
             password="12345678",
         )
-        read_only_group, _ = Group.objects.get_or_create(
-            name=ROLE_READ_ONLY,
+        self.read_only_user.groups.add(
+            Group.objects.get(name=ROLE_READ_ONLY),
         )
-        self.read_only_user.groups.add(read_only_group)
 
         self.plain_user = User.objects.create_user(
             username="plain-sales",

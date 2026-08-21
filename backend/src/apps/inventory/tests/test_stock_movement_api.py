@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -39,12 +40,11 @@ class StockMovementApiTest(APITestCase):
             password="12345678",
         )
 
-        inventory_group, _ = (
-            Group.objects.get_or_create(
-                name=ROLE_INVENTORY,
-            )
+        call_command("setup_roles")
+
+        self.user.groups.add(
+            Group.objects.get(name=ROLE_INVENTORY),
         )
-        self.user.groups.add(inventory_group)
 
         self.client.force_authenticate(
             self.user,
@@ -732,9 +732,13 @@ class StockMovementApiTest(APITestCase):
             format="json",
         )
 
+        # MovementsPermission no declara add_movements/change_movements
+        # (el módulo es de solo lectura): DRF evalúa permisos antes de
+        # resolver el handler, así que la falta de un permiso que
+        # habilite POST se traduce en 403, no en 405.
         self.assertEqual(
             response.status_code,
-            status.HTTP_405_METHOD_NOT_ALLOWED,
+            status.HTTP_403_FORBIDDEN,
         )
         self.assertFalse(
             StockMovement.objects.filter(
@@ -759,9 +763,12 @@ class StockMovementApiTest(APITestCase):
             format="json",
         )
 
+        # Mismo motivo que en test_endpoint_does_not_allow_creation:
+        # sin change_movements declarado, el permiso deniega con 403
+        # antes de que DRF llegue a resolver el método.
         self.assertEqual(
             response.status_code,
-            status.HTTP_405_METHOD_NOT_ALLOWED,
+            status.HTTP_403_FORBIDDEN,
         )
 
         movement.refresh_from_db()

@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -14,23 +15,23 @@ User = get_user_model()
 
 class CustomerPermissionApiTest(APITestCase):
     def setUp(self):
+        call_command("setup_roles")
+
         self.customers_user = User.objects.create_user(
             username="customers",
             password="12345678",
         )
-        customers_group, _ = Group.objects.get_or_create(
-            name=ROLE_CUSTOMERS,
+        self.customers_user.groups.add(
+            Group.objects.get(name=ROLE_CUSTOMERS),
         )
-        self.customers_user.groups.add(customers_group)
 
         self.read_only_user = User.objects.create_user(
             username="readonly-customers",
             password="12345678",
         )
-        read_only_group, _ = Group.objects.get_or_create(
-            name=ROLE_READ_ONLY,
+        self.read_only_user.groups.add(
+            Group.objects.get(name=ROLE_READ_ONLY),
         )
-        self.read_only_user.groups.add(read_only_group)
 
         self.plain_user = User.objects.create_user(
             username="plain-customers",

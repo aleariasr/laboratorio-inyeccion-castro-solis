@@ -4,7 +4,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import filters, status, viewsets
 
-from apps.core.permissions import InventoryPermission
+from apps.core.permissions import InventoryCountsPermission
 from apps.core.query_params import (
     parse_boolean_query_param,
     parse_date_query_param,
@@ -25,7 +25,7 @@ from apps.inventory.services import approve_inventory_count, cancel_inventory_co
 
 class InventoryCountViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryCountSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [InventoryCountsPermission]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["count_date", "reference", "created_at"]
     ordering = ["-count_date", "-id"]
@@ -153,7 +153,7 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
 
 class InventoryCountItemViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryCountItemSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [InventoryCountsPermission]
 
     def get_queryset(self):
         queryset = (

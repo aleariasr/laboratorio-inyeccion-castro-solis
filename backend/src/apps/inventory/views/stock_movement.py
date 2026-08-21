@@ -2,7 +2,7 @@ from rest_framework import filters, viewsets
 from rest_framework.exceptions import ValidationError
 
 from apps.core.permissions import (
-    InventoryPermission,
+    MovementsPermission,
 )
 from apps.core.query_params import (
     parse_date_query_param,
@@ -18,7 +18,7 @@ class StockMovementViewSet(
     viewsets.ReadOnlyModelViewSet,
 ):
     serializer_class = StockMovementSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [MovementsPermission]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["created_at"]
     ordering = ["-created_at", "-id"]

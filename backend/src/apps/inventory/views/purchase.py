@@ -5,7 +5,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.permissions import InventoryPermission
+from apps.core.permissions import PurchasesPermission
 from apps.core.query_params import (
     parse_boolean_query_param,
     parse_date_query_param,
@@ -44,7 +44,7 @@ from apps.inventory.services import (
 
 class PurchaseViewSet(viewsets.ModelViewSet):
     serializer_class = PurchaseSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [PurchasesPermission]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = [
         "purchase_date",
@@ -308,7 +308,7 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
         .order_by("id")
     )
     serializer_class = PurchaseItemSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [PurchasesPermission]
 
     def perform_create(self, serializer):
         serializer.save(

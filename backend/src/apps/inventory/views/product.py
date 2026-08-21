@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.response import Response
 
-from apps.core.permissions import InventoryPermission
+from apps.core.permissions import LocationsPermission, ProductsPermission
 from apps.core.query_params import (
     parse_boolean_query_param,
     parse_positive_integer_query_param,
@@ -53,7 +53,7 @@ class StorageLocationViewSet(
     viewsets.ModelViewSet,
 ):
     serializer_class = StorageLocationSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [LocationsPermission]
 
     def get_queryset(self):
         queryset = StorageLocation.objects.order_by(
@@ -229,7 +229,7 @@ class ProductViewSet(
     viewsets.ModelViewSet,
 ):
     serializer_class = ProductSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [ProductsPermission]
 
     def get_queryset(self):
         queryset = current_stock_bulk().select_related(
@@ -401,7 +401,7 @@ class ProductReferenceViewSet(
     viewsets.ModelViewSet,
 ):
     serializer_class = ProductReferenceSerializer
-    permission_classes = [InventoryPermission]
+    permission_classes = [ProductsPermission]
 
     def get_queryset(self):
         queryset = (

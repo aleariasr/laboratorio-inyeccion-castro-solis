@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -18,20 +19,20 @@ class SystemStatusApiTest(APITestCase):
             password="12345678",
         )
 
-        admin_group, _ = Group.objects.get_or_create(
-            name=ROLE_ADMIN,
+        call_command("setup_roles")
+
+        self.admin_user.groups.add(
+            Group.objects.get(name=ROLE_ADMIN),
         )
-        self.admin_user.groups.add(admin_group)
 
         self.regular_user = User.objects.create_user(
             username="status-regular",
             password="12345678",
         )
 
-        inventory_group, _ = Group.objects.get_or_create(
-            name=ROLE_INVENTORY,
+        self.regular_user.groups.add(
+            Group.objects.get(name=ROLE_INVENTORY),
         )
-        self.regular_user.groups.add(inventory_group)
 
     def test_system_status_requires_authentication(self):
         response = self.client.get("/api/system/status/")

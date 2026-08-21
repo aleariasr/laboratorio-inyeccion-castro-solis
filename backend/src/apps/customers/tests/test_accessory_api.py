@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -17,10 +18,11 @@ class InjectorAccessoryApiTest(APITestCase):
             password="12345678",
         )
 
-        customers_group, _ = Group.objects.get_or_create(
-            name=ROLE_CUSTOMERS,
+        call_command("setup_roles")
+
+        self.user.groups.add(
+            Group.objects.get(name=ROLE_CUSTOMERS),
         )
-        self.user.groups.add(customers_group)
 
         self.client.force_authenticate(self.user)
 

@@ -1,150 +1,269 @@
 from decimal import Decimal
-
-from apps.core.permissions import ROLE_INVENTORY, ROLE_READ_ONLY
-from apps.inventory.selectors import current_stock
-from apps.inventory.services import initial_inventory
 from io import StringIO
+from types import SimpleNamespace
 
+from django.contrib.auth.models import AnonymousUser, Group, Permission, User
 from django.core.management import call_command
-from django.contrib.auth.models import AnonymousUser, Group, User
 from django.test import RequestFactory, TestCase
 
 from apps.core.permissions import (
     AdministrationPermission,
-    CustomersPermission,
-    InventoryPermission,
+    ProductsPermission,
+    PurchasesPermission,
     SalesPermission,
+    ServicesPermission,
     ROLE_ADMIN,
     ROLE_CUSTOMERS,
     ROLE_INVENTORY,
     ROLE_READ_ONLY,
     ROLE_SALES,
 )
-
 from apps.inventory.models import PurchaseItem, PurchaseStatus, SupplierProduct
+from apps.inventory.selectors import current_stock
+from apps.inventory.services import initial_inventory
 from apps.sales.models import Sale, SaleItem, SaleStatus
 
-class RolePermissionTest(TestCase):
+
+def _module_permission(codename):
+    return Permission.objects.get(
+        content_type__app_label="core",
+        content_type__model="modulepermissions",
+        codename=codename,
+    )
+
+
+class ModulePermissionTest(TestCase):
+    """
+    Prueba la mecánica genérica de ModulePermission: resolución de
+    acción -> codename, bypass de superuser/ADMIN, y que is_staff por
+    sí solo ya no da acceso a los módulos de negocio.
+    """
+
     def setUp(self):
         self.factory = RequestFactory()
 
     def _request(self, user, method="get"):
-        request_method = getattr(
-            self.factory,
-            method,
-        )
+        request_method = getattr(self.factory, method)
         request = request_method("/test/")
         request.user = user
         return request
 
-    def _user_with_group(self, group_name):
-        user = User.objects.create_user(
-            username=f"user_{group_name.lower()}",
-            password="12345678",
-        )
-        group, _ = Group.objects.get_or_create(
-            name=group_name,
-        )
-        user.groups.add(group)
-        return user
+    def _view(self, action=None):
+        return SimpleNamespace(action=action)
 
     def test_anonymous_user_is_denied(self):
-        request = self._request(
-            AnonymousUser(),
-        )
-
-        permission = InventoryPermission()
+        request = self._request(AnonymousUser())
 
         self.assertFalse(
-            permission.has_permission(
+            PurchasesPermission().has_permission(
                 request,
-                view=None,
+                self._view(action="list"),
             )
         )
 
-    def test_superuser_is_allowed(self):
+    def test_superuser_is_allowed_without_any_permission(self):
         user = User.objects.create_superuser(
             username="admin",
             password="12345678",
         )
-        request = self._request(
-            user,
-            method="post",
-        )
-
-        permission = InventoryPermission()
+        request = self._request(user, method="post")
 
         self.assertTrue(
-            permission.has_permission(
+            PurchasesPermission().has_permission(
                 request,
-                view=None,
+                self._view(action="create"),
             )
         )
 
-    def test_staff_user_is_allowed(self):
+    def test_admin_group_is_allowed_without_explicit_permissions(self):
         user = User.objects.create_user(
-            username="staff",
+            username="admin-role",
+            password="12345678",
+        )
+        admin_group, _ = Group.objects.get_or_create(name=ROLE_ADMIN)
+        user.groups.add(admin_group)
+
+        request = self._request(user, method="post")
+
+        self.assertTrue(
+            ServicesPermission().has_permission(
+                request,
+                self._view(action="cancel"),
+            )
+        )
+
+    def test_staff_alone_no_longer_bypasses_module_permissions(self):
+        """
+        A diferencia del esquema anterior basado en roles, is_staff
+        por sí solo ya no da acceso a los módulos de negocio: sirve
+        para el panel /admin/ de Django, no para el sistema de
+        permisos de la aplicación. Solo superuser o el grupo ADMIN
+        otorgan bypass.
+        """
+        user = User.objects.create_user(
+            username="staff-only",
             password="12345678",
             is_staff=True,
         )
-        request = self._request(
-            user,
-            method="post",
-        )
+        request = self._request(user, method="get")
 
-        permission = SalesPermission()
-
-        self.assertTrue(
-            permission.has_permission(
+        self.assertFalse(
+            ProductsPermission().has_permission(
                 request,
-                view=None,
+                self._view(action="list"),
             )
         )
 
-    def test_admin_group_is_allowed(self):
-        user = self._user_with_group(
-            ROLE_ADMIN,
+    def test_user_with_direct_permission_is_allowed(self):
+        user = User.objects.create_user(
+            username="custom-viewer",
+            password="12345678",
         )
-        request = self._request(
-            user,
-            method="post",
+        user.user_permissions.add(_module_permission("view_products"))
+
+        request = self._request(user, method="get")
+
+        self.assertTrue(
+            ProductsPermission().has_permission(
+                request,
+                self._view(action="list"),
+            )
         )
 
-        permission = CustomersPermission()
+    def test_user_without_permission_is_denied(self):
+        user = User.objects.create_user(
+            username="no-perms",
+            password="12345678",
+        )
+        request = self._request(user, method="get")
+
+        self.assertFalse(
+            ProductsPermission().has_permission(
+                request,
+                self._view(action="list"),
+            )
+        )
+
+    def test_change_permission_does_not_grant_cancel(self):
+        user = User.objects.create_user(
+            username="purchases-editor",
+            password="12345678",
+        )
+        user.user_permissions.add(_module_permission("change_purchases"))
+
+        request = self._request(user, method="post")
+        permission = PurchasesPermission()
 
         self.assertTrue(
             permission.has_permission(
                 request,
-                view=None,
+                self._view(action="confirm"),
+            )
+        )
+        self.assertFalse(
+            permission.has_permission(
+                request,
+                self._view(action="cancel"),
+            )
+        )
+
+    def test_cancel_permission_alone_does_not_grant_change(self):
+        user = User.objects.create_user(
+            username="purchases-canceller",
+            password="12345678",
+        )
+        user.user_permissions.add(_module_permission("cancel_purchases"))
+
+        request = self._request(user, method="post")
+        permission = PurchasesPermission()
+
+        self.assertTrue(
+            permission.has_permission(
+                request,
+                self._view(action="cancel"),
+            )
+        )
+        self.assertFalse(
+            permission.has_permission(
+                request,
+                self._view(action="confirm"),
+            )
+        )
+
+    def test_read_action_only_requires_view_permission(self):
+        """
+        "labels" es un POST pero de solo lectura (genera un PDF): con
+        el permiso de ver productos alcanza, no hace falta el de
+        crear.
+        """
+        user = User.objects.create_user(
+            username="labels-viewer",
+            password="12345678",
+        )
+        user.user_permissions.add(_module_permission("view_products"))
+
+        request = self._request(user, method="post")
+        permission = ProductsPermission()
+
+        self.assertTrue(
+            permission.has_permission(
+                request,
+                self._view(action="labels"),
+            )
+        )
+        self.assertFalse(
+            permission.has_permission(
+                request,
+                self._view(action="create"),
+            )
+        )
+
+    def test_role_group_grants_its_module_permissions(self):
+        call_command("setup_roles")
+
+        user = User.objects.create_user(
+            username="sales-role",
+            password="12345678",
+        )
+        user.groups.add(Group.objects.get(name=ROLE_SALES))
+
+        request = self._request(user, method="post")
+
+        self.assertTrue(
+            SalesPermission().has_permission(
+                request,
+                self._view(action="create"),
+            )
+        )
+        self.assertFalse(
+            PurchasesPermission().has_permission(
+                request,
+                self._view(action="create"),
             )
         )
 
     def test_administration_permission_denies_anonymous_user(self):
-        request = self._request(
-            AnonymousUser(),
-        )
-
-        permission = AdministrationPermission()
+        request = self._request(AnonymousUser())
 
         self.assertFalse(
-            permission.has_permission(
+            AdministrationPermission().has_permission(
                 request,
                 view=None,
             )
         )
 
     def test_administration_permission_allows_admin_group(self):
-        user = self._user_with_group(
-            ROLE_ADMIN,
+        user = User.objects.create_user(
+            username="administration-admin-role",
+            password="12345678",
         )
-        request = self._request(
-            user,
-        )
+        admin_group, _ = Group.objects.get_or_create(name=ROLE_ADMIN)
+        user.groups.add(admin_group)
 
-        permission = AdministrationPermission()
+        request = self._request(user)
 
         self.assertTrue(
-            permission.has_permission(
+            AdministrationPermission().has_permission(
                 request,
                 view=None,
             )
@@ -156,14 +275,10 @@ class RolePermissionTest(TestCase):
             password="12345678",
             is_staff=True,
         )
-        request = self._request(
-            user,
-        )
-
-        permission = AdministrationPermission()
+        request = self._request(user)
 
         self.assertTrue(
-            permission.has_permission(
+            AdministrationPermission().has_permission(
                 request,
                 view=None,
             )
@@ -174,175 +289,44 @@ class RolePermissionTest(TestCase):
             username="administration-superuser",
             password="12345678",
         )
-        request = self._request(
-            user,
-        )
-
-        permission = AdministrationPermission()
+        request = self._request(user)
 
         self.assertTrue(
-            permission.has_permission(
+            AdministrationPermission().has_permission(
                 request,
                 view=None,
             )
         )
 
     def test_administration_permission_denies_non_admin_role(self):
-        user = self._user_with_group(
-            ROLE_INVENTORY,
+        user = User.objects.create_user(
+            username="administration-inventory-role",
+            password="12345678",
         )
-        request = self._request(
-            user,
-        )
+        inventory_group, _ = Group.objects.get_or_create(name=ROLE_INVENTORY)
+        user.groups.add(inventory_group)
 
-        permission = AdministrationPermission()
+        request = self._request(user)
 
         self.assertFalse(
-            permission.has_permission(
+            AdministrationPermission().has_permission(
                 request,
                 view=None,
             )
         )
 
     def test_administration_permission_denies_read_only_role(self):
-        user = self._user_with_group(
-            ROLE_READ_ONLY,
-        )
-        request = self._request(
-            user,
-        )
-
-        permission = AdministrationPermission()
-
-        self.assertFalse(
-            permission.has_permission(
-                request,
-                view=None,
-            )
-        )
-
-    def test_inventory_group_can_use_inventory_permission(self):
-        user = self._user_with_group(
-            ROLE_INVENTORY,
-        )
-        request = self._request(
-            user,
-            method="post",
-        )
-
-        permission = InventoryPermission()
-
-        self.assertTrue(
-            permission.has_permission(
-                request,
-                view=None,
-            )
-        )
-
-    def test_inventory_group_cannot_use_sales_permission(self):
-        user = self._user_with_group(
-            ROLE_INVENTORY,
-        )
-        request = self._request(
-            user,
-            method="post",
-        )
-
-        permission = SalesPermission()
-
-        self.assertFalse(
-            permission.has_permission(
-                request,
-                view=None,
-            )
-        )
-
-    def test_sales_group_can_use_sales_permission(self):
-        user = self._user_with_group(
-            ROLE_SALES,
-        )
-        request = self._request(
-            user,
-            method="post",
-        )
-
-        permission = SalesPermission()
-
-        self.assertTrue(
-            permission.has_permission(
-                request,
-                view=None,
-            )
-        )
-
-    def test_customers_group_can_use_customers_permission(self):
-        user = self._user_with_group(
-            ROLE_CUSTOMERS,
-        )
-        request = self._request(
-            user,
-            method="post",
-        )
-
-        permission = CustomersPermission()
-
-        self.assertTrue(
-            permission.has_permission(
-                request,
-                view=None,
-            )
-        )
-
-    def test_read_only_group_can_use_safe_methods(self):
-        user = self._user_with_group(
-            ROLE_READ_ONLY,
-        )
-        request = self._request(
-            user,
-            method="get",
-        )
-
-        permission = InventoryPermission()
-
-        self.assertTrue(
-            permission.has_permission(
-                request,
-                view=None,
-            )
-        )
-
-    def test_read_only_group_cannot_use_write_methods(self):
-        user = self._user_with_group(
-            ROLE_READ_ONLY,
-        )
-        request = self._request(
-            user,
-            method="post",
-        )
-
-        permission = InventoryPermission()
-
-        self.assertFalse(
-            permission.has_permission(
-                request,
-                view=None,
-            )
-        )
-
-    def test_authenticated_user_without_group_is_denied(self):
         user = User.objects.create_user(
-            username="plain",
+            username="administration-readonly-role",
             password="12345678",
         )
-        request = self._request(
-            user,
-            method="post",
-        )
+        read_only_group, _ = Group.objects.get_or_create(name=ROLE_READ_ONLY)
+        user.groups.add(read_only_group)
 
-        permission = InventoryPermission()
+        request = self._request(user)
 
         self.assertFalse(
-            permission.has_permission(
+            AdministrationPermission().has_permission(
                 request,
                 view=None,
             )
@@ -604,25 +588,23 @@ class UniversalSearchApiTest(APITestCase):
 
 class InventoryReportsApiTest(APITestCase):
     def setUp(self):
+        call_command("setup_roles")
+
         self.inventory_user = User.objects.create_user(
             username="reports-inventory",
             password="12345678",
         )
-
-        inventory_group, _ = Group.objects.get_or_create(
-            name=ROLE_INVENTORY,
+        self.inventory_user.groups.add(
+            Group.objects.get(name=ROLE_INVENTORY),
         )
-        self.inventory_user.groups.add(inventory_group)
 
         self.read_only_user = User.objects.create_user(
             username="reports-readonly",
             password="12345678",
         )
-
-        read_only_group, _ = Group.objects.get_or_create(
-            name=ROLE_READ_ONLY,
+        self.read_only_user.groups.add(
+            Group.objects.get(name=ROLE_READ_ONLY),
         )
-        self.read_only_user.groups.add(read_only_group)
 
         self.plain_user = User.objects.create_user(
             username="reports-plain",
@@ -755,10 +737,9 @@ class InventoryReportsApiTest(APITestCase):
             password="12345678",
         )
 
-        sales_group, _ = Group.objects.get_or_create(
-            name=ROLE_SALES,
+        sales_user.groups.add(
+            Group.objects.get(name=ROLE_SALES),
         )
-        sales_user.groups.add(sales_group)
 
         self.client.force_authenticate(sales_user)
 
@@ -903,10 +884,11 @@ class BusinessReportsApiTest(APITestCase):
             password="12345678",
         )
 
-        inventory_group, _ = Group.objects.get_or_create(
-            name=ROLE_INVENTORY,
+        call_command("setup_roles")
+
+        self.user.groups.add(
+            Group.objects.get(name=ROLE_INVENTORY),
         )
-        self.user.groups.add(inventory_group)
 
         self.client.force_authenticate(self.user)
 
@@ -1124,10 +1106,9 @@ class BusinessReportsApiTest(APITestCase):
             password="12345678",
         )
 
-        sales_group, _ = Group.objects.get_or_create(
-            name=ROLE_SALES,
+        sales_user.groups.add(
+            Group.objects.get(name=ROLE_SALES),
         )
-        sales_user.groups.add(sales_group)
 
         self.client.force_authenticate(sales_user)
 
