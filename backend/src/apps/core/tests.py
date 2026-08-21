@@ -8,20 +8,58 @@ from django.test import RequestFactory, TestCase
 
 from apps.core.permissions import (
     AdministrationPermission,
+    CustomersPermission,
+    DocumentsPermission,
+    InjectorsPermission,
+    InventoryCountsPermission,
+    LocationsPermission,
+    MovementsPermission,
     ProductsPermission,
     PurchasesPermission,
+    ReportsPermission,
     SalesPermission,
     ServicesPermission,
+    SuppliersPermission,
     ROLE_ADMIN,
     ROLE_CUSTOMERS,
     ROLE_INVENTORY,
     ROLE_READ_ONLY,
     ROLE_SALES,
 )
+from apps.core.management.commands.setup_roles import ROLE_PERMISSIONS
 from apps.inventory.models import PurchaseItem, PurchaseStatus, SupplierProduct
 from apps.inventory.selectors import current_stock
 from apps.inventory.services import initial_inventory
 from apps.sales.models import Sale, SaleItem, SaleStatus
+
+
+# Tabla de todas las subclases de ModulePermission que declaran
+# add_/change_ (y opcionalmente cancel_), usada por
+# ModulePermissionMatrixAllModulesTest para no tener que repetir la
+# misma mecánica 12 veces a mano. reports/documents/movements quedan
+# fuera de esta tabla porque solo declaran view_<module> (ver
+# READ_ONLY_MODULE_SPECS) y no tienen add_/change_/cancel_.
+MODULE_PERMISSION_SPECS = [
+    ("products", ProductsPermission, False),
+    ("locations", LocationsPermission, False),
+    ("suppliers", SuppliersPermission, False),
+    ("purchases", PurchasesPermission, True),
+    ("inventory_counts", InventoryCountsPermission, True),
+    ("sales", SalesPermission, True),
+    ("customers", CustomersPermission, False),
+    ("injectors", InjectorsPermission, False),
+    ("services", ServicesPermission, True),
+]
+
+# Módulos que en ModulePermissions.Meta.permissions solo declaran
+# view_<module>: no existe add_/change_/cancel_ para ellos, así que
+# por diseño nadie (fuera de ADMIN/superuser) puede escribir vía la
+# API en estos módulos.
+READ_ONLY_MODULE_SPECS = [
+    ("reports", ReportsPermission),
+    ("documents", DocumentsPermission),
+    ("movements", MovementsPermission),
+]
 
 
 def _module_permission(codename):
@@ -377,6 +415,296 @@ class SetupRolesCommandTest(TestCase):
             ).count(),
             5,
         )
+
+    def test_setup_roles_grants_exact_permission_set_per_role(self):
+        """
+        Compara lo que setup_roles realmente deja en la base de datos
+        contra ROLE_PERMISSIONS. Si alguien agrega/quita un permiso de
+        módulo en ModulePermissions.Meta.permissions o en
+        ROLE_PERMISSIONS sin actualizar el otro, este test lo detecta
+        (permiso de más o permiso de menos), en vez de descubrirlo en
+        producción cuando un rol no puede hacer algo que debería, o
+        puede hacer algo que no debería.
+        """
+        call_command("setup_roles")
+
+        all_module_codenames = set(
+            Permission.objects.filter(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+            ).values_list(
+                "codename",
+                flat=True,
+            )
+        )
+
+        # 34 = cantidad de tuplas en ModulePermissions.Meta.permissions
+        # al momento de escribir este test. Un cambio en este número
+        # es la señal de que hay que revisar ROLE_PERMISSIONS también.
+        self.assertEqual(len(all_module_codenames), 34)
+
+        admin_group = Group.objects.get(name=ROLE_ADMIN)
+        admin_codenames = set(
+            admin_group.permissions.values_list(
+                "codename",
+                flat=True,
+            )
+        )
+
+        # ADMIN no está en ROLE_PERMISSIONS (recibe todo por código en
+        # setup_roles), así que se compara aparte contra el catálogo
+        # completo.
+        self.assertEqual(admin_codenames, all_module_codenames)
+
+        for role, expected_codenames in ROLE_PERMISSIONS.items():
+            with self.subTest(role=role):
+                group = Group.objects.get(name=role)
+                actual_codenames = set(
+                    group.permissions.values_list(
+                        "codename",
+                        flat=True,
+                    )
+                )
+
+                self.assertEqual(
+                    actual_codenames,
+                    set(expected_codenames),
+                )
+
+    def test_setup_roles_permission_assignment_is_idempotent(self):
+        call_command("setup_roles")
+
+        first_run_codenames = {
+            role: set(
+                Group.objects.get(name=role).permissions.values_list(
+                    "codename",
+                    flat=True,
+                )
+            )
+            for role in ROLE_PERMISSIONS
+        }
+
+        call_command("setup_roles")
+
+        second_run_codenames = {
+            role: set(
+                Group.objects.get(name=role).permissions.values_list(
+                    "codename",
+                    flat=True,
+                )
+            )
+            for role in ROLE_PERMISSIONS
+        }
+
+        self.assertEqual(first_run_codenames, second_run_codenames)
+
+
+class ModulePermissionMatrixAllModulesTest(TestCase):
+    """
+    Repite, para las 12 subclases concretas de ModulePermission, la
+    misma mecánica que ModulePermissionTest solo prueba sobre una
+    muestra de 3-4 de ellas (view/add/change/cancel). El objetivo es
+    que un cambio futuro en un solo módulo (ej. agregar cancel_actions
+    a Suppliers, o quitarle read_actions a Products) no pueda romper
+    otro módulo sin que quede evidenciado acá.
+    """
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _request(self, user, method="get"):
+        request_method = getattr(self.factory, method)
+        request = request_method("/test/")
+        request.user = user
+        return request
+
+    def _view(self, action=None):
+        return SimpleNamespace(action=action)
+
+    def _user_with_permission(self, codename, username):
+        user = User.objects.create_user(
+            username=username,
+            password="12345678",
+        )
+        user.user_permissions.add(_module_permission(codename))
+        return user
+
+    def test_view_permission_allows_read_and_denies_write_for_every_module(self):
+        all_specs = [
+            (module, permission_class)
+            for module, permission_class, _has_cancel in MODULE_PERMISSION_SPECS
+        ] + list(READ_ONLY_MODULE_SPECS)
+
+        for module, permission_class in all_specs:
+            with self.subTest(module=module):
+                user = self._user_with_permission(
+                    f"view_{module}",
+                    f"view-only-{module}",
+                )
+                permission = permission_class()
+
+                read_request = self._request(user, method="get")
+                self.assertTrue(
+                    permission.has_permission(
+                        read_request,
+                        self._view(action="list"),
+                    )
+                )
+
+                create_request = self._request(user, method="post")
+                self.assertFalse(
+                    permission.has_permission(
+                        create_request,
+                        self._view(action="create"),
+                    )
+                )
+
+                update_request = self._request(user, method="patch")
+                self.assertFalse(
+                    permission.has_permission(
+                        update_request,
+                        self._view(action="partial_update"),
+                    )
+                )
+
+    def test_add_permission_allows_create_and_denies_read_and_update(self):
+        for module, permission_class, _has_cancel in MODULE_PERMISSION_SPECS:
+            with self.subTest(module=module):
+                user = self._user_with_permission(
+                    f"add_{module}",
+                    f"add-only-{module}",
+                )
+                permission = permission_class()
+
+                create_request = self._request(user, method="post")
+                self.assertTrue(
+                    permission.has_permission(
+                        create_request,
+                        self._view(action="create"),
+                    )
+                )
+
+                read_request = self._request(user, method="get")
+                self.assertFalse(
+                    permission.has_permission(
+                        read_request,
+                        self._view(action="list"),
+                    )
+                )
+
+                update_request = self._request(user, method="patch")
+                self.assertFalse(
+                    permission.has_permission(
+                        update_request,
+                        self._view(action="partial_update"),
+                    )
+                )
+
+    def test_change_permission_allows_update_and_denies_create(self):
+        for module, permission_class, _has_cancel in MODULE_PERMISSION_SPECS:
+            with self.subTest(module=module):
+                user = self._user_with_permission(
+                    f"change_{module}",
+                    f"change-only-{module}",
+                )
+                permission = permission_class()
+
+                update_request = self._request(user, method="patch")
+                self.assertTrue(
+                    permission.has_permission(
+                        update_request,
+                        self._view(action="partial_update"),
+                    )
+                )
+
+                create_request = self._request(user, method="post")
+                self.assertFalse(
+                    permission.has_permission(
+                        create_request,
+                        self._view(action="create"),
+                    )
+                )
+
+    def test_change_permission_alone_does_not_grant_cancel(self):
+        for module, permission_class, has_cancel in MODULE_PERMISSION_SPECS:
+            if not has_cancel:
+                continue
+
+            with self.subTest(module=module):
+                user = self._user_with_permission(
+                    f"change_{module}",
+                    f"change-only-cancel-check-{module}",
+                )
+                permission = permission_class()
+
+                cancel_request = self._request(user, method="post")
+                self.assertFalse(
+                    permission.has_permission(
+                        cancel_request,
+                        self._view(action="cancel"),
+                    )
+                )
+
+    def test_cancel_permission_alone_allows_cancel_and_denies_update(self):
+        for module, permission_class, has_cancel in MODULE_PERMISSION_SPECS:
+            if not has_cancel:
+                continue
+
+            with self.subTest(module=module):
+                user = self._user_with_permission(
+                    f"cancel_{module}",
+                    f"cancel-only-{module}",
+                )
+                permission = permission_class()
+
+                cancel_request = self._request(user, method="post")
+                self.assertTrue(
+                    permission.has_permission(
+                        cancel_request,
+                        self._view(action="cancel"),
+                    )
+                )
+
+                update_request = self._request(user, method="patch")
+                self.assertFalse(
+                    permission.has_permission(
+                        update_request,
+                        self._view(action="partial_update"),
+                    )
+                )
+
+    def test_read_only_modules_have_no_write_permission_in_database(self):
+        """
+        reports, documents y movements solo declaran view_<module> en
+        ModulePermissions: no existe add_/change_/cancel_ para ellos.
+        Si alguna vez se agrega una de esas variantes sin actualizar
+        este test, hay que revisar también setup_roles y el frontend,
+        porque implicaría que el módulo dejó de ser de solo lectura.
+        """
+        for module, _permission_class in READ_ONLY_MODULE_SPECS:
+            with self.subTest(module=module):
+                self.assertFalse(
+                    Permission.objects.filter(
+                        content_type__app_label="core",
+                        content_type__model="modulepermissions",
+                        codename=f"add_{module}",
+                    ).exists()
+                )
+                self.assertFalse(
+                    Permission.objects.filter(
+                        content_type__app_label="core",
+                        content_type__model="modulepermissions",
+                        codename=f"change_{module}",
+                    ).exists()
+                )
+                self.assertFalse(
+                    Permission.objects.filter(
+                        content_type__app_label="core",
+                        content_type__model="modulepermissions",
+                        codename=f"cancel_{module}",
+                    ).exists()
+                )
+
 
 from datetime import date
 

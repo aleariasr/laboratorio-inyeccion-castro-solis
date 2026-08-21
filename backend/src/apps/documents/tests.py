@@ -4,7 +4,7 @@ from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.core.permissions import ROLE_INVENTORY
+from apps.core.permissions import ROLE_INVENTORY, ROLE_READ_ONLY
 from apps.inventory.models import Product, StorageLocation
 
 User = get_user_model()
@@ -21,6 +21,19 @@ class ProductLabelsPdfApiTest(APITestCase):
 
         self.user.groups.add(
             Group.objects.get(name=ROLE_INVENTORY),
+        )
+
+        self.read_only_user = User.objects.create_user(
+            username="documents-readonly",
+            password="12345678",
+        )
+        self.read_only_user.groups.add(
+            Group.objects.get(name=ROLE_READ_ONLY),
+        )
+
+        self.plain_user = User.objects.create_user(
+            username="documents-plain",
+            password="12345678",
         )
 
         self.location = StorageLocation.objects.create(
@@ -91,3 +104,27 @@ class ProductLabelsPdfApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_read_only_user_can_generate_product_labels(self):
+        self.client.force_authenticate(self.read_only_user)
+
+        response = self.client.get(
+            "/api/documents/product-labels/",
+            {
+                "product": self.product.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_authenticated_user_without_group_cannot_generate_product_labels(self):
+        self.client.force_authenticate(self.plain_user)
+
+        response = self.client.get(
+            "/api/documents/product-labels/",
+            {
+                "product": self.product.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
