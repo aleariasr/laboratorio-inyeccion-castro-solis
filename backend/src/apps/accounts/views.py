@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from rest_framework import permissions, status, viewsets
+from django.db.models import Q
+from rest_framework import filters, permissions, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,6 +14,7 @@ from apps.core.permissions import (
     ROLE_READ_ONLY,
     ROLE_SALES,
 )
+from apps.core.query_params import parse_boolean_query_param
 
 from .serializers import UserCreateSerializer, UserSerializer
 
@@ -83,8 +85,31 @@ class RoleListView(APIView):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.order_by("username")
     permission_classes = [AdministrationPermission]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["username", "first_name", "last_name"]
+    ordering = ["username"]
+
+    def get_queryset(self):
+        queryset = User.objects.order_by("username")
+
+        query = self.request.query_params.get("q", "").strip()
+        is_active = parse_boolean_query_param(
+            self.request.query_params.get("is_active"), name="is_active",
+        )
+
+        if query:
+            queryset = queryset.filter(
+                Q(username__icontains=query)
+                | Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+                | Q(email__icontains=query)
+            )
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active)
+
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "create":

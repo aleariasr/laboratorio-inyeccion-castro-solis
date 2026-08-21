@@ -544,3 +544,93 @@ class UserSelfLockoutProtectionApiTest(APITestCase):
             set(staff_user.groups.values_list("name", flat=True)),
             {ROLE_INVENTORY},
         )
+
+
+class UserListFilteringApiTest(APITestCase):
+    """
+    /api/accounts/users/ soporta búsqueda (?q=) y filtro por estado
+    (?is_active=), igual que CustomerViewSet/InjectorViewSet, para que
+    la pantalla de Usuarios del frontend tenga un buscador funcional.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="filter-admin",
+            password="12345678",
+        )
+        self.client.force_authenticate(self.admin)
+
+        self.active_match = User.objects.create_user(
+            username="carlos-mendez",
+            password="12345678",
+            first_name="Carlos",
+            last_name="Méndez",
+            email="carlos@example.com",
+            is_active=True,
+        )
+
+        self.inactive_other = User.objects.create_user(
+            username="other-user",
+            password="12345678",
+            first_name="Ana",
+            last_name="Solano",
+            email="ana@example.com",
+            is_active=False,
+        )
+
+    def test_filter_by_query_matches_username(self):
+        response = self.client.get("/api/accounts/users/?q=carlos")
+
+        usernames = [row["username"] for row in response.data["results"]]
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("carlos-mendez", usernames)
+        self.assertNotIn("other-user", usernames)
+
+    def test_filter_by_query_matches_last_name(self):
+        response = self.client.get("/api/accounts/users/?q=solano")
+
+        usernames = [row["username"] for row in response.data["results"]]
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("other-user", usernames)
+        self.assertNotIn("carlos-mendez", usernames)
+
+    def test_filter_by_query_matches_email(self):
+        response = self.client.get("/api/accounts/users/?q=ana@example.com")
+
+        usernames = [row["username"] for row in response.data["results"]]
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("other-user", usernames)
+        self.assertNotIn("carlos-mendez", usernames)
+
+    def test_filter_by_is_active_true(self):
+        response = self.client.get("/api/accounts/users/?is_active=true")
+
+        usernames = [row["username"] for row in response.data["results"]]
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("carlos-mendez", usernames)
+        self.assertNotIn("other-user", usernames)
+
+    def test_filter_by_is_active_false(self):
+        response = self.client.get("/api/accounts/users/?is_active=false")
+
+        usernames = [row["username"] for row in response.data["results"]]
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("other-user", usernames)
+        self.assertNotIn("carlos-mendez", usernames)
+
+    def test_invalid_is_active_returns_400(self):
+        response = self.client.get("/api/accounts/users/?is_active=maybe")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_is_ordered_by_username(self):
+        response = self.client.get("/api/accounts/users/")
+
+        usernames = [row["username"] for row in response.data["results"]]
+
+        self.assertEqual(usernames, sorted(usernames))
