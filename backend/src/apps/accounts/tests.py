@@ -554,6 +554,75 @@ class UserSelfLockoutProtectionApiTest(APITestCase):
             {ROLE_INVENTORY},
         )
 
+    def test_staff_only_user_cannot_remove_own_is_staff(self):
+        """
+        is_staff otorga acceso administrativo por sí solo
+        (AdministrationPermission, apps/core/permissions.py), igual
+        que el rol ADMIN: alguien que administra usuarios únicamente
+        por tener is_staff=True, sin estar en el grupo ADMIN, no puede
+        quitarse ese acceso a sí mismo por accidente.
+        """
+        staff_user = User.objects.create_user(
+            username="lockout-staff-self",
+            password="12345678",
+            is_staff=True,
+        )
+        self.client.force_authenticate(staff_user)
+
+        response = self.client.patch(
+            f"/api/accounts/users/{staff_user.id}/",
+            {"is_staff": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("is_staff", response.data)
+
+        staff_user.refresh_from_db()
+
+        self.assertTrue(staff_user.is_staff)
+
+    def test_admin_can_remove_is_staff_from_another_user(self):
+        other_staff_user = User.objects.create_user(
+            username="lockout-staff-other",
+            password="12345678",
+            is_staff=True,
+        )
+
+        response = self.client.patch(
+            f"/api/accounts/users/{other_staff_user.id}/",
+            {"is_staff": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        other_staff_user.refresh_from_db()
+
+        self.assertFalse(other_staff_user.is_staff)
+
+    def test_self_edit_with_unchanged_is_staff_false_is_allowed(self):
+        """
+        UserForm (frontend) reenvía is_staff en cada guardado, tenga o
+        no cambios (buildUserWritePayload). role_admin_user administra
+        por el grupo ADMIN, no por is_staff (su is_staff es False), así
+        que reenviar is_staff=False sin tocarlo no debe bloquearse: la
+        protección de arriba solo debe activarse ante un cambio real de
+        True a False, no ante cualquier valor False en el payload.
+        """
+        response = self.client.patch(
+            f"/api/accounts/users/{self.role_admin_user.id}/",
+            {"is_staff": False, "first_name": "Actualizado"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.role_admin_user.refresh_from_db()
+
+        self.assertFalse(self.role_admin_user.is_staff)
+        self.assertEqual(self.role_admin_user.first_name, "Actualizado")
+
 
 class UserListFilteringApiTest(APITestCase):
     """

@@ -64,6 +64,18 @@ class UserSerializer(serializers.ModelSerializer):
                     }
                 )
 
+            if (
+                self.instance.is_staff
+                and attrs.get("is_staff") is False
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "is_staff": [
+                            "No puede quitarse su propio acceso administrativo (is_staff).",
+                        ]
+                    }
+                )
+
             groups = attrs.get("groups")
 
             if (
