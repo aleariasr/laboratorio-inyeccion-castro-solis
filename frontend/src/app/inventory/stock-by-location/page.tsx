@@ -12,7 +12,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventory } from "@/features/auth/permissions";
+import { canReadReports } from "@/features/auth/permissions";
 import { getStorageLocations } from "@/features/inventory/locations/api";
 import { getStockByLocationReport } from "@/features/inventory/reports/api";
 import {
@@ -72,7 +72,7 @@ export default function StockByLocationPage() {
     message: null,
   });
 
-  const hasInventoryAccess = user ? canReadInventory(user) : false;
+  const hasInventoryAccess = user ? canReadReports(user) : false;
 
   const hasActiveFilters = filters.q !== "" || filters.location !== null;
 
@@ -223,7 +223,7 @@ export default function StockByLocationPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de reportes."
       >
         <StatePanel
           title="No tiene acceso a reportes de inventario"

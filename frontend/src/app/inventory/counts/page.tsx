@@ -17,7 +17,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventory, canWriteInventory } from "@/features/auth/permissions";
+import { canReadInventoryCounts, canWriteInventoryCounts } from "@/features/auth/permissions";
 import { getInventoryCounts } from "@/features/inventory/counts/api";
 import type {
   InventoryCount,
@@ -101,9 +101,9 @@ export default function InventoryCountsPage() {
     message: null,
   });
 
-  const hasInventoryAccess = user ? canReadInventory(user) : false;
+  const hasInventoryAccess = user ? canReadInventoryCounts(user) : false;
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWriteInventoryCounts(user) : false;
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasInventoryAccess) {
@@ -314,7 +314,7 @@ export default function InventoryCountsPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de conteos físicos."
       >
         <StatePanel
           title="No tiene acceso a conteos físicos"

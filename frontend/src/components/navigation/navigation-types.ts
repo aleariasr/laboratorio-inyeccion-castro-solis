@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
 import type { AppRole } from "@/features/auth/permissions";
+import type { AuthUser } from "@/features/auth/types";
 
 export type NavigationSectionId =
   | "main"
@@ -21,6 +22,7 @@ export type NavigationItem = {
   section: NavigationSectionId;
   icon: NavigationIconComponent;
   roles?: AppRole[];
+  permissionCheck?: (user: AuthUser) => boolean;
   adminOnly?: boolean;
 };
 

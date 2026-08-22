@@ -21,8 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import {
-  canReadInventory,
-  canWriteInventory,
+  canReadLocations,
+  canWriteLocations,
 } from "@/features/auth/permissions";
 import {
   generateLocationLabels,
@@ -144,10 +144,10 @@ export default function StorageLocationsPage() {
   });
 
   const hasInventoryAccess =
-    user ? canReadInventory(user) : false;
+    user ? canReadLocations(user) : false;
 
   const hasWriteAccess =
-    user ? canWriteInventory(user) : false;
+    user ? canWriteLocations(user) : false;
 
   const visibleLocationIds =
     loadState.status === "success"
@@ -590,7 +590,7 @@ export default function StorageLocationsPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de ubicaciones."
       >
         <StatePanel
           title="No tiene acceso a ubicaciones"

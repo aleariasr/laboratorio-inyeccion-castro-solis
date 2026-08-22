@@ -10,7 +10,7 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventory, canWriteInventory } from "@/features/auth/permissions";
+import { canReadSuppliers, canWriteSuppliers } from "@/features/auth/permissions";
 import {
   createSupplierProduct,
   getSupplier,
@@ -135,9 +135,9 @@ export default function SupplierDetailPage() {
 
   const supplierId = Number(params.id);
 
-  const hasInventoryAccess = user ? canReadInventory(user) : false;
+  const hasInventoryAccess = user ? canReadSuppliers(user) : false;
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWriteSuppliers(user) : false;
 
   const supplierProductFormInitialValues =
     supplierProductFormState.mode === "edit"
@@ -438,7 +438,7 @@ export default function SupplierDetailPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de proveedores."
       >
         <StatePanel
           title="No tiene acceso al proveedor"

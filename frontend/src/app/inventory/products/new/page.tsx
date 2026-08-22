@@ -12,7 +12,7 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInventory } from "@/features/auth/permissions";
+import { canWriteProducts } from "@/features/auth/permissions";
 import {
   createProduct,
   getActiveLocations,
@@ -112,7 +112,7 @@ export default function NewProductPage() {
     useState<ProductFormErrors>({});
 
   const hasWriteAccess =
-    user ? canWriteInventory(user) : false;
+    user ? canWriteProducts(user) : false;
 
   useEffect(() => {
     if (
@@ -171,7 +171,7 @@ export default function NewProductPage() {
             status: "forbidden",
             locations: [],
             message:
-              "Este usuario no tiene permisos para administrar productos.",
+              "Este usuario no tiene permisos para consultar ubicaciones, necesarias para crear un producto.",
           });
 
           return;
@@ -275,7 +275,7 @@ export default function NewProductPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en inventario."
+        description="Esta operación requiere permisos de escritura en productos."
       >
         <StatePanel
           title="No puede crear productos"

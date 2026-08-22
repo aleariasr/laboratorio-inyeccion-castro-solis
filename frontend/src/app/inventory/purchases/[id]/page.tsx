@@ -12,7 +12,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventory, canWriteInventory } from "@/features/auth/permissions";
+import { canReadPurchases, canWritePurchases } from "@/features/auth/permissions";
 import {
   cancelPurchase,
   confirmPurchase,
@@ -161,9 +161,9 @@ export default function PurchaseDetailPage() {
 
   const purchaseId = Number(params.id);
 
-  const hasInventoryAccess = user ? canReadInventory(user) : false;
+  const hasInventoryAccess = user ? canReadPurchases(user) : false;
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWritePurchases(user) : false;
 
   const canManageItems =
     loadState.status === "success" &&
@@ -591,7 +591,7 @@ export default function PurchaseDetailPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de compras."
       >
         <StatePanel
           title="No tiene acceso a la compra"

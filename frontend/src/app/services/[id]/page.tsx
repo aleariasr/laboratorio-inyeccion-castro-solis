@@ -11,7 +11,7 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCustomers, canWriteCustomers } from "@/features/auth/permissions";
+import { canReadServices, canWriteServices } from "@/features/auth/permissions";
 import { formatDate } from "@/features/inventory/purchases/format";
 import {
   cancelServiceRecord,
@@ -160,9 +160,9 @@ export default function ServiceDetailPage() {
 
   const serviceRecordId = Number(params.id);
 
-  const hasCustomersAccess = user ? canReadCustomers(user) : false;
+  const hasCustomersAccess = user ? canReadServices(user) : false;
 
-  const hasWriteAccess = user ? canWriteCustomers(user) : false;
+  const hasWriteAccess = user ? canWriteServices(user) : false;
 
   const canManage =
     loadState.status === "success" &&
@@ -580,7 +580,7 @@ export default function ServiceDetailPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de clientes."
+        description="Este módulo requiere permisos de servicios."
       >
         <StatePanel
           title="No tiene acceso al servicio"

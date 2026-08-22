@@ -9,7 +9,12 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCustomers, canWriteCustomers } from "@/features/auth/permissions";
+import {
+  canReadCustomers,
+  canReadInjectors,
+  canReadSales,
+  canWriteCustomers,
+} from "@/features/auth/permissions";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import { getCustomer, getCustomerInjectors } from "@/features/customers/api";
 import type { Customer, CustomerInjector } from "@/features/customers/types";
@@ -21,24 +26,28 @@ type LoadState =
   | {
       status: "loading";
       customer: null;
-      injectors: [];
-      sales: [];
       message: null;
     }
   | {
       status: "success";
       customer: Customer;
-      injectors: CustomerInjector[];
-      sales: Sale[];
       message: null;
     }
   | {
       status: "not-found" | "forbidden" | "error";
       customer: null;
-      injectors: [];
-      sales: [];
       message: string;
     };
+
+type InjectorsLoadState =
+  | { status: "loading"; injectors: null; message: null }
+  | { status: "success"; injectors: CustomerInjector[]; message: null }
+  | { status: "forbidden" | "error"; injectors: null; message: string };
+
+type SalesLoadState =
+  | { status: "loading"; sales: null; message: null }
+  | { status: "success"; sales: Sale[]; message: null }
+  | { status: "forbidden" | "error"; sales: null; message: string };
 
 const CUSTOMER_TYPE_LABELS: Record<string, string> = {
   PERSON: "Persona",
@@ -76,8 +85,18 @@ export default function CustomerDetailPage() {
   const [loadState, setLoadState] = useState<LoadState>({
     status: "loading",
     customer: null,
-    injectors: [],
-    sales: [],
+    message: null,
+  });
+
+  const [injectorsLoadState, setInjectorsLoadState] = useState<InjectorsLoadState>({
+    status: "loading",
+    injectors: null,
+    message: null,
+  });
+
+  const [salesLoadState, setSalesLoadState] = useState<SalesLoadState>({
+    status: "loading",
+    sales: null,
     message: null,
   });
 
@@ -86,6 +105,10 @@ export default function CustomerDetailPage() {
   const hasCustomersAccess = user ? canReadCustomers(user) : false;
 
   const hasWriteAccess = user ? canWriteCustomers(user) : false;
+
+  const hasInjectorsAccess = user ? canReadInjectors(user) : false;
+
+  const hasSalesAccess = user ? canReadSales(user) : false;
 
   useEffect(() => {
     if (
@@ -100,30 +123,13 @@ export default function CustomerDetailPage() {
 
     const controller = new AbortController();
 
-    Promise.all([
-      getCustomer(token, customerId, controller.signal),
-      getCustomerInjectors(token, customerId, controller.signal),
-      getSales(
-        token,
-        {
-          query: "",
-          customerId,
-          status: "",
-          dateFrom: "",
-          dateTo: "",
-          activeState: "all",
-          page: 1,
-          pageSize: 10,
-        },
-        controller.signal,
-      ).then((response) => response.results),
-    ])
-      .then(([customer, injectors, sales]) => {
+    getCustomer(token, customerId, controller.signal)
+      .then((customer) => {
         if (controller.signal.aborted) {
           return;
         }
 
-        setLoadState({ status: "success", customer, injectors, sales, message: null });
+        setLoadState({ status: "success", customer, message: null });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
@@ -146,8 +152,6 @@ export default function CustomerDetailPage() {
           setLoadState({
             status: "forbidden",
             customer: null,
-            injectors: [],
-            sales: [],
             message: "Este usuario no tiene permisos para consultar clientes.",
           });
 
@@ -158,8 +162,6 @@ export default function CustomerDetailPage() {
           setLoadState({
             status: "not-found",
             customer: null,
-            injectors: [],
-            sales: [],
             message: "El cliente solicitado no existe o ya no está disponible.",
           });
 
@@ -169,8 +171,6 @@ export default function CustomerDetailPage() {
         setLoadState({
           status: "error",
           customer: null,
-          injectors: [],
-          sales: [],
           message: getErrorMessage(error),
         });
       });
@@ -179,6 +179,141 @@ export default function CustomerDetailPage() {
       controller.abort();
     };
   }, [authStatus, customerId, hasCustomersAccess, logout, router, token]);
+
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      !token ||
+      !hasCustomersAccess ||
+      !hasInjectorsAccess ||
+      !Number.isInteger(customerId) ||
+      customerId <= 0
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    getCustomerInjectors(token, customerId, controller.signal)
+      .then((injectors) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setInjectorsLoadState({ status: "success", injectors, message: null });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 401) {
+          void logout().then(() => {
+            router.replace("/login");
+          });
+
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          setInjectorsLoadState({
+            status: "forbidden",
+            injectors: null,
+            message: "Este usuario no tiene permisos para consultar inyectores.",
+          });
+
+          return;
+        }
+
+        setInjectorsLoadState({
+          status: "error",
+          injectors: null,
+          message: getErrorMessage(error),
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [authStatus, customerId, hasCustomersAccess, hasInjectorsAccess, logout, router, token]);
+
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      !token ||
+      !hasCustomersAccess ||
+      !hasSalesAccess ||
+      !Number.isInteger(customerId) ||
+      customerId <= 0
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    getSales(
+      token,
+      {
+        query: "",
+        customerId,
+        status: "",
+        dateFrom: "",
+        dateTo: "",
+        activeState: "all",
+        page: 1,
+        pageSize: 10,
+      },
+      controller.signal,
+    )
+      .then((response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setSalesLoadState({ status: "success", sales: response.results, message: null });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 401) {
+          void logout().then(() => {
+            router.replace("/login");
+          });
+
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          setSalesLoadState({
+            status: "forbidden",
+            sales: null,
+            message: "Este usuario no tiene permisos para consultar ventas.",
+          });
+
+          return;
+        }
+
+        setSalesLoadState({
+          status: "error",
+          sales: null,
+          message: getErrorMessage(error),
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [authStatus, customerId, hasCustomersAccess, hasSalesAccess, logout, router, token]);
 
   function goBack(): void {
     router.back();
@@ -392,7 +527,36 @@ export default function CustomerDetailPage() {
               </p>
             </div>
 
-            {loadState.injectors.length === 0 ? (
+            {!hasInjectorsAccess && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudieron cargar los inyectores"
+                  message="Este usuario no tiene permisos para consultar inyectores."
+                  tone="warning"
+                />
+              </div>
+            )}
+
+            {hasInjectorsAccess && injectorsLoadState.status === "loading" && (
+              <div className="p-6">
+                <LoadingState message="Consultando inyectores…" />
+              </div>
+            )}
+
+            {hasInjectorsAccess &&
+              (injectorsLoadState.status === "forbidden" ||
+              injectorsLoadState.status === "error") && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudieron cargar los inyectores"
+                  message={injectorsLoadState.message}
+                  tone={injectorsLoadState.status === "forbidden" ? "warning" : "error"}
+                />
+              </div>
+            )}
+
+            {hasInjectorsAccess && injectorsLoadState.status === "success" &&
+              (injectorsLoadState.injectors.length === 0 ? (
               <div className="p-6">
                 <p className="text-sm text-muted-foreground">
                   Este cliente todavía no tiene inyectores registrados.
@@ -418,7 +582,7 @@ export default function CustomerDetailPage() {
                   </thead>
 
                   <tbody>
-                    {loadState.injectors.map((injector) => (
+                    {injectorsLoadState.injectors.map((injector) => (
                       <tr
                         key={injector.id}
                         className="border-b border-[var(--color-border-soft)] last:border-b-0"
@@ -448,7 +612,7 @@ export default function CustomerDetailPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            ))}
           </section>
 
           <section className="app-status-card overflow-hidden">
@@ -462,7 +626,35 @@ export default function CustomerDetailPage() {
               </p>
             </div>
 
-            {loadState.sales.length === 0 ? (
+            {!hasSalesAccess && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudieron cargar las ventas"
+                  message="Este usuario no tiene permisos para consultar ventas."
+                  tone="warning"
+                />
+              </div>
+            )}
+
+            {hasSalesAccess && salesLoadState.status === "loading" && (
+              <div className="p-6">
+                <LoadingState message="Consultando ventas…" />
+              </div>
+            )}
+
+            {hasSalesAccess &&
+              (salesLoadState.status === "forbidden" || salesLoadState.status === "error") && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudieron cargar las ventas"
+                  message={salesLoadState.message}
+                  tone={salesLoadState.status === "forbidden" ? "warning" : "error"}
+                />
+              </div>
+            )}
+
+            {hasSalesAccess && salesLoadState.status === "success" &&
+              (salesLoadState.sales.length === 0 ? (
               <div className="p-6">
                 <p className="text-sm text-muted-foreground">
                   Este cliente todavía no tiene ventas registradas.
@@ -488,7 +680,7 @@ export default function CustomerDetailPage() {
                   </thead>
 
                   <tbody>
-                    {loadState.sales.map((sale) => (
+                    {salesLoadState.sales.map((sale) => (
                       <tr
                         key={sale.id}
                         tabIndex={0}
@@ -519,7 +711,7 @@ export default function CustomerDetailPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            ))}
           </section>
         </div>
       )}

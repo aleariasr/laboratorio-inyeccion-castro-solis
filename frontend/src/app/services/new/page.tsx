@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteCustomers } from "@/features/auth/permissions";
+import { canWriteServices } from "@/features/auth/permissions";
 import { createServiceRecord } from "@/features/services/api";
 import { mapServiceRecordCreateApiFieldErrors } from "@/features/services/form-errors";
 import { ServiceRecordCreateForm } from "@/features/services/service-record-create-form";
@@ -57,7 +57,7 @@ export default function NewServiceRecordPage() {
 
   const [serverErrors, setServerErrors] = useState<ServiceRecordCreateFormErrors>({});
 
-  const hasWriteAccess = user ? canWriteCustomers(user) : false;
+  const hasWriteAccess = user ? canWriteServices(user) : false;
 
   async function handleSubmit(values: ServiceRecordCreateFormValues): Promise<void> {
     if (!token || isSubmitting || !hasWriteAccess) {
@@ -113,7 +113,7 @@ export default function NewServiceRecordPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en clientes."
+        description="Esta operación requiere permisos de escritura en servicios."
       >
         <StatePanel
           title="No puede recibir inyectores"

@@ -545,3 +545,26 @@ export function AlertIcon({
     </svg>
   );
 }
+
+export function KeyIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="8.5" cy="8.5" r="4" />
+
+      <path
+        d="M11.5 11.5 20 20M15.5 16l2-2M18 18.5l2-2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

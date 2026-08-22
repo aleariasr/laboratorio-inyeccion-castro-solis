@@ -17,7 +17,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventory, canWriteInventory } from "@/features/auth/permissions";
+import { canReadPurchases, canWritePurchases } from "@/features/auth/permissions";
 import { getPurchases } from "@/features/inventory/purchases/api";
 import type { Purchase, PurchaseFilters, PurchaseStatus } from "@/features/inventory/purchases/types";
 import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
@@ -111,9 +111,9 @@ export default function PurchasesPage() {
     message: null,
   });
 
-  const hasInventoryAccess = user ? canReadInventory(user) : false;
+  const hasInventoryAccess = user ? canReadPurchases(user) : false;
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWritePurchases(user) : false;
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasInventoryAccess) {
@@ -324,7 +324,7 @@ export default function PurchasesPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de compras."
       >
         <StatePanel
           title="No tiene acceso a compras"

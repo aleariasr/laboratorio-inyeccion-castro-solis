@@ -9,7 +9,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInventory } from "@/features/auth/permissions";
+import { canWriteLocations } from "@/features/auth/permissions";
 import { createStorageLocation } from "@/features/inventory/locations/api";
 import { mapStorageLocationApiFieldErrors } from "@/features/inventory/locations/form-errors";
 import { LocationForm } from "@/features/inventory/locations/location-form";
@@ -63,7 +63,7 @@ export default function NewStorageLocationPage() {
     useState<StorageLocationFormErrors>({});
 
   const hasWriteAccess =
-    user ? canWriteInventory(user) : false;
+    user ? canWriteLocations(user) : false;
 
   async function handleSubmit(
     values: StorageLocationFormValues,
@@ -151,7 +151,7 @@ export default function NewStorageLocationPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en inventario."
+        description="Esta operación requiere permisos de escritura en ubicaciones."
       >
         <StatePanel
           title="No puede crear ubicaciones"

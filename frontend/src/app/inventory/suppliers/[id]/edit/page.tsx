@@ -8,7 +8,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInventory } from "@/features/auth/permissions";
+import { canWriteSuppliers } from "@/features/auth/permissions";
 import { getSupplier, updateSupplier } from "@/features/inventory/suppliers/api";
 import { mapSupplierApiFieldErrors } from "@/features/inventory/suppliers/form-errors";
 import { SupplierForm } from "@/features/inventory/suppliers/supplier-form";
@@ -90,7 +90,7 @@ export default function EditSupplierPage() {
 
   const supplierId = Number(params.id);
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWriteSuppliers(user) : false;
 
   useEffect(() => {
     if (
@@ -244,7 +244,7 @@ export default function EditSupplierPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en inventario."
+        description="Esta operación requiere permisos de escritura en proveedores."
       >
         <StatePanel
           title="No puede editar proveedores"

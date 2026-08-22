@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInventory } from "@/features/auth/permissions";
+import { canWriteSuppliers } from "@/features/auth/permissions";
 import { createSupplier } from "@/features/inventory/suppliers/api";
 import { mapSupplierApiFieldErrors } from "@/features/inventory/suppliers/form-errors";
 import { SupplierForm } from "@/features/inventory/suppliers/supplier-form";
@@ -46,7 +46,7 @@ export default function NewSupplierPage() {
 
   const [serverErrors, setServerErrors] = useState<SupplierFormErrors>({});
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWriteSuppliers(user) : false;
 
   async function handleSubmit(values: SupplierFormValues): Promise<void> {
     if (!token || isSubmitting || !hasWriteAccess) {
@@ -99,7 +99,7 @@ export default function NewSupplierPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en inventario."
+        description="Esta operación requiere permisos de escritura en proveedores."
       >
         <StatePanel
           title="No puede crear proveedores"

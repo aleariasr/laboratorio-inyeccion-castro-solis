@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInventory } from "@/features/auth/permissions";
+import { canWriteInventoryCounts } from "@/features/auth/permissions";
 import { createInventoryCount } from "@/features/inventory/counts/api";
 import { mapInventoryCountApiFieldErrors } from "@/features/inventory/counts/form-errors";
 import { InventoryCountForm } from "@/features/inventory/counts/inventory-count-form";
@@ -46,7 +46,7 @@ export default function NewInventoryCountPage() {
 
   const [serverErrors, setServerErrors] = useState<InventoryCountFormErrors>({});
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWriteInventoryCounts(user) : false;
 
   async function handleSubmit(values: InventoryCountFormValues): Promise<void> {
     if (!token || isSubmitting || !hasWriteAccess) {
@@ -102,7 +102,7 @@ export default function NewInventoryCountPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en inventario."
+        description="Esta operación requiere permisos de escritura en conteos físicos."
       >
         <StatePanel
           title="No puede crear conteos"

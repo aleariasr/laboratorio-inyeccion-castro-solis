@@ -17,7 +17,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCustomers, canWriteCustomers } from "@/features/auth/permissions";
+import { canReadInjectors, canWriteInjectors } from "@/features/auth/permissions";
 import { getInjectors } from "@/features/injectors/api";
 import type { Injector, InjectorFilters } from "@/features/injectors/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -82,9 +82,9 @@ export default function InjectorsPage() {
     message: null,
   });
 
-  const hasCustomersAccess = user ? canReadCustomers(user) : false;
+  const hasCustomersAccess = user ? canReadInjectors(user) : false;
 
-  const hasWriteAccess = user ? canWriteCustomers(user) : false;
+  const hasWriteAccess = user ? canWriteInjectors(user) : false;
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasCustomersAccess) {
@@ -295,7 +295,7 @@ export default function InjectorsPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de clientes."
+        description="Este módulo requiere permisos de inyectores."
       >
         <StatePanel
           title="No tiene acceso a inyectores"

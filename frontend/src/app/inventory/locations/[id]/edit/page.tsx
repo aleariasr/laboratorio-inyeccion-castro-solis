@@ -11,7 +11,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInventory } from "@/features/auth/permissions";
+import { canWriteLocations } from "@/features/auth/permissions";
 import {
   getStorageLocation,
   updateStorageLocation,
@@ -117,7 +117,7 @@ export default function EditStorageLocationPage() {
   const locationId = Number(params.id);
 
   const hasWriteAccess =
-    user ? canWriteInventory(user) : false;
+    user ? canWriteLocations(user) : false;
 
   useEffect(() => {
     if (
@@ -346,7 +346,7 @@ export default function EditStorageLocationPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en inventario."
+        description="Esta operación requiere permisos de escritura en ubicaciones."
       >
         <StatePanel
           title="No puede editar ubicaciones"

@@ -4,6 +4,7 @@ import {
   DropletIcon,
   HomeIcon,
   InventoryIcon,
+  KeyIcon,
   LocationIcon,
   ReceiptIcon,
   ReportsIcon,
@@ -13,6 +14,18 @@ import {
   UsersIcon,
   WrenchIcon,
 } from "@/components/icons/app-icons";
+import {
+  canReadCustomers,
+  canReadInjectors,
+  canReadInventoryCounts,
+  canReadLocations,
+  canReadProducts,
+  canReadPurchases,
+  canReadReports,
+  canReadSales,
+  canReadServices,
+  canReadSuppliers,
+} from "@/features/auth/permissions";
 
 import type {
   NavigationItem,
@@ -68,101 +81,77 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Productos",
     section: "inventory",
     icon: InventoryIcon,
-    roles: [
-      "INVENTORY",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadProducts,
   },
   {
-  href: "/inventory/locations",
-  label: "Ubicaciones",
-  section: "inventory",
-  icon: LocationIcon,
-  roles: [
-    "INVENTORY",
-    "READ_ONLY",
-  ],
-},
-{
+    href: "/inventory/locations",
+    label: "Ubicaciones",
+    section: "inventory",
+    icon: LocationIcon,
+    permissionCheck: canReadLocations,
+  },
+  {
     href: "/inventory/suppliers",
     label: "Proveedores",
     section: "inventory",
     icon: TruckIcon,
-    roles: [
-      "INVENTORY",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadSuppliers,
   },
   {
     href: "/inventory/purchases",
     label: "Compras",
     section: "inventory",
     icon: ReceiptIcon,
-    roles: [
-      "INVENTORY",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadPurchases,
   },
   {
     href: "/inventory/counts",
     label: "Conteos físicos",
     section: "inventory",
     icon: ClipboardCheckIcon,
-    roles: [
-      "INVENTORY",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadInventoryCounts,
   },
   {
     href: "/sales",
     label: "Ventas",
     section: "sales",
     icon: CartIcon,
-    roles: [
-      "SALES",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadSales,
   },
   {
     href: "/customers",
     label: "Clientes",
     section: "customers",
     icon: UsersIcon,
-    roles: [
-      "CUSTOMERS",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadCustomers,
   },
   {
     href: "/injectors",
     label: "Inyectores",
     section: "customers",
     icon: DropletIcon,
-    roles: [
-      "CUSTOMERS",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadInjectors,
   },
   {
     href: "/services",
     label: "Servicios",
     section: "customers",
     icon: WrenchIcon,
-    roles: [
-      "CUSTOMERS",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadServices,
   },
   {
     href: "/reports",
     label: "Reportes",
     section: "reports",
     icon: ReportsIcon,
-    roles: [
-      "INVENTORY",
-      "SALES",
-      "READ_ONLY",
-    ],
+    permissionCheck: canReadReports,
+  },
+  {
+    href: "/users",
+    label: "Usuarios",
+    section: "administration",
+    icon: KeyIcon,
+    adminOnly: true,
   },
   {
     href: "/system/status",

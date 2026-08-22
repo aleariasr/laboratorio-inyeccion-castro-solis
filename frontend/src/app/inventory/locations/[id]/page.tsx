@@ -19,8 +19,9 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import {
-  canReadInventory,
-  canWriteInventory,
+  canReadLocations,
+  canReadProducts,
+  canWriteLocations,
 } from "@/features/auth/permissions";
 import { getStorageLocation } from "@/features/inventory/locations/api";
 import type { StorageLocation } from "@/features/inventory/locations/types";
@@ -40,13 +41,11 @@ type LoadState =
   | {
       status: "loading";
       location: null;
-      products: null;
       message: null;
     }
   | {
       status: "success";
       location: StorageLocation;
-      products: PaginatedResponse<Product>;
       message: null;
     }
   | {
@@ -55,6 +54,22 @@ type LoadState =
         | "forbidden"
         | "error";
       location: null;
+      message: string;
+    };
+
+type ProductsLoadState =
+  | {
+      status: "loading";
+      products: null;
+      message: null;
+    }
+  | {
+      status: "success";
+      products: PaginatedResponse<Product>;
+      message: null;
+    }
+  | {
+      status: "forbidden" | "error";
       products: null;
       message: string;
     };
@@ -115,15 +130,24 @@ export default function StorageLocationDetailPage() {
     useState<LoadState>({
       status: "loading",
       location: null,
+      message: null,
+    });
+
+  const [productsLoadState, setProductsLoadState] =
+    useState<ProductsLoadState>({
+      status: "loading",
       products: null,
       message: null,
     });
 
   const hasInventoryAccess =
-    user ? canReadInventory(user) : false;
+    user ? canReadLocations(user) : false;
 
   const hasWriteAccess =
-    user ? canWriteInventory(user) : false;
+    user ? canWriteLocations(user) : false;
+
+  const hasProductsAccess =
+    user ? canReadProducts(user) : false;
 
   useEffect(() => {
     if (
@@ -137,14 +161,6 @@ export default function StorageLocationDetailPage() {
     }
 
     const controller = new AbortController();
-
-    const productFilters: ProductFilters = {
-      query: "",
-      activeState: "all",
-      storageLocationId: locationId,
-      page,
-      pageSize: 50,
-    };
 
     const cachedLocation =
         locationCacheRef.current?.locationId ===
@@ -160,15 +176,8 @@ export default function StorageLocationDetailPage() {
             controller.signal,
             );
 
-        Promise.all([
-        locationRequest,
-        getProducts(
-            token,
-            productFilters,
-            controller.signal,
-        ),
-        ])
-        .then(([location, products]) => {
+        locationRequest
+        .then((location) => {
             if (controller.signal.aborted) {
             return;
             }
@@ -181,7 +190,6 @@ export default function StorageLocationDetailPage() {
             setLoadState({
             status: "success",
             location,
-            products,
             message: null,
             });
         })
@@ -215,7 +223,6 @@ export default function StorageLocationDetailPage() {
           setLoadState({
             status: "forbidden",
             location: null,
-            products: null,
             message:
               "Este usuario no tiene permisos para consultar esta ubicación.",
           });
@@ -230,7 +237,6 @@ export default function StorageLocationDetailPage() {
           setLoadState({
             status: "not-found",
             location: null,
-            products: null,
             message:
               "La ubicación solicitada no existe o ya no está disponible.",
           });
@@ -241,6 +247,99 @@ export default function StorageLocationDetailPage() {
         setLoadState({
           status: "error",
           location: null,
+          message: getLoadErrorMessage(error),
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    authStatus,
+    hasInventoryAccess,
+    locationId,
+    logout,
+    router,
+    token,
+  ]);
+
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      !token ||
+      !hasInventoryAccess ||
+      !hasProductsAccess ||
+      !Number.isInteger(locationId) ||
+      locationId <= 0
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const productFilters: ProductFilters = {
+      query: "",
+      activeState: "all",
+      storageLocationId: locationId,
+      page,
+      pageSize: 50,
+    };
+
+    getProducts(
+      token,
+      productFilters,
+      controller.signal,
+    )
+      .then((products) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setProductsLoadState({
+          status: "success",
+          products,
+          message: null,
+        });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (
+          error instanceof DOMException &&
+          error.name === "AbortError"
+        ) {
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          error.status === 401
+        ) {
+          void logout().then(() => {
+            router.replace("/login");
+          });
+
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          error.status === 403
+        ) {
+          setProductsLoadState({
+            status: "forbidden",
+            products: null,
+            message:
+              "Este usuario no tiene permisos para consultar productos.",
+          });
+
+          return;
+        }
+
+        setProductsLoadState({
+          status: "error",
           products: null,
           message: getLoadErrorMessage(error),
         });
@@ -252,6 +351,7 @@ export default function StorageLocationDetailPage() {
   }, [
     authStatus,
     hasInventoryAccess,
+    hasProductsAccess,
     locationId,
     logout,
     page,
@@ -326,7 +426,7 @@ export default function StorageLocationDetailPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de ubicaciones."
       >
         <StatePanel
           title="No tiene acceso a ubicaciones"
@@ -386,7 +486,7 @@ export default function StorageLocationDetailPage() {
       }
     >
       {loadState.status === "loading" && (
-        <LoadingState message="Consultando ubicación y productos…" />
+        <LoadingState message="Consultando ubicación…" />
       )}
 
       {loadState.status === "forbidden" && (
@@ -492,7 +592,9 @@ export default function StorageLocationDetailPage() {
                 </p>
 
                 <p className="mt-2 text-lg font-semibold text-foreground">
-                  {loadState.products.count}
+                  {productsLoadState.status === "success"
+                    ? productsLoadState.products.count
+                    : "—"}
                 </p>
               </div>
             </div>
@@ -515,7 +617,42 @@ export default function StorageLocationDetailPage() {
               </p>
             </div>
 
-            {loadState.products.results.length === 0 ? (
+            {!hasProductsAccess && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudieron cargar los productos"
+                  message="Este usuario no tiene permisos para consultar productos."
+                  tone="warning"
+                  icon={<BoxIcon />}
+                />
+              </div>
+            )}
+
+            {hasProductsAccess && productsLoadState.status === "loading" && (
+              <div className="p-6">
+                <LoadingState message="Consultando productos…" />
+              </div>
+            )}
+
+            {hasProductsAccess &&
+              (productsLoadState.status === "forbidden" ||
+              productsLoadState.status === "error") && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudieron cargar los productos"
+                  message={productsLoadState.message}
+                  tone={
+                    productsLoadState.status === "forbidden"
+                      ? "warning"
+                      : "error"
+                  }
+                  icon={<BoxIcon />}
+                />
+              </div>
+            )}
+
+            {hasProductsAccess && productsLoadState.status === "success" &&
+              (productsLoadState.products.results.length === 0 ? (
               <div className="p-6">
                 <StatePanel
                   title="No hay productos asignados"
@@ -552,7 +689,7 @@ export default function StorageLocationDetailPage() {
                     </thead>
 
                     <tbody>
-                      {loadState.products.results.map(
+                      {productsLoadState.products.results.map(
                         (product) => {
                           const lowStock =
                             isLowStock(product);
@@ -656,19 +793,19 @@ export default function StorageLocationDetailPage() {
                 <Pagination
                   page={page}
                   pageSize={50}
-                  totalItems={loadState.products.count}
+                  totalItems={productsLoadState.products.count}
                   hasNextPage={
-                    loadState.products.next !== null
+                    productsLoadState.products.next !== null
                   }
                   hasPreviousPage={
-                    loadState.products.previous !== null
+                    productsLoadState.products.previous !== null
                   }
                   onPageChange={(nextPage) => {
                     setPage(nextPage);
                   }}
                 />
               </>
-            )}
+            ))}
           </section>
         </div>
       )}

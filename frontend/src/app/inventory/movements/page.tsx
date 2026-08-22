@@ -12,7 +12,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventory } from "@/features/auth/permissions";
+import { canReadMovements } from "@/features/auth/permissions";
 import {
   getStockMovements,
   getStockMovementsKardex,
@@ -150,7 +150,7 @@ export default function StockMovementsPage() {
     status: "loading",
   });
 
-  const hasInventoryAccess = user ? canReadInventory(user) : false;
+  const hasInventoryAccess = user ? canReadMovements(user) : false;
 
   const productId = filters.productId;
 
@@ -394,7 +394,7 @@ export default function StockMovementsPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de movimientos."
       >
         <StatePanel
           title="No tiene acceso a movimientos de inventario"

@@ -7,8 +7,8 @@ import {
 } from "react";
 
 import {
-  canReadInventory,
-  canWriteInventory,
+  canReadProducts,
+  canWriteProducts,
 } from "@/features/auth/permissions";
 
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -243,10 +243,10 @@ export default function ProductDetailPage() {
   const productId = Number(params.id);
 
   const hasInventoryAccess =
-    user ? canReadInventory(user) : false;
+    user ? canReadProducts(user) : false;
 
   const hasWriteAccess =
-    user ? canWriteInventory(user) : false;
+    user ? canWriteProducts(user) : false;
 
   const referenceFormInitialValues =
     referenceFormState.mode === "edit"
@@ -766,7 +766,7 @@ export default function ProductDetailPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de productos."
       >
         <StatePanel
           title="No tiene acceso al producto"

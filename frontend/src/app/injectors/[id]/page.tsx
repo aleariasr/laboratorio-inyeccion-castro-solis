@@ -10,7 +10,11 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCustomers, canWriteCustomers } from "@/features/auth/permissions";
+import {
+  canReadInjectors,
+  canReadServices,
+  canWriteInjectors,
+} from "@/features/auth/permissions";
 import { formatDate } from "@/features/inventory/purchases/format";
 import { getInjector, getInjectorServiceRecords } from "@/features/injectors/api";
 import type { Injector, InjectorServiceRecordSummary } from "@/features/injectors/types";
@@ -20,21 +24,23 @@ type LoadState =
   | {
       status: "loading";
       injector: null;
-      serviceRecords: [];
       message: null;
     }
   | {
       status: "success";
       injector: Injector;
-      serviceRecords: InjectorServiceRecordSummary[];
       message: null;
     }
   | {
       status: "not-found" | "forbidden" | "error";
       injector: null;
-      serviceRecords: [];
       message: string;
     };
+
+type ServiceRecordsLoadState =
+  | { status: "loading"; serviceRecords: null; message: null }
+  | { status: "success"; serviceRecords: InjectorServiceRecordSummary[]; message: null }
+  | { status: "forbidden" | "error"; serviceRecords: null; message: string };
 
 const SERVICE_STATUS_LABELS: Record<string, string> = {
   RECEIVED: "Recibido",
@@ -69,15 +75,23 @@ export default function InjectorDetailPage() {
   const [loadState, setLoadState] = useState<LoadState>({
     status: "loading",
     injector: null,
-    serviceRecords: [],
     message: null,
   });
 
+  const [serviceRecordsLoadState, setServiceRecordsLoadState] =
+    useState<ServiceRecordsLoadState>({
+      status: "loading",
+      serviceRecords: null,
+      message: null,
+    });
+
   const injectorId = Number(params.id);
 
-  const hasCustomersAccess = user ? canReadCustomers(user) : false;
+  const hasCustomersAccess = user ? canReadInjectors(user) : false;
 
-  const hasWriteAccess = user ? canWriteCustomers(user) : false;
+  const hasWriteAccess = user ? canWriteInjectors(user) : false;
+
+  const hasServicesAccess = user ? canReadServices(user) : false;
 
   useEffect(() => {
     if (
@@ -92,16 +106,13 @@ export default function InjectorDetailPage() {
 
     const controller = new AbortController();
 
-    Promise.all([
-      getInjector(token, injectorId, controller.signal),
-      getInjectorServiceRecords(token, injectorId, controller.signal),
-    ])
-      .then(([injector, serviceRecords]) => {
+    getInjector(token, injectorId, controller.signal)
+      .then((injector) => {
         if (controller.signal.aborted) {
           return;
         }
 
-        setLoadState({ status: "success", injector, serviceRecords, message: null });
+        setLoadState({ status: "success", injector, message: null });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
@@ -124,7 +135,6 @@ export default function InjectorDetailPage() {
           setLoadState({
             status: "forbidden",
             injector: null,
-            serviceRecords: [],
             message: "Este usuario no tiene permisos para consultar inyectores.",
           });
 
@@ -135,7 +145,6 @@ export default function InjectorDetailPage() {
           setLoadState({
             status: "not-found",
             injector: null,
-            serviceRecords: [],
             message: "El inyector solicitado no existe o ya no está disponible.",
           });
 
@@ -145,7 +154,6 @@ export default function InjectorDetailPage() {
         setLoadState({
           status: "error",
           injector: null,
-          serviceRecords: [],
           message: getErrorMessage(error),
         });
       });
@@ -154,6 +162,67 @@ export default function InjectorDetailPage() {
       controller.abort();
     };
   }, [authStatus, hasCustomersAccess, injectorId, logout, router, token]);
+
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      !token ||
+      !hasCustomersAccess ||
+      !hasServicesAccess ||
+      !Number.isInteger(injectorId) ||
+      injectorId <= 0
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    getInjectorServiceRecords(token, injectorId, controller.signal)
+      .then((serviceRecords) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setServiceRecordsLoadState({ status: "success", serviceRecords, message: null });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 401) {
+          void logout().then(() => {
+            router.replace("/login");
+          });
+
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          setServiceRecordsLoadState({
+            status: "forbidden",
+            serviceRecords: null,
+            message: "Este usuario no tiene permisos para consultar servicios.",
+          });
+
+          return;
+        }
+
+        setServiceRecordsLoadState({
+          status: "error",
+          serviceRecords: null,
+          message: getErrorMessage(error),
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [authStatus, hasCustomersAccess, hasServicesAccess, injectorId, logout, router, token]);
 
   function goBack(): void {
     router.back();
@@ -189,7 +258,7 @@ export default function InjectorDetailPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de clientes."
+        description="Este módulo requiere permisos de inyectores."
       >
         <StatePanel
           title="No tiene acceso al inyector"
@@ -361,7 +430,36 @@ export default function InjectorDetailPage() {
               </p>
             </div>
 
-            {loadState.serviceRecords.length === 0 ? (
+            {!hasServicesAccess && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudo cargar el historial de servicios"
+                  message="Este usuario no tiene permisos para consultar servicios."
+                  tone="warning"
+                />
+              </div>
+            )}
+
+            {hasServicesAccess && serviceRecordsLoadState.status === "loading" && (
+              <div className="p-6">
+                <LoadingState message="Consultando servicios…" />
+              </div>
+            )}
+
+            {hasServicesAccess &&
+              (serviceRecordsLoadState.status === "forbidden" ||
+              serviceRecordsLoadState.status === "error") && (
+              <div className="p-6">
+                <StatePanel
+                  title="No se pudo cargar el historial de servicios"
+                  message={serviceRecordsLoadState.message}
+                  tone={serviceRecordsLoadState.status === "forbidden" ? "warning" : "error"}
+                />
+              </div>
+            )}
+
+            {hasServicesAccess && serviceRecordsLoadState.status === "success" &&
+              (serviceRecordsLoadState.serviceRecords.length === 0 ? (
               <div className="p-6">
                 <p className="text-sm text-muted-foreground">
                   Este inyector todavía no tiene servicios registrados.
@@ -387,7 +485,7 @@ export default function InjectorDetailPage() {
                   </thead>
 
                   <tbody>
-                    {loadState.serviceRecords.map((serviceRecord) => (
+                    {serviceRecordsLoadState.serviceRecords.map((serviceRecord) => (
                       <tr
                         key={serviceRecord.id}
                         className="border-b border-[var(--color-border-soft)] last:border-b-0"
@@ -410,7 +508,7 @@ export default function InjectorDetailPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+            ))}
           </section>
         </div>
       )}

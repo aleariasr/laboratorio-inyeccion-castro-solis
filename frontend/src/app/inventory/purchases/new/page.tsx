@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInventory } from "@/features/auth/permissions";
+import { canWritePurchases } from "@/features/auth/permissions";
 import { createPurchase } from "@/features/inventory/purchases/api";
 import { mapPurchaseApiFieldErrors } from "@/features/inventory/purchases/form-errors";
 import { PurchaseForm } from "@/features/inventory/purchases/purchase-form";
@@ -46,7 +46,7 @@ export default function NewPurchasePage() {
 
   const [serverErrors, setServerErrors] = useState<PurchaseFormErrors>({});
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWritePurchases(user) : false;
 
   async function handleSubmit(values: PurchaseFormValues): Promise<void> {
     if (!token || isSubmitting || !hasWriteAccess) {
@@ -99,7 +99,7 @@ export default function NewPurchasePage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en inventario."
+        description="Esta operación requiere permisos de escritura en compras."
       >
         <StatePanel
           title="No puede crear compras"

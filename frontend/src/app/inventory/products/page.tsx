@@ -21,8 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import {
-  canReadInventory,
-  canWriteInventory,
+  canReadProducts,
+  canWriteProducts,
 } from "@/features/auth/permissions";
 import {
   generateProductLabels,
@@ -158,10 +158,10 @@ export default function ProductsPage() {
   });
 
   const hasInventoryAccess =
-    user ? canReadInventory(user) : false;
+    user ? canReadProducts(user) : false;
 
   const hasWriteAccess =
-    user ? canWriteInventory(user) : false;
+    user ? canWriteProducts(user) : false;
 
   const visibleProductIds =
     loadState.status === "success"
@@ -597,7 +597,7 @@ export default function ProductsPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de productos."
       >
         <StatePanel
           title="No tiene acceso a productos"

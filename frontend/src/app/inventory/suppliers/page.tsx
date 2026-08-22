@@ -17,7 +17,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventory, canWriteInventory } from "@/features/auth/permissions";
+import { canReadSuppliers, canWriteSuppliers } from "@/features/auth/permissions";
 import { getSuppliers } from "@/features/inventory/suppliers/api";
 import type { Supplier, SupplierFilters } from "@/features/inventory/suppliers/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -82,9 +82,9 @@ export default function SuppliersPage() {
     message: null,
   });
 
-  const hasInventoryAccess = user ? canReadInventory(user) : false;
+  const hasInventoryAccess = user ? canReadSuppliers(user) : false;
 
-  const hasWriteAccess = user ? canWriteInventory(user) : false;
+  const hasWriteAccess = user ? canWriteSuppliers(user) : false;
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasInventoryAccess) {
@@ -295,7 +295,7 @@ export default function SuppliersPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario."
+        description="Este módulo requiere permisos de proveedores."
       >
         <StatePanel
           title="No tiene acceso a proveedores"

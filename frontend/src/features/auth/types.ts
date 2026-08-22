@@ -8,6 +8,7 @@ export type AuthUser = {
   is_staff: boolean;
   is_superuser: boolean;
   groups: string[];
+  permissions: string[];
 };
 
 export type LoginCredentials = {

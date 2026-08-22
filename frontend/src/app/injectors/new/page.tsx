@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteCustomers } from "@/features/auth/permissions";
+import { canWriteInjectors } from "@/features/auth/permissions";
 import { createInjector } from "@/features/injectors/api";
 import { mapInjectorApiFieldErrors } from "@/features/injectors/form-errors";
 import { InjectorForm } from "@/features/injectors/injector-form";
@@ -46,7 +46,7 @@ export default function NewInjectorPage() {
 
   const [serverErrors, setServerErrors] = useState<InjectorFormErrors>({});
 
-  const hasWriteAccess = user ? canWriteCustomers(user) : false;
+  const hasWriteAccess = user ? canWriteInjectors(user) : false;
 
   async function handleSubmit(values: InjectorFormValues): Promise<void> {
     if (!token || isSubmitting || !hasWriteAccess) {
@@ -99,7 +99,7 @@ export default function NewInjectorPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en clientes."
+        description="Esta operación requiere permisos de escritura en inyectores."
       >
         <StatePanel
           title="No puede crear inyectores"

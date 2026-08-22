@@ -17,7 +17,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCustomers, canWriteCustomers } from "@/features/auth/permissions";
+import { canReadServices, canWriteServices } from "@/features/auth/permissions";
 import { formatDate } from "@/features/inventory/purchases/format";
 import { getServiceRecords } from "@/features/services/api";
 import type { ServiceRecord, ServiceRecordFilters, ServiceStatus } from "@/features/services/types";
@@ -102,9 +102,9 @@ export default function ServicesPage() {
     message: null,
   });
 
-  const hasCustomersAccess = user ? canReadCustomers(user) : false;
+  const hasCustomersAccess = user ? canReadServices(user) : false;
 
-  const hasWriteAccess = user ? canWriteCustomers(user) : false;
+  const hasWriteAccess = user ? canWriteServices(user) : false;
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasCustomersAccess) {
@@ -315,7 +315,7 @@ export default function ServicesPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de clientes."
+        description="Este módulo requiere permisos de servicios."
       >
         <StatePanel
           title="No tiene acceso a servicios"

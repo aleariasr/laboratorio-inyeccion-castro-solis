@@ -12,7 +12,10 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInventory } from "@/features/auth/permissions";
+import {
+  canReadLocations,
+  canWriteProducts,
+} from "@/features/auth/permissions";
 import {
   getActiveLocations,
   getProduct,
@@ -38,13 +41,11 @@ type LoadState =
   | {
       status: "loading";
       product: null;
-      locations: [];
       message: null;
     }
   | {
       status: "success";
       product: Product;
-      locations: StorageLocationSummary[];
       message: null;
     }
   | {
@@ -53,8 +54,21 @@ type LoadState =
         | "forbidden"
         | "error";
       product: null;
-      locations: [];
       message: string;
+    };
+
+type LocationsLoadState =
+  | {
+      status: "loading";
+      locations: [];
+    }
+  | {
+      status: "success";
+      locations: StorageLocationSummary[];
+    }
+  | {
+      status: "unavailable";
+      locations: [];
     };
 
 function getLoadErrorMessage(
@@ -131,8 +145,13 @@ export default function EditProductPage() {
     useState<LoadState>({
       status: "loading",
       product: null,
-      locations: [],
       message: null,
+    });
+
+  const [locationsLoadState, setLocationsLoadState] =
+    useState<LocationsLoadState>({
+      status: "loading",
+      locations: [],
     });
 
   const [isSubmitting, setIsSubmitting] =
@@ -147,7 +166,10 @@ export default function EditProductPage() {
   const productId = Number(params.id);
 
   const hasWriteAccess =
-    user ? canWriteInventory(user) : false;
+    user ? canWriteProducts(user) : false;
+
+  const hasLocationsAccess =
+    user ? canReadLocations(user) : false;
 
   useEffect(() => {
     if (
@@ -162,18 +184,12 @@ export default function EditProductPage() {
 
     const controller = new AbortController();
 
-    Promise.all([
-      getProduct(
-        token,
-        productId,
-        controller.signal,
-      ),
-      getActiveLocations(
-        token,
-        controller.signal,
-      ),
-    ])
-      .then(([product, locations]) => {
+    getProduct(
+      token,
+      productId,
+      controller.signal,
+    )
+      .then((product) => {
         if (controller.signal.aborted) {
           return;
         }
@@ -181,10 +197,6 @@ export default function EditProductPage() {
         setLoadState({
           status: "success",
           product,
-          locations: includeCurrentLocation(
-            product,
-            locations,
-            ),
           message: null,
         });
       })
@@ -218,7 +230,6 @@ export default function EditProductPage() {
           setLoadState({
             status: "forbidden",
             product: null,
-            locations: [],
             message:
               "Este usuario no tiene permisos para editar productos.",
           });
@@ -233,7 +244,6 @@ export default function EditProductPage() {
           setLoadState({
             status: "not-found",
             product: null,
-            locations: [],
             message:
               "El producto solicitado no existe o ya no está disponible.",
           });
@@ -244,7 +254,6 @@ export default function EditProductPage() {
         setLoadState({
           status: "error",
           product: null,
-          locations: [],
           message: getLoadErrorMessage(error),
         });
       });
@@ -257,6 +266,77 @@ export default function EditProductPage() {
     hasWriteAccess,
     logout,
     productId,
+    router,
+    token,
+  ]);
+
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      !token ||
+      !hasWriteAccess ||
+      !hasLocationsAccess
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    getActiveLocations(
+      token,
+      controller.signal,
+    )
+      .then((locations) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setLocationsLoadState({
+          status: "success",
+          locations,
+        });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (
+          error instanceof DOMException &&
+          error.name === "AbortError"
+        ) {
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          error.status === 401
+        ) {
+          void logout().then(() => {
+            router.replace("/login");
+          });
+
+          return;
+        }
+
+        // Locations are a supporting field on this form, not the
+        // primary resource: any failure here (forbidden or otherwise)
+        // falls back to showing only the product's current location
+        // instead of blocking the whole edit page.
+        setLocationsLoadState({
+          status: "unavailable",
+          locations: [],
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    authStatus,
+    hasWriteAccess,
+    hasLocationsAccess,
+    logout,
     router,
     token,
   ]);
@@ -344,6 +424,16 @@ export default function EditProductPage() {
     }
   }
 
+  const effectiveLocations: StorageLocationSummary[] =
+    loadState.status === "success"
+      ? locationsLoadState.status === "success"
+        ? includeCurrentLocation(
+            loadState.product,
+            locationsLoadState.locations,
+          )
+        : [loadState.product.storage_location_detail]
+      : [];
+
   function goToProduct(): void {
     router.push(
       `/inventory/products/${productId}`,
@@ -389,7 +479,7 @@ export default function EditProductPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Esta operación requiere permisos de escritura en inventario."
+        description="Esta operación requiere permisos de escritura en productos."
       >
         <StatePanel
           title="No puede editar productos"
@@ -500,7 +590,7 @@ export default function EditProductPage() {
           initialValues={productToFormValues(
             loadState.product,
           )}
-          locations={loadState.locations}
+          locations={effectiveLocations}
           isSubmitting={isSubmitting}
           submitError={submitError}
           serverErrors={serverErrors}
