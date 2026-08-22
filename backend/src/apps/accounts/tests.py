@@ -1,4 +1,4 @@
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.management import call_command
 from rest_framework import status
 from rest_framework.authtoken.models import Token
@@ -120,6 +120,15 @@ class AccountsApiTest(APITestCase):
         self.assertTrue(user.check_password("12345678"))
         self.assertEqual(user.first_name, "Nuevo")
         self.assertFalse(user.is_staff)
+
+        # La respuesta del POST debe incluir el id (y el resto de la
+        # forma completa de UserSerializer), no solo los campos de
+        # entrada: el frontend depende de esto para navegar a
+        # /users/{id} inmediatamente después de crear.
+        self.assertEqual(response.data["id"], user.id)
+        self.assertEqual(response.data["groups"], [])
+        self.assertFalse(response.data["is_superuser"])
+        self.assertNotIn("password", response.data)
 
     def test_admin_can_retrieve_user(self):
         self.client.force_authenticate(self.admin)
@@ -634,3 +643,189 @@ class UserListFilteringApiTest(APITestCase):
         usernames = [row["username"] for row in response.data["results"]]
 
         self.assertEqual(usernames, sorted(usernames))
+
+
+class UserCreationWithRolesApiTest(APITestCase):
+    """
+    Crear un usuario con roles asignados desde el inicio, en un solo
+    paso, sin depender de un PATCH posterior. La UserCreateSerializer
+    acepta groups igual que UserSerializer.
+    """
+
+    def setUp(self):
+        call_command("setup_roles")
+
+        self.admin = User.objects.create_superuser(
+            username="create-roles-admin",
+            password="12345678",
+        )
+        self.client.force_authenticate(self.admin)
+
+    def test_admin_can_create_user_with_roles(self):
+        response = self.client.post(
+            "/api/accounts/users/",
+            {
+                "username": "with-roles",
+                "password": "12345678",
+                "first_name": "Con",
+                "last_name": "Roles",
+                "email": "con-roles@example.com",
+                "is_active": True,
+                "is_staff": False,
+                "groups": [ROLE_INVENTORY, ROLE_SALES],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            set(response.data["groups"]),
+            {ROLE_INVENTORY, ROLE_SALES},
+        )
+
+        user = User.objects.get(username="with-roles")
+
+        self.assertEqual(
+            set(user.groups.values_list("name", flat=True)),
+            {ROLE_INVENTORY, ROLE_SALES},
+        )
+
+    def test_creating_user_without_groups_defaults_to_empty(self):
+        response = self.client.post(
+            "/api/accounts/users/",
+            {
+                "username": "no-roles",
+                "password": "12345678",
+                "is_active": True,
+                "is_staff": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["groups"], [])
+
+    def test_creating_user_with_unknown_role_returns_400(self):
+        response = self.client.post(
+            "/api/accounts/users/",
+            {
+                "username": "bad-role",
+                "password": "12345678",
+                "groups": ["NOT_A_REAL_ROLE"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(username="bad-role").exists())
+
+
+class UserPermissionsApiTest(APITestCase):
+    """
+    Esquema híbrido: además de los roles (Group, ver
+    UserCreationWithRolesApiTest arriba), un administrador puede
+    otorgar permisos de módulo individuales directamente a un
+    usuario (Django user_permissions), sin depender de ningún rol.
+
+    ModulePermission.has_permission() (apps/core/permissions.py) usa
+    user.has_perm(), que Django resuelve como la unión de
+    user_permissions + los permisos de todos los grupos del usuario:
+    por eso alcanza con exponer "permissions" en el serializer, sin
+    tocar nada de la lógica de permisos en sí.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="perms-admin",
+            password="12345678",
+        )
+        self.client.force_authenticate(self.admin)
+
+    def test_admin_can_create_user_with_individual_permissions(self):
+        response = self.client.post(
+            "/api/accounts/users/",
+            {
+                "username": "solo-view-products",
+                "password": "12345678",
+                "permissions": ["view_products", "add_purchases"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            set(response.data["permissions"]),
+            {"view_products", "add_purchases"},
+        )
+
+        user = User.objects.get(username="solo-view-products")
+
+        self.assertEqual(
+            set(user.user_permissions.values_list("codename", flat=True)),
+            {"view_products", "add_purchases"},
+        )
+        # Ningún rol asignado: el permiso es puramente individual.
+        self.assertEqual(user.groups.count(), 0)
+
+    def test_admin_can_update_individual_permissions_via_patch(self):
+        user = User.objects.create_user(
+            username="editable-perms",
+            password="12345678",
+        )
+
+        response = self.client.patch(
+            f"/api/accounts/users/{user.id}/",
+            {"permissions": ["view_sales"]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["permissions"], ["view_sales"])
+
+        user.refresh_from_db()
+
+        self.assertEqual(
+            list(user.user_permissions.values_list("codename", flat=True)),
+            ["view_sales"],
+        )
+
+    def test_creating_user_with_unknown_permission_codename_returns_400(self):
+        response = self.client.post(
+            "/api/accounts/users/",
+            {
+                "username": "bad-permission",
+                "password": "12345678",
+                "permissions": ["not_a_real_codename"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(
+            User.objects.filter(username="bad-permission").exists()
+        )
+
+    def test_user_with_individual_permission_but_no_role_can_access_that_module_only(self):
+        target_user = User.objects.create_user(
+            username="individual-access",
+            password="12345678",
+        )
+        target_user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename="view_products",
+            ),
+        )
+
+        self.client.force_authenticate(target_user)
+
+        allowed_response = self.client.get("/api/inventory/products/")
+        blocked_response = self.client.post(
+            "/api/inventory/products/",
+            {"standard_code": "X", "name": "X"},
+            format="json",
+        )
+
+        self.assertEqual(allowed_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(blocked_response.status_code, status.HTTP_403_FORBIDDEN)

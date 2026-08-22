@@ -12,6 +12,11 @@ from apps.core.permissions import (
 # Codenames de ModulePermissions (apps/core/models.py) que le
 # corresponden a cada rol preset, aparte de ADMIN (que recibe todos
 # los permisos de módulo existentes, ver handle()).
+#
+# view_reports es exclusivo de ADMIN: ningún otro rol lo incluye
+# aquí. Ver apps/core/tests.py (InventoryReportsApiTest,
+# BusinessReportsApiTest) para la verificación de que INVENTORY,
+# SALES y READ_ONLY quedan bloqueados de /api/reports/*.
 ROLE_PERMISSIONS = {
     ROLE_INVENTORY: [
         "view_products",
@@ -33,14 +38,12 @@ ROLE_PERMISSIONS = {
         "cancel_inventory_counts",
         "view_movements",
         "view_documents",
-        "view_reports",
     ],
     ROLE_SALES: [
         "view_sales",
         "add_sales",
         "change_sales",
         "cancel_sales",
-        "view_reports",
     ],
     ROLE_CUSTOMERS: [
         "view_customers",
@@ -64,7 +67,6 @@ ROLE_PERMISSIONS = {
         "view_customers",
         "view_injectors",
         "view_services",
-        "view_reports",
         "view_documents",
         "view_movements",
     ],

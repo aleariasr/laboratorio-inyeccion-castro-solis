@@ -939,6 +939,14 @@ class InventoryReportsApiTest(APITestCase):
             password="12345678",
         )
 
+        self.admin_user = User.objects.create_user(
+            username="reports-admin",
+            password="12345678",
+        )
+        self.admin_user.groups.add(
+            Group.objects.get(name=ROLE_ADMIN),
+        )
+
         self.location = StorageLocation.objects.create(
             code="B200",
             description="Estante B",
@@ -973,7 +981,7 @@ class InventoryReportsApiTest(APITestCase):
         )
 
     def test_low_stock_report_lists_products_below_minimum(self):
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             "/api/reports/low-stock-products/"
@@ -990,7 +998,7 @@ class InventoryReportsApiTest(APITestCase):
         self.assertNotIn("REP-002", standard_codes)
 
     def test_stock_by_location_report_groups_products(self):
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             "/api/reports/stock-by-location/"
@@ -1008,7 +1016,7 @@ class InventoryReportsApiTest(APITestCase):
         self.assertIn("REP-002", product_codes)
 
     def test_product_movements_report_lists_movements(self):
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             "/api/reports/product-movements/",
@@ -1026,7 +1034,7 @@ class InventoryReportsApiTest(APITestCase):
         self.assertEqual(current_stock(self.product_with_stock), 10)
 
     def test_product_movements_report_requires_product(self):
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             "/api/reports/product-movements/"
@@ -1034,8 +1042,29 @@ class InventoryReportsApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_reports_allow_read_only_user_to_read(self):
+    def test_reports_block_read_only_user(self):
+        # Los reportes ahora son exclusivos de ADMIN: READ_ONLY ya no
+        # incluye view_reports en ROLE_PERMISSIONS (setup_roles.py).
         self.client.force_authenticate(self.read_only_user)
+
+        response = self.client.get(
+            "/api/reports/low-stock-products/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_reports_block_inventory_only_user(self):
+        # INVENTORY perdió view_reports por el mismo motivo.
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.get(
+            "/api/reports/low-stock-products/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_reports_allow_admin_user_to_read(self):
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             "/api/reports/low-stock-products/"
@@ -1059,7 +1088,8 @@ class InventoryReportsApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_reports_allow_sales_only_user_to_read(self):
+    def test_reports_block_sales_only_user(self):
+        # SALES perdió view_reports por el mismo motivo.
         sales_user = User.objects.create_user(
             username="reports-sales-only",
             password="12345678",
@@ -1075,7 +1105,7 @@ class InventoryReportsApiTest(APITestCase):
             "/api/reports/low-stock-products/"
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_low_stock_report_is_paginated(self):
         Product.objects.create(
@@ -1088,7 +1118,7 @@ class InventoryReportsApiTest(APITestCase):
             updated_by=self.inventory_user,
         )
 
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         first_page = self.client.get(
             "/api/reports/low-stock-products/",
@@ -1127,7 +1157,7 @@ class InventoryReportsApiTest(APITestCase):
             updated_by=self.inventory_user,
         )
 
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         first_page = self.client.get(
             "/api/reports/stock-by-location/",
@@ -1166,7 +1196,7 @@ class InventoryReportsApiTest(APITestCase):
             updated_by=self.inventory_user,
         )
 
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             "/api/reports/stock-by-location/",
@@ -1178,7 +1208,7 @@ class InventoryReportsApiTest(APITestCase):
         self.assertEqual(response.data["results"][0]["code"], "B200")
 
     def test_stock_by_location_report_rejects_invalid_location(self):
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             "/api/reports/stock-by-location/",
@@ -1188,7 +1218,7 @@ class InventoryReportsApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_stock_by_location_report_filters_by_product_search(self):
-        self.client.force_authenticate(self.inventory_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             "/api/reports/stock-by-location/",
@@ -1214,8 +1244,12 @@ class BusinessReportsApiTest(APITestCase):
 
         call_command("setup_roles")
 
+        # Los reportes de negocio ahora son exclusivos de ADMIN: ver
+        # test_business_reports_block_sales_only_user y
+        # test_business_reports_block_inventory_only_user más abajo
+        # para la verificación del bloqueo a roles no administrativos.
         self.user.groups.add(
-            Group.objects.get(name=ROLE_INVENTORY),
+            Group.objects.get(name=ROLE_ADMIN),
         )
 
         self.client.force_authenticate(self.user)
@@ -1428,7 +1462,8 @@ class BusinessReportsApiTest(APITestCase):
             Decimal("10800.0000"),
         )
 
-    def test_business_reports_allow_sales_only_user(self):
+    def test_business_reports_block_sales_only_user(self):
+        # SALES ya no incluye view_reports en ROLE_PERMISSIONS.
         sales_user = User.objects.create_user(
             username="reports-sales-only",
             password="12345678",
@@ -1450,9 +1485,28 @@ class BusinessReportsApiTest(APITestCase):
             "/api/reports/top-selling-products/"
         )
 
-        self.assertEqual(purchases_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(sales_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(top_selling_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(purchases_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(sales_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(top_selling_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_business_reports_block_inventory_only_user(self):
+        # INVENTORY tampoco incluye view_reports en ROLE_PERMISSIONS.
+        inventory_user = User.objects.create_user(
+            username="reports-inventory-only",
+            password="12345678",
+        )
+
+        inventory_user.groups.add(
+            Group.objects.get(name=ROLE_INVENTORY),
+        )
+
+        self.client.force_authenticate(inventory_user)
+
+        response = self.client.get(
+            "/api/reports/purchases-by-supplier/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_purchases_by_supplier_report_is_paginated(self):
         second_supplier = Supplier.objects.create(
