@@ -1,5 +1,5 @@
 
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from rest_framework import viewsets
 
 from apps.core.permissions import SuppliersPermission
@@ -54,6 +54,19 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
                 | Q(supplier__name__icontains=query)
                 | Q(product__standard_code__icontains=query)
                 | Q(product__name__icontains=query)
+            ).annotate(
+                is_exact_code_match=Case(
+                    When(
+                        product__standard_code__iexact=query,
+                        then=Value(0),
+                    ),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                ),
+            ).order_by(
+                "is_exact_code_match",
+                "supplier__name",
+                "product__standard_code",
             )
 
         if supplier_id is not None:

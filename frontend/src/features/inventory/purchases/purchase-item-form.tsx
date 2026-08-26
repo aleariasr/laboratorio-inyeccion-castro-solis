@@ -125,6 +125,30 @@ export function PurchaseItemForm({
     };
   }, [mode, query, supplierId, token]);
 
+  useEffect(() => {
+    if (mode === "edit") {
+      return;
+    }
+
+    const trimmedQuery = query.trim().toLowerCase();
+
+    if (trimmedQuery.length === 0) {
+      return;
+    }
+
+    const exactMatch = results.find(
+      (supplierProduct) =>
+        supplierProduct.product_detail.standard_code.trim().toLowerCase() === trimmedQuery,
+    );
+
+    if (exactMatch) {
+      selectSupplierProduct(exactMatch);
+    }
+    // selectSupplierProduct se recrea en cada render; incluirla aqui
+    // re-dispararia el efecto sin necesidad. Solo depende de mode/query/results.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, query, results]);
+
   function updateValue(field: PurchaseItemFormField, value: string): void {
     setValues((current) => ({
       ...current,
@@ -246,6 +270,11 @@ export function PurchaseItemForm({
                 globalThis.setTimeout(() => {
                   setIsListOpen(false);
                 }, 150);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                }
               }}
               hasError={Boolean(errors.supplierProductId)}
               placeholder="Referencia, fabricante o producto"

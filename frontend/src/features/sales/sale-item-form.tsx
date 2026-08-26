@@ -140,6 +140,29 @@ export function SaleItemForm({
   }, [mode, query, token]);
 
   useEffect(() => {
+    if (mode === "edit") {
+      return;
+    }
+
+    const trimmedQuery = query.trim().toLowerCase();
+
+    if (trimmedQuery.length === 0) {
+      return;
+    }
+
+    const exactMatch = results.find(
+      (product) => product.standard_code.trim().toLowerCase() === trimmedQuery,
+    );
+
+    if (exactMatch) {
+      selectProduct(exactMatch);
+    }
+    // selectProduct se recrea en cada render; incluirla aqui re-dispararia
+    // el efecto sin necesidad. La logica solo depende de mode/query/results.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, query, results]);
+
+  useEffect(() => {
     if (!selectedProduct) {
       return;
     }
@@ -320,6 +343,11 @@ export function SaleItemForm({
                 globalThis.setTimeout(() => {
                   setIsListOpen(false);
                 }, 150);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                }
               }}
               hasError={Boolean(errors.productId)}
               placeholder="Código o nombre del producto"

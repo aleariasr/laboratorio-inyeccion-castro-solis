@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import FileResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -252,6 +252,18 @@ class ProductViewSet(
                 | Q(name__icontains=query)
                 | Q(description__icontains=query)
                 | Q(storage_location__code__icontains=query)
+            ).annotate(
+                is_exact_code_match=Case(
+                    When(
+                        standard_code__iexact=query,
+                        then=Value(0),
+                    ),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                ),
+            ).order_by(
+                "is_exact_code_match",
+                "standard_code",
             )
 
         if storage_location_id is not None:
