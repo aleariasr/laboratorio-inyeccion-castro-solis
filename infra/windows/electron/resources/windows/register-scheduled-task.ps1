@@ -116,7 +116,11 @@ function Register-LicsTask {
 
     $action = New-ScheduledTaskAction -Execute $PowerShellExe -Argument $psArgument
     $trigger = New-ScheduledTaskTrigger -AtLogOn
-    $principal = New-ScheduledTaskPrincipal -GroupId 'BUILTIN\Users' -RunLevel Limited
+    # SID en vez de nombre: 'BUILTIN\Users' falla a resolver via NTAccount.Translate()
+    # en Windows con idioma distinto al ingles (ej. espanol, donde el grupo se llama
+    # "Usuarios") -- IdentityNotMappedException. S-1-5-32-545 es el SID conocido y fijo
+    # de BUILTIN\Users, independiente del idioma del sistema.
+    $principal = New-ScheduledTaskPrincipal -GroupId 'S-1-5-32-545' -RunLevel Limited
 
     if ($KeepAlive) {
         # ExecutionTimeLimit en 0 = sin límite (el default de Task Scheduler
