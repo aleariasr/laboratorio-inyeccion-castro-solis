@@ -10,7 +10,7 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadSuppliers, canWriteSuppliers } from "@/features/auth/permissions";
+import { canReadProducts, canReadSuppliers, canWriteSuppliers } from "@/features/auth/permissions";
 import {
   createSupplierProduct,
   getSupplier,
@@ -138,6 +138,8 @@ export default function SupplierDetailPage() {
   const hasInventoryAccess = user ? canReadSuppliers(user) : false;
 
   const hasWriteAccess = user ? canWriteSuppliers(user) : false;
+
+  const hasProductsAccess = user ? canReadProducts(user) : false;
 
   const supplierProductFormInitialValues =
     supplierProductFormState.mode === "edit"
@@ -646,6 +648,7 @@ export default function SupplierDetailPage() {
 
                 <SupplierProductForm
                   key={supplierProductFormKey}
+                  canReadProducts={hasProductsAccess}
                   mode={supplierProductFormState.mode}
                   initialValues={supplierProductFormInitialValues}
                   productDisplayLabel={supplierProductDisplayLabel}

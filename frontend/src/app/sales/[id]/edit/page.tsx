@@ -8,7 +8,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteSales } from "@/features/auth/permissions";
+import { canReadCustomers, canWriteSales } from "@/features/auth/permissions";
 import { getSale, updateSale } from "@/features/sales/api";
 import { mapSaleApiFieldErrors } from "@/features/sales/form-errors";
 import { SaleForm } from "@/features/sales/sale-form";
@@ -91,6 +91,8 @@ export default function EditSalePage() {
   const saleId = Number(params.id);
 
   const hasWriteAccess = user ? canWriteSales(user) : false;
+
+  const hasCustomersAccess = user ? canReadCustomers(user) : false;
 
   useEffect(() => {
     if (
@@ -348,6 +350,7 @@ export default function EditSalePage() {
         <SaleForm
           key={loadState.sale.id}
           mode="edit"
+          canReadCustomers={hasCustomersAccess}
           initialValues={saleToFormValues(loadState.sale)}
           customerDisplayLabel={loadState.sale.customer_detail?.display_name ?? null}
           token={token}

@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteServices } from "@/features/auth/permissions";
+import { canReadInjectors, canWriteServices } from "@/features/auth/permissions";
 import { createServiceRecord } from "@/features/services/api";
 import { mapServiceRecordCreateApiFieldErrors } from "@/features/services/form-errors";
 import { ServiceRecordCreateForm } from "@/features/services/service-record-create-form";
@@ -58,6 +58,8 @@ export default function NewServiceRecordPage() {
   const [serverErrors, setServerErrors] = useState<ServiceRecordCreateFormErrors>({});
 
   const hasWriteAccess = user ? canWriteServices(user) : false;
+
+  const hasInjectorsAccess = user ? canReadInjectors(user) : false;
 
   async function handleSubmit(values: ServiceRecordCreateFormValues): Promise<void> {
     if (!token || isSubmitting || !hasWriteAccess) {
@@ -141,6 +143,7 @@ export default function NewServiceRecordPage() {
       description="Registre la entrada de un inyector para revisión."
     >
       <ServiceRecordCreateForm
+        canReadInjectors={hasInjectorsAccess}
         initialValues={{
           injectorId: "",
           receivedAt: nowAsDateTimeLocal(),

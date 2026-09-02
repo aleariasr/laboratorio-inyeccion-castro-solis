@@ -16,7 +16,11 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInventoryCounts, canWriteInventoryCounts } from "@/features/auth/permissions";
+import {
+  canReadInventoryCounts,
+  canReadProducts,
+  canWriteInventoryCounts,
+} from "@/features/auth/permissions";
 import {
   approveInventoryCount,
   cancelInventoryCount,
@@ -220,10 +224,16 @@ export default function InventoryCountDetailPage() {
 
   const hasWriteAccess = user ? canWriteInventoryCounts(user) : false;
 
+  const hasProductsAccess = user ? canReadProducts(user) : false;
+
   const canManageItems =
     loadState.status === "success" &&
     loadState.inventoryCount.status === "DRAFT" &&
     hasWriteAccess;
+
+  const effectiveCaptureSearchError = hasProductsAccess
+    ? captureState.searchError
+    : "No tiene permiso para buscar productos.";
 
   useEffect(() => {
     if (
@@ -346,7 +356,7 @@ export default function InventoryCountDetailPage() {
   }, [authStatus, hasInventoryAccess, inventoryCountId, logout, router, token]);
 
   useEffect(() => {
-    if (!canManageItems || !token) {
+    if (!canManageItems || !token || !hasProductsAccess) {
       return;
     }
 
@@ -400,7 +410,7 @@ export default function InventoryCountDetailPage() {
       globalThis.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [canManageItems, captureState.query, token]);
+  }, [canManageItems, hasProductsAccess, captureState.query, token]);
 
   useEffect(() => {
     if (captureState.selectedProduct) {
@@ -1127,19 +1137,19 @@ export default function InventoryCountDetailPage() {
 
                         {captureState.isListOpen && captureState.query.trim().length >= 2 && (
                           <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-md)]">
-                            {captureState.searchError && (
+                            {effectiveCaptureSearchError && (
                               <p className="px-4 py-3 text-sm text-[var(--color-danger)]">
-                                {captureState.searchError}
+                                {effectiveCaptureSearchError}
                               </p>
                             )}
 
-                            {!captureState.searchError && captureState.results.length === 0 && (
+                            {!effectiveCaptureSearchError && captureState.results.length === 0 && (
                               <p className="px-4 py-3 text-sm text-muted-foreground">
                                 Sin resultados.
                               </p>
                             )}
 
-                            {!captureState.searchError && captureState.results.length > 0 && (
+                            {!effectiveCaptureSearchError && captureState.results.length > 0 && (
                               <ul className="max-h-64 overflow-y-auto">
                                 {captureState.results.map((product) => (
                                   <li key={product.id}>

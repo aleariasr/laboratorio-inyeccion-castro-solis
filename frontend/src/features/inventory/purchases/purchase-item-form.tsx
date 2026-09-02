@@ -29,6 +29,7 @@ type PurchaseItemFormProps = {
   initialValues: PurchaseItemFormValues;
   supplierId: number;
   supplierProductDisplayLabel?: string;
+  canReadSuppliers: boolean;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -56,6 +57,7 @@ export function PurchaseItemForm({
   initialValues,
   supplierId,
   supplierProductDisplayLabel,
+  canReadSuppliers,
   token,
   isSubmitting = false,
   submitError = null,
@@ -83,8 +85,12 @@ export function PurchaseItemForm({
 
   const errors = mergeErrors(localErrors, serverErrors);
 
+  const effectiveSearchError = canReadSuppliers
+    ? searchError
+    : "No tiene permiso para buscar productos de proveedores.";
+
   useEffect(() => {
-    if (mode === "edit") {
+    if (mode === "edit" || !canReadSuppliers) {
       return;
     }
 
@@ -123,7 +129,7 @@ export function PurchaseItemForm({
       globalThis.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [mode, query, supplierId, token]);
+  }, [mode, canReadSuppliers, query, supplierId, token]);
 
   useEffect(() => {
     if (mode === "edit") {
@@ -284,15 +290,15 @@ export function PurchaseItemForm({
 
             {isListOpen && query.trim().length >= 2 && (
               <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-md)]">
-                {searchError && (
-                  <p className="px-4 py-3 text-sm text-[var(--color-danger)]">{searchError}</p>
+                {effectiveSearchError && (
+                  <p className="px-4 py-3 text-sm text-[var(--color-danger)]">{effectiveSearchError}</p>
                 )}
 
-                {!searchError && results.length === 0 && (
+                {!effectiveSearchError && results.length === 0 && (
                   <p className="px-4 py-3 text-sm text-muted-foreground">Sin resultados.</p>
                 )}
 
-                {!searchError && results.length > 0 && (
+                {!effectiveSearchError && results.length > 0 && (
                   <ul className="max-h-64 overflow-y-auto">
                     {results.map((supplierProduct) => (
                       <li key={supplierProduct.id}>

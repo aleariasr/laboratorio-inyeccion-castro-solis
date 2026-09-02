@@ -32,9 +32,15 @@ import {
 } from "./types";
 
 type CostsLoadState =
-  | { status: "loading"; importCosts: null; history: null; message: null }
-  | { status: "success"; importCosts: ImportCost[]; history: ProductCostHistory[]; message: null }
-  | { status: "error"; importCosts: null; history: null; message: string };
+  | { status: "loading"; importCosts: null; message: null }
+  | { status: "success"; importCosts: ImportCost[]; message: null }
+  | { status: "error"; importCosts: null; message: string };
+
+type HistoryLoadState =
+  | { status: "not-permitted"; history: null }
+  | { status: "loading"; history: null }
+  | { status: "success"; history: ProductCostHistory[] }
+  | { status: "error"; history: null; message: string };
 
 type CostFormState =
   | { mode: "closed"; importCost: null }
@@ -65,6 +71,7 @@ type PurchaseCostsSectionProps = {
   currency: Currency;
   token: string;
   hasWriteAccess: boolean;
+  canReadProducts: boolean;
 };
 
 function getErrorMessage(error: unknown): string {
@@ -114,12 +121,17 @@ export function PurchaseCostsSection({
   currency,
   token,
   hasWriteAccess,
+  canReadProducts,
 }: PurchaseCostsSectionProps) {
   const [loadState, setLoadState] = useState<CostsLoadState>({
     status: "loading",
     importCosts: null,
-    history: null,
     message: null,
+  });
+
+  const [historyState, setHistoryState] = useState<HistoryLoadState>({
+    status: canReadProducts ? "loading" : "not-permitted",
+    history: null,
   });
 
   const [formState, setFormState] = useState<CostFormState>({
@@ -149,16 +161,13 @@ export function PurchaseCostsSection({
   useEffect(() => {
     const controller = new AbortController();
 
-    Promise.all([
-      getImportCosts(token, purchaseId, controller.signal),
-      getProductCostHistory(token, purchaseId, controller.signal),
-    ])
-      .then(([importCosts, history]) => {
+    getImportCosts(token, purchaseId, controller.signal)
+      .then((importCosts) => {
         if (controller.signal.aborted) {
           return;
         }
 
-        setLoadState({ status: "success", importCosts, history, message: null });
+        setLoadState({ status: "success", importCosts, message: null });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
@@ -172,7 +181,6 @@ export function PurchaseCostsSection({
         setLoadState({
           status: "error",
           importCosts: null,
-          history: null,
           message: getErrorMessage(error),
         });
       });
@@ -181,6 +189,42 @@ export function PurchaseCostsSection({
       controller.abort();
     };
   }, [purchaseId, token]);
+
+  useEffect(() => {
+    if (!canReadProducts) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    getProductCostHistory(token, purchaseId, controller.signal)
+      .then((history) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setHistoryState({ status: "success", history });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setHistoryState({
+          status: "error",
+          history: null,
+          message: getErrorMessage(error),
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [canReadProducts, purchaseId, token]);
 
   function openCreateForm(): void {
     setActionState({ isSubmitting: false, submitError: null, fieldErrors: {}, pendingToggleId: null });
@@ -334,12 +378,12 @@ export function PurchaseCostsSection({
     try {
       const histories = await calculatePurchaseCosts(token, purchaseId, margin);
 
-      setLoadState((current) => {
+      setHistoryState((current) => {
         if (current.status !== "success") {
           return current;
         }
 
-        return { ...current, history: [...histories, ...current.history] };
+        return { status: "success", history: [...histories, ...current.history] };
       });
 
       setApplyState({ isApplying: false, error: null });
@@ -723,7 +767,7 @@ export function PurchaseCostsSection({
         </section>
       )}
 
-      {loadState.status === "success" && loadState.history.length > 0 && (
+      {historyState.status === "success" && historyState.history.length > 0 && (
         <section className="app-status-card overflow-hidden">
           <div className="border-b border-[var(--color-border-soft)] p-6">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
@@ -766,7 +810,7 @@ export function PurchaseCostsSection({
               </thead>
 
               <tbody>
-                {loadState.history.map((history) => (
+                {historyState.history.map((history) => (
                   <tr key={history.id} className="border-b border-[var(--color-border-soft)] last:border-b-0">
                     <td className="px-5 py-4">
                       <p className="font-mono text-sm font-semibold text-foreground">

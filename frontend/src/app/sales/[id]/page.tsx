@@ -12,7 +12,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadSales, canWriteSales } from "@/features/auth/permissions";
+import { canReadProducts, canReadSales, canWriteSales } from "@/features/auth/permissions";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import {
   cancelSale,
@@ -149,6 +149,8 @@ export default function SaleDetailPage() {
   const hasSalesAccess = user ? canReadSales(user) : false;
 
   const hasWriteAccess = user ? canWriteSales(user) : false;
+
+  const hasProductsAccess = user ? canReadProducts(user) : false;
 
   const canManageItems =
     loadState.status === "success" &&
@@ -889,6 +891,7 @@ export default function SaleDetailPage() {
                 </div>
 
                 <SaleItemForm
+                  canReadProducts={hasProductsAccess}
                   key={itemFormKey}
                   mode={itemFormState.mode}
                   initialValues={itemFormInitialValues}

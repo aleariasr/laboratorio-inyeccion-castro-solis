@@ -32,6 +32,7 @@ type InjectorFormProps = {
   mode: InjectorFormMode;
   initialValues: InjectorFormValues;
   customerDisplayLabel?: string;
+  canReadCustomers: boolean;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -67,6 +68,7 @@ export function InjectorForm({
   mode,
   initialValues,
   customerDisplayLabel,
+  canReadCustomers,
   token,
   isSubmitting = false,
   submitError = null,
@@ -99,8 +101,12 @@ export function InjectorForm({
 
   const errors = mergeErrors(localErrors, serverErrors);
 
+  const effectiveCustomerSearchError = canReadCustomers
+    ? customerSearchError
+    : "No tiene permiso para buscar clientes.";
+
   useEffect(() => {
-    if (mode === "edit") {
+    if (mode === "edit" || !canReadCustomers) {
       return;
     }
 
@@ -139,7 +145,7 @@ export function InjectorForm({
       globalThis.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [mode, customerQuery, token]);
+  }, [mode, canReadCustomers, customerQuery, token]);
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent): void {
@@ -336,19 +342,19 @@ export function InjectorForm({
 
                 {isCustomerListOpen && customerQuery.trim().length >= 2 && (
                   <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-md)]">
-                    {customerSearchError && (
+                    {effectiveCustomerSearchError && (
                       <p className="px-4 py-3 text-sm text-[var(--color-danger)]">
-                        {customerSearchError}
+                        {effectiveCustomerSearchError}
                       </p>
                     )}
 
-                    {!customerSearchError && customerResults.length === 0 && (
+                    {!effectiveCustomerSearchError && customerResults.length === 0 && (
                       <p className="px-4 py-3 text-sm text-muted-foreground">
                         Sin resultados.
                       </p>
                     )}
 
-                    {!customerSearchError && customerResults.length > 0 && (
+                    {!effectiveCustomerSearchError && customerResults.length > 0 && (
                       <ul className="max-h-64 overflow-y-auto">
                         {customerResults.map((customer) => (
                           <li key={customer.id}>

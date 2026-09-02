@@ -8,7 +8,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteInjectors } from "@/features/auth/permissions";
+import { canReadCustomers, canWriteInjectors } from "@/features/auth/permissions";
 import { getInjector, updateInjector } from "@/features/injectors/api";
 import { mapInjectorApiFieldErrors } from "@/features/injectors/form-errors";
 import { InjectorForm } from "@/features/injectors/injector-form";
@@ -91,6 +91,8 @@ export default function EditInjectorPage() {
   const injectorId = Number(params.id);
 
   const hasWriteAccess = user ? canWriteInjectors(user) : false;
+
+  const hasCustomersAccess = user ? canReadCustomers(user) : false;
 
   useEffect(() => {
     if (
@@ -342,6 +344,7 @@ export default function EditInjectorPage() {
         <InjectorForm
           key={loadState.injector.id}
           mode="edit"
+          canReadCustomers={hasCustomersAccess}
           initialValues={injectorToFormValues(loadState.injector)}
           customerDisplayLabel={loadState.injector.customer_detail.display_name}
           token={token ?? ""}

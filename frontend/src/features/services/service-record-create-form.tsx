@@ -23,6 +23,7 @@ import { validateServiceRecordCreateForm } from "./validation";
 
 type ServiceRecordCreateFormProps = {
   initialValues: ServiceRecordCreateFormValues;
+  canReadInjectors: boolean;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -47,6 +48,7 @@ function formatInjectorLabel(injector: Injector): string {
 
 export function ServiceRecordCreateForm({
   initialValues,
+  canReadInjectors,
   token,
   isSubmitting = false,
   submitError = null,
@@ -72,7 +74,15 @@ export function ServiceRecordCreateForm({
 
   const errors = mergeErrors(localErrors, serverErrors);
 
+  const effectiveSearchError = canReadInjectors
+    ? searchError
+    : "No tiene permiso para buscar inyectores.";
+
   useEffect(() => {
+    if (!canReadInjectors) {
+      return;
+    }
+
     const trimmedQuery = query.trim();
 
     if (trimmedQuery.length < 2) {
@@ -117,7 +127,7 @@ export function ServiceRecordCreateForm({
       globalThis.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [query, token]);
+  }, [canReadInjectors, query, token]);
 
   function updateValue(
     field: keyof ServiceRecordCreateFormValues,
@@ -248,15 +258,15 @@ export function ServiceRecordCreateForm({
 
                 {isListOpen && query.trim().length >= 2 && (
                   <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-md)]">
-                    {searchError && (
-                      <p className="px-4 py-3 text-sm text-[var(--color-danger)]">{searchError}</p>
+                    {effectiveSearchError && (
+                      <p className="px-4 py-3 text-sm text-[var(--color-danger)]">{effectiveSearchError}</p>
                     )}
 
-                    {!searchError && results.length === 0 && (
+                    {!effectiveSearchError && results.length === 0 && (
                       <p className="px-4 py-3 text-sm text-muted-foreground">Sin resultados.</p>
                     )}
 
-                    {!searchError && results.length > 0 && (
+                    {!effectiveSearchError && results.length > 0 && (
                       <ul className="max-h-64 overflow-y-auto">
                         {results.map((injector) => (
                           <li key={injector.id}>

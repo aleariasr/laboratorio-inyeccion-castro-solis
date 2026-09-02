@@ -21,6 +21,8 @@ type ServiceAccessoryFormProps = {
   mode: ServiceAccessoryFormMode;
   initialValues: ServiceAccessoryFormValues;
   accessoryDisplayLabel?: string;
+  canReadInjectors: boolean;
+  canWriteInjectors: boolean;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -43,6 +45,8 @@ export function ServiceAccessoryForm({
   mode,
   initialValues,
   accessoryDisplayLabel,
+  canReadInjectors,
+  canWriteInjectors,
   token,
   isSubmitting = false,
   submitError = null,
@@ -68,8 +72,12 @@ export function ServiceAccessoryForm({
 
   const errors = mergeErrors(localErrors, serverErrors);
 
+  const effectiveAccessoriesError = canReadInjectors
+    ? accessoriesError
+    : "No tiene permiso para consultar accesorios.";
+
   useEffect(() => {
-    if (mode === "edit") {
+    if (mode === "edit" || !canReadInjectors) {
       return;
     }
 
@@ -99,7 +107,7 @@ export function ServiceAccessoryForm({
     return () => {
       controller.abort();
     };
-  }, [mode, token]);
+  }, [mode, canReadInjectors, token]);
 
   function updateValue(field: keyof ServiceAccessoryFormValues, value: string): void {
     setValues((current) => ({
@@ -121,6 +129,11 @@ export function ServiceAccessoryForm({
   }
 
   async function handleCreateAccessory(): Promise<void> {
+    if (!canWriteInjectors) {
+      setNewAccessoryError("No tiene permiso para crear accesorios.");
+      return;
+    }
+
     const trimmedName = newAccessoryName.trim();
 
     if (!trimmedName) {
@@ -202,20 +215,22 @@ export function ServiceAccessoryForm({
                 ))}
               </select>
 
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setIsNewAccessoryOpen((current) => !current);
-                  setNewAccessoryError(null);
-                }}
-                disabled={isSubmitting}
-              >
-                Nuevo
-              </Button>
+              {canWriteInjectors && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsNewAccessoryOpen((current) => !current);
+                    setNewAccessoryError(null);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Nuevo
+                </Button>
+              )}
             </div>
 
-            {accessoriesError && <p className="mt-2 text-sm text-danger">{accessoriesError}</p>}
+            {effectiveAccessoriesError && <p className="mt-2 text-sm text-danger">{effectiveAccessoriesError}</p>}
           </>
         )}
       </Field>

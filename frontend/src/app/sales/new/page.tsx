@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteSales } from "@/features/auth/permissions";
+import { canReadCustomers, canWriteSales } from "@/features/auth/permissions";
 import { createSale } from "@/features/sales/api";
 import { mapSaleApiFieldErrors } from "@/features/sales/form-errors";
 import { SaleForm } from "@/features/sales/sale-form";
@@ -47,6 +47,8 @@ export default function NewSalePage() {
   const [serverErrors, setServerErrors] = useState<SaleFormErrors>({});
 
   const hasWriteAccess = user ? canWriteSales(user) : false;
+
+  const hasCustomersAccess = user ? canReadCustomers(user) : false;
 
   async function handleSubmit(values: SaleFormValues): Promise<void> {
     if (!token || isSubmitting || !hasWriteAccess) {
@@ -132,6 +134,7 @@ export default function NewSalePage() {
     >
       <SaleForm
         mode="create"
+        canReadCustomers={hasCustomersAccess}
         initialValues={EMPTY_SALE_FORM_VALUES}
         token={token}
         isSubmitting={isSubmitting}

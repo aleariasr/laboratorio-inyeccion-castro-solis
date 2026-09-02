@@ -31,6 +31,7 @@ type SaleItemFormProps = {
   mode: SaleItemFormMode;
   initialValues: SaleItemFormValues;
   productDisplayLabel?: string;
+  canReadProducts: boolean;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -57,6 +58,7 @@ export function SaleItemForm({
   mode,
   initialValues,
   productDisplayLabel,
+  canReadProducts,
   token,
   isSubmitting = false,
   submitError = null,
@@ -88,8 +90,12 @@ export function SaleItemForm({
 
   const errors = mergeErrors(localErrors, serverErrors);
 
+  const effectiveSearchError = canReadProducts
+    ? searchError
+    : "No tiene permiso para buscar productos.";
+
   useEffect(() => {
-    if (mode === "edit") {
+    if (mode === "edit" || !canReadProducts) {
       return;
     }
 
@@ -137,7 +143,7 @@ export function SaleItemForm({
       globalThis.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [mode, query, token]);
+  }, [mode, canReadProducts, query, token]);
 
   useEffect(() => {
     if (mode === "edit") {
@@ -163,7 +169,7 @@ export function SaleItemForm({
   }, [mode, query, results]);
 
   useEffect(() => {
-    if (!selectedProduct) {
+    if (!selectedProduct || !canReadProducts) {
       return;
     }
 
@@ -188,7 +194,7 @@ export function SaleItemForm({
     return () => {
       controller.abort();
     };
-  }, [selectedProduct, token]);
+  }, [selectedProduct, canReadProducts, token]);
 
   function updateValue(field: SaleItemFormField, value: string): void {
     setValues((current) => ({
@@ -357,15 +363,15 @@ export function SaleItemForm({
 
             {isListOpen && query.trim().length >= 2 && (
               <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-md)]">
-                {searchError && (
-                  <p className="px-4 py-3 text-sm text-[var(--color-danger)]">{searchError}</p>
+                {effectiveSearchError && (
+                  <p className="px-4 py-3 text-sm text-[var(--color-danger)]">{effectiveSearchError}</p>
                 )}
 
-                {!searchError && results.length === 0 && (
+                {!effectiveSearchError && results.length === 0 && (
                   <p className="px-4 py-3 text-sm text-muted-foreground">Sin resultados.</p>
                 )}
 
-                {!searchError && results.length > 0 && (
+                {!effectiveSearchError && results.length > 0 && (
                   <ul className="max-h-64 overflow-y-auto">
                     {results.map((product) => (
                       <li key={product.id}>
