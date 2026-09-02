@@ -623,6 +623,27 @@ class UserSelfLockoutProtectionApiTest(APITestCase):
         self.assertFalse(self.role_admin_user.is_staff)
         self.assertEqual(self.role_admin_user.first_name, "Actualizado")
 
+    
+    def test_admin_cannot_delete_own_account(self):
+        response = self.client.delete(
+            f"/api/accounts/users/{self.role_admin_user.id}/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(
+            User.objects.filter(id=self.role_admin_user.id).exists()
+        )
+
+    def test_admin_can_delete_another_admin_account(self):
+        response = self.client.delete(
+            f"/api/accounts/users/{self.other_admin.id}/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            User.objects.filter(id=self.other_admin.id).exists()
+        )
+
 
 class UserListFilteringApiTest(APITestCase):
     """

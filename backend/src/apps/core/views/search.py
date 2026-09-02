@@ -2,6 +2,7 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.permissions import ROLE_ADMIN
 from apps.customers.models import Customer, Injector
 from apps.inventory.models import (
     Product,
@@ -15,39 +16,50 @@ from apps.inventory.models import (
 class UniversalSearchView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def _can_view(self, request, module):
+        user = request.user
+
+        if user.is_superuser or user.groups.filter(name=ROLE_ADMIN).exists():
+            return True
+
+        return user.has_perm(f"core.view_{module}")
+
     def get(self, request):
         query = request.query_params.get("q", "").strip()
 
-        if len(query) < 2:
-            return Response(
-                {
-                    "query": query,
-                    "results": {
-                        "products": [],
-                        "locations": [],
-                        "product_references": [],
-                        "suppliers": [],
-                        "purchases": [],
-                        "customers": [],
-                        "injectors": [],
-                    },
-                }
-            )
+        results = {
+            "products": [],
+            "locations": [],
+            "product_references": [],
+            "suppliers": [],
+            "purchases": [],
+            "customers": [],
+            "injectors": [],
+        }
 
-        return Response(
-            {
-                "query": query,
-                "results": {
-                    "products": self.search_products(query),
-                    "locations": self.search_locations(query),
-                    "product_references": self.search_product_references(query),
-                    "suppliers": self.search_suppliers(query),
-                    "purchases": self.search_purchases(query),
-                    "customers": self.search_customers(query),
-                    "injectors": self.search_injectors(query),
-                },
-            }
-        )
+        if len(query) < 2:
+            return Response({"query": query, "results": results})
+
+        if self._can_view(request, "products"):
+            results["products"] = self.search_products(query)
+            results["product_references"] = self.search_product_references(query)
+
+        if self._can_view(request, "locations"):
+            results["locations"] = self.search_locations(query)
+
+        if self._can_view(request, "suppliers"):
+            results["suppliers"] = self.search_suppliers(query)
+
+        if self._can_view(request, "purchases"):
+            results["purchases"] = self.search_purchases(query)
+
+        if self._can_view(request, "customers"):
+            results["customers"] = self.search_customers(query)
+
+        if self._can_view(request, "injectors"):
+            results["injectors"] = self.search_injectors(query)
+
+        return Response({"query": query, "results": results})
 
     def search_products(self, query):
         products = (

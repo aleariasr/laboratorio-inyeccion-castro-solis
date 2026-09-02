@@ -728,6 +728,8 @@ class UniversalSearchApiTest(APITestCase):
             password="12345678",
         )
         self.client.force_authenticate(self.user)
+        call_command("setup_roles")
+        self.user.groups.add(Group.objects.get(name=ROLE_ADMIN))
 
         self.location = StorageLocation.objects.create(
             code="A124",
@@ -913,6 +915,55 @@ class UniversalSearchApiTest(APITestCase):
             response.data["results"]["injectors"][0]["injector_number"],
             "INY-001",
         )
+
+    
+    def test_search_hides_categories_the_user_cannot_read(self):
+        limited_user = User.objects.create_user(
+            username="search-limited",
+            password="12345678",
+        )
+        limited_user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename="view_products",
+            ),
+        )
+        self.client.force_authenticate(limited_user)
+
+        response = self.client.get(
+            "/api/search/",
+            {"q": "Diesel"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"]["customers"], [])
+
+    def test_search_shows_category_the_user_can_read(self):
+        limited_user = User.objects.create_user(
+            username="search-customers-only",
+            password="12345678",
+        )
+        limited_user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename="view_customers",
+            ),
+        )
+        self.client.force_authenticate(limited_user)
+
+        response = self.client.get(
+            "/api/search/",
+            {"q": "Diesel"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["results"]["customers"][0]["display_name"],
+            "CLIENTE DIESEL",
+        )
+        self.assertEqual(response.data["results"]["products"], [])
 
 class InventoryReportsApiTest(APITestCase):
     def setUp(self):
