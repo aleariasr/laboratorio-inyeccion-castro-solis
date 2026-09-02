@@ -16,6 +16,17 @@ registro histórico de cómo se llegó ahí.
 
 ## 2. Decisión de arquitectura
 
+Antes de esta decisión hubo una prueba anterior, más simple: una demo
+con Docker Desktop directo sobre Windows (`infra/windows-demo/`, ver
+[`infra/windows-demo/README.md`](../infra/windows-demo/README.md)),
+usada para mostrarle al cliente que LICS podía correr en Windows antes
+de comprometerse a migrar toda la infraestructura productiva. Esa demo
+ya está descontinuada (desmantelada con `Limpiar-Demo-LICS.ps1`) y no
+se usa en ningún entorno real; se conserva en el repositorio solo como
+referencia histórica de cómo empezó la exploración. La arquitectura
+descrita en el resto de esta sección es la que reemplazó a esa demo y
+es la que corre hoy en producción.
+
 Motor: WSL2 + Ubuntu 24.04 con Docker Engine real corriendo adentro — no
 Docker Desktop. Los scripts productivos de `scripts/*.sh` e
 `infra/systemd/*` se instalan sin ningún cambio dentro de esa distro; la
@@ -596,6 +607,7 @@ máquinas).
 
 ## Documentación relacionada
 
+- [Demo inicial en Windows (histórica, descontinuada)](../infra/windows-demo/README.md)
 - [README principal](../README.md)
 - [Índice de documentación](index.md)
 - [Despliegue en Windows (app de escritorio)](../infra/windows/README.md)

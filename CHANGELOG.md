@@ -14,6 +14,14 @@ El formato utiliza estas categorías:
 
 ---
 
+## [2.0.0] - 2026-08-26
+
+### Changed
+
+- El número de versión saltó directamente de `0.2.0-alpha` a `2.0.0`, sin pasar por un incremento normal (0.3.0, 1.0.0, etc.), por decisión explícita: antes de fijar este esquema de versión ya se había generado y distribuido un instalador `.exe` de prueba bajo un número de versión anterior (una serie de compilaciones internas que pasaron por `0.2.3-beta`, `0.3.0-beta`, `0.4.0-beta`, antes de revertir `VERSION` a `0.2.0-alpha`). El salto a `2.0.0` evita cualquier colisión o ambigüedad con ese número ya distribuido y deja esta versión reconocida sin duda como la más reciente. No hay lógica de comparación semántica de versiones en el código (`update-application.sh`, `cut-release.ps1` eligen el release más nuevo por fecha de modificación de carpeta, no por número de versión); el salto responde puramente a esta decisión de numeración, no a un requisito mecánico del sistema.
+
+---
+
 ## [Unreleased]
 
 ### Added

@@ -420,7 +420,7 @@ Incluye:
 
 Versión actual:
 
-    0.2.0-alpha
+    2.0.0
 
 Estado resumido:
 

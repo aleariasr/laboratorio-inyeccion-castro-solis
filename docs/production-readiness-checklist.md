@@ -21,7 +21,7 @@ Una versión únicamente debe liberarse cuando los elementos obligatorios se enc
 
 Versión actual:
 
-    0.2.0-alpha
+    2.0.0
 
 Resumen:
 
