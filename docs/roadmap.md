@@ -28,6 +28,18 @@ Estado resumido:
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: pendiente.
 
+---
+
+# Próxima versión: backlog de la visita a la empresa (2026-09)
+
+Ver [`backlog-cliente-2026-09.md`](backlog-cliente-2026-09.md) para el detalle completo,
+verificado contra el código real, de los 20 puntos recogidos en una visita al cliente:
+inductancia/aislamiento en servicios, precio de servicios y "Tipo de Servicio" con histórico,
+accesorios de servicio ligados al inventario real, cierre de caja semanal, proforma, y un
+rediseño estructural del modelo de "referencia" (productos genéricos vs. originales), entre
+otros. Ese documento reemplaza cualquier suposición sobre estos temas hasta que se implementen —
+no se debe empezar ninguno de esos 20 puntos sin volver a leerlo primero.
+
 Documentos relacionados:
 
 - [README principal](../README.md)
