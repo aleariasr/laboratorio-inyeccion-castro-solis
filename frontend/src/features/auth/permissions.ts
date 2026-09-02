@@ -17,11 +17,20 @@ export function isAdministrativeUser(
   );
 }
 
+// Espejo exacto del bypass de ModulePermission en el backend: solo
+// superusuario o el grupo ADMIN saltan el chequeo de permiso de
+// modulo. A diferencia de isAdministrativeUser, is_staff NO cuenta
+// aca -- is_staff solo controla el acceso al panel /admin/ de Django
+// (ver AdministrationPermission), no el de los modulos de negocio.
+function isModuleAdmin(user: AuthUser): boolean {
+  return user.is_superuser || user.groups.includes("ADMIN");
+}
+
 export function hasAnyRole(
   user: AuthUser,
   roles: AppRole[],
 ): boolean {
-  if (isAdministrativeUser(user)) {
+  if (isModuleAdmin(user)) {
     return true;
   }
 
@@ -148,6 +157,13 @@ export function canWriteSales(user: AuthUser): boolean {
   );
 }
 
+export function canCancelSales(user: AuthUser): boolean {
+  return (
+    hasAnyRole(user, ["SALES"]) ||
+    hasModulePermission(user, "cancel_sales")
+  );
+}
+
 // --- Clientes y servicio: clientes ---
 
 export function canReadCustomers(user: AuthUser): boolean {
@@ -199,11 +215,18 @@ export function canWriteServices(user: AuthUser): boolean {
   );
 }
 
+export function canCancelServices(user: AuthUser): boolean {
+  return (
+    hasAnyRole(user, ["CUSTOMERS"]) ||
+    hasModulePermission(user, "cancel_services")
+  );
+}
+
 // --- Reportes ---
 
 export function canReadReports(user: AuthUser): boolean {
   return (
-    isAdministrativeUser(user) ||
+    isModuleAdmin(user) ||
     hasModulePermission(user, "view_reports")
   );
 }

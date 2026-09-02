@@ -11,7 +11,7 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInjectors, canReadServices, canWriteInjectors, canWriteServices } from "@/features/auth/permissions";
+import { canCancelServices, canReadInjectors, canReadServices, canWriteInjectors, canWriteServices } from "@/features/auth/permissions";
 import { formatDate } from "@/features/inventory/purchases/format";
 import {
   cancelServiceRecord,
@@ -167,6 +167,8 @@ export default function ServiceDetailPage() {
   const hasInjectorsAccess = user ? canReadInjectors(user) : false;
 
   const hasInjectorsWriteAccess = user ? canWriteInjectors(user) : false;
+
+  const hasCancelAccess = user ? canCancelServices(user) : false;
 
   const canManage =
     loadState.status === "success" &&
@@ -667,7 +669,7 @@ export default function ServiceDetailPage() {
             (loadState.serviceRecord.status === "RECEIVED" ||
               loadState.serviceRecord.status === "IN_PROGRESS" ||
               loadState.serviceRecord.status === "READY") &&
-            hasWriteAccess && (
+            hasCancelAccess && (
               <Button
                 type="button"
                 variant="danger"

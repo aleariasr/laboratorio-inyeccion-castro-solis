@@ -12,7 +12,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadReports } from "@/features/auth/permissions";
+import { canReadProducts, canReadReports } from "@/features/auth/permissions";
 import { getProducts } from "@/features/inventory/products/api";
 import type { Product } from "@/features/inventory/products/types";
 import { formatMoney } from "@/features/inventory/purchases/format";
@@ -81,8 +81,14 @@ export default function ProductSupplierPricesReportPage() {
 
   const hasReportsAccess = user ? canReadReports(user) : false;
 
+  const hasProductsAccess = user ? canReadProducts(user) : false;
+
+  const effectiveProductSearchError = hasProductsAccess
+    ? productSearch.searchError
+    : "No tiene permiso para buscar productos.";
+
   useEffect(() => {
-    if (!token || selectedProduct) {
+    if (!token || selectedProduct || !hasProductsAccess) {
       return;
     }
 
@@ -136,7 +142,7 @@ export default function ProductSupplierPricesReportPage() {
       globalThis.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [productSearch.query, selectedProduct, token]);
+  }, [productSearch.query, selectedProduct, hasProductsAccess, token]);
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasReportsAccess || !selectedProduct) {
@@ -328,17 +334,17 @@ export default function ProductSupplierPricesReportPage() {
 
               {productSearch.isListOpen && productSearch.query.trim().length >= 2 && (
                 <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-md)]">
-                  {productSearch.searchError && (
+                  {effectiveProductSearchError && (
                     <p className="px-4 py-3 text-sm text-[var(--color-danger)]">
-                      {productSearch.searchError}
+                      {effectiveProductSearchError}
                     </p>
                   )}
 
-                  {!productSearch.searchError && productSearch.results.length === 0 && (
+                  {!effectiveProductSearchError && productSearch.results.length === 0 && (
                     <p className="px-4 py-3 text-sm text-muted-foreground">Sin resultados.</p>
                   )}
 
-                  {!productSearch.searchError && productSearch.results.length > 0 && (
+                  {!effectiveProductSearchError && productSearch.results.length > 0 && (
                     <ul className="max-h-64 overflow-y-auto">
                       {productSearch.results.map((product) => (
                         <li key={product.id}>

@@ -12,7 +12,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadProducts, canReadSales, canWriteSales } from "@/features/auth/permissions";
+import { canCancelSales, canReadProducts, canReadSales, canWriteSales } from "@/features/auth/permissions";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import {
   cancelSale,
@@ -151,6 +151,8 @@ export default function SaleDetailPage() {
   const hasWriteAccess = user ? canWriteSales(user) : false;
 
   const hasProductsAccess = user ? canReadProducts(user) : false;
+
+  const hasCancelAccess = user ? canCancelSales(user) : false;
 
   const canManageItems =
     loadState.status === "success" &&
@@ -652,7 +654,7 @@ export default function SaleDetailPage() {
           {loadState.status === "success" &&
             (loadState.sale.status === "DRAFT" ||
               loadState.sale.status === "CONFIRMED") &&
-            hasWriteAccess &&
+            hasCancelAccess &&
             !cancelActionState.isOpen && (
               <Button type="button" variant="danger" onClick={openCancelForm}>
                 Anular venta
