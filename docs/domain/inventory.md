@@ -155,10 +155,13 @@ Los movimientos históricos no se eliminan ni se sobrescriben.
 
 # Servicios
 
-Actualmente existen:
+Actualmente existen, organizados en `apps/inventory/services/`:
 
-- confirm_purchase()
-- cancel_purchase()
+- `purchases.py`: `confirm_purchase()`, `cancel_purchase()`.
+- `inventory_count.py`: `approve_inventory_count()`, `cancel_inventory_count()`.
+- `costs.py`: `purchase_cost_summary()`, `calculate_purchase_costs()`.
+- `stock.py`: `initial_inventory()`, `adjust_stock()`.
+- `product_labels.py`: `build_product_labels()`, `build_location_labels()`, `generate_product_labels_pdf()`, `generate_location_labels_pdf()`.
 
 Todo nuevo comportamiento deberá implementarse mediante servicios.
 
@@ -166,9 +169,14 @@ Todo nuevo comportamiento deberá implementarse mediante servicios.
 
 # Selectors
 
-Actualmente existen:
+Actualmente existen, en `apps/inventory/selectors/stock.py`:
 
-- current_stock()
+- `current_stock()`
+- `current_stock_bulk()`
+- `stock_history()`
+- `low_stock_products()`
+
+> Nota: `apps/inventory/selectors/products.py` y `apps/inventory/selectors/purchases.py` existen como archivos del paquete pero están vacíos (sin funciones implementadas) al momento de esta revisión.
 
 Toda consulta compleja deberá implementarse mediante selectors.
 

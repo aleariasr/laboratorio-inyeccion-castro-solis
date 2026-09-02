@@ -8,7 +8,7 @@ Laboratorio de Inyección Castro Solís — LICS
 
 Parcialmente resuelta. Ver detalle de lo resuelto y lo pendiente al final de este documento.
 
-> Nota: esta auditoría se realizó antes de iniciar la implementación del frontend (fase F0). Desde entonces se construyeron las pantallas de F1 a F14 del [roadmap de frontend](frontend-roadmap.md) (login, sesión, navegación, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores y servicios), pero algunos de los pendientes de backend que esta auditoría identificó siguen abiertos — en particular la ampliación de la búsqueda universal y la administración de roles de usuario. El detalle verificado está al final de este documento.
+> Nota: esta auditoría se realizó antes de iniciar la implementación del frontend (fase F0). Desde entonces se construyeron las pantallas de F1 a F19 del [roadmap de frontend](frontend-roadmap.md) (login, sesión, navegación, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores, servicios y administración de usuarios), y la administración de roles de usuario ya está resuelta en la API y en el frontend. El pendiente de backend que esta auditoría identificó y sigue abierto es la ampliación de la búsqueda universal. El detalle verificado está al final de este documento.
 
 ## Objetivo
 
@@ -147,16 +147,15 @@ Roles actuales:
 
 El backend debe seguir siendo la autoridad para permisos. El frontend puede ocultar o deshabilitar acciones, pero nunca debe asumir que eso sustituye la validación del servidor.
 
-## Pendiente detectado
+## Estado actual (resuelto)
 
-La API de usuarios devuelve los grupos asignados, pero los serializers actuales de creación y actualización no permiten asignar grupos.
-
-Antes de implementar la administración completa de usuarios será necesario agregar una forma controlada de:
-
-- consultar roles disponibles;
-- asignar roles;
-- retirar roles;
-- validar que solo un administrador pueda hacerlo.
+> Nota de implementación: este pendiente ya está resuelto. `UserSerializer` y `UserCreateSerializer`
+> (`apps/accounts/serializers.py`) exponen `groups` como un `SlugRelatedField` de escritura (no de solo
+> lectura), por lo que crear y actualizar usuarios sí permite asignar y retirar roles vía API. Existe
+> además `RoleListView` (`apps/accounts/views.py`) para consultar los roles disponibles, y validaciones
+> específicas que impiden que un administrador se quite a sí mismo el rol `ADMIN` o su propio acceso
+> `is_staff`. La administración completa de usuarios y roles está implementada tanto en el backend como
+> en el frontend (`frontend/src/app/users/`).
 
 ---
 
@@ -862,7 +861,7 @@ Pendientes confirmados:
 2. Filtros básicos de catálogos de inventario implementados.
 3. Revisar filtros de compras, ventas, clientes, servicios, conteos y costos.
 4. Ampliar la búsqueda universal según requerimientos confirmados.
-5. Permitir administración controlada de roles de usuario.
+5. ~~Permitir administración controlada de roles de usuario~~ — resuelto (ver más abajo, sección "Todavía pendiente").
 6. Revisar permisos cruzados necesarios entre módulos.
 7. Actualizar documentación desactualizada.
 8. Limpiar imports duplicados en `customers/views.py`.
@@ -1027,7 +1026,7 @@ Cada cambio deberá incluir:
 ## Todavía pendiente (verificado en el código actual)
 
 - La búsqueda universal (`GET /api/search/`) sigue exactamente tan limitada como se describe más arriba en este documento: productos solo por código estándar, clientes solo por nombre visible, sin buscar por identificación ni teléfono, sin cubrir ventas ni servicios de inyector.
-- La administración de roles de usuario sigue sin ser posible desde la API: `UserSerializer` expone `groups` como solo lectura y `UserCreateSerializer` ni siquiera incluye el campo.
+- ~~La administración de roles de usuario sigue sin ser posible desde la API~~ — resuelto: `UserSerializer` y `UserCreateSerializer` (`apps/accounts/serializers.py`) exponen `groups` como campo de escritura (`SlugRelatedField`), y existe `RoleListView` para consultar los roles disponibles.
 
 Estos pendientes deben resolverse junto con las pantallas correspondientes (compras, ventas, administración de usuarios), siguiendo la regla que ya establece este documento: "cada grupo de filtros se implementará junto con su pantalla correspondiente."
 

@@ -6,7 +6,7 @@ Laboratorio de Inyección Castro Solís — LICS
 
 ## Estado
 
-Definición inicial.
+Implementado. La paleta, tipografía, espaciado, radios, iconografía propia y los componentes de estructura base (`AppShell`, barra lateral, topbar, navegación) ya están construidos en `frontend/src/app/globals.css`, `frontend/src/components/layout/app-shell.tsx` y `frontend/src/components/icons/app-icons.tsx`, y se usan de forma consistente en los módulos existentes (inventario, compras, ventas, clientes, inyectores, servicios, usuarios, búsqueda). Este documento describe las reglas y valores reales vigentes, no un borrador pendiente de implementar.
 
 ## Objetivo
 
@@ -122,22 +122,23 @@ Todos los recursos necesarios deben estar incluidos en el paquete productivo.
 
 ## Fuente principal
 
-Se utilizará una pila de fuentes del sistema:
+Se utiliza una pila de fuentes del sistema (variable `--font-sans` en `globals.css`):
 
 ```css
 font-family:
-  Inter,
-  ui-sans-serif,
-  system-ui,
   -apple-system,
   BlinkMacSystemFont,
-  "Segoe UI",
+  "SF Pro Text",
+  "SF Pro Display",
+  "Helvetica Neue",
+  Helvetica,
+  Arial,
   sans-serif;
 ```
 
-No se descargará `Inter` desde internet.
-
-Si no existe localmente, el sistema usará una fuente del sistema.
+No se usa `Inter` ni ninguna fuente descargada desde internet: la pila depende únicamente de las
+fuentes del sistema operativo (con preferencia por la familia SF de macOS/iOS y sus equivalentes en
+otras plataformas).
 
 ## Fuente monoespaciada
 
@@ -277,41 +278,73 @@ Anulada · icono · color rojo
 
 # Variables de diseño
 
-El frontend deberá definir tokens CSS para evitar valores dispersos.
+El frontend define tokens CSS en `frontend/src/app/globals.css` para evitar valores dispersos.
 
-Ejemplo preliminar:
+Valores reales vigentes:
 
 ```css
 :root {
-  --color-background: #f5f7f8;
+  --color-brand-blue: #075184;
+  --color-brand-blue-hover: #064570;
+  --color-brand-red: #d9232e;
+
+  --color-background: #f5f5f7;
   --color-surface: #ffffff;
-  --color-surface-muted: #eef1f3;
+  --color-surface-muted: #f2f2f4;
+  --color-surface-elevated: rgb(255 255 255 / 88%);
 
-  --color-text: #172026;
-  --color-text-muted: #5f6b73;
-  --color-border: #d9e0e4;
+  --color-text: #1d1d1f;
+  --color-text-muted: #6e6e73;
+  --color-text-subtle: #86868b;
 
-  --color-primary: #174f63;
-  --color-primary-hover: #123f4f;
+  --color-border: #d2d2d7;
+  --color-border-soft: rgb(0 0 0 / 8%);
+  --color-border-strong: #b8b8bd;
+
+  --color-primary: var(--color-brand-blue);
+  --color-primary-hover: var(--color-brand-blue-hover);
+  --color-primary-active: #043b60;
+  --color-primary-soft: #eaf3f8;
   --color-primary-text: #ffffff;
 
-  --color-success: #1f6b45;
-  --color-warning: #8a5a00;
-  --color-danger: #a12b2b;
-  --color-info: #245b8a;
+  --color-success: #248a3d;
+  --color-success-soft: #edf8ef;
 
-  --radius-sm: 4px;
-  --radius-md: 7px;
-  --radius-lg: 10px;
+  --color-warning: #a05a00;
+  --color-warning-soft: #fff6e5;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.08);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.10);
+  --color-danger: #d70015;
+  --color-danger-hover: #c60013;
+  --color-danger-soft: #fff0f1;
+
+  --color-info: #0066cc;
+  --color-info-soft: #edf5ff;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  --shadow-sm:
+    0 1px 2px rgb(0 0 0 / 4%),
+    0 4px 14px rgb(0 0 0 / 5%);
+
+  --shadow-md:
+    0 3px 10px rgb(0 0 0 / 6%),
+    0 18px 42px rgb(0 0 0 / 9%);
+
+  --shadow-lg:
+    0 10px 28px rgb(0 0 0 / 10%),
+    0 30px 72px rgb(0 0 0 / 12%);
+
+  --motion-fast: 160ms;
+  --motion-normal: 240ms;
+  --motion-slow: 340ms;
 }
 ```
 
-Los valores podrán ajustarse visualmente durante la implementación.
-
-No deberán cambiarse arbitrariamente por módulo.
+El color de marca real es un azul (`#075184`), no un azul petróleo. Los valores anteriores son los
+vigentes en producción; no deberán cambiarse arbitrariamente por módulo.
 
 ---
 
@@ -350,9 +383,10 @@ La interfaz debe sentirse moderna sin parecer redondeada en exceso.
 ## Radios
 
 ```text
-4 px   controles pequeños
-7 px   botones y campos
-10 px  tarjetas y diálogos
+8 px   controles pequeños (--radius-sm)
+12 px  botones y campos (--radius-md)
+18 px  tarjetas y diálogos (--radius-lg)
+24 px  tarjetas destacadas / módulos (--radius-xl)
 ```
 
 No utilizar:
@@ -397,13 +431,10 @@ Los iconos deben:
 
 No se utilizarán emojis como iconos operativos.
 
-No se seleccionará todavía una biblioteca hasta evaluar:
-
-- tamaño del paquete;
-- funcionamiento offline;
-- mantenimiento;
-- tree shaking;
-- accesibilidad.
+No se adoptó una biblioteca de iconos de terceros. En su lugar se construyó un set propio de iconos
+como componentes SVG en línea (`frontend/src/components/icons/app-icons.tsx`), lo que resuelve de raíz
+el funcionamiento offline, el tamaño del paquete y el control total sobre estilo y accesibilidad, sin
+depender de una dependencia externa.
 
 ---
 
@@ -434,13 +465,18 @@ Debe:
 
 ## Barra superior
 
+> Nota de implementación: la barra superior real (`app-shell.tsx`, clase `.app-topbar`) es minimalista:
+> en móvil muestra el botón de menú a la izquierda, el logo de la app centrado, y un espacio reservado
+> vacío a la derecha; en escritorio el botón de menú no aparece (la navegación vive en la barra lateral).
+> El usuario actual y el cierre de sesión **no** están en la barra superior: viven en el panel de cuenta
+> de la barra lateral (`renderAccountPanel()`, debajo de la navegación). No existe un indicador de estado
+> de conexión ni una búsqueda global embebida en la barra superior; la búsqueda vive en su propia página
+> (`/search`).
+
 Debe mostrar:
 
-- nombre de la sección;
-- búsqueda global;
-- usuario actual;
-- cierre de sesión;
-- estado de conexión cuando corresponda.
+- logo/identidad de la app;
+- acceso al menú de navegación en móvil.
 
 No debe saturarse con acciones secundarias.
 
@@ -785,16 +821,18 @@ Debe:
 
 ## Búsqueda global
 
-Debe:
+> Nota de implementación: la búsqueda global real no es un overlay/paleta de comandos abierta con `/` o
+> `Ctrl+K`. Es una página dedicada (`/search`, `frontend/src/app/search/page.tsx`) a la que se navega
+> normalmente; una vez ahí, la tecla `f` (sin modificadores, cuando no se está escribiendo en un campo)
+> enfoca y selecciona el campo de búsqueda de esa página. El mismo patrón de atajo `f` para enfocar el
+> buscador local se repite en las páginas de listado de cada módulo (clientes, ventas, inyectores,
+> compras, productos, proveedores, ubicaciones, conteos, usuarios, servicios).
 
-- abrir con `/` o `Ctrl+K`;
-- permitir flechas;
-- permitir `Enter`;
-- cerrar con `Escape`;
-- agrupar resultados;
-- mostrar categoría;
-- mostrar coincidencia principal;
-- mostrar información secundaria;
+La página de búsqueda debe:
+
+- permitir limpiar y reintentar;
+- agrupar resultados por categoría;
+- mostrar coincidencia principal y información secundaria;
 - no interferir con campos de texto.
 
 ---
@@ -981,15 +1019,13 @@ Debe respetar:
 - barra espaciadora;
 - atajos definidos.
 
-## Atajos globales preliminares
+## Atajos globales
 
-```text
-/              Abrir búsqueda global
-Ctrl+K         Abrir búsqueda global
-Alt+N          Nuevo registro
-Ctrl+S         Guardar borrador
-Escape         Cerrar o cancelar
-```
+> Nota de implementación: no existen atajos globales `/`, `Ctrl+K` ni `Alt+N` en el código actual. El
+> único atajo de teclado implementado de forma amplia es `f` para enfocar el buscador de la página
+> actual (ver arriba), presente tanto en `/search` como en los listados de cada módulo. `Escape` se usa
+> para cerrar diálogos según el patrón general de la sección "Diálogos". No hay un atajo dedicado para
+> "nuevo registro" ni para "guardar borrador" implementado todavía.
 
 Los atajos deben:
 

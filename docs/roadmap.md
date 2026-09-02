@@ -20,7 +20,11 @@ Estado resumido:
 
     Infraestructura productiva base: completada.
     Backend base: completado.
-    Frontend operativo: en progreso (login, sesión, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores y etiquetas PDF implementados; compras, ventas, clientes, inyectores y reportes pendientes).
+    App de escritorio Windows (Electron + WSL2 + Docker Engine): completada.
+    Frontend operativo: login, sesión, navegación, estado del sistema, búsqueda universal, productos,
+    ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores, servicios,
+    conteos físicos, movimientos de inventario, administración de usuarios, reportes y etiquetas PDF
+    implementados. Ver el "Resumen funcional implementado" del README principal para el detalle completo.
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: pendiente.
 

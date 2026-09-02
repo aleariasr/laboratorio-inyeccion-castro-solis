@@ -45,13 +45,16 @@ Lo único que hay que garantizar del lado Windows es que la distro WSL2
 efectivamente arranque cada vez que la computadora se enciende — de eso se
 encarga la tarea programada `register-scheduled-task.ps1` de más abajo.
 
-Qué NO quedó expuesto como botón en la app: `restore.sh`, `rollback.sh` y
-`update.sh`. Esos scripts piden confirmación escrita a propósito (escribir
-`RESTORE lics` a mano) porque son operaciones destructivas — automatizarlas
-detrás de un botón le quita el propósito a esa protección. Siguen siendo
-procedimientos manuales por SSH, igual que hoy. La app solo expone lo que ya
-es seguro repetir sin supervisión: iniciar, reiniciar, ver estado, backup
-manual.
+Qué NO quedó expuesto como botón en la app: `restore.sh` y `rollback.sh`.
+Esos scripts piden confirmación escrita a propósito (escribir `RESTORE lics`
+a mano) porque son operaciones destructivas — automatizarlas detrás de un
+botón le quita el propósito a esa protección. Siguen siendo procedimientos
+manuales por SSH, igual que hoy. `update.sh` es la excepción: sí se expone
+como botón (menú **LICS > Actualizar aplicación (Django/Next)…**, ver más
+abajo), porque es la única vía real para llevar cambios de Django/Next a una
+instalación existente y pide confirmación explícita antes de correr. La app
+expone además lo que ya es seguro repetir sin supervisión: iniciar,
+reiniciar, ver estado, backup manual.
 
 ---
 

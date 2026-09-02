@@ -33,10 +33,14 @@ de noche, porque corre dentro de WSL2 sin modificarse; solo hace falta que
 la distro arranque con Windows, de eso se encarga
 `register-scheduled-task.ps1`.
 
-`restore.sh`, `rollback.sh` y `update.sh` no se expusieron como botón en la
-app a propósito — piden confirmación escrita porque son destructivos, y
+`restore.sh` y `rollback.sh` no se expusieron como botón en la app a
+propósito — piden confirmación escrita porque son destructivos, y
 automatizarlos les quita el propósito a esa protección. Siguen siendo
-procedimientos manuales por WSL, igual que por SSH en Linux.
+procedimientos manuales por WSL, igual que por SSH en Linux. `update.sh` es
+la excepción: sí se expone como botón, mediante el menú **LICS > Actualizar
+aplicación (Django/Next)…** (ver §10.2), porque es la única vía real para
+llevar cambios de Django/Next a una instalación existente, y también pide
+confirmación explícita antes de correr.
 
 El detalle completo de esta decisión (con la justificación de cada punto)
 está en `infra/windows/README.md`, sección "Decisión de arquitectura".

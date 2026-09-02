@@ -15,7 +15,7 @@ LICS es un sistema local/offline orientado a producción real. La documentación
 5. [Modelo de datos](data-model.md)
 6. [Dominio de inventario](domain/inventory.md)
 7. [Desarrollo](development.md)
-8. [Despliegue](deployment.md)
+8. [Despliegue (histórico, plan Linux/kiosco)](deployment.md)
 8b. [Despliegue en Windows (app de escritorio)](../infra/windows/README.md)
 8c. [Cierre de etapa: app de escritorio para Windows](windows-desktop-stage-closure.md)
 8d. [Lista de preparación para producción — Windows](windows-production-checklist.md)
@@ -293,7 +293,27 @@ Incluye:
 - healthcheck;
 - reglas de desarrollo.
 
-## Despliegue
+## Despliegue en Windows (vigente)
+
+Archivo:
+
+- [../infra/windows/README.md](../infra/windows/README.md)
+
+Propósito:
+
+Explica el despliegue vigente del sistema: app de escritorio Electron para Windows 10/11, que
+prepara y opera una distro WSL2 con Docker Engine ejecutando el mismo stack de Docker Compose.
+
+Incluye:
+
+- decisión de arquitectura (WSL2 + Docker Engine, sin modo kiosco);
+- instalación y primer uso;
+- botones expuestos en el menú de la app (iniciar, reiniciar, ver estado, backup manual,
+  actualizar aplicación) frente a los procedimientos manuales que quedan fuera de la app
+  (`restore.sh`, `rollback.sh`);
+- soporte técnico vía WSL, sin SSH.
+
+## Despliegue (histórico, plan Linux/kiosco)
 
 Archivo:
 
@@ -301,11 +321,13 @@ Archivo:
 
 Propósito:
 
-Explica el despliegue del sistema en un equipo dedicado de producción.
+Explica el plan original de despliegue del sistema en un equipo Linux dedicado (Ubuntu
+Desktop/Linux Mint en modo kiosco). Ese plan quedó reemplazado por la app de escritorio para
+Windows descrita arriba; se conserva como registro histórico.
 
 Incluye:
 
-- plataforma objetivo;
+- plataforma objetivo original;
 - instalación offline;
 - directorio de instalación;
 - separación de entornos;
@@ -404,11 +426,20 @@ Estado resumido:
 
     Infraestructura productiva base: implementada.
     Backend base: cerrado.
-    Frontend operativo: en progreso (login, sesión, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores y etiquetas PDF implementados; compras, ventas, clientes, inyectores y reportes pendientes).
+    App de escritorio Windows (Electron + WSL2 + Docker Engine): implementada.
+    Frontend operativo: login, sesión, navegación, estado del sistema, búsqueda universal, productos,
+    ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores, servicios,
+    conteos físicos, movimientos de inventario, administración de usuarios, reportes y etiquetas PDF
+    implementados. Ver el "Resumen funcional implementado" del README principal para el detalle completo.
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: pendiente.
 
-La fase en curso es completar el frontend operativo mínimo (compras, ventas, clientes, inyectores y reportes) antes de ampliar más módulos backend.
+> Nota: la lista anterior refleja el estado verificado contra el código en esta revisión. Este
+> documento no siempre se mantiene sincronizado en tiempo real; ante cualquier duda, el
+> [README principal](../README.md) y el código fuente son la referencia autoritativa.
+
+La fase en curso es la validación de flujos reales con usuarios y los ajustes derivados de ese uso,
+según lo descrito en el [roadmap](roadmap.md).
 
 ---
 

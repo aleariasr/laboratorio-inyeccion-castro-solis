@@ -45,6 +45,7 @@ El formato utiliza estas categorías:
 
 ### Fixed
 
+- `register-scheduled-task.ps1`: `New-ScheduledTaskPrincipal -GroupId 'BUILTIN\Users'` fallaba con `IdentityNotMappedException` ("No se efectuó ninguna asignación entre los nombres de cuenta y los identificadores de seguridad") en cualquier Windows con idioma distinto al inglés, porque la traducción de nombre a SID es literal y no reconoce el nombre localizado del grupo (p. ej. "Usuarios" en español); reemplazado por el SID fijo `S-1-5-32-545` (BUILTIN\Users), independiente del idioma del sistema. Confirmado en instalación real en Windows en español.
 - Validación de nombre de proveedor duplicado: ahora detecta coincidencias sin distinguir mayúsculas de minúsculas antes de llegar a la base de datos, evitando un error 500 no controlado.
 - Cálculo de costos de importación en moneda distinta a la de la compra: ahora convierte correctamente usando el tipo de cambio propio de cada costo (siempre expresado en colones por dólar), en vez de sumar montos de monedas distintas como si valieran lo mismo.
 - Columna "Calculado" del histórico de costos: mostraba la fecha ISO sin formatear.

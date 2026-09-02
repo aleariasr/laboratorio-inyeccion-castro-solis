@@ -43,6 +43,8 @@ Los permisos iniciales del sistema serán:
 
 Se usará el sistema nativo de usuarios, grupos y permisos de Django siempre que sea suficiente. No se debe reinventar un sistema de autenticación propio sin necesidad.
 
+> Nota de implementación: los permisos por módulo de la lista anterior son conceptuales. En la implementación real (`apps/core/permissions.py`) el control de acceso se hace mediante 5 roles fijos (grupos de Django): `ADMIN`, `INVENTORY`, `SALES`, `CUSTOMERS` y `READ_ONLY`. `AdministrationPermission` controla quién administra usuarios (superusuarios, staff o grupo `ADMIN`), y `ModulePermission` resuelve el permiso Django exacto (`view_<módulo>` / `add_<módulo>` / `change_<módulo>` / `cancel_<módulo>`) según el método HTTP y la acción del ViewSet. `is_staff` por sí solo ya no da acceso a los módulos de negocio, solo al panel `/admin/` de Django.
+
 ## Inventario
 
 El inventario es el núcleo del sistema.
@@ -76,6 +78,8 @@ Restricciones:
 - la letra de estante debe ser válida;
 - el número debe ser positivo.
 
+> Nota de implementación: el modelo real (`StorageLocation`) no separa letra de estante y número en columnas distintas. Tiene un único campo `code` (`CharField`, máx. 5 caracteres, único) validado con la expresión regular `^[A-Z][1-9][0-9]{0,3}$` (ej. `A124`), más `description` (opcional) y los campos de auditoría/activo estándar.
+
 ### Product
 
 Representa una pieza o repuesto.
@@ -93,6 +97,8 @@ Campos conceptuales:
 El producto no debe guardar un campo de stock editable directamente.
 
 La existencia actual se obtiene desde los movimientos de inventario.
+
+> Nota de implementación: el modelo real (`Product`) **no tiene** un campo `brand`/marca. Sus campos reales son `standard_code`, `name`, `description`, `storage_location` (FK), `minimum_stock`, `unit_of_measure` y los campos de auditoría/activo estándar. La marca se maneja a nivel de `ProductReference.manufacturer` y de `SupplierProduct.manufacturer`, no en `Product`.
 
 ### ProductAlias (implementado como `ProductReference`)
 
@@ -219,6 +225,8 @@ Restricciones:
 - la cantidad debe ser mayor que cero;
 - el precio unitario no debe ser negativo.
 
+> Nota de implementación: el modelo real (`PurchaseItem`) referencia `supplier_product` (FK a `SupplierProduct`), no `product` directamente. Sus campos reales son `purchase`, `supplier_product`, `quantity` y `unit_cost`, con restricción única sobre `(purchase, supplier_product)`. No existe un campo `currency` en esta línea: la moneda se define a nivel de la compra (`Purchase.currency`). El `subtotal` tampoco es un campo almacenado: se calcula en el serializador (`SerializerMethodField`) como `quantity * unit_cost`.
+
 ## Costos de importación y cálculo de costo
 
 El sistema debe integrar la lógica que actualmente se maneja en Excel.
@@ -245,9 +253,14 @@ Campos conceptuales:
 - categoría;
 - descripción;
 - monto;
-- moneda.
+- moneda;
+- tipo de cambio.
+
+> Nota de implementación: el modelo real (`ImportCost`) incluye un campo `exchange_rate` (tipo de cambio) usado para convertir este costo a la moneda de la compra; no basta con `currency` solamente.
 
 ### PurchaseCostSummary
+
+> Nota de implementación: `PurchaseCostSummary` **no es un modelo de base de datos**. No existe una tabla `PurchaseCostSummary` en `apps/inventory/models/`. Lo que existe es `PurchaseCostSummaryInputSerializer` (un `serializers.Serializer` plano, no `ModelSerializer`) que valida la entrada del endpoint `POST /api/inventory/purchases/{id}/calculate-costs/` y `GET /api/inventory/purchases/{id}/cost-summary/`; el resumen se calcula bajo demanda y se persiste indirectamente mediante `ProductCostHistory`, no en una tabla propia de resumen.
 
 Representa el resumen calculado de costos de una compra.
 
@@ -335,11 +348,14 @@ Representa un cliente.
 Campos conceptuales:
 
 - nombre;
+- tipo de cliente;
 - teléfono;
 - correo opcional;
 - identificación opcional;
 - notas;
 - estado activo/inactivo.
+
+> Nota de implementación: el modelo real (`Customer`) sí tiene un campo `customer_type` (`CustomerType.PERSON` / `CustomerType.COMPANY`, por defecto `PERSON`), además de `display_name`, `phone`, `email`, `identification`, `notes` y los campos de auditoría/activo estándar.
 
 ### InjectorServiceRecord
 
@@ -357,6 +373,8 @@ Campos conceptuales:
 - fecha de recepción;
 - fecha de entrega opcional;
 - usuario responsable.
+
+> Nota de implementación: el modelo real (`InjectorServiceRecord`) **no** tiene campos directos `cliente` ni `número de inyector`. Referencia un `injector` (FK a `Injector`), y es `Injector` quien tiene `customer` (FK a `Customer`) e `injector_number`. Es decir, cliente y número de inyector se obtienen indirectamente vía `injector.customer` e `injector.injector_number`. El campo `status` (`RECEIVED` / `IN_PROGRESS` / `READY` / `DELIVERED` / `CANCELLED`) tampoco aparece en la lista conceptual anterior y es central para el flujo de servicio (acciones `start`, `mark-ready`, `deliver`, `cancel`).
 
 ### InjectorAccessory
 
@@ -431,9 +449,11 @@ Reportes iniciales:
 - compras por proveedor;
 - ventas por rango de fechas;
 - stock por ubicación;
-- productos sin movimiento.
+- top clientes.
 
 Los reportes deben calcularse desde datos normalizados, no desde tablas duplicadas.
+
+> Nota de implementación: los 8 reportes anteriores están implementados como `APIView` en `apps/core/views/reports.py` (expuestos bajo `/api/reports/...`, aunque el código vive en la app `core`, no en una app `reports` separada): `LowStockProductsReportView`, `TopSellingProductsReportView`, `ProductMovementsReportView`, `ProductSupplierPricesReportView`, `PurchasesBySupplierReportView`, `SalesByDateReportView`, `StockByLocationReportView` y `TopCustomersReportView`. El reporte de "productos sin movimiento" mencionado en versiones anteriores de este documento no existe en el código actual; se retiró de la lista hasta que se implemente.
 
 ## Búsqueda universal
 

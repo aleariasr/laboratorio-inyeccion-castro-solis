@@ -29,7 +29,7 @@ En progreso.
 - F16 movimientos y existencias: completada (la pantalla de stock por ubicación existe pero sin entrada en el menú, por solaparse con el filtro de ubicación de Productos).
 - F17 reportes: completada (8 reportes: bajo mínimo, stock por ubicación, movimientos, compras por proveedor, comparación de precios por proveedor, ventas por fecha, productos más vendidos y clientes con más ventas; galería `/reports` con el mismo estilo visual que `/dashboard` y una única entrada "Reportes" en el menú, en vez de una entrada por reporte).
 - F18 documentos: pendiente (fuera de las etiquetas de producto, ya implementadas en F8).
-- F19 administración de usuarios: pendiente.
+- F19 administración de usuarios: implementado.
 - F20 configuración y diagnóstico: pendiente (la pantalla de estado del sistema de F6 ya cubre parte de este alcance).
 - F21 validación real: pendiente.
 - F22 endurecimiento y entrega: pendiente.
@@ -238,30 +238,34 @@ Agregar paginación cambia el formato actual de las respuestas y puede afectar p
 
 Crear la infraestructura interna sobre la cual se construirán todas las pantallas.
 
-## Estructura preliminar
+## Estructura actual
+
+> Nota de implementación: la estructura real de `frontend/src/` difiere de la planeada originalmente
+> abajo. No existen carpetas `hooks/`, `types/` ni `test/` en el nivel superior; la autenticación y los
+> permisos viven bajo `features/auth/` (no `lib/auth/` ni `lib/permissions/`), y no hay una carpeta
+> `lib/keyboard/`. La estructura real es:
 
 ```text
 frontend/src/
-├── app/
+├── app/                    rutas de Next.js: dashboard, inventory, sales, customers,
+│                           injectors, services, users, reports, search, system, login
 ├── components/
-│   ├── ui/
-│   ├── forms/
-│   ├── feedback/
-│   ├── navigation/
-│   └── data-display/
+│   ├── ui/                 button, input, select, textarea, keyboard-shortcut
+│   ├── forms/              field
+│   ├── feedback/           form-error, loading-state, state-panel
+│   ├── navigation/         app-navigation, navigation-config, navigation-permissions, navigation-types
+│   ├── data-display/       pagination
+│   ├── layout/             app-shell
+│   ├── icons/              app-icons (set propio de iconos SVG)
+│   └── branding/           app-logo
 ├── features/
-├── lib/
-│   ├── api/
-│   ├── auth/
-│   ├── keyboard/
-│   ├── permissions/
-│   └── utils/
-├── hooks/
-├── types/
-└── test/
+│   ├── auth/                api, auth-context, permissions, storage, types
+│   ├── customers/ inventory/ sales/ injectors/ services/ search/ system-status/ users/
+└── lib/
+    └── api/                 client, errors, types
 ```
 
-La estructura final debe mantenerse simple. No se crearán carpetas vacías ni abstracciones sin uso real.
+La estructura debe mantenerse simple. No se crean carpetas vacías ni abstracciones sin uso real.
 
 ## Alcance
 
@@ -1105,6 +1109,8 @@ Centralizar documentos imprimibles.
 ---
 
 # Fase F19: administración de usuarios
+
+> Nota de implementación: esta fase está implementada. El backend expone `UserViewSet`/`UserSerializer` y `RoleListView` en `apps/accounts/`, y el frontend tiene las pantallas de usuarios en `frontend/src/app/users/` (listado, `new/` para creación, `[id]/` para edición y gestión de roles).
 
 ## Objetivo
 

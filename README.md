@@ -7,7 +7,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-Frontend-000000?logo=nextdotjs&logoColor=white)
 ![Nginx](https://img.shields.io/badge/Nginx-Proxy-009639?logo=nginx&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-Offline%20Production-FCC624?logo=linux&logoColor=black)
+![Windows](https://img.shields.io/badge/Windows-Offline%20Production-0078D4?logo=windows11&logoColor=white)
 ![ReportLab](https://img.shields.io/badge/PDF-ReportLab-red)
 
 Sistema de gestión empresarial local diseñado para operar completamente offline en una computadora dedicada.
@@ -233,22 +233,30 @@ Administración:
 
 ## Producción
 
-El entorno de producción está orientado a equipos Linux x86_64 utilizando un paquete offline previamente generado.
+El entorno de producción vigente es la app de escritorio nativa para Windows 10/11: un instalador
+`.exe` que prepara una distro WSL2 (Ubuntu 24.04) con Docker Engine y una app Electron que arranca,
+verifica y muestra la interfaz. Las imágenes Docker que corren dentro de esa distro siguen orientadas a
+`linux/amd64` — ver [Despliegue en Windows](infra/windows/README.md) y
+[Cierre de etapa: app de escritorio Windows](docs/windows-desktop-stage-closure.md).
 
 El proceso productivo utiliza:
 
-- imágenes Docker versionadas;
-- instalación automatizada;
+- imágenes Docker versionadas (`linux/amd64`), embebidas en el instalador como imagen dorada;
+- instalación automatizada mediante el instalador `.exe`;
 - generación automática de secretos;
 - configuración independiente de desarrollo;
 - validaciones previas de instalación;
 - comprobaciones automáticas de salud;
-- respaldos automáticos;
+- respaldos automáticos (systemd timer dentro de WSL2, con arranque programado vía tarea de Windows);
 - restauración controlada;
-- actualización offline;
-- rollback.
+- actualización offline (expuesta como botón "Actualizar aplicación" en el menú de la app);
+- rollback (procedimiento manual por WSL, no expuesto como botón).
 
 La instalación productiva no depende del repositorio Git ni de acceso a Internet para operar.
+
+El plan original de despliegue directo sobre un equipo Linux x86_64 dedicado (Ubuntu Desktop/Linux Mint
+en modo kiosco) se mantiene documentado como registro histórico en
+[Despliegue (histórico)](docs/deployment.md), pero ya no es el plan de producción vigente.
 
 ---
 
@@ -291,8 +299,10 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/inventory/import-cost-categories/
     GET /api/inventory/import-costs/
     GET /api/inventory/product-cost-history/
+    GET /api/inventory/stock-movements/
     GET /api/inventory/inventory-counts/
     POST /api/inventory/inventory-counts/{id}/approve/
+    POST /api/inventory/inventory-counts/{id}/cancel/
 
 ## Ventas
 
@@ -353,7 +363,9 @@ Documentos técnicos:
 Documentos operativos:
 
 - [Desarrollo](docs/development.md)
-- [Despliegue](docs/deployment.md)
+- [Despliegue en Windows (vigente)](infra/windows/README.md)
+- [Cierre de etapa: app de escritorio Windows](docs/windows-desktop-stage-closure.md)
+- [Despliegue (histórico, plan Linux/kiosco)](docs/deployment.md)
 - [Backups y restauración](docs/backup-restore.md)
 - [Proceso de actualización](docs/update-process.md)
 - [Seguridad](docs/security.md)

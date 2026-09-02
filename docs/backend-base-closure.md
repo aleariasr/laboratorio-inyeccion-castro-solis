@@ -12,12 +12,14 @@ Este cierre no significa que el backend sea definitivo. Significa que existe una
 
 ## Validación técnica
 
+> **Nota:** Las cifras de esta sección (incluyendo el conteo de tests) son una fotografía puntual tomada en esta etapa de cierre del backend base. El número de tests crece con el proyecto; no debe leerse como el conteo actual, sino como referencia histórica de este hito.
+
 Validaciones ejecutadas antes del cierre:
 
     git status: limpio
     Django check: sin issues
     makemigrations --check --dry-run: sin migraciones pendientes
-    tests backend: 269 tests OK
+    tests backend: 502 tests OK
     build backend Docker: OK
 
 ## Alcance implementado
@@ -264,8 +266,10 @@ Genera PDF de etiquetas con:
     GET /api/inventory/import-cost-categories/
     GET /api/inventory/import-costs/
     GET /api/inventory/product-cost-history/
+    GET /api/inventory/stock-movements/
     GET /api/inventory/inventory-counts/
     POST /api/inventory/inventory-counts/{id}/approve/
+    POST /api/inventory/inventory-counts/{id}/cancel/
 
 ### Ventas
 
@@ -298,6 +302,8 @@ Genera PDF de etiquetas con:
     GET /api/reports/purchases-by-supplier/
     GET /api/reports/sales-by-date/
     GET /api/reports/top-selling-products/
+    GET /api/reports/product-supplier-prices/
+    GET /api/reports/top-customers/
     GET /api/documents/product-labels/
     GET /api/health/
 
