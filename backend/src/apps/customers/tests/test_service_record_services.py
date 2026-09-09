@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
+from apps.customers.exceptions import ServiceMissingPriceError
 from apps.customers.models import (
     Customer,
     CustomerType,
@@ -120,6 +121,9 @@ class ReceiveInjectorServiceTest(TestCase):
             user=self.user,
         )
 
+        record.price = "20000.0000"
+        record.save(update_fields=["price"])
+
         deliver_service(
             service_record=record,
             delivered_at=timezone.now(),
@@ -135,6 +139,37 @@ class ReceiveInjectorServiceTest(TestCase):
 
         self.assertIsNotNone(
             record.delivered_at,
+        )
+
+    def test_cannot_deliver_service_without_price(self):
+        record = receive_injector(
+            injector=self.injector,
+            received_at=timezone.now(),
+            user=self.user,
+        )
+
+        start_service(
+            service_record=record,
+            user=self.user,
+        )
+
+        mark_ready(
+            service_record=record,
+            user=self.user,
+        )
+
+        with self.assertRaises(ServiceMissingPriceError):
+            deliver_service(
+                service_record=record,
+                delivered_at=timezone.now(),
+                user=self.user,
+            )
+
+        record.refresh_from_db()
+
+        self.assertEqual(
+            record.status,
+            InjectorServiceStatus.READY,
         )
 
 

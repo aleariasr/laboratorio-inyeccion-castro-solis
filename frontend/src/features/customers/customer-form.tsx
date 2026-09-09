@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 import type {
   CustomerFormErrors,
@@ -167,7 +168,7 @@ export function CustomerForm({
   function handleCancel(): void {
     if (
       isDirty &&
-      !globalThis.confirm("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
     ) {
       return;
     }

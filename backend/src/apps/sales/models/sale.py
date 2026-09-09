@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from apps.core.models import ActivableModel, AuditModel
+from apps.core.models import ActivableModel, AuditModel, PaymentMethod
 from apps.customers.models import Customer
 from apps.inventory.models import Product
 
@@ -42,6 +42,12 @@ class Sale(AuditModel, ActivableModel):
         max_length=15,
         choices=SaleStatus.choices,
         default=SaleStatus.DRAFT,
+    )
+
+    payment_method = models.CharField(
+        max_length=15,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.CASH,
     )
 
     confirmed_at = models.DateTimeField(

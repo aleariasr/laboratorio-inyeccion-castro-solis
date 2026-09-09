@@ -16,6 +16,11 @@ import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+
+import { getLatestProductCostHistory } from "../purchases/api";
+import { formatMoney } from "../purchases/format";
+import type { ProductCostHistory } from "../purchases/types";
 
 import type {
   ProductFormErrors,
@@ -23,6 +28,7 @@ import type {
   ProductFormValues,
   StorageLocationSummary,
 } from "./types";
+import { VARIANT_KIND_OPTIONS } from "./types";
 import { validateProductForm } from "./validation";
 
 type ProductFormMode =
@@ -31,6 +37,8 @@ type ProductFormMode =
 
 type ProductFormProps = {
   mode: ProductFormMode;
+  productId?: number;
+  token: string;
   initialValues: ProductFormValues;
   locations: StorageLocationSummary[];
   isSubmitting?: boolean;
@@ -54,6 +62,8 @@ function areValuesEqual(
       right.storageLocationId &&
     left.minimumStock === right.minimumStock &&
     left.unitOfMeasure === right.unitOfMeasure &&
+    left.customSalePrice === right.customSalePrice &&
+    left.variantKind === right.variantKind &&
     left.isActive === right.isActive
   );
 }
@@ -70,6 +80,8 @@ function mergeErrors(
 
 export function ProductForm({
   mode,
+  productId,
+  token,
   initialValues,
   locations,
   isSubmitting = false,
@@ -89,6 +101,9 @@ export function ProductForm({
   const [localErrors, setLocalErrors] =
     useState<ProductFormErrors>({});
 
+  const [priceReference, setPriceReference] =
+    useState<ProductCostHistory | null>(null);
+
   const isDirty = useMemo(
     () => !areValuesEqual(values, initialValues),
     [initialValues, values],
@@ -98,6 +113,38 @@ export function ProductForm({
     localErrors,
     serverErrors,
   );
+
+  useEffect(() => {
+    if (mode !== "edit" || !productId) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    getLatestProductCostHistory(
+      token,
+      productId,
+      controller.signal,
+    )
+      .then((history) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setPriceReference(history);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setPriceReference(null);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [mode, productId, token]);
 
   useEffect(() => {
     function handleBeforeUnload(
@@ -230,7 +277,7 @@ export function ProductForm({
   function handleCancel(): void {
     if (
       isDirty &&
-      !globalThis.confirm(
+      !confirmWithFocusRestore(
         "Hay cambios sin guardar. ¿Desea salir y descartarlos?",
       )
     ) {
@@ -249,6 +296,31 @@ export function ProductForm({
     mode === "create"
       ? "Creando producto…"
       : "Guardando cambios…";
+
+  const priceReferenceHint = (() => {
+    if (mode !== "edit") {
+      return undefined;
+    }
+
+    if (
+      !priceReference ||
+      !priceReference.suggested_price
+    ) {
+      return "Sin precio sugerido calculado todavía (se calcula al procesar los costos de una compra). Si lo deja vacío, no habrá precio de venta hasta que calcule uno o lo defina aquí.";
+    }
+
+    const suggestedCrc =
+      priceReference.currency === "USD"
+        ? Number(priceReference.suggested_price) *
+          Number(priceReference.exchange_rate)
+        : Number(priceReference.suggested_price);
+
+    if (!Number.isFinite(suggestedCrc)) {
+      return undefined;
+    }
+
+    return `Sugerido: ₡${formatMoney(suggestedCrc)} (último cálculo, compra del ${priceReference.calculated_at.slice(0, 10)}). Si lo deja vacío, este es el precio que se usa.`;
+  })();
 
   return (
     <form
@@ -333,6 +405,44 @@ export function ProductForm({
               autoComplete="off"
               disabled={isSubmitting}
             />
+          </Field>
+
+          <Field
+            id="variant-kind"
+            label="Tipo de variante"
+            required
+            hint="Si este producto comparte código estándar con otro (original/genérico), sirve para distinguirlos."
+            error={errors.variantKind}
+          >
+            <Select
+              id="variant-kind"
+              name="variantKind"
+              value={values.variantKind}
+              onChange={handleTextChange(
+                "variantKind",
+              )}
+              hasError={
+                Boolean(errors.variantKind)
+              }
+              aria-describedby={[
+                "variant-kind-hint",
+                errors.variantKind
+                  ? "variant-kind-error"
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              disabled={isSubmitting}
+            >
+              {VARIANT_KIND_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                >
+                  {option.label}
+                </option>
+              ))}
+            </Select>
           </Field>
 
           <div className="lg:col-span-2">
@@ -521,6 +631,51 @@ export function ProductForm({
               </span>
             </span>
           </label>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
+        <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
+          <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+            Precio de venta
+          </h2>
+
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Precio que se usa en la lista de productos y en la proforma. Totalmente editable: si lo deja vacío, se usa el último precio sugerido calculado a partir de una compra.
+          </p>
+        </div>
+
+        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-2">
+          <Field
+            id="custom-sale-price"
+            label="Precio de venta"
+            hint={priceReferenceHint}
+            error={errors.customSalePrice}
+          >
+            <Input
+              id="custom-sale-price"
+              name="customSalePrice"
+              value={values.customSalePrice}
+              onChange={handleTextChange(
+                "customSalePrice",
+              )}
+              hasError={
+                Boolean(errors.customSalePrice)
+              }
+              aria-describedby={[
+                "custom-sale-price-hint",
+                errors.customSalePrice
+                  ? "custom-sale-price-error"
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="Vacío = usar el precio sugerido"
+              disabled={isSubmitting}
+            />
+          </Field>
         </div>
       </section>
 

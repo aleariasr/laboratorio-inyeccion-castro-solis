@@ -15,6 +15,7 @@ import { SearchIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
+import { VARIANT_KIND_LABELS } from "@/features/inventory/products/types";
 import { universalSearch } from "@/features/search/api";
 import type {
   UniversalSearchResponse,
@@ -29,7 +30,6 @@ import {
 const EMPTY_RESULTS: UniversalSearchResults = {
   products: [],
   locations: [],
-  product_references: [],
   suppliers: [],
   purchases: [],
   customers: [],
@@ -112,7 +112,6 @@ function getTotalResults(
   return (
     results.products.length +
     results.locations.length +
-    results.product_references.length +
     results.suppliers.length +
     results.purchases.length +
     results.customers.length +
@@ -697,7 +696,9 @@ export default function SearchPage() {
                       <ResultRow
                         key={product.id}
                         eyebrow={
-                          product.standard_code
+                          product.variant_kind === "ORIGINAL"
+                            ? product.standard_code
+                            : `${product.standard_code} · ${VARIANT_KIND_LABELS[product.variant_kind]}`
                         }
                         title={product.name}
                         description={
@@ -747,32 +748,6 @@ export default function SearchPage() {
                           "Sin descripción"
                         }
                         href={`/inventory/locations/${location.id}`}
-                      />
-                    ),
-                  )}
-                </ResultSection>
-
-                <ResultSection
-                  title="Referencias de producto"
-                  count={
-                    results
-                      .product_references
-                      .length
-                  }
-                >
-                  {results.product_references.map(
-                    (reference) => (
-                      <ResultRow
-                        key={reference.id}
-                        eyebrow={
-                          reference.manufacturer ||
-                          "Referencia"
-                        }
-                        title={
-                          reference.reference_code
-                        }
-                        description={`${reference.product.name} · ${reference.product.standard_code}`}
-                        href={`/inventory/products/${reference.product.id}`}
                       />
                     ),
                   )}

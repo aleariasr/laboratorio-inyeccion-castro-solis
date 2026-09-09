@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   useEffect,
   useState,
+  type FormEvent,
 } from "react";
 
 import {
@@ -19,23 +20,22 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import {
-  createProductReference,
+  addProductVariant,
   getProduct,
-  getProductReferences,
   getProductStockMovements,
-  updateProductReference,
-  updateProductReferenceState,
+  getProductVariants,
+  updateProductSalePrice,
 } from "@/features/inventory/products/api";
-import { ProductReferenceForm } from "@/features/inventory/products/product-reference-form";
-import { mapProductReferenceApiFieldErrors } from "@/features/inventory/products/reference-form-errors";
+import { Input } from "@/components/ui/input";
+import { ProductVariantForm } from "@/features/inventory/products/product-variant-form";
+import { mapProductVariantApiFieldErrors } from "@/features/inventory/products/form-errors";
 import {
-  buildProductReferenceWritePayload,
-  EMPTY_PRODUCT_REFERENCE_FORM_VALUES,
-  productReferenceToFormValues,
+  buildProductVariantWritePayload,
+  emptyProductVariantFormValues,
+  VARIANT_KIND_LABELS,
   type Product,
-  type ProductReference,
-  type ProductReferenceFormErrors,
-  type ProductReferenceFormValues,
+  type ProductVariantFormErrors,
+  type ProductVariantFormValues,
   type StockMovement,
 } from "@/features/inventory/products/types";
 import { getLatestProductCostHistory } from "@/features/inventory/purchases/api";
@@ -52,41 +52,37 @@ type LoadState =
   | {
       status: "loading";
       product: null;
-      references: [];
+      variants: [];
       message: null;
     }
   | {
       status: "success";
       product: Product;
-      references: ProductReference[];
+      variants: Product[];
       message: null;
     }
   | {
       status: "not-found" | "forbidden" | "error";
       product: null;
-      references: [];
+      variants: [];
       message: string;
     };
 
-type ReferenceFormState =
-  | {
-      mode: "closed";
-      reference: null;
-    }
-  | {
-      mode: "create";
-      reference: null;
-    }
-  | {
-      mode: "edit";
-      reference: ProductReference;
-    };
+type VariantFormState = {
+  mode: "closed" | "create";
+};
 
-type ReferenceActionState = {
+type VariantActionState = {
   isSubmitting: boolean;
   submitError: string | null;
-  fieldErrors: ProductReferenceFormErrors;
-  pendingStateReferenceId: number | null;
+  fieldErrors: ProductVariantFormErrors;
+};
+
+type SalePriceEditState = {
+  isEditing: boolean;
+  value: string;
+  isSubmitting: boolean;
+  error: string | null;
 };
 
 type MovementLoadState =
@@ -107,6 +103,8 @@ type MovementLoadState =
     };
 
 const MOVEMENTS_PAGE_SIZE = 10;
+
+const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
@@ -195,25 +193,23 @@ export default function ProductDetailPage() {
     useState<LoadState>({
       status: "loading",
       product: null,
-      references: [],
+      variants: [],
       message: null,
     });
   const [
-    referenceFormState,
-    setReferenceFormState,
-  ] = useState<ReferenceFormState>({
+    variantFormState,
+    setVariantFormState,
+  ] = useState<VariantFormState>({
     mode: "closed",
-    reference: null,
   });
 
   const [
-    referenceActionState,
-    setReferenceActionState,
-  ] = useState<ReferenceActionState>({
+    variantActionState,
+    setVariantActionState,
+  ] = useState<VariantActionState>({
     isSubmitting: false,
     submitError: null,
     fieldErrors: {},
-    pendingStateReferenceId: null,
   });
 
   const [
@@ -240,6 +236,14 @@ export default function ProductDetailPage() {
     setCostHistory,
   ] = useState<ProductCostHistory | null>(null);
 
+  const [salePriceState, setSalePriceState] =
+    useState<SalePriceEditState>({
+      isEditing: false,
+      value: "",
+      isSubmitting: false,
+      error: null,
+    });
+
   const productId = Number(params.id);
 
   const hasInventoryAccess =
@@ -247,18 +251,6 @@ export default function ProductDetailPage() {
 
   const hasWriteAccess =
     user ? canWriteProducts(user) : false;
-
-  const referenceFormInitialValues =
-    referenceFormState.mode === "edit"
-      ? productReferenceToFormValues(
-          referenceFormState.reference,
-        )
-      : EMPTY_PRODUCT_REFERENCE_FORM_VALUES;
-
-  const referenceFormKey =
-    referenceFormState.mode === "edit"
-      ? `edit-${referenceFormState.reference.id}`
-      : "create";
 
   const movementTotalPages =
     movementLoadState.status === "success"
@@ -284,24 +276,28 @@ export default function ProductDetailPage() {
 
     const controller = new AbortController();
 
-    Promise.all([
-      getProduct(
-        token,
-        productId,
-        controller.signal,
-      ),
-      getProductReferences(
-        token,
-        productId,
-        controller.signal,
-      ),
-      getLatestProductCostHistory(
-        token,
-        productId,
-        controller.signal,
-      ).catch(() => null),
-    ])
-      .then(([product, references, latestCostHistory]) => {
+    getProduct(
+      token,
+      productId,
+      controller.signal,
+    )
+      .then((product) =>
+        Promise.all([
+          Promise.resolve(product),
+          getProductVariants(
+            token,
+            product.standard_code,
+            product.id,
+            controller.signal,
+          ),
+          getLatestProductCostHistory(
+            token,
+            productId,
+            controller.signal,
+          ).catch(() => null),
+        ]),
+      )
+      .then(([product, variants, latestCostHistory]) => {
         if (controller.signal.aborted) {
           return;
         }
@@ -309,7 +305,7 @@ export default function ProductDetailPage() {
         setLoadState({
           status: "success",
           product,
-          references,
+          variants,
           message: null,
         });
 
@@ -338,7 +334,7 @@ export default function ProductDetailPage() {
           setLoadState({
             status: "forbidden",
             product: null,
-            references: [],
+            variants: [],
             message:
               "Este usuario no tiene permisos para consultar el inventario.",
           });
@@ -353,7 +349,7 @@ export default function ProductDetailPage() {
           setLoadState({
             status: "not-found",
             product: null,
-            references: [],
+            variants: [],
             message:
               "El producto solicitado no existe o ya no está disponible.",
           });
@@ -364,7 +360,7 @@ export default function ProductDetailPage() {
         setLoadState({
           status: "error",
           product: null,
-          references: [],
+          variants: [],
           message: getErrorMessage(error),
         });
       });
@@ -472,114 +468,64 @@ export default function ProductDetailPage() {
     token,
   ]);
 
-  function openCreateReferenceForm(): void {
-    setReferenceActionState({
+  function openCreateVariantForm(): void {
+    setVariantActionState({
       isSubmitting: false,
       submitError: null,
       fieldErrors: {},
-      pendingStateReferenceId: null,
     });
 
-    setReferenceFormState({
+    setVariantFormState({
       mode: "create",
-      reference: null,
     });
   }
 
-  function openEditReferenceForm(
-    reference: ProductReference,
-  ): void {
-    setReferenceActionState({
-      isSubmitting: false,
-      submitError: null,
-      fieldErrors: {},
-      pendingStateReferenceId: null,
-    });
-
-    setReferenceFormState({
-      mode: "edit",
-      reference,
-    });
-  }
-
-  function closeReferenceForm(): void {
-    if (
-      referenceActionState.isSubmitting
-    ) {
+  function closeVariantForm(): void {
+    if (variantActionState.isSubmitting) {
       return;
     }
 
-    setReferenceFormState({
+    setVariantFormState({
       mode: "closed",
-      reference: null,
     });
 
-    setReferenceActionState({
+    setVariantActionState({
       isSubmitting: false,
       submitError: null,
       fieldErrors: {},
-      pendingStateReferenceId: null,
     });
   }
 
-  function updateReferenceInState(
-    updatedReference: ProductReference,
-  ): void {
+  function addVariantToState(newVariant: Product): void {
     setLoadState((current) => {
       if (current.status !== "success") {
         return current;
       }
 
-      const referenceExists =
-        current.references.some(
-          (reference) =>
-            reference.id ===
-            updatedReference.id,
-        );
+      const variants = [...current.variants, newVariant];
 
-      const references = referenceExists
-        ? current.references.map(
-            (reference) =>
-              reference.id ===
-              updatedReference.id
-                ? updatedReference
-                : reference,
-          )
-        : [
-            ...current.references,
-            updatedReference,
-          ];
-
-      references.sort((left, right) =>
-        left.reference_code.localeCompare(
-          right.reference_code,
-          "es",
-          {
-            sensitivity: "base",
-            numeric: true,
-          },
-        ),
+      variants.sort((left, right) =>
+        left.name.localeCompare(right.name, "es", {
+          sensitivity: "base",
+          numeric: true,
+        }),
       );
 
       return {
         ...current,
-        references,
+        variants,
       };
     });
   }
 
-  async function handleReferenceSubmit(
-    values: ProductReferenceFormValues,
+  async function handleVariantSubmit(
+    values: ProductVariantFormValues,
   ): Promise<void> {
-    if (
-      !token ||
-      loadState.status !== "success" ||
-      referenceFormState.mode === "closed"
-    ) {
+    if (!token || loadState.status !== "success") {
       return;
     }
 
-    setReferenceActionState((current) => ({
+    setVariantActionState((current) => ({
       ...current,
       isSubmitting: true,
       submitError: null,
@@ -587,36 +533,24 @@ export default function ProductDetailPage() {
     }));
 
     try {
-      const payload =
-        buildProductReferenceWritePayload(
-          loadState.product.id,
-          values,
-        );
+      const payload = buildProductVariantWritePayload(values);
 
-      const savedReference =
-        referenceFormState.mode === "create"
-          ? await createProductReference(
-              token,
-              payload,
-            )
-          : await updateProductReference(
-              token,
-              referenceFormState.reference.id,
-              payload,
-            );
+      const newVariant = await addProductVariant(
+        token,
+        loadState.product.id,
+        payload,
+      );
 
-      updateReferenceInState(savedReference);
+      addVariantToState(newVariant);
 
-      setReferenceFormState({
+      setVariantFormState({
         mode: "closed",
-        reference: null,
       });
 
-      setReferenceActionState({
+      setVariantActionState({
         isSubmitting: false,
         submitError: null,
         fieldErrors: {},
-        pendingStateReferenceId: null,
       });
     } catch (error: unknown) {
       if (
@@ -632,23 +566,22 @@ export default function ProductDetailPage() {
         error instanceof ApiError &&
         error.status === 403
       ) {
-        setReferenceActionState((current) => ({
+        setVariantActionState((current) => ({
           ...current,
           isSubmitting: false,
           submitError:
-            "Este usuario no tiene permisos para modificar referencias.",
+            "Este usuario no tiene permisos para agregar variantes.",
         }));
 
         return;
       }
 
       if (error instanceof ApiError) {
-        const fieldErrors =
-          mapProductReferenceApiFieldErrors(
-            error.fieldErrors,
-          );
+        const fieldErrors = mapProductVariantApiFieldErrors(
+          error.fieldErrors,
+        );
 
-        setReferenceActionState((current) => ({
+        setVariantActionState((current) => ({
           ...current,
           isSubmitting: false,
           submitError:
@@ -661,7 +594,7 @@ export default function ProductDetailPage() {
         return;
       }
 
-      setReferenceActionState((current) => ({
+      setVariantActionState((current) => ({
         ...current,
         isSubmitting: false,
         submitError: getErrorMessage(error),
@@ -669,60 +602,103 @@ export default function ProductDetailPage() {
     }
   }
 
-  async function handleReferenceStateChange(
-    reference: ProductReference,
-  ): Promise<void> {
-    if (!token) {
+  function openEditSalePrice(): void {
+    if (loadState.status !== "success") {
       return;
     }
 
-    setReferenceActionState((current) => ({
+    setSalePriceState({
+      isEditing: true,
+      value: loadState.product.custom_sale_price ?? "",
+      isSubmitting: false,
+      error: null,
+    });
+  }
+
+  function closeEditSalePrice(): void {
+    if (salePriceState.isSubmitting) {
+      return;
+    }
+
+    setSalePriceState({
+      isEditing: false,
+      value: "",
+      isSubmitting: false,
+      error: null,
+    });
+  }
+
+  async function handleSalePriceSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
+
+    if (!token || loadState.status !== "success") {
+      return;
+    }
+
+    const trimmedValue = salePriceState.value.trim();
+
+    if (
+      trimmedValue &&
+      (!DECIMAL_PATTERN.test(trimmedValue) ||
+        Number(trimmedValue) <= 0)
+    ) {
+      setSalePriceState((current) => ({
+        ...current,
+        error: "Ingrese un precio válido mayor que cero, o déjelo vacío.",
+      }));
+
+      return;
+    }
+
+    setSalePriceState((current) => ({
       ...current,
-      submitError: null,
-      fieldErrors: {},
-      pendingStateReferenceId:
-        reference.id,
+      isSubmitting: true,
+      error: null,
     }));
 
     try {
-      const updatedReference =
-        await updateProductReferenceState(
-          token,
-          reference.id,
-          !reference.is_active,
-        );
-
-      updateReferenceInState(
-        updatedReference,
+      const updatedProduct = await updateProductSalePrice(
+        token,
+        loadState.product.id,
+        trimmedValue ? trimmedValue : null,
       );
 
-      setReferenceActionState((current) => ({
-        ...current,
-        pendingStateReferenceId: null,
-      }));
+      setLoadState((current) => {
+        if (current.status !== "success") {
+          return current;
+        }
+
+        return { ...current, product: updatedProduct };
+      });
+
+      setSalePriceState({
+        isEditing: false,
+        value: "",
+        isSubmitting: false,
+        error: null,
+      });
     } catch (error: unknown) {
-      if (
-        error instanceof ApiError &&
-        error.status === 401
-      ) {
+      if (error instanceof ApiError && error.status === 401) {
         await logout();
         router.replace("/login");
         return;
       }
 
       const message =
-        error instanceof ApiError &&
-        error.status === 403
-          ? "Este usuario no tiene permisos para cambiar el estado de la referencia."
+        error instanceof ApiError && error.status === 403
+          ? "Este usuario no tiene permisos para editar el precio de venta."
           : getErrorMessage(error);
 
-      setReferenceActionState((current) => ({
+      setSalePriceState((current) => ({
         ...current,
-        submitError: message,
-        pendingStateReferenceId: null,
+        isSubmitting: false,
+        error: message,
       }));
     }
   }
+
   function goBack(): void {
     router.back();
   }
@@ -923,6 +899,13 @@ export default function ProductDetailPage() {
 
             <dl className="border-t border-[var(--color-border-soft)]">
               <div className="app-status-row">
+                <dt>Tipo de variante</dt>
+                <dd>
+                  {VARIANT_KIND_LABELS[loadState.product.variant_kind]}
+                </dd>
+              </div>
+
+              <div className="app-status-row">
                 <dt>Ubicación principal</dt>
 
                 <dd>
@@ -1027,6 +1010,93 @@ export default function ProductDetailPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Últimos valores calculados a partir de la compra más reciente con costos aplicados.
             </p>
+
+            <div className="mt-6 rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] p-4 ring-1 ring-[rgb(7_81_132_/_12%)]">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Precio de venta
+                  </p>
+
+                  <p className="mt-2 font-mono text-2xl font-semibold text-foreground">
+                    {loadState.product.effective_sale_price
+                      ? `₡${formatMoney(loadState.product.effective_sale_price)}`
+                      : "No definido"}
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {loadState.product.custom_sale_price
+                      ? "Definido manualmente."
+                      : "Tomado del último precio sugerido calculado en una compra."}
+                  </p>
+                </div>
+
+                {hasWriteAccess && !salePriceState.isEditing && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={openEditSalePrice}
+                  >
+                    Editar
+                  </Button>
+                )}
+              </div>
+
+              {salePriceState.isEditing && (
+                <form
+                  onSubmit={handleSalePriceSubmit}
+                  noValidate
+                  className="mt-4 flex flex-wrap items-start gap-3"
+                >
+                  <div className="min-w-[200px] flex-1">
+                    <Input
+                      id="product-sale-price"
+                      value={salePriceState.value}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+
+                        setSalePriceState((current) => ({
+                          ...current,
+                          value: nextValue,
+                          error: null,
+                        }));
+                      }}
+                      hasError={Boolean(salePriceState.error)}
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="Vacío = usar el precio sugerido"
+                      disabled={salePriceState.isSubmitting}
+                      autoFocus
+                    />
+
+                    {salePriceState.error && (
+                      <p className="mt-1 text-xs text-[var(--color-danger)]">
+                        {salePriceState.error}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      isLoading={salePriceState.isSubmitting}
+                      loadingText="Guardando…"
+                    >
+                      Guardar
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={closeEditSalePrice}
+                      disabled={salePriceState.isSubmitting}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
 
             {costHistory ? (
               <dl className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -1311,81 +1381,67 @@ export default function ProductDetailPage() {
             <div className="flex flex-col gap-4 border-b border-[var(--color-border-soft)] p-6 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
-                  Referencias equivalentes
+                  Variantes de este código
                 </h2>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Códigos comerciales y fabricantes asociados.
+                  Otros productos (original/genérico) que comparten el
+                  código estándar {loadState.product.standard_code} y su
+                  ubicación.
                 </p>
               </div>
 
               {hasWriteAccess &&
-                referenceFormState.mode === "closed" && (
+                variantFormState.mode === "closed" && (
                   <Button
                     type="button"
-                    onClick={openCreateReferenceForm}
+                    onClick={openCreateVariantForm}
                   >
-                    Agregar referencia
+                    Agregar variante
                   </Button>
                 )}
             </div>
 
-            {referenceActionState.submitError &&
-              referenceFormState.mode === "closed" && (
+            {variantActionState.submitError &&
+              variantFormState.mode === "closed" && (
                 <div className="border-b border-[var(--color-border-soft)] p-6">
                   <FormError
-                    message={
-                      referenceActionState.submitError
-                    }
+                    message={variantActionState.submitError}
                   />
                 </div>
               )}
 
-            {referenceFormState.mode !== "closed" && (
+            {variantFormState.mode !== "closed" && (
               <div className="border-b border-[var(--color-border-soft)] bg-surface-muted/40 p-6">
                 <div className="mb-5">
                   <h3 className="text-base font-semibold text-foreground">
-                    {referenceFormState.mode === "create"
-                      ? "Nueva referencia"
-                      : "Editar referencia"}
+                    Nueva variante
                   </h3>
 
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {referenceFormState.mode === "create"
-                      ? "Registre un código comercial o equivalente para este producto."
-                      : "Actualice los datos o el estado de la referencia seleccionada."}
+                    Registre un producto distinto (con su propio precio y
+                    stock) para la misma pieza.
                   </p>
                 </div>
 
-                <ProductReferenceForm
-                  key={referenceFormKey}
-                  mode={referenceFormState.mode}
-                  initialValues={
-                    referenceFormInitialValues
-                  }
-                  isSubmitting={
-                    referenceActionState.isSubmitting
-                  }
-                  submitError={
-                    referenceActionState.submitError
-                  }
-                  serverErrors={
-                    referenceActionState.fieldErrors
-                  }
-                  onSubmit={
-                    handleReferenceSubmit
-                  }
-                  onCancel={
-                    closeReferenceForm
-                  }
+                <ProductVariantForm
+                  parent={loadState.product}
+                  initialValues={emptyProductVariantFormValues(
+                    loadState.product,
+                  )}
+                  isSubmitting={variantActionState.isSubmitting}
+                  submitError={variantActionState.submitError}
+                  serverErrors={variantActionState.fieldErrors}
+                  onSubmit={handleVariantSubmit}
+                  onCancel={closeVariantForm}
                 />
               </div>
             )}
 
-            {loadState.references.length === 0 ? (
+            {loadState.variants.length === 0 ? (
               <div className="p-6">
                 <p className="text-sm text-muted-foreground">
-                  Este producto no tiene referencias equivalentes registradas.
+                  Este producto no tiene otras variantes registradas.
                 </p>
               </div>
             ) : (
@@ -1394,126 +1450,72 @@ export default function ProductDetailPage() {
                   <thead>
                     <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Referencia
+                        Nombre
                       </th>
 
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Fabricante
+                        Tipo
                       </th>
 
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Descripción
+                        Precio
+                      </th>
+
+                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Existencia
                       </th>
 
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Estado
                       </th>
-
-                      {hasWriteAccess && (
-                        <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                          Acciones
-                        </th>
-                      )}
                     </tr>
                   </thead>
 
                   <tbody>
-                    {loadState.references.map(
-                      (reference) => (
-                        <tr
-                          key={reference.id}
-                          className="border-b border-[var(--color-border-soft)] last:border-b-0"
-                        >
-                          <td className="px-5 py-4 font-mono text-sm font-semibold text-foreground">
-                            {reference.reference_code}
-                          </td>
+                    {loadState.variants.map((variant) => (
+                      <tr
+                        key={variant.id}
+                        onClick={() => {
+                          router.push(
+                            `/inventory/products/${variant.id}`,
+                          );
+                        }}
+                        className="cursor-pointer border-b border-[var(--color-border-soft)] last:border-b-0 hover:bg-surface-muted/50"
+                      >
+                        <td className="px-5 py-4 text-sm font-semibold text-foreground">
+                          {variant.name}
+                        </td>
 
-                          <td className="px-5 py-4 text-sm text-foreground">
-                            {reference.manufacturer ||
-                              "Sin fabricante"}
-                          </td>
+                        <td className="px-5 py-4 text-sm text-foreground">
+                          {VARIANT_KIND_LABELS[variant.variant_kind]}
+                        </td>
 
-                          <td className="px-5 py-4 text-sm text-muted-foreground">
-                            {reference.description ||
-                              "Sin descripción"}
-                          </td>
+                        <td className="px-5 py-4 text-sm text-foreground">
+                          {variant.effective_sale_price
+                            ? `₡${formatMoney(
+                                Number(variant.effective_sale_price),
+                              )}`
+                            : "Sin precio"}
+                        </td>
 
-                          <td className="px-5 py-4">
-                            <span
-                              className={[
-                                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                                reference.is_active
-                                  ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
-                                  : "bg-surface-muted text-muted-foreground",
-                              ].join(" ")}
-                            >
-                              {reference.is_active
-                                ? "Activa"
-                                : "Inactiva"}
-                            </span>
-                          </td>
+                        <td className="px-5 py-4 text-sm text-foreground">
+                          {variant.current_stock}
+                        </td>
 
-                          {hasWriteAccess && (
-                            <td className="px-5 py-4">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    openEditReferenceForm(
-                                      reference,
-                                    );
-                                  }}
-                                  disabled={
-                                    referenceActionState.isSubmitting ||
-                                    referenceActionState.pendingStateReferenceId !==
-                                      null
-                                  }
-                                >
-                                  Editar
-                                </Button>
-
-                                <Button
-                                  type="button"
-                                  variant={
-                                    reference.is_active
-                                      ? "danger"
-                                      : "secondary"
-                                  }
-                                  isLoading={
-                                    referenceActionState.pendingStateReferenceId ===
-                                    reference.id
-                                  }
-                                  loadingText={
-                                    reference.is_active
-                                      ? "Inactivando…"
-                                      : "Activando…"
-                                  }
-                                  onClick={() => {
-                                    void handleReferenceStateChange(
-                                      reference,
-                                    );
-                                  }}
-                                  disabled={
-                                    referenceActionState.isSubmitting ||
-                                    (
-                                      referenceActionState.pendingStateReferenceId !==
-                                      null &&
-                                      referenceActionState.pendingStateReferenceId !==
-                                        reference.id
-                                    )
-                                  }
-                                >
-                                  {reference.is_active
-                                    ? "Inactivar"
-                                    : "Activar"}
-                                </Button>
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ),
-                    )}
+                        <td className="px-5 py-4">
+                          <span
+                            className={[
+                              "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                              variant.is_active
+                                ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
+                                : "bg-surface-muted text-muted-foreground",
+                            ].join(" ")}
+                          >
+                            {variant.is_active ? "Activo" : "Inactivo"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

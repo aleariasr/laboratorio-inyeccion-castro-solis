@@ -20,25 +20,35 @@ Estado resumido:
 
     Infraestructura productiva base: completada.
     Backend base: completado.
-    App de escritorio Windows (Electron + WSL2 + Docker Engine): completada.
-    Frontend operativo: login, sesión, navegación, estado del sistema, búsqueda universal, productos,
-    ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores, servicios,
-    conteos físicos, movimientos de inventario, administración de usuarios, reportes y etiquetas PDF
-    implementados. Ver el "Resumen funcional implementado" del README principal para el detalle completo.
+    App de escritorio Windows (Electron + WSL2 + Docker Engine): completada, con dos riesgos de
+    validación todavía abiertos (ver "Pendiente conocido" en windows-production-checklist.md):
+    el endurecimiento de las tareas programadas ocultas (§10.3 de windows-desktop-stage-closure.md)
+    y "Actualizar aplicación" nunca probados con uso real extendido / hardware real.
+    Frontend operativo: login, sesión, navegación, estado del sistema, búsqueda universal, productos
+    (incluye variantes original/genérico bajo un mismo código, §3.6), ubicaciones, proveedores, compras,
+    costos de importación, ventas, clientes, inyectores, servicios, cierre de caja semanal, proforma y
+    facturas internas en PDF, conteos físicos, movimientos de inventario, administración de usuarios,
+    reportes y etiquetas PDF implementados. Ver el "Resumen funcional implementado" del README principal
+    para el detalle completo.
+    Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo el punto §5 (sin contenido
+    concreto todavía — pendiente de que el cliente identifique qué le molesta específicamente del
+    proceso de clientes/servicios).
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: pendiente.
 
 ---
 
-# Próxima versión: backlog de la visita a la empresa (2026-09)
+# Backlog de la visita a la empresa (2026-09) — completado
 
 Ver [`backlog-cliente-2026-09.md`](backlog-cliente-2026-09.md) para el detalle completo,
 verificado contra el código real, de los 20 puntos recogidos en una visita al cliente:
 inductancia/aislamiento en servicios, precio de servicios y "Tipo de Servicio" con histórico,
-accesorios de servicio ligados al inventario real, cierre de caja semanal, proforma, y un
-rediseño estructural del modelo de "referencia" (productos genéricos vs. originales), entre
-otros. Ese documento reemplaza cualquier suposición sobre estos temas hasta que se implementen —
-no se debe empezar ninguno de esos 20 puntos sin volver a leerlo primero.
+accesorios de servicio ligados al inventario real, cierre de caja semanal, proforma y facturas
+internas, y un rediseño estructural del modelo de "referencia" (productos genéricos vs.
+originales), entre otros. Los 19 puntos con contenido concreto están implementados, probados y
+con lint/build limpio. El punto #15 (§5) sigue sin contenido concreto — es una sensación general
+del cliente sobre el proceso de clientes/servicios, sin problema específico identificado todavía;
+no se debe inventar contenido para ese punto, hay que esperar a que el cliente lo precise.
 
 Documentos relacionados:
 
@@ -309,7 +319,7 @@ Documento relacionado:
 
 # Fase 7: frontend operativo mínimo
 
-Estado: en progreso.
+Estado: completada.
 
 Objetivo:
 
@@ -321,19 +331,21 @@ Orden recomendado:
 2. Sesión y logout. Implementado.
 3. Estado del sistema. Implementado.
 4. Búsqueda universal. Implementado.
-5. Productos. Implementado (listado, detalle, creación, edición, referencias, historial de movimientos, generación de etiquetas).
+5. Productos. Implementado (listado, detalle, creación, edición, variantes original/genérico bajo el mismo código §3.6, historial de movimientos, generación de etiquetas).
 6. Ubicaciones. Implementado (listado, detalle, creación, edición).
 7. Proveedores. Implementado (listado, detalle, creación, edición, productos asociados).
-8. Compras. Pendiente.
-9. Ventas. Pendiente.
-10. Clientes. Pendiente.
-11. Inyectores. Pendiente.
-12. Reportes. Pendiente.
+8. Compras. Implementado (listado con filtros, detalle, creación, edición de borrador, líneas, confirmación y anulación).
+9. Ventas. Implementado (listado con filtros, detalle, creación, edición de borrador, líneas, confirmación y anulación, descarga de factura interna).
+10. Clientes. Implementado (listado con filtros, detalle con inyectores y ventas relacionadas, creación y edición).
+11. Inyectores. Implementado (listado, detalle, creación, edición, bandeja de servicios con precio, accesorios reales de inventario y descarga de factura interna).
+12. Reportes. Implementado (8 reportes operativos accesibles desde `/reports`).
 13. Generación de etiquetas PDF. Implementado (desde el listado de productos).
+14. Cierre de caja semanal. Implementado (solo ADMIN por ahora, §2.3).
+15. Proforma. Implementado (desde el listado de productos).
 
-Criterio de avance:
-
-No se busca todavía una interfaz perfecta. Se busca una interfaz funcional, clara y suficientemente estable para validar procesos reales.
+Criterio de avance cumplido: la interfaz cubre todos los flujos operativos del negocio descritos
+en el backlog. Lo que queda es validación con datos y usuarios reales (Fase 8), no construcción de
+pantallas nuevas.
 
 ---
 
@@ -368,25 +380,31 @@ Entregables esperados:
 
 # Fase 9: documentos PDF adicionales
 
-Estado: pendiente.
+Estado: parcialmente completada (2026-09-09).
 
-No debe avanzarse sin validar primero cuáles documentos necesita realmente el negocio.
+Implementado como parte del backlog de la visita al cliente (§2.2, §2.3):
 
-Candidatos:
+- proforma desde el listado de productos (`POST /api/documents/proforma/`), cliente opcional;
+- factura interna descargable para ventas confirmadas (`GET /api/documents/sales/{id}/invoice/`);
+- factura interna descargable para servicios entregados (`GET /api/documents/services/{id}/invoice/`) — un solo renglón por el precio total del servicio (incluye accesorios), con lista informativa de accesorios sin precio aparte para no duplicar el total;
+- **no son comprobantes fiscales/Hacienda** — son comprobantes internos para el cliente, confirmado explícitamente con Alejandro.
+- estilo visual con los colores de marca de la app (banda de encabezado, tabla con encabezado de color, filas zebra, barra de total).
+
+Candidatos todavía sin construir (no debe avanzarse sin validar primero cuáles necesita realmente el negocio):
 
 - catálogo interno de productos;
-- reporte de productos bajo mínimo;
-- reporte de compras;
-- reporte de ventas;
+- reporte de productos bajo mínimo en PDF;
+- reporte de compras en PDF;
+- reporte de ventas en PDF;
 - boleta de recepción de inyector;
 - boleta de entrega de inyector;
-- comparación de precios por proveedor;
-- reporte de historial de movimientos.
+- comparación de precios por proveedor en PDF;
+- reporte de historial de movimientos en PDF.
 
 Base técnica existente:
 
 - app `documents`;
-- ReportLab;
+- ReportLab, con helpers compartidos de dibujo (`_draw_document_banner`, `_draw_customer_info_box`, `_draw_document_footer`, `_build_itemized_document_pdf` en `apps/documents/pdf.py`) reutilizados por proforma y facturas;
 - endpoint inicial de etiquetas;
 - código de barras Code128 real.
 
@@ -429,23 +447,21 @@ Documento relacionado:
 
 # Fase 11: caja y procesos financieros
 
-Estado: pendiente de requerimientos.
+Estado: completada (2026-09-09), como cierre de caja semanal (§2.3 del backlog de la visita).
 
-No debe implementarse por suposición.
+Definido con Alejandro antes de implementar (vía preguntas explícitas, no por suposición):
 
-Debe definirse con el cliente:
+- método de pago por venta/servicio (`PaymentMethod`: efectivo, tarjeta, transferencia, otro — vive en `apps.core.models` porque `apps.customers` no puede importar de `apps.sales`);
+- el cierre suma tanto ventas de producto como servicios de inyector, solo lo pagado en efectivo;
+- semanas de sábado a viernes, cierre realizado los viernes;
+- el total esperado (`expected_cash_total`) se congela al momento de crear el cierre — no se recalcula después;
+- diferencia de efectivo con motivo obligatorio si no cuadra;
+- permisos `view_cash`/`add_cash` **solo para el rol ADMIN por ahora**, decisión explícita de Alejandro ("déjalo solo admin mejor por el momento, cualquier cosa después se cambia") — no extender a otros roles sin que él lo pida de nuevo;
+- sin cuentas por cobrar, sin relación con usuarios más allá de quién registra el cierre — no se pidieron, no se construyeron.
 
-- efectivo;
-- transferencias;
-- cierres;
-- anulaciones;
-- cuentas por cobrar;
-- comprobantes;
-- permisos;
-- reportes;
-- relación con ventas;
-- relación con usuarios;
-- flujo de cierre diario.
+Bug real encontrado y corregido durante la implementación: un servicio podía entregarse sin precio
+definido, y `SUM()` en SQL ignora silenciosamente los `NULL`, así que ese servicio desaparecía del
+total de caja sin ningún error. Ahora `deliver_service()` exige precio antes de permitir la entrega.
 
 ---
 

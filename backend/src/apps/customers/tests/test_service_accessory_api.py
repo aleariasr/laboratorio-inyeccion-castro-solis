@@ -11,11 +11,18 @@ from apps.customers.models import (
     Customer,
     CustomerType,
     Injector,
-    InjectorAccessory,
     InjectorServiceAccessory,
     InjectorServiceRecord,
     InjectorServiceStatus,
 )
+from apps.inventory.models import (
+    MovementDirection,
+    Product,
+    StockMovement,
+    StockMovementType,
+    StorageLocation,
+)
+from apps.inventory.selectors import current_stock
 
 User = get_user_model()
 
@@ -57,18 +64,38 @@ class InjectorServiceAccessoryApiTest(APITestCase):
             updated_by=self.user,
         )
 
-        self.accessory = InjectorAccessory.objects.create(
-            name="Filtro",
+        self.location = StorageLocation.objects.create(
+            code="A101",
             created_by=self.user,
             updated_by=self.user,
         )
 
-    def test_create_service_accessory(self):
+        self.product = Product.objects.create(
+            standard_code="FILTRO-001",
+            name="Filtro de inyector",
+            storage_location=self.location,
+            minimum_stock=1,
+            unit_of_measure="unidad",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        StockMovement.create_from_service(
+            product=self.product,
+            movement_type=StockMovementType.INITIAL,
+            direction=MovementDirection.IN,
+            quantity=5,
+            notes="Inventario inicial de prueba.",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def test_create_service_accessory_discounts_stock(self):
         response = self.client.post(
             "/api/customers/service-accessories/",
             {
                 "service_record": self.service_record.id,
-                "accessory": self.accessory.id,
+                "product": self.product.id,
                 "quantity": 2,
                 "notes": "Incluye filtro",
             },
@@ -81,28 +108,49 @@ class InjectorServiceAccessoryApiTest(APITestCase):
             id=response.data["id"],
         )
 
-        self.assertEqual(
-            service_accessory.service_record,
-            self.service_record,
-        )
-        self.assertEqual(service_accessory.accessory, self.accessory)
+        self.assertEqual(service_accessory.service_record, self.service_record)
+        self.assertEqual(service_accessory.product, self.product)
         self.assertEqual(service_accessory.quantity, 2)
         self.assertEqual(service_accessory.notes, "Incluye filtro")
         self.assertEqual(service_accessory.created_by, self.user)
-        self.assertEqual(service_accessory.updated_by, self.user)
+
+        self.assertEqual(current_stock(self.product), 3)
+
+        movement = StockMovement.objects.get(
+            movement_type=StockMovementType.SERVICE_USE,
+        )
+        self.assertEqual(movement.direction, MovementDirection.OUT)
+        self.assertEqual(movement.quantity, 2)
+        self.assertEqual(movement.service_accessory, service_accessory)
+
+    def test_create_service_accessory_with_insufficient_stock_returns_400(self):
+        response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 10,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(InjectorServiceAccessory.objects.count(), 0)
+        self.assertEqual(current_stock(self.product), 5)
 
     def test_list_service_accessories(self):
-        InjectorServiceAccessory.objects.create(
-            service_record=self.service_record,
-            accessory=self.accessory,
-            quantity=1,
-            created_by=self.user,
-            updated_by=self.user,
+        response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 1,
+            },
+            format="json",
         )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        response = self.client.get(
-            "/api/customers/service-accessories/"
-        )
+        response = self.client.get("/api/customers/service-accessories/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
@@ -110,8 +158,44 @@ class InjectorServiceAccessoryApiTest(APITestCase):
         item = response.data["results"][0]
 
         self.assertEqual(item["service_record"], self.service_record.id)
-        self.assertEqual(item["accessory"], self.accessory.id)
-        self.assertEqual(item["accessory_detail"]["name"], "FILTRO")
+        self.assertEqual(item["product"], self.product.id)
+        self.assertEqual(item["product_detail"]["standard_code"], "FILTRO-001")
+
+    def test_product_detail_includes_effective_sale_price(self):
+        self.product.custom_sale_price = "5000.0000"
+        self.product.save(update_fields=["custom_sale_price"])
+
+        response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.data["product_detail"]["effective_sale_price"],
+            "5000.0000",
+        )
+
+    def test_product_detail_effective_sale_price_is_null_without_price(self):
+        response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(
+            response.data["product_detail"]["effective_sale_price"],
+        )
 
     def test_filter_service_accessories_by_service_record(self):
         other_service_record = InjectorServiceRecord.objects.create(
@@ -121,24 +205,43 @@ class InjectorServiceAccessoryApiTest(APITestCase):
             updated_by=self.user,
         )
 
-        other_accessory = InjectorAccessory.objects.create(
+        other_product = Product.objects.create(
+            standard_code="EMPAQUE-001",
             name="Empaque",
+            storage_location=self.location,
+            minimum_stock=1,
+            unit_of_measure="unidad",
             created_by=self.user,
             updated_by=self.user,
         )
 
-        InjectorServiceAccessory.objects.create(
-            service_record=self.service_record,
-            accessory=self.accessory,
+        StockMovement.create_from_service(
+            product=other_product,
+            movement_type=StockMovementType.INITIAL,
+            direction=MovementDirection.IN,
+            quantity=5,
             created_by=self.user,
             updated_by=self.user,
         )
 
-        InjectorServiceAccessory.objects.create(
-            service_record=other_service_record,
-            accessory=other_accessory,
-            created_by=self.user,
-            updated_by=self.user,
+        self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 1,
+            },
+            format="json",
+        )
+
+        self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": other_service_record.id,
+                "product": other_product.id,
+                "quantity": 1,
+            },
+            format="json",
         )
 
         response = self.client.get(
@@ -156,58 +259,34 @@ class InjectorServiceAccessoryApiTest(APITestCase):
         )
 
     def test_duplicate_service_accessory_returns_400(self):
-        InjectorServiceAccessory.objects.create(
-            service_record=self.service_record,
-            accessory=self.accessory,
-            created_by=self.user,
-            updated_by=self.user,
+        self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 1,
+            },
+            format="json",
         )
 
         response = self.client.post(
             "/api/customers/service-accessories/",
             {
                 "service_record": self.service_record.id,
-                "accessory": self.accessory.id,
+                "product": self.product.id,
                 "quantity": 1,
             },
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
         self.assertEqual(
             InjectorServiceAccessory.objects.filter(
                 service_record=self.service_record,
-                accessory=self.accessory,
+                product=self.product,
             ).count(),
             1,
         )
-
-    def test_update_service_accessory(self):
-        service_accessory = InjectorServiceAccessory.objects.create(
-            service_record=self.service_record,
-            accessory=self.accessory,
-            quantity=1,
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        response = self.client.patch(
-            f"/api/customers/service-accessories/{service_accessory.id}/",
-            {
-                "quantity": 3,
-                "notes": "Actualizado",
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        service_accessory.refresh_from_db()
-
-        self.assertEqual(service_accessory.quantity, 3)
-        self.assertEqual(service_accessory.notes, "Actualizado")
-        self.assertEqual(service_accessory.updated_by, self.user)
 
     def test_cannot_create_accessory_for_delivered_service(self):
         self.service_record.status = InjectorServiceStatus.DELIVERED
@@ -223,7 +302,7 @@ class InjectorServiceAccessoryApiTest(APITestCase):
             "/api/customers/service-accessories/",
             {
                 "service_record": self.service_record.id,
-                "accessory": self.accessory.id,
+                "product": self.product.id,
                 "quantity": 1,
             },
             format="json",
@@ -231,41 +310,102 @@ class InjectorServiceAccessoryApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_cannot_update_accessory_for_cancelled_service(self):
-        service_accessory = InjectorServiceAccessory.objects.create(
-            service_record=self.service_record,
-            accessory=self.accessory,
-            quantity=1,
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        self.service_record.status = InjectorServiceStatus.CANCELLED
-        self.service_record.save(update_fields=["status"])
-
-        response = self.client.patch(
-            f"/api/customers/service-accessories/{service_accessory.id}/",
-            {
-                "quantity": 2,
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        service_accessory.refresh_from_db()
-
-        self.assertEqual(service_accessory.quantity, 1)
-
     def test_quantity_must_be_positive(self):
         response = self.client.post(
             "/api/customers/service-accessories/",
             {
                 "service_record": self.service_record.id,
-                "accessory": self.accessory.id,
+                "product": self.product.id,
                 "quantity": 0,
             },
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_delete_service_accessory_reverses_stock(self):
+        create_response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 2,
+            },
+            format="json",
+        )
+        service_accessory_id = create_response.data["id"]
+
+        self.assertEqual(current_stock(self.product), 3)
+
+        response = self.client.delete(
+            f"/api/customers/service-accessories/{service_accessory_id}/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            InjectorServiceAccessory.objects.filter(id=service_accessory_id).exists()
+        )
+        self.assertEqual(current_stock(self.product), 5)
+
+        reversal = StockMovement.objects.get(
+            movement_type=StockMovementType.REVERSAL,
+        )
+        self.assertEqual(reversal.direction, MovementDirection.IN)
+        self.assertEqual(reversal.quantity, 2)
+        self.assertIsNone(reversal.service_accessory)
+
+    def test_cannot_delete_accessory_for_delivered_service(self):
+        create_response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 1,
+            },
+            format="json",
+        )
+        service_accessory_id = create_response.data["id"]
+
+        self.service_record.status = InjectorServiceStatus.DELIVERED
+        self.service_record.delivered_at = timezone.now()
+        self.service_record.save(
+            update_fields=[
+                "status",
+                "delivered_at",
+            ]
+        )
+
+        response = self.client.delete(
+            f"/api/customers/service-accessories/{service_accessory_id}/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(
+            InjectorServiceAccessory.objects.filter(id=service_accessory_id).exists()
+        )
+        self.assertEqual(current_stock(self.product), 4)
+
+    def test_update_service_accessory_is_not_allowed(self):
+        create_response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 1,
+            },
+            format="json",
+        )
+        service_accessory_id = create_response.data["id"]
+
+        response = self.client.patch(
+            f"/api/customers/service-accessories/{service_accessory_id}/",
+            {
+                "quantity": 3,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )

@@ -3,7 +3,6 @@ from django.db import models
 
 from apps.core.models import AuditModel
 
-from .accessory import InjectorAccessory
 from .service_record import InjectorServiceRecord
 
 
@@ -14,10 +13,10 @@ class InjectorServiceAccessory(AuditModel):
         related_name="accessories",
     )
 
-    accessory = models.ForeignKey(
-        InjectorAccessory,
+    product = models.ForeignKey(
+        "inventory.Product",
         on_delete=models.PROTECT,
-        related_name="service_records",
+        related_name="service_accessories",
     )
 
     quantity = models.PositiveIntegerField(
@@ -41,7 +40,7 @@ class InjectorServiceAccessory(AuditModel):
             models.UniqueConstraint(
                 fields=[
                     "service_record",
-                    "accessory",
+                    "product",
                 ],
                 name="uq_service_accessory",
             )
@@ -50,5 +49,5 @@ class InjectorServiceAccessory(AuditModel):
     def __str__(self):
         return (
             f"{self.service_record} - "
-            f"{self.accessory}"
+            f"{self.product}"
         )

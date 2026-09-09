@@ -1,6 +1,9 @@
 from django.db import transaction
 
-from apps.customers.exceptions import InvalidServiceTransitionError
+from apps.customers.exceptions import (
+    InvalidServiceTransitionError,
+    ServiceMissingPriceError,
+)
 from apps.customers.models import (
     InjectorServiceRecord,
     InjectorServiceStatus,
@@ -85,6 +88,12 @@ def deliver_service(
     delivered_at,
     user,
 ):
+    if service_record.price is None:
+        raise ServiceMissingPriceError(
+            "Debe definir el precio del servicio antes de entregarlo "
+            "(así se cuenta correctamente en el cierre de caja)."
+        )
+
     service_record = _change_status(
         service_record=service_record,
         expected_status=InjectorServiceStatus.READY,

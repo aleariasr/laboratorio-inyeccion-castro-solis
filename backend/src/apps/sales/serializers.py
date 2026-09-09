@@ -114,6 +114,7 @@ class SaleSerializer(serializers.ModelSerializer):
             "currency",
             "exchange_rate",
             "status",
+            "payment_method",
             "confirmed_at",
             "confirmed_by",
             "cancelled_at",

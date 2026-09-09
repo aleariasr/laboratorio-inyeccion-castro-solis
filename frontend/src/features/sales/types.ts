@@ -5,6 +5,22 @@ export type SaleStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
 
 export type Currency = "CRC" | "USD";
 
+export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "OTHER";
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  CASH: "Efectivo",
+  CARD: "Tarjeta",
+  TRANSFER: "Transferencia",
+  OTHER: "Otro",
+};
+
+export const PAYMENT_METHOD_OPTIONS: PaymentMethod[] = [
+  "CASH",
+  "CARD",
+  "TRANSFER",
+  "OTHER",
+];
+
 export type CustomerSummary = {
   id: number;
   customer_type: string;
@@ -36,6 +52,7 @@ export type Sale = {
   currency: Currency;
   exchange_rate: string;
   status: SaleStatus;
+  payment_method: PaymentMethod;
   confirmed_at: string | null;
   confirmed_by: number | null;
   cancelled_at: string | null;
@@ -63,6 +80,7 @@ export type SaleFilters = {
 export type SaleWritePayload = {
   customer: number | null;
   sale_date: string;
+  payment_method: PaymentMethod;
   notes: string;
   is_active: boolean;
 };
@@ -70,6 +88,7 @@ export type SaleWritePayload = {
 export type SaleFormValues = {
   customerId: string;
   saleDate: string;
+  paymentMethod: PaymentMethod;
   notes: string;
   isActive: boolean;
 };
@@ -77,6 +96,7 @@ export type SaleFormValues = {
 export type SaleFormField =
   | "customerId"
   | "saleDate"
+  | "paymentMethod"
   | "notes"
   | "isActive";
 
@@ -85,6 +105,7 @@ export type SaleFormErrors = Partial<Record<SaleFormField, string>>;
 export const EMPTY_SALE_FORM_VALUES: SaleFormValues = {
   customerId: "",
   saleDate: "",
+  paymentMethod: "CASH",
   notes: "",
   isActive: true,
 };
@@ -93,6 +114,7 @@ export function saleToFormValues(sale: Sale): SaleFormValues {
   return {
     customerId: sale.customer ? String(sale.customer) : "",
     saleDate: sale.sale_date,
+    paymentMethod: sale.payment_method,
     notes: sale.notes,
     isActive: sale.is_active,
   };
@@ -104,6 +126,7 @@ export function buildSaleWritePayload(
   return {
     customer: values.customerId ? Number(values.customerId) : null,
     sale_date: values.saleDate,
+    payment_method: values.paymentMethod,
     notes: values.notes.trim(),
     is_active: values.isActive,
   };

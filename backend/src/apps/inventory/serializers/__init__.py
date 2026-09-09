@@ -9,8 +9,8 @@ from .inventory_count import (
     InventoryCountSerializer,
 )
 from .product import (
-    ProductReferenceSerializer,
     ProductSerializer,
+    ProductVariantCreateSerializer,
     StorageLocationSerializer,
 )
 from .purchase import (
@@ -32,8 +32,8 @@ __all__ = [
     "PurchaseCostCalculationSerializer",
     "InventoryCountItemSerializer",
     "InventoryCountSerializer",
-    "ProductReferenceSerializer",
     "ProductSerializer",
+    "ProductVariantCreateSerializer",
     "StorageLocationSerializer",
     "PurchaseItemSerializer",
     "PurchaseSerializer",

@@ -20,6 +20,7 @@ import {
   createSaleItem,
   deleteSaleItem,
   getSale,
+  getSaleInvoicePdf,
   updateSaleItem,
 } from "@/features/sales/api";
 import { mapSaleItemApiFieldErrors } from "@/features/sales/sale-item-form-errors";
@@ -27,6 +28,7 @@ import { SaleItemForm } from "@/features/sales/sale-item-form";
 import {
   buildSaleItemWritePayload,
   EMPTY_SALE_ITEM_FORM_VALUES,
+  PAYMENT_METHOD_LABELS,
   type Sale,
   type SaleItemFormErrors,
   type SaleItemFormValues,
@@ -34,6 +36,7 @@ import {
   type SaleStatus,
 } from "@/features/sales/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 type LoadState =
   | {
@@ -136,6 +139,10 @@ export default function SaleDetailPage() {
     isSubmitting: false,
     error: null,
   });
+
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
   const [cancelActionState, setCancelActionState] = useState<CancelActionState>({
     isOpen: false,
@@ -396,7 +403,7 @@ export default function SaleDetailPage() {
       return;
     }
 
-    if (!globalThis.confirm(`¿Eliminar la línea de ${formatItemLabel(item)}?`)) {
+    if (!confirmWithFocusRestore(`¿Eliminar la línea de ${formatItemLabel(item)}?`)) {
       return;
     }
 
@@ -441,8 +448,8 @@ export default function SaleDetailPage() {
       return;
     }
 
-    if (
-      !globalThis.confirm(
+      if (
+      !confirmWithFocusRestore(
         "¿Confirmar esta venta? Se generará la salida de inventario correspondiente y ya no podrá editarse.",
       )
     ) {
@@ -470,6 +477,49 @@ export default function SaleDetailPage() {
           : getErrorMessage(error);
 
       setConfirmActionState({ isSubmitting: false, error: message });
+    }
+  }
+
+  async function handleDownloadInvoice(): Promise<void> {
+    if (!token || loadState.status !== "success") {
+      return;
+    }
+
+    setIsDownloadingInvoice(true);
+    setInvoiceError(null);
+
+    try {
+      const blob = await getSaleInvoicePdf(token, loadState.sale.id);
+
+      const downloadUrl = URL.createObjectURL(blob);
+
+      const anchor = document.createElement("a");
+
+      anchor.href = downloadUrl;
+      anchor.download = `factura-venta-${loadState.sale.id}.pdf`;
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      globalThis.setTimeout(() => {
+        URL.revokeObjectURL(downloadUrl);
+      }, 1_000);
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      const message =
+        error instanceof ApiError && error.status === 403
+          ? "Este usuario no tiene permisos para descargar la factura."
+          : getErrorMessage(error);
+
+      setInvoiceError(message);
+    } finally {
+      setIsDownloadingInvoice(false);
     }
   }
 
@@ -652,8 +702,22 @@ export default function SaleDetailPage() {
             )}
 
           {loadState.status === "success" &&
-            (loadState.sale.status === "DRAFT" ||
-              loadState.sale.status === "CONFIRMED") &&
+            loadState.sale.status === "CONFIRMED" && (
+              <Button
+                type="button"
+                variant="secondary"
+                isLoading={isDownloadingInvoice}
+                loadingText="Generando…"
+                onClick={() => {
+                  void handleDownloadInvoice();
+                }}
+              >
+                Descargar factura
+              </Button>
+            )}
+
+          {loadState.status === "success" &&
+            loadState.sale.status === "CONFIRMED" &&
             hasCancelAccess &&
             !cancelActionState.isOpen && (
               <Button type="button" variant="danger" onClick={openCancelForm}>
@@ -714,6 +778,8 @@ export default function SaleDetailPage() {
       {loadState.status === "success" && (
         <div className="grid gap-6">
           {confirmActionState.error && <FormError message={confirmActionState.error} />}
+
+          {invoiceError && <FormError message={invoiceError} />}
 
           {cancelActionState.isOpen && (
             <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[rgb(215_0_21_/_18%)]">
@@ -817,6 +883,11 @@ export default function SaleDetailPage() {
               <div className="app-status-row">
                 <dt>Total de la venta</dt>
                 <dd>{formatMoney(loadState.sale.total)} CRC</dd>
+              </div>
+
+              <div className="app-status-row">
+                <dt>Método de pago</dt>
+                <dd>{PAYMENT_METHOD_LABELS[loadState.sale.payment_method]}</dd>
               </div>
 
               {loadState.sale.confirmed_at && (

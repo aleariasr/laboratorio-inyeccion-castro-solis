@@ -1,9 +1,10 @@
 from rest_framework import serializers
 
+from apps.inventory.selectors import effective_sale_price
+
 from apps.customers.models import (
     Customer,
     Injector,
-    InjectorAccessory,
     InjectorServiceRecord,
     InjectorServiceStatus,
 )
@@ -11,10 +12,11 @@ from apps.customers.models import (
 from apps.customers.models import (
     Customer,
     Injector,
-    InjectorAccessory,
     InjectorServiceAccessory,
     InjectorServiceRecord,
     InjectorServiceStatus,
+    ServiceType,
+    ServiceTypePriceHistory,
 )
 
 
@@ -165,9 +167,50 @@ class InjectorSummarySerializer(serializers.ModelSerializer):
         )
 
 
+class ServiceTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceType
+        fields = (
+            "id",
+            "name",
+            "description",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "created_at",
+            "updated_at",
+        )
+
+    def validate_name(self, value):
+        value = value.strip().upper()
+
+        if not value:
+            raise serializers.ValidationError(
+                "El nombre del tipo de servicio es obligatorio."
+            )
+
+        queryset = ServiceType.objects.filter(name=value)
+
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "Ya existe un tipo de servicio con este nombre."
+            )
+
+        return value
+
+
 class InjectorServiceRecordSerializer(serializers.ModelSerializer):
     injector_detail = InjectorSummarySerializer(
         source="injector",
+        read_only=True,
+    )
+    service_type_detail = ServiceTypeSerializer(
+        source="service_type",
         read_only=True,
     )
 
@@ -181,6 +224,12 @@ class InjectorServiceRecordSerializer(serializers.ModelSerializer):
             "delivered_at",
             "resistance",
             "leakage",
+            "inductance",
+            "isolation",
+            "price",
+            "payment_method",
+            "service_type",
+            "service_type_detail",
             "notes_before",
             "notes_after",
             "observations",
@@ -212,55 +261,37 @@ class InjectorServiceRecordSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class InjectorAccessorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InjectorAccessory
-        fields = (
-            "id",
-            "name",
-            "description",
-            "is_active",
-            "created_at",
-            "updated_at",
-        )
-        read_only_fields = (
-            "created_at",
-            "updated_at",
-        )
-
-    def validate_name(self, value):
-        value = value.strip().upper()
-
-        if not value:
-            raise serializers.ValidationError(
-                "El nombre del accesorio es obligatorio."
-            )
-
-        queryset = InjectorAccessory.objects.filter(name=value)
-
-        if self.instance is not None:
-            queryset = queryset.exclude(pk=self.instance.pk)
-
-        if queryset.exists():
-            raise serializers.ValidationError(
-                "Ya existe un accesorio con este nombre."
-            )
-
-        return value
-    
-class InjectorServiceAccessorySerializer(serializers.ModelSerializer):
-    accessory_detail = InjectorAccessorySerializer(
-        source="accessory",
+class ServiceTypePriceHistorySerializer(serializers.ModelSerializer):
+    service_type_detail = ServiceTypeSerializer(
+        source="service_type",
         read_only=True,
     )
+
+    class Meta:
+        model = ServiceTypePriceHistory
+        fields = (
+            "id",
+            "service_type",
+            "service_type_detail",
+            "service_record",
+            "price",
+            "charged_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class InjectorServiceAccessorySerializer(serializers.ModelSerializer):
+    product_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = InjectorServiceAccessory
         fields = (
             "id",
             "service_record",
-            "accessory",
-            "accessory_detail",
+            "product",
+            "product_detail",
             "quantity",
             "notes",
             "created_at",
@@ -271,15 +302,19 @@ class InjectorServiceAccessorySerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
+    def get_product_detail(self, obj):
+        price = effective_sale_price(obj.product)
+
+        return {
+            "id": obj.product_id,
+            "standard_code": obj.product.standard_code,
+            "name": obj.product.name,
+            "effective_sale_price": str(price) if price is not None else None,
+        }
+
     def validate(self, attrs):
-        service_record = attrs.get(
-            "service_record",
-            self.instance.service_record if self.instance else None,
-        )
-        accessory = attrs.get(
-            "accessory",
-            self.instance.accessory if self.instance else None,
-        )
+        service_record = attrs.get("service_record")
+        product = attrs.get("product")
 
         if service_record.status in {
             InjectorServiceStatus.DELIVERED,
@@ -289,17 +324,12 @@ class InjectorServiceAccessorySerializer(serializers.ModelSerializer):
                 "No se pueden modificar accesorios de servicios entregados o anulados."
             )
 
-        queryset = InjectorServiceAccessory.objects.filter(
+        if InjectorServiceAccessory.objects.filter(
             service_record=service_record,
-            accessory=accessory,
-        )
-
-        if self.instance is not None:
-            queryset = queryset.exclude(pk=self.instance.pk)
-
-        if queryset.exists():
+            product=product,
+        ).exists():
             raise serializers.ValidationError(
-                "Este accesorio ya fue registrado en el servicio."
+                "Este producto ya fue registrado como accesorio en el servicio."
             )
 
         return attrs

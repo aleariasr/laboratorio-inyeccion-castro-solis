@@ -1,6 +1,9 @@
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
 from django.db import models
 
-from apps.core.models import ActivableModel, AuditModel
+from apps.core.models import ActivableModel, AuditModel, PaymentMethod
 
 from .injector import Injector
 
@@ -39,6 +42,42 @@ class InjectorServiceRecord(AuditModel, ActivableModel):
         decimal_places=3,
         null=True,
         blank=True,
+    )
+
+    inductance = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+
+    isolation = models.DecimalField(
+        max_digits=8,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+
+    price = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.0001"))],
+    )
+
+    payment_method = models.CharField(
+        max_length=15,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.CASH,
+    )
+
+    service_type = models.ForeignKey(
+        "customers.ServiceType",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="service_records",
     )
 
     notes_before = models.TextField(blank=True)

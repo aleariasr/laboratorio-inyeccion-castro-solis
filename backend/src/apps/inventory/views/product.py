@@ -12,13 +12,12 @@ from apps.core.query_params import (
 )
 from apps.inventory.models import (
     Product,
-    ProductReference,
     StorageLocation,
 )
-from apps.inventory.selectors import current_stock_bulk
+from apps.inventory.selectors import current_stock_bulk, with_latest_suggested_price
 from apps.inventory.serializers import (
-    ProductReferenceSerializer,
     ProductSerializer,
+    ProductVariantCreateSerializer,
     StorageLocationSerializer,
 )
 from apps.inventory.services.product_labels import (
@@ -232,11 +231,17 @@ class ProductViewSet(
     permission_classes = [ProductsPermission]
 
     def get_queryset(self):
-        queryset = current_stock_bulk().select_related(
+        queryset = with_latest_suggested_price(
+            current_stock_bulk(),
+        ).select_related(
             "storage_location",
         )
 
         query = self.request.query_params.get("q", "").strip()
+        standard_code = self.request.query_params.get(
+            "standard_code",
+            "",
+        ).strip()
         storage_location_id = parse_positive_integer_query_param(
             self.request.query_params.get("storage_location"),
             name="storage_location",
@@ -245,6 +250,11 @@ class ProductViewSet(
             self.request.query_params.get("is_active"),
             name="is_active",
         )
+
+        if standard_code:
+            queryset = queryset.filter(
+                standard_code__iexact=standard_code,
+            )
 
         if query:
             queryset = queryset.filter(
@@ -286,7 +296,39 @@ class ProductViewSet(
         serializer.save(
             updated_by=self.request.user,
         )
-    
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="add-variant",
+    )
+    def add_variant(self, request, pk=None):
+        parent = self.get_object()
+
+        serializer = ProductVariantCreateSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        validated_data = dict(serializer.validated_data)
+        validated_data.setdefault(
+            "unit_of_measure",
+            parent.unit_of_measure,
+        )
+
+        variant = Product.objects.create(
+            standard_code=parent.standard_code,
+            storage_location=parent.storage_location,
+            created_by=request.user,
+            updated_by=request.user,
+            **validated_data,
+        )
+
+        return Response(
+            ProductSerializer(variant).data,
+            status=status.HTTP_201_CREATED,
+        )
+
     @action(
         detail=False,
         methods=["post"],
@@ -405,57 +447,4 @@ class ProductViewSet(
             as_attachment=True,
             filename="etiquetas-productos.pdf",
             content_type="application/pdf",
-        )
-
-
-class ProductReferenceViewSet(
-    NonDestructiveDeleteMixin,
-    viewsets.ModelViewSet,
-):
-    serializer_class = ProductReferenceSerializer
-    permission_classes = [ProductsPermission]
-
-    def get_queryset(self):
-        queryset = (
-            ProductReference.objects
-            .select_related("product")
-            .order_by("reference_code")
-        )
-
-        query = self.request.query_params.get("q", "").strip()
-        product_id = parse_positive_integer_query_param(
-            self.request.query_params.get("product"),
-            name="product",
-        )
-        is_active = parse_boolean_query_param(
-            self.request.query_params.get("is_active"),
-            name="is_active",
-        )
-
-        if query:
-            queryset = queryset.filter(
-                Q(reference_code__icontains=query)
-                | Q(manufacturer__icontains=query)
-                | Q(description__icontains=query)
-                | Q(product__standard_code__icontains=query)
-                | Q(product__name__icontains=query)
-            )
-
-        if product_id is not None:
-            queryset = queryset.filter(product_id=product_id)
-
-        if is_active is not None:
-            queryset = queryset.filter(is_active=is_active)
-
-        return queryset
-
-    def perform_create(self, serializer):
-        serializer.save(
-            created_by=self.request.user,
-            updated_by=self.request.user,
-        )
-
-    def perform_update(self, serializer):
-        serializer.save(
-            updated_by=self.request.user,
         )

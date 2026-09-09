@@ -21,13 +21,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import {
+  canReadCustomers,
   canReadProducts,
   canWriteProducts,
 } from "@/features/auth/permissions";
+import { formatMoney } from "@/features/inventory/purchases/format";
 import {
+  createProforma,
   generateProductLabels,
   getProducts,
 } from "@/features/inventory/products/api";
+import { ProformaForm } from "@/features/inventory/products/proforma-form";
+import { VARIANT_KIND_LABELS } from "@/features/inventory/products/types";
 import type {
   Product,
   ProductFilters,
@@ -57,6 +62,20 @@ type LoadState =
     };
 
 type LabelGenerationState =
+  | {
+      status: "idle";
+      message: null;
+    }
+  | {
+      status: "generating";
+      message: null;
+    }
+  | {
+      status: "error";
+      message: string;
+    };
+
+type ProformaState =
   | {
       status: "idle";
       message: null;
@@ -157,11 +176,27 @@ export default function ProductsPage() {
     message: null,
   });
 
+  const [
+    isProformaFormOpen,
+    setIsProformaFormOpen,
+  ] = useState(false);
+
+  const [
+    proformaState,
+    setProformaState,
+  ] = useState<ProformaState>({
+    status: "idle",
+    message: null,
+  });
+
   const hasInventoryAccess =
     user ? canReadProducts(user) : false;
 
   const hasWriteAccess =
     user ? canWriteProducts(user) : false;
+
+  const hasCustomersAccess =
+    user ? canReadCustomers(user) : false;
 
   const visibleProductIds =
     loadState.status === "success"
@@ -589,6 +624,103 @@ export default function ProductsPage() {
     }
   }
 
+  function openProformaForm(): void {
+    setProformaState({
+      status: "idle",
+      message: null,
+    });
+
+    setIsProformaFormOpen(true);
+  }
+
+  function closeProformaForm(): void {
+    if (proformaState.status === "generating") {
+      return;
+    }
+
+    setIsProformaFormOpen(false);
+
+    setProformaState({
+      status: "idle",
+      message: null,
+    });
+  }
+
+  async function handleCreateProforma(
+    customerId: number | null,
+  ): Promise<void> {
+    if (
+      !token ||
+      selectedProductIds.size === 0
+    ) {
+      return;
+    }
+
+    setProformaState({
+      status: "generating",
+      message: null,
+    });
+
+    try {
+      const blob = await createProforma(
+        token,
+        Array.from(selectedProductIds),
+        customerId,
+      );
+
+      const downloadUrl =
+        URL.createObjectURL(blob);
+
+      const anchor =
+        document.createElement("a");
+
+      anchor.href = downloadUrl;
+      anchor.download = "proforma.pdf";
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      globalThis.setTimeout(() => {
+        URL.revokeObjectURL(downloadUrl);
+      }, 1_000);
+
+      setIsProformaFormOpen(false);
+
+      setProformaState({
+        status: "idle",
+        message: null,
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      if (
+        error instanceof ApiError &&
+        error.status === 403
+      ) {
+        setProformaState({
+          status: "error",
+          message:
+            "Este usuario no tiene permisos para crear proformas.",
+        });
+
+        return;
+      }
+
+      setProformaState({
+        status: "error",
+        message: getLoadErrorMessage(error),
+      });
+    }
+  }
+
   if (
     authStatus === "authenticated" &&
     user &&
@@ -799,6 +931,18 @@ export default function ProductsPage() {
                     ? "Generando PDF…"
                     : "Generar etiquetas"}
                 </Button>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={openProformaForm}
+                  disabled={
+                    isProformaFormOpen ||
+                    proformaState.status === "generating"
+                  }
+                >
+                  Crear proforma
+                </Button>
               </div>
             </div>
           )}
@@ -810,6 +954,37 @@ export default function ProductsPage() {
             role="alert"
           >
             {labelGenerationState.message}
+          </div>
+        )}
+
+        {isProformaFormOpen && selectedProductIds.size > 0 && (
+          <div className="border-b border-[var(--color-border-soft)] bg-surface-muted/40 p-6">
+            <div className="mb-5">
+              <h3 className="text-base font-semibold text-foreground">
+                Crear proforma
+              </h3>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                {selectedProductIds.size}{" "}
+                {selectedProductIds.size === 1
+                  ? "producto seleccionado"
+                  : "productos seleccionados"}
+                . El precio de cada producto es el que aparece en la lista.
+              </p>
+            </div>
+
+            <ProformaForm
+              canReadCustomers={hasCustomersAccess}
+              token={token ?? ""}
+              isSubmitting={proformaState.status === "generating"}
+              submitError={
+                proformaState.status === "error"
+                  ? proformaState.message
+                  : null
+              }
+              onSubmit={handleCreateProforma}
+              onCancel={closeProformaForm}
+            />
           </div>
         )}
 
@@ -927,8 +1102,8 @@ export default function ProductsPage() {
                         Mínimo
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Estado
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Precio de venta
                       </th>
                     </tr>
                   </thead>
@@ -993,6 +1168,12 @@ export default function ProductsPage() {
                               <span className="font-mono text-sm font-semibold text-foreground">
                                 {product.standard_code}
                               </span>
+
+                              {product.variant_kind !== "ORIGINAL" && (
+                                <span className="ml-2 inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                                  {VARIANT_KIND_LABELS[product.variant_kind]}
+                                </span>
+                              )}
                             </td>
 
                             <td className="px-5 py-4 align-top">
@@ -1046,29 +1227,18 @@ export default function ProductsPage() {
                               )}
                             </td>
 
-                            <td className="px-5 py-4 align-top">
-                              <span
-                                className={[
-                                  "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold",
-                                  product.is_active
-                                    ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
-                                    : "bg-surface-muted text-muted-foreground",
-                                ].join(" ")}
-                              >
-                                <span
-                                  className={[
-                                    "size-1.5 rounded-full",
-                                    product.is_active
-                                      ? "bg-[var(--color-success)]"
-                                      : "bg-[var(--color-text-subtle)]",
-                                  ].join(" ")}
-                                  aria-hidden="true"
-                                />
-
-                                {product.is_active
-                                  ? "Activo"
-                                  : "Inactivo"}
-                              </span>
+                            <td className="px-5 py-4 text-right align-top">
+                              {product.effective_sale_price ? (
+                                <span className="font-mono text-sm font-semibold text-foreground">
+                                  ₡{formatMoney(
+                                    product.effective_sale_price,
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">
+                                  —
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );

@@ -5,6 +5,7 @@ import type { SaleFormErrors, SaleFormField } from "./types";
 const FIELD_MAP: Record<string, SaleFormField> = {
   customer: "customerId",
   sale_date: "saleDate",
+  payment_method: "paymentMethod",
   notes: "notes",
   is_active: "isActive",
 };

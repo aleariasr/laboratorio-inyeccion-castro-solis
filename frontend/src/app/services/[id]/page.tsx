@@ -11,37 +11,49 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canCancelServices, canReadInjectors, canReadServices, canWriteInjectors, canWriteServices } from "@/features/auth/permissions";
-import { formatDate } from "@/features/inventory/purchases/format";
+import { canCancelServices, canReadProducts, canReadServices, canWriteServices } from "@/features/auth/permissions";
+import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import {
   cancelServiceRecord,
   createServiceAccessory,
   deleteServiceAccessory,
   deliverServiceRecord,
   getServiceAccessories,
+  getServiceInvoicePdf,
   getServiceRecord,
   markServiceRecordReady,
   startServiceRecord,
-  updateServiceAccessory,
+  updateServiceRecordPrice,
   updateServiceRecordTechnicalData,
 } from "@/features/services/api";
-import { mapServiceAccessoryApiFieldErrors, mapServiceRecordTechnicalApiFieldErrors } from "@/features/services/form-errors";
+import {
+  mapServiceAccessoryApiFieldErrors,
+  mapServicePriceApiFieldErrors,
+  mapServiceRecordTechnicalApiFieldErrors,
+} from "@/features/services/form-errors";
 import { ServiceAccessoryForm } from "@/features/services/service-accessory-form";
+import { ServicePriceForm } from "@/features/services/service-price-form";
 import { ServiceTechnicalForm } from "@/features/services/service-technical-form";
 import {
   buildServiceAccessoryWritePayload,
+  buildServicePriceWritePayload,
   buildServiceRecordTechnicalWritePayload,
   EMPTY_SERVICE_ACCESSORY_FORM_VALUES,
+  PAYMENT_METHOD_LABELS,
+  serviceRecordToPriceFormValues,
   serviceRecordToTechnicalFormValues,
   type ServiceAccessory,
   type ServiceAccessoryFormErrors,
   type ServiceAccessoryFormValues,
+  type ServicePriceFormErrors,
+  type ServicePriceFormValues,
   type ServiceRecord,
   type ServiceRecordTechnicalFormErrors,
   type ServiceRecordTechnicalFormValues,
   type ServiceStatus,
 } from "@/features/services/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 type LoadState =
   | {
@@ -63,10 +75,7 @@ type LoadState =
       message: string;
     };
 
-type AccessoryFormState =
-  | { mode: "closed"; accessory: null }
-  | { mode: "create"; accessory: null }
-  | { mode: "edit"; accessory: ServiceAccessory };
+type AccessoryFormState = "closed" | "create";
 
 type AccessoryActionState = {
   isSubmitting: boolean;
@@ -115,7 +124,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 function formatAccessoryLabel(serviceAccessory: ServiceAccessory): string {
-  return serviceAccessory.accessory_detail.name;
+  return `${serviceAccessory.product_detail.standard_code} — ${serviceAccessory.product_detail.name}`;
 }
 
 export default function ServiceDetailPage() {
@@ -141,15 +150,26 @@ export default function ServiceDetailPage() {
     fieldErrors: {},
   });
 
+  const [priceState, setPriceState] = useState<{
+    isSubmitting: boolean;
+    submitError: string | null;
+    fieldErrors: ServicePriceFormErrors;
+  }>({
+    isSubmitting: false,
+    submitError: null,
+    fieldErrors: {},
+  });
+
   const [transitionState, setTransitionState] = useState<TransitionState>({
     pendingAction: null,
     error: null,
   });
 
-  const [accessoryFormState, setAccessoryFormState] = useState<AccessoryFormState>({
-    mode: "closed",
-    accessory: null,
-  });
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
+
+  const [accessoryFormState, setAccessoryFormState] = useState<AccessoryFormState>("closed");
 
   const [accessoryActionState, setAccessoryActionState] = useState<AccessoryActionState>({
     isSubmitting: false,
@@ -164,9 +184,7 @@ export default function ServiceDetailPage() {
 
   const hasWriteAccess = user ? canWriteServices(user) : false;
 
-  const hasInjectorsAccess = user ? canReadInjectors(user) : false;
-
-  const hasInjectorsWriteAccess = user ? canWriteInjectors(user) : false;
+  const hasProductsAccess = user ? canReadProducts(user) : false;
 
   const hasCancelAccess = user ? canCancelServices(user) : false;
 
@@ -176,20 +194,16 @@ export default function ServiceDetailPage() {
     loadState.serviceRecord.status !== "CANCELLED" &&
     hasWriteAccess;
 
-  const accessoryFormInitialValues =
-    accessoryFormState.mode === "edit"
-      ? {
-          accessoryId: String(accessoryFormState.accessory.accessory),
-          quantity: String(accessoryFormState.accessory.quantity),
-          notes: accessoryFormState.accessory.notes,
-        }
-      : EMPTY_SERVICE_ACCESSORY_FORM_VALUES;
-
-  const accessoryFormKey =
-    accessoryFormState.mode === "edit" ? `edit-${accessoryFormState.accessory.id}` : "create";
-
-  const accessoryDisplayLabel =
-    accessoryFormState.mode === "edit" ? formatAccessoryLabel(accessoryFormState.accessory) : undefined;
+  const accessoriesTotal =
+    loadState.status === "success"
+      ? loadState.accessories.reduce(
+          (total, accessory) =>
+            total +
+            Number(accessory.product_detail.effective_sale_price ?? 0) *
+              accessory.quantity,
+          0,
+        )
+      : 0;
 
   useEffect(() => {
     if (
@@ -333,6 +347,68 @@ export default function ServiceDetailPage() {
     }
   }
 
+  async function handlePriceSubmit(
+    values: ServicePriceFormValues,
+  ): Promise<void> {
+    if (!token || loadState.status !== "success") {
+      return;
+    }
+
+    setPriceState({ isSubmitting: true, submitError: null, fieldErrors: {} });
+
+    try {
+      const updated = await updateServiceRecordPrice(
+        token,
+        loadState.serviceRecord.id,
+        buildServicePriceWritePayload(values),
+      );
+
+      setLoadState((current) => {
+        if (current.status !== "success") {
+          return current;
+        }
+
+        return { ...current, serviceRecord: updated };
+      });
+
+      setPriceState({ isSubmitting: false, submitError: null, fieldErrors: {} });
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      if (error instanceof ApiError && error.status === 403) {
+        setPriceState({
+          isSubmitting: false,
+          submitError: "Este usuario no tiene permisos para editar el precio.",
+          fieldErrors: {},
+        });
+
+        return;
+      }
+
+      if (error instanceof ApiError) {
+        const fieldErrors = mapServicePriceApiFieldErrors(error.fieldErrors);
+
+        setPriceState({
+          isSubmitting: false,
+          submitError: Object.keys(fieldErrors).length > 0 ? null : error.message,
+          fieldErrors,
+        });
+
+        return;
+      }
+
+      setPriceState({
+        isSubmitting: false,
+        submitError: getErrorMessage(error),
+        fieldErrors: {},
+      });
+    }
+  }
+
   async function runTransition(
     action: TransitionAction,
     confirmMessage: string | null,
@@ -342,7 +418,7 @@ export default function ServiceDetailPage() {
       return;
     }
 
-    if (confirmMessage && !globalThis.confirm(confirmMessage)) {
+    if (confirmMessage && !confirmWithFocusRestore(confirmMessage)) {
       return;
     }
 
@@ -376,6 +452,49 @@ export default function ServiceDetailPage() {
     }
   }
 
+  async function handleDownloadInvoice(): Promise<void> {
+    if (!token || loadState.status !== "success") {
+      return;
+    }
+
+    setIsDownloadingInvoice(true);
+    setInvoiceError(null);
+
+    try {
+      const blob = await getServiceInvoicePdf(token, loadState.serviceRecord.id);
+
+      const downloadUrl = URL.createObjectURL(blob);
+
+      const anchor = document.createElement("a");
+
+      anchor.href = downloadUrl;
+      anchor.download = `factura-servicio-${loadState.serviceRecord.id}.pdf`;
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      globalThis.setTimeout(() => {
+        URL.revokeObjectURL(downloadUrl);
+      }, 1_000);
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      const message =
+        error instanceof ApiError && error.status === 403
+          ? "Este usuario no tiene permisos para descargar la factura."
+          : getErrorMessage(error);
+
+      setInvoiceError(message);
+    } finally {
+      setIsDownloadingInvoice(false);
+    }
+  }
+
   function openCreateAccessoryForm(): void {
     setAccessoryActionState({
       isSubmitting: false,
@@ -384,18 +503,7 @@ export default function ServiceDetailPage() {
       pendingDeleteId: null,
     });
 
-    setAccessoryFormState({ mode: "create", accessory: null });
-  }
-
-  function openEditAccessoryForm(accessory: ServiceAccessory): void {
-    setAccessoryActionState({
-      isSubmitting: false,
-      submitError: null,
-      fieldErrors: {},
-      pendingDeleteId: null,
-    });
-
-    setAccessoryFormState({ mode: "edit", accessory });
+    setAccessoryFormState("create");
   }
 
   function closeAccessoryForm(): void {
@@ -403,7 +511,7 @@ export default function ServiceDetailPage() {
       return;
     }
 
-    setAccessoryFormState({ mode: "closed", accessory: null });
+    setAccessoryFormState("closed");
 
     setAccessoryActionState({
       isSubmitting: false,
@@ -413,19 +521,13 @@ export default function ServiceDetailPage() {
     });
   }
 
-  function updateAccessoriesInState(updated: ServiceAccessory): void {
+  function addAccessoryToState(created: ServiceAccessory): void {
     setLoadState((current) => {
       if (current.status !== "success") {
         return current;
       }
 
-      const exists = current.accessories.some((item) => item.id === updated.id);
-
-      const accessories = exists
-        ? current.accessories.map((item) => (item.id === updated.id ? updated : item))
-        : [...current.accessories, updated];
-
-      return { ...current, accessories };
+      return { ...current, accessories: [...current.accessories, created] };
     });
   }
 
@@ -443,7 +545,7 @@ export default function ServiceDetailPage() {
   }
 
   async function handleAccessorySubmit(values: ServiceAccessoryFormValues): Promise<void> {
-    if (!token || loadState.status !== "success" || accessoryFormState.mode === "closed") {
+    if (!token || loadState.status !== "success" || accessoryFormState !== "create") {
       return;
     }
 
@@ -455,20 +557,14 @@ export default function ServiceDetailPage() {
     }));
 
     try {
-      const saved =
-        accessoryFormState.mode === "create"
-          ? await createServiceAccessory(
-              token,
-              buildServiceAccessoryWritePayload(loadState.serviceRecord.id, values),
-            )
-          : await updateServiceAccessory(token, accessoryFormState.accessory.id, {
-              quantity: Number(values.quantity),
-              notes: values.notes.trim(),
-            });
+      const created = await createServiceAccessory(
+        token,
+        buildServiceAccessoryWritePayload(loadState.serviceRecord.id, values),
+      );
 
-      updateAccessoriesInState(saved);
+      addAccessoryToState(created);
 
-      setAccessoryFormState({ mode: "closed", accessory: null });
+      setAccessoryFormState("closed");
 
       setAccessoryActionState({
         isSubmitting: false,
@@ -519,7 +615,7 @@ export default function ServiceDetailPage() {
       return;
     }
 
-    if (!globalThis.confirm(`¿Eliminar el accesorio ${formatAccessoryLabel(accessory)}?`)) {
+    if (!confirmWithFocusRestore(`¿Eliminar el accesorio ${formatAccessoryLabel(accessory)}?`)) {
       return;
     }
 
@@ -653,6 +749,12 @@ export default function ServiceDetailPage() {
               type="button"
               isLoading={transitionState.pendingAction === "deliver"}
               loadingText="Entregando…"
+              disabled={loadState.serviceRecord.price === null}
+              title={
+                loadState.serviceRecord.price === null
+                  ? "Defina el precio del servicio antes de entregarlo, para que se cuente en el cierre de caja."
+                  : undefined
+              }
               onClick={() => {
                 void runTransition(
                   "deliver",
@@ -662,6 +764,20 @@ export default function ServiceDetailPage() {
               }}
             >
               Entregar
+            </Button>
+          )}
+
+          {loadState.status === "success" && loadState.serviceRecord.status === "DELIVERED" && (
+            <Button
+              type="button"
+              variant="secondary"
+              isLoading={isDownloadingInvoice}
+              loadingText="Generando…"
+              onClick={() => {
+                void handleDownloadInvoice();
+              }}
+            >
+              Descargar factura
             </Button>
           )}
 
@@ -741,6 +857,8 @@ export default function ServiceDetailPage() {
         <div className="grid gap-6">
           {transitionState.error && <FormError message={transitionState.error} />}
 
+          {invoiceError && <FormError message={invoiceError} />}
+
           <section className="app-status-card overflow-hidden">
             <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -801,6 +919,72 @@ export default function ServiceDetailPage() {
           <section className="app-status-card overflow-hidden">
             <div className="border-b border-[var(--color-border-soft)] p-6">
               <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+                Precio del servicio
+              </h2>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                {canManage
+                  ? "Tipo de servicio y precio cobrado."
+                  : "Este servicio ya no admite modificaciones."}
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-6 rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] p-4 ring-1 ring-[rgb(7_81_132_/_12%)]">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    Precio del servicio
+                  </p>
+
+                  <p className="font-mono text-2xl font-semibold text-foreground">
+                    {loadState.serviceRecord.price
+                      ? `₡${formatMoney(loadState.serviceRecord.price)}`
+                      : "No definido"}
+                  </p>
+                </div>
+
+                {accessoriesTotal > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Incluye ₡{formatMoney(accessoriesTotal)} en productos usados
+                    (ver tabla de accesorios abajo).
+                  </p>
+                )}
+              </div>
+
+              {canManage ? (
+                <ServicePriceForm
+                  key={loadState.serviceRecord.id}
+                  initialValues={serviceRecordToPriceFormValues(loadState.serviceRecord)}
+                  canReadServiceTypes={hasCustomersAccess}
+                  canWriteServiceTypes={hasWriteAccess}
+                  accessoriesTotal={accessoriesTotal}
+                  token={token ?? ""}
+                  isSubmitting={priceState.isSubmitting}
+                  submitError={priceState.submitError}
+                  serverErrors={priceState.fieldErrors}
+                  onSubmit={handlePriceSubmit}
+                />
+              ) : (
+                <dl>
+                  <div className="app-status-row">
+                    <dt>Tipo de servicio</dt>
+                    <dd>{loadState.serviceRecord.service_type_detail?.name ?? "—"}</dd>
+                  </div>
+
+                  <div className="app-status-row">
+                    <dt>Método de pago</dt>
+                    <dd>
+                      {PAYMENT_METHOD_LABELS[loadState.serviceRecord.payment_method]}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+            </div>
+          </section>
+
+          <section className="app-status-card overflow-hidden">
+            <div className="border-b border-[var(--color-border-soft)] p-6">
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
                 Datos técnicos
               </h2>
 
@@ -834,6 +1018,16 @@ export default function ServiceDetailPage() {
                   </div>
 
                   <div className="app-status-row">
+                    <dt>Inductancia</dt>
+                    <dd>{loadState.serviceRecord.inductance ?? "—"}</dd>
+                  </div>
+
+                  <div className="app-status-row">
+                    <dt>Aislamiento</dt>
+                    <dd>{loadState.serviceRecord.isolation ?? "—"}</dd>
+                  </div>
+
+                  <div className="app-status-row">
                     <dt>Notas antes</dt>
                     <dd>{loadState.serviceRecord.notes_before || "—"}</dd>
                   </div>
@@ -860,38 +1054,33 @@ export default function ServiceDetailPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Piezas usadas durante el servicio.
+                  Piezas del inventario usadas durante el servicio. Al agregarlas se descuenta el
+                  stock; al eliminarlas se revierte el movimiento.
                 </p>
               </div>
 
-              {canManage && accessoryFormState.mode === "closed" && (
+              {canManage && accessoryFormState === "closed" && (
                 <Button type="button" onClick={openCreateAccessoryForm}>
                   Agregar accesorio
                 </Button>
               )}
             </div>
 
-            {accessoryActionState.submitError && accessoryFormState.mode === "closed" && (
+            {accessoryActionState.submitError && accessoryFormState === "closed" && (
               <div className="border-b border-[var(--color-border-soft)] p-6">
                 <FormError message={accessoryActionState.submitError} />
               </div>
             )}
 
-            {accessoryFormState.mode !== "closed" && (
+            {accessoryFormState === "create" && (
               <div className="border-b border-[var(--color-border-soft)] bg-surface-muted/40 p-6">
                 <div className="mb-5">
-                  <h3 className="text-base font-semibold text-foreground">
-                    {accessoryFormState.mode === "create" ? "Agregar accesorio" : "Editar accesorio"}
-                  </h3>
+                  <h3 className="text-base font-semibold text-foreground">Agregar accesorio</h3>
                 </div>
 
                 <ServiceAccessoryForm
-                  key={accessoryFormKey}
-                  canReadInjectors={hasInjectorsAccess}
-                  canWriteInjectors={hasInjectorsWriteAccess}
-                  mode={accessoryFormState.mode}
-                  initialValues={accessoryFormInitialValues}
-                  accessoryDisplayLabel={accessoryDisplayLabel}
+                  canReadProducts={hasProductsAccess}
+                  initialValues={EMPTY_SERVICE_ACCESSORY_FORM_VALUES}
                   token={token ?? ""}
                   isSubmitting={accessoryActionState.isSubmitting}
                   submitError={accessoryActionState.submitError}
@@ -914,7 +1103,7 @@ export default function ServiceDetailPage() {
                   <thead>
                     <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Accesorio
+                        Producto
                       </th>
 
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -940,7 +1129,7 @@ export default function ServiceDetailPage() {
                         className="border-b border-[var(--color-border-soft)] last:border-b-0"
                       >
                         <td className="px-5 py-4 text-sm font-semibold text-foreground">
-                          {accessory.accessory_detail.name}
+                          {accessory.product_detail.standard_code} — {accessory.product_detail.name}
                         </td>
 
                         <td className="px-5 py-4 text-sm text-foreground">{accessory.quantity}</td>
@@ -952,20 +1141,6 @@ export default function ServiceDetailPage() {
                         {canManage && (
                           <td className="px-5 py-4">
                             <div className="flex justify-end gap-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => {
-                                  openEditAccessoryForm(accessory);
-                                }}
-                                disabled={
-                                  accessoryActionState.isSubmitting ||
-                                  accessoryActionState.pendingDeleteId !== null
-                                }
-                              >
-                                Editar
-                              </Button>
-
                               <Button
                                 type="button"
                                 variant="danger"

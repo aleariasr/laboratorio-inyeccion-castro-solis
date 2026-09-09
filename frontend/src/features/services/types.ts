@@ -1,4 +1,7 @@
-import type { CustomerSummary } from "../sales/types";
+import type { CustomerSummary, PaymentMethod } from "../sales/types";
+
+export type { PaymentMethod };
+export { PAYMENT_METHOD_LABELS, PAYMENT_METHOD_OPTIONS } from "../sales/types";
 
 export type ServiceStatus =
   | "RECEIVED"
@@ -24,6 +27,12 @@ export type ServiceRecord = {
   delivered_at: string | null;
   resistance: string | null;
   leakage: string | null;
+  inductance: string | null;
+  isolation: string | null;
+  price: string | null;
+  payment_method: PaymentMethod;
+  service_type: number | null;
+  service_type_detail: ServiceType | null;
   notes_before: string;
   notes_after: string;
   observations: string;
@@ -78,6 +87,8 @@ export function buildServiceRecordCreatePayload(
 export type ServiceRecordTechnicalWritePayload = {
   resistance: string;
   leakage: string;
+  inductance: string;
+  isolation: string;
   notes_before: string;
   notes_after: string;
   observations: string;
@@ -86,6 +97,8 @@ export type ServiceRecordTechnicalWritePayload = {
 export type ServiceRecordTechnicalFormValues = {
   resistance: string;
   leakage: string;
+  inductance: string;
+  isolation: string;
   notesBefore: string;
   notesAfter: string;
   observations: string;
@@ -94,6 +107,8 @@ export type ServiceRecordTechnicalFormValues = {
 export type ServiceRecordTechnicalFormField =
   | "resistance"
   | "leakage"
+  | "inductance"
+  | "isolation"
   | "notesBefore"
   | "notesAfter"
   | "observations";
@@ -106,6 +121,8 @@ export function serviceRecordToTechnicalFormValues(
   return {
     resistance: serviceRecord.resistance ?? "",
     leakage: serviceRecord.leakage ?? "",
+    inductance: serviceRecord.inductance ?? "",
+    isolation: serviceRecord.isolation ?? "",
     notesBefore: serviceRecord.notes_before,
     notesAfter: serviceRecord.notes_after,
     observations: serviceRecord.observations,
@@ -118,31 +135,88 @@ export function buildServiceRecordTechnicalWritePayload(
   return {
     resistance: values.resistance.trim(),
     leakage: values.leakage.trim(),
+    inductance: values.inductance.trim(),
+    isolation: values.isolation.trim(),
     notes_before: values.notesBefore.trim(),
     notes_after: values.notesAfter.trim(),
     observations: values.observations.trim(),
   };
 }
 
-// Accesorios: catálogo global (InjectorAccessory)
-export type Accessory = {
+// Precio del servicio (tipo de servicio + precio + método de pago, en su propio cuadro)
+export type ServicePriceWritePayload = {
+  price: string;
+  payment_method: PaymentMethod;
+  service_type: number | null;
+};
+
+export type ServicePriceFormValues = {
+  price: string;
+  paymentMethod: PaymentMethod;
+  serviceTypeId: string;
+};
+
+export type ServicePriceFormField = "price" | "paymentMethod" | "serviceTypeId";
+
+export type ServicePriceFormErrors = Partial<Record<ServicePriceFormField, string>>;
+
+export function serviceRecordToPriceFormValues(
+  serviceRecord: ServiceRecord,
+): ServicePriceFormValues {
+  return {
+    price: serviceRecord.price ?? "",
+    paymentMethod: serviceRecord.payment_method,
+    serviceTypeId: serviceRecord.service_type ? String(serviceRecord.service_type) : "",
+  };
+}
+
+export function buildServicePriceWritePayload(
+  values: ServicePriceFormValues,
+): ServicePriceWritePayload {
+  return {
+    price: values.price.trim(),
+    payment_method: values.paymentMethod,
+    service_type: values.serviceTypeId ? Number(values.serviceTypeId) : null,
+  };
+}
+
+// Tipo de servicio: catálogo global (ServiceType)
+export type ServiceType = {
   id: number;
   name: string;
   description: string;
   is_active: boolean;
 };
 
-export type AccessoryWritePayload = {
+export type ServiceTypeWritePayload = {
   name: string;
   description: string;
 };
 
-// Línea de accesorio utilizado en un servicio (InjectorServiceAccessory)
+export type ServiceTypePriceHistory = {
+  id: number;
+  service_type: number;
+  service_type_detail: ServiceType;
+  service_record: number;
+  price: string;
+  charged_at: string;
+};
+
+// Línea de accesorio utilizado en un servicio (InjectorServiceAccessory).
+// El accesorio es un producto real del inventario: al agregarlo se
+// descuenta stock, y al eliminarlo se revierte el movimiento.
+export type ServiceAccessoryProductDetail = {
+  id: number;
+  standard_code: string;
+  name: string;
+  effective_sale_price: string | null;
+};
+
 export type ServiceAccessory = {
   id: number;
   service_record: number;
-  accessory: number;
-  accessory_detail: Accessory;
+  product: number;
+  product_detail: ServiceAccessoryProductDetail;
   quantity: number;
   notes: string;
   created_at: string;
@@ -151,23 +225,23 @@ export type ServiceAccessory = {
 
 export type ServiceAccessoryWritePayload = {
   service_record: number;
-  accessory: number;
+  product: number;
   quantity: number;
   notes: string;
 };
 
 export type ServiceAccessoryFormValues = {
-  accessoryId: string;
+  productId: string;
   quantity: string;
   notes: string;
 };
 
-export type ServiceAccessoryFormField = "accessoryId" | "quantity" | "notes";
+export type ServiceAccessoryFormField = "productId" | "quantity" | "notes";
 
 export type ServiceAccessoryFormErrors = Partial<Record<ServiceAccessoryFormField, string>>;
 
 export const EMPTY_SERVICE_ACCESSORY_FORM_VALUES: ServiceAccessoryFormValues = {
-  accessoryId: "",
+  productId: "",
   quantity: "1",
   notes: "",
 };
@@ -178,7 +252,7 @@ export function buildServiceAccessoryWritePayload(
 ): ServiceAccessoryWritePayload {
   return {
     service_record: serviceRecordId,
-    accessory: Number(values.accessoryId),
+    product: Number(values.productId),
     quantity: Number(values.quantity),
     notes: values.notes.trim(),
   };

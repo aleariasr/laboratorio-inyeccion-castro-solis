@@ -3,6 +3,8 @@ import type { ApiFieldErrors } from "@/lib/api/types";
 import type {
   ServiceAccessoryFormErrors,
   ServiceAccessoryFormField,
+  ServicePriceFormErrors,
+  ServicePriceFormField,
   ServiceRecordCreateFormErrors,
   ServiceRecordCreateFormField,
   ServiceRecordTechnicalFormErrors,
@@ -34,6 +36,8 @@ export function mapServiceRecordCreateApiFieldErrors(
 const TECHNICAL_FIELD_MAP: Record<string, ServiceRecordTechnicalFormField> = {
   resistance: "resistance",
   leakage: "leakage",
+  inductance: "inductance",
+  isolation: "isolation",
   notes_before: "notesBefore",
   notes_after: "notesAfter",
   observations: "observations",
@@ -56,8 +60,31 @@ export function mapServiceRecordTechnicalApiFieldErrors(
   return mappedErrors;
 }
 
+const PRICE_FIELD_MAP: Record<string, ServicePriceFormField> = {
+  price: "price",
+  payment_method: "paymentMethod",
+  service_type: "serviceTypeId",
+};
+
+export function mapServicePriceApiFieldErrors(
+  fieldErrors: ApiFieldErrors,
+): ServicePriceFormErrors {
+  const mappedErrors: ServicePriceFormErrors = {};
+
+  for (const [apiField, messages] of Object.entries(fieldErrors)) {
+    const formField = PRICE_FIELD_MAP[apiField];
+    const firstMessage = messages[0];
+
+    if (formField && firstMessage) {
+      mappedErrors[formField] = firstMessage;
+    }
+  }
+
+  return mappedErrors;
+}
+
 const SERVICE_ACCESSORY_FIELD_MAP: Record<string, ServiceAccessoryFormField> = {
-  accessory: "accessoryId",
+  product: "productId",
   quantity: "quantity",
   notes: "notes",
 };

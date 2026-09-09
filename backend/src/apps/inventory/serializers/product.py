@@ -1,25 +1,23 @@
-from django.core.validators import RegexValidator
 from rest_framework import serializers
 
 from apps.inventory.models import (
     Product,
-    ProductReference,
     StorageLocation,
 )
-from apps.inventory.selectors import current_stock
-
-
-LOCATION_CODE_VALIDATOR = RegexValidator(
-    regex=r"^[A-Z][1-9][0-9]{0,3}$",
-    message="El código de ubicación debe tener un formato como A124.",
+from apps.inventory.models.product import LOCATION_CODE_VALIDATOR
+from apps.inventory.selectors import (
+    current_stock,
+    effective_sale_price,
+    latest_suggested_price,
+    variant_family,
 )
 
 
 class StorageLocationSerializer(serializers.ModelSerializer):
     code = serializers.CharField(
-        max_length=5,
+        max_length=10,
         validators=[],
-        help_text="Ejemplo: A124",
+        help_text="Letras y números, sin espacios. Ejemplo: A124 o BODEGA1.",
     )
 
     class Meta:
@@ -91,6 +89,8 @@ class StorageLocationSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     current_stock = serializers.SerializerMethodField()
+    latest_suggested_price = serializers.SerializerMethodField()
+    effective_sale_price = serializers.SerializerMethodField()
     storage_location_detail = StorageLocationSerializer(
         source="storage_location",
         read_only=True,
@@ -108,6 +108,10 @@ class ProductSerializer(serializers.ModelSerializer):
             "minimum_stock",
             "unit_of_measure",
             "current_stock",
+            "custom_sale_price",
+            "latest_suggested_price",
+            "effective_sale_price",
+            "variant_kind",
             "is_active",
             "created_at",
             "updated_at",
@@ -116,6 +120,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "current_stock",
+            "latest_suggested_price",
+            "effective_sale_price",
         )
         extra_kwargs = {
             "standard_code": {
@@ -213,6 +219,23 @@ class ProductSerializer(serializers.ModelSerializer):
                 }
             )
 
+        location_is_changing = (
+            "storage_location" in attrs
+            and resulting_location != self.instance.storage_location
+        )
+
+        if location_is_changing:
+            if variant_family(self.instance).exists():
+                raise serializers.ValidationError(
+                    {
+                        "storage_location": (
+                            "Este producto comparte código con otras "
+                            "variantes; todas deben permanecer en la "
+                            "misma ubicación."
+                        )
+                    }
+                )
+
         return attrs
 
     def get_current_stock(self, obj):
@@ -221,48 +244,65 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return current_stock(obj)
 
+    def get_latest_suggested_price(self, obj):
+        if hasattr(obj, "latest_suggested_price"):
+            value = obj.latest_suggested_price
+        else:
+            value = latest_suggested_price(obj)
 
-class ProductReferenceSerializer(serializers.ModelSerializer):
-    product_detail = serializers.SerializerMethodField()
+        return str(value) if value is not None else None
+
+    def get_effective_sale_price(self, obj):
+        value = effective_sale_price(obj)
+
+        return str(value) if value is not None else None
+
+
+class ProductVariantCreateSerializer(serializers.ModelSerializer):
+    """
+    Crea una nueva variante (original/genérico/otro) de un producto
+    existente. standard_code y storage_location NO son campos de
+    este serializer: siempre se heredan del producto padre en la
+    vista (ProductViewSet.add_variant), así es imposible crear una
+    variante con código o ubicación distintos de su familia.
+    """
+
+    # Declarado explícito (sin usar el default="unidad" del modelo):
+    # si no se manda, la vista lo completa con el unit_of_measure del
+    # producto padre, no con el default genérico del modelo.
+    unit_of_measure = serializers.CharField(required=False)
 
     class Meta:
-        model = ProductReference
+        model = Product
         fields = (
             "id",
-            "product",
-            "product_detail",
-            "manufacturer",
-            "reference_code",
+            "name",
             "description",
-            "is_active",
-            "created_at",
-            "updated_at",
-        )
-        read_only_fields = (
-            "created_at",
-            "updated_at",
+            "variant_kind",
+            "unit_of_measure",
+            "minimum_stock",
+            "custom_sale_price",
         )
 
-    def validate_reference_code(self, value):
-        value = value.strip()
+    def validate_name(self, value):
+        normalized_name = value.strip()
 
-        if not value:
+        if not normalized_name:
             raise serializers.ValidationError(
-                "El código de referencia es obligatorio."
+                "El nombre del producto es obligatorio."
             )
 
-        return value.upper()
-
-    def validate_manufacturer(self, value):
-        return value.strip()
+        return normalized_name
 
     def validate_description(self, value):
         return value.strip()
 
-    def get_product_detail(self, obj):
-        return {
-            "id": obj.product_id,
-            "standard_code": obj.product.standard_code,
-            "name": obj.product.name,
-            "description": obj.product.description,
-        }
+    def validate_unit_of_measure(self, value):
+        normalized_unit = value.strip().lower()
+
+        if not normalized_unit:
+            raise serializers.ValidationError(
+                "La unidad de medida es obligatoria."
+            )
+
+        return normalized_unit

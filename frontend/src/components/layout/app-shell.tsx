@@ -3,6 +3,8 @@
 import { usePathname, useRouter } from "next/navigation";
 import {
   useEffect,
+  useLayoutEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -16,6 +18,7 @@ import {
 } from "@/components/icons/app-icons";
 import { AppNavigation } from "@/components/navigation/app-navigation";
 import { useAuth } from "@/features/auth/auth-context";
+import { readSidebarScrollTop, writeSidebarScrollTop } from "@/lib/dom/sidebar-scroll-storage";
 
 type AppShellProps = Readonly<{
   title: string;
@@ -90,6 +93,16 @@ export function AppShell({
       );
     };
   }, [isMobileMenuOpen]);
+
+  const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const node = sidebarScrollRef.current;
+
+    if (node) {
+      node.scrollTop = readSidebarScrollTop();
+    }
+  }, []);
 
   if (
     status !== "authenticated" ||
@@ -209,7 +222,13 @@ export function AppShell({
 
       <aside className="app-sidebar hidden md:flex">
         <div className="flex min-h-0 flex-1 flex-col px-4 py-6">
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            ref={sidebarScrollRef}
+            onScroll={(event) => {
+              writeSidebarScrollTop(event.currentTarget.scrollTop);
+            }}
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
             <AppNavigation
               pathname={pathname}
               user={authenticatedUser}

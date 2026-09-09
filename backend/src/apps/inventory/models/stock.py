@@ -72,6 +72,14 @@ class StockMovement(AuditModel):
         blank=True,
     )
 
+    service_accessory = models.ForeignKey(
+        "customers.InjectorServiceAccessory",
+        on_delete=models.SET_NULL,
+        related_name="stock_movements",
+        null=True,
+        blank=True,
+    )
+
     reverses_movement = models.OneToOneField(
         "self",
         on_delete=models.PROTECT,
@@ -110,6 +118,15 @@ class StockMovement(AuditModel):
         ):
             raise ValidationError(
                 "Una salida debe estar asociada a una línea de venta."
+            )
+
+        if (
+            self.movement_type == StockMovementType.SERVICE_USE
+            and self.service_accessory is None
+            and self.direction == MovementDirection.OUT
+        ):
+            raise ValidationError(
+                "Un uso en servicio debe estar asociado a un accesorio de servicio."
             )
 
         if (

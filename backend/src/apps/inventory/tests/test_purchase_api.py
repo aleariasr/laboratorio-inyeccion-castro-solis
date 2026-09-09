@@ -67,7 +67,6 @@ class PurchaseApiTest(APITestCase):
         self.supplier_product = SupplierProduct.objects.create(
             supplier=self.supplier,
             product=self.product,
-            supplier_reference="SUP-P001",
             manufacturer="Bosch",
             created_by=self.user,
             updated_by=self.user,
@@ -151,7 +150,7 @@ class PurchaseApiTest(APITestCase):
         self.assertEqual(self.purchase.notes, "Nota actualizada")
         self.assertEqual(self.purchase.updated_by, self.user)
 
-    def test_create_purchase_item(self):
+    def test_create_purchase_item_reuses_existing_supplier_product(self):
         purchase = Purchase.objects.create(
             supplier=self.supplier,
             invoice_number="FAC-003",
@@ -165,7 +164,7 @@ class PurchaseApiTest(APITestCase):
             "/api/inventory/purchase-items/",
             {
                 "purchase": purchase.id,
-                "supplier_product": self.supplier_product.id,
+                "product": self.product.id,
                 "quantity": 3,
                 "unit_cost": "250.0000",
             },
@@ -182,6 +181,66 @@ class PurchaseApiTest(APITestCase):
         self.assertEqual(purchase_item.unit_cost, Decimal("250.0000"))
         self.assertEqual(purchase_item.created_by, self.user)
         self.assertEqual(purchase_item.updated_by, self.user)
+        self.assertEqual(SupplierProduct.objects.count(), 1)
+
+    def test_create_purchase_item_creates_supplier_product_when_missing(self):
+        purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-005",
+            purchase_date=date.today(),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        other_product = Product.objects.create(
+            standard_code="P-002",
+            name="Pieza sin asociar",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            "/api/inventory/purchase-items/",
+            {
+                "purchase": purchase.id,
+                "product": other_product.id,
+                "quantity": 1,
+                "unit_cost": "50.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        purchase_item = PurchaseItem.objects.get(id=response.data["id"])
+
+        self.assertEqual(purchase_item.supplier_product.supplier, self.supplier)
+        self.assertEqual(purchase_item.supplier_product.product, other_product)
+        self.assertEqual(purchase_item.supplier_product.created_by, self.user)
+        self.assertTrue(
+            SupplierProduct.objects.filter(
+                supplier=self.supplier,
+                product=other_product,
+            ).exists()
+        )
+
+    def test_create_purchase_item_rejects_duplicate_product_in_same_purchase(self):
+        response = self.client.post(
+            "/api/inventory/purchase-items/",
+            {
+                "purchase": self.purchase.id,
+                "product": self.product.id,
+                "quantity": 1,
+                "unit_cost": "10.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("product", response.data)
+        self.assertEqual(PurchaseItem.objects.count(), 1)
 
     def test_confirm_purchase_creates_stock_movement(self):
         response = self.client.post(

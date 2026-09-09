@@ -7,7 +7,6 @@ from .models import (
     InventoryCountItem,
     Product,
     ProductCostHistory,
-    ProductReference,
     Purchase,
     PurchaseItem,
     StockMovement,
@@ -38,6 +37,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = (
         "standard_code",
         "name",
+        "variant_kind",
         "storage_location",
         "minimum_stock",
         "unit_of_measure",
@@ -50,28 +50,8 @@ class ProductAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "is_active",
+        "variant_kind",
         "unit_of_measure",
-    )
-
-
-@admin.register(ProductReference)
-class ProductReferenceAdmin(admin.ModelAdmin):
-    list_display = (
-        "reference_code",
-        "manufacturer",
-        "product",
-        "is_active",
-    )
-    search_fields = (
-        "reference_code",
-        "manufacturer",
-        "description",
-        "product__standard_code",
-        "product__name",
-    )
-    list_filter = (
-        "is_active",
-        "manufacturer",
     )
 
 
@@ -101,7 +81,6 @@ class SupplierProductAdmin(admin.ModelAdmin):
     list_display = (
         "supplier",
         "product",
-        "supplier_reference",
         "manufacturer",
         "preferred_supplier",
         "is_active",
@@ -110,7 +89,6 @@ class SupplierProductAdmin(admin.ModelAdmin):
         "supplier__name",
         "product__standard_code",
         "product__name",
-        "supplier_reference",
         "manufacturer",
     )
     list_filter = (

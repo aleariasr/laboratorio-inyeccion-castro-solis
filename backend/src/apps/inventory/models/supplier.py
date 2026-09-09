@@ -71,12 +71,6 @@ class SupplierProduct(AuditModel, ActivableModel):
         related_name="supplier_products",
     )
 
-    supplier_reference = models.CharField(
-        max_length=80,
-        blank=True,
-        help_text="Código usado por el proveedor.",
-    )
-
     manufacturer = models.CharField(
         max_length=100,
         blank=True,
@@ -99,7 +93,7 @@ class SupplierProduct(AuditModel, ActivableModel):
         ordering = ["supplier__name", "product__standard_code"]
         constraints = [
             models.UniqueConstraint(
-                fields=["supplier", "product", "supplier_reference"],
+                fields=["supplier", "product"],
                 name="uq_supplier_product",
             )
         ]

@@ -309,43 +309,23 @@ export function SupplierProductForm({
         )}
       </Field>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field
-          id="supplier-product-reference"
-          label="Referencia del proveedor"
-          hint="Código que usa el proveedor para identificar la pieza."
-          error={errors.supplierReference}
-        >
-          <Input
-            id="supplier-product-reference"
-            name="supplierReference"
-            value={values.supplierReference}
-            onChange={handleTextChange("supplierReference")}
-            hasError={Boolean(errors.supplierReference)}
-            maxLength={80}
-            autoComplete="off"
-            disabled={isSubmitting}
-          />
-        </Field>
-
-        <Field
+      <Field
+        id="supplier-product-manufacturer"
+        label="Fabricante"
+        hint="Marca con la que el proveedor comercializa la pieza."
+        error={errors.manufacturer}
+      >
+        <Input
           id="supplier-product-manufacturer"
-          label="Fabricante"
-          hint="Marca con la que el proveedor comercializa la pieza."
-          error={errors.manufacturer}
-        >
-          <Input
-            id="supplier-product-manufacturer"
-            name="manufacturer"
-            value={values.manufacturer}
-            onChange={handleTextChange("manufacturer")}
-            hasError={Boolean(errors.manufacturer)}
-            maxLength={100}
-            autoComplete="off"
-            disabled={isSubmitting}
-          />
-        </Field>
-      </div>
+          name="manufacturer"
+          value={values.manufacturer}
+          onChange={handleTextChange("manufacturer")}
+          hasError={Boolean(errors.manufacturer)}
+          maxLength={100}
+          autoComplete="off"
+          disabled={isSubmitting}
+        />
+      </Field>
 
       <Field id="supplier-product-notes" label="Notas" error={errors.notes}>
         <Textarea

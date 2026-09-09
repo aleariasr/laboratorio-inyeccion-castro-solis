@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 import { getSuppliers } from "../suppliers/api";
 import type { Supplier } from "../suppliers/types";
@@ -251,7 +252,7 @@ export function PurchaseForm({
   function handleCancel(): void {
     if (
       isDirty &&
-      !globalThis.confirm("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
     ) {
       return;
     }

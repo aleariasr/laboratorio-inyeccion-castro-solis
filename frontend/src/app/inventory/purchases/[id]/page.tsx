@@ -12,7 +12,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadProducts, canReadPurchases, canReadSuppliers, canWritePurchases } from "@/features/auth/permissions";
+import { canReadProducts, canReadPurchases, canWritePurchases } from "@/features/auth/permissions";
 import {
   cancelPurchase,
   confirmPurchase,
@@ -35,6 +35,7 @@ import {
   type PurchaseStatus,
 } from "@/features/inventory/purchases/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 type LoadState =
   | {
@@ -165,8 +166,6 @@ export default function PurchaseDetailPage() {
 
   const hasWriteAccess = user ? canWritePurchases(user) : false;
 
-  const hasSuppliersAccess = user ? canReadSuppliers(user) : false;
-
   const hasProductsAccess = user ? canReadProducts(user) : false;
 
   const canManageItems =
@@ -177,7 +176,7 @@ export default function PurchaseDetailPage() {
   const itemFormInitialValues =
     itemFormState.mode === "edit"
       ? {
-          supplierProductId: String(itemFormState.item.supplier_product),
+          productId: String(itemFormState.item.supplier_product_detail.product.id),
           quantity: String(itemFormState.item.quantity),
           unitCost: itemFormState.item.unit_cost,
         }
@@ -411,7 +410,7 @@ export default function PurchaseDetailPage() {
       return;
     }
 
-    if (!globalThis.confirm(`¿Eliminar la línea de ${formatItemLabel(item)}?`)) {
+    if (!confirmWithFocusRestore(`¿Eliminar la línea de ${formatItemLabel(item)}?`)) {
       return;
     }
 
@@ -457,7 +456,7 @@ export default function PurchaseDetailPage() {
     }
 
     if (
-      !globalThis.confirm(
+      !confirmWithFocusRestore(
         "¿Confirmar esta compra? Se generará el ingreso de inventario correspondiente y ya no podrá editarse.",
       )
     ) {
@@ -648,28 +647,6 @@ export default function PurchaseDetailPage() {
             )}
 
           {loadState.status === "success" &&
-            loadState.purchase.status === "DRAFT" &&
-            hasWriteAccess && (
-              <Button
-                type="button"
-                variant="secondary"
-                isLoading={confirmActionState.isSubmitting}
-                loadingText="Confirmando…"
-                disabled={loadState.purchase.items.length === 0}
-                title={
-                  loadState.purchase.items.length === 0
-                    ? "Agregue al menos una línea antes de confirmar."
-                    : undefined
-                }
-                onClick={() => {
-                  void handleConfirmPurchase();
-                }}
-              >
-                Confirmar compra
-              </Button>
-            )}
-
-          {loadState.status === "success" &&
             (loadState.purchase.status === "DRAFT" ||
               loadState.purchase.status === "CONFIRMED") &&
             hasWriteAccess &&
@@ -731,8 +708,6 @@ export default function PurchaseDetailPage() {
 
       {loadState.status === "success" && (
         <div className="grid gap-6">
-          {confirmActionState.error && <FormError message={confirmActionState.error} />}
-
           {cancelActionState.isOpen && (
             <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[rgb(215_0_21_/_18%)]">
               <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
@@ -931,18 +906,17 @@ export default function PurchaseDetailPage() {
 
                   <p className="mt-1 text-sm text-muted-foreground">
                     {itemFormState.mode === "create"
-                      ? "Busque el producto de este proveedor."
+                      ? "Busque el producto en todo el catálogo."
                       : "Actualice la cantidad o el costo unitario."}
                   </p>
                 </div>
 
                 <PurchaseItemForm
                   key={itemFormKey}
-                  canReadSuppliers={hasSuppliersAccess}
+                  canReadProducts={hasProductsAccess}
                   mode={itemFormState.mode}
                   initialValues={itemFormInitialValues}
-                  supplierId={loadState.purchase.supplier}
-                  supplierProductDisplayLabel={itemDisplayLabel}
+                  productDisplayLabel={itemDisplayLabel}
                   token={token ?? ""}
                   isSubmitting={itemActionState.isSubmitting}
                   submitError={itemActionState.submitError}
@@ -966,10 +940,6 @@ export default function PurchaseDetailPage() {
                     <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Producto
-                      </th>
-
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Referencia
                       </th>
 
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -1006,10 +976,6 @@ export default function PurchaseDetailPage() {
                           <p className="mt-1 text-sm text-muted-foreground">
                             {item.supplier_product_detail.product.name}
                           </p>
-                        </td>
-
-                        <td className="px-5 py-4 text-sm text-foreground">
-                          {item.supplier_product_detail.supplier_reference || "Sin referencia"}
                         </td>
 
                         <td className="px-5 py-4 text-sm text-foreground">{item.quantity}</td>
@@ -1073,6 +1039,31 @@ export default function PurchaseDetailPage() {
             token={token ?? ""}
             hasWriteAccess={hasWriteAccess}
           />
+
+          {loadState.purchase.status === "DRAFT" && hasWriteAccess && (
+            <div className="grid gap-4">
+              {confirmActionState.error && <FormError message={confirmActionState.error} />}
+
+              <Button
+                type="button"
+                variant="primary"
+                className="w-full"
+                isLoading={confirmActionState.isSubmitting}
+                loadingText="Confirmando…"
+                disabled={loadState.purchase.items.length === 0}
+                title={
+                  loadState.purchase.items.length === 0
+                    ? "Agregue al menos una línea antes de confirmar."
+                    : undefined
+                }
+                onClick={() => {
+                  void handleConfirmPurchase();
+                }}
+              >
+                Confirmar compra
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </AppShell>

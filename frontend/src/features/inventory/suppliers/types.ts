@@ -102,7 +102,6 @@ export type SupplierProduct = {
     name: string;
     description: string;
   };
-  supplier_reference: string;
   manufacturer: string;
   preferred_supplier: boolean;
   notes: string;
@@ -114,7 +113,6 @@ export type SupplierProduct = {
 export type SupplierProductWritePayload = {
   supplier: number;
   product: number;
-  supplier_reference: string;
   manufacturer: string;
   preferred_supplier: boolean;
   notes: string;
@@ -123,7 +121,6 @@ export type SupplierProductWritePayload = {
 
 export type SupplierProductFormValues = {
   productId: string;
-  supplierReference: string;
   manufacturer: string;
   preferredSupplier: boolean;
   notes: string;
@@ -132,7 +129,6 @@ export type SupplierProductFormValues = {
 
 export type SupplierProductFormField =
   | "productId"
-  | "supplierReference"
   | "manufacturer"
   | "preferredSupplier"
   | "notes"
@@ -142,7 +138,6 @@ export type SupplierProductFormErrors = Partial<Record<SupplierProductFormField,
 
 export const EMPTY_SUPPLIER_PRODUCT_FORM_VALUES: SupplierProductFormValues = {
   productId: "",
-  supplierReference: "",
   manufacturer: "",
   preferredSupplier: false,
   notes: "",
@@ -154,7 +149,6 @@ export function supplierProductToFormValues(
 ): SupplierProductFormValues {
   return {
     productId: String(supplierProduct.product),
-    supplierReference: supplierProduct.supplier_reference,
     manufacturer: supplierProduct.manufacturer,
     preferredSupplier: supplierProduct.preferred_supplier,
     notes: supplierProduct.notes,
@@ -169,7 +163,6 @@ export function buildSupplierProductWritePayload(
   return {
     supplier: supplierId,
     product: Number(values.productId),
-    supplier_reference: values.supplierReference.trim(),
     manufacturer: values.manufacturer.trim(),
     preferred_supplier: values.preferredSupplier,
     notes: values.notes.trim(),

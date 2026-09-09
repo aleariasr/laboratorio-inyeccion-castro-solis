@@ -38,12 +38,14 @@ ROLE_PERMISSIONS = {
         "cancel_inventory_counts",
         "view_movements",
         "view_documents",
+        "add_documents",
     ],
     ROLE_SALES: [
         "view_sales",
         "add_sales",
         "change_sales",
         "cancel_sales",
+        "view_documents",
     ],
     ROLE_CUSTOMERS: [
         "view_customers",
@@ -56,6 +58,7 @@ ROLE_PERMISSIONS = {
         "add_services",
         "change_services",
         "cancel_services",
+        "view_documents",
     ],
     ROLE_READ_ONLY: [
         "view_products",

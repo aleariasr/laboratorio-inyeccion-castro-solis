@@ -49,8 +49,7 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
 
         if query:
             queryset = queryset.filter(
-                Q(supplier_reference__icontains=query)
-                | Q(manufacturer__icontains=query)
+                Q(manufacturer__icontains=query)
                 | Q(supplier__name__icontains=query)
                 | Q(product__standard_code__icontains=query)
                 | Q(product__name__icontains=query)

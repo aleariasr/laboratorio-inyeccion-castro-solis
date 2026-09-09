@@ -6,7 +6,6 @@ from apps.core.permissions import ROLE_ADMIN
 from apps.customers.models import Customer, Injector
 from apps.inventory.models import (
     Product,
-    ProductReference,
     Purchase,
     StorageLocation,
     Supplier,
@@ -30,7 +29,6 @@ class UniversalSearchView(APIView):
         results = {
             "products": [],
             "locations": [],
-            "product_references": [],
             "suppliers": [],
             "purchases": [],
             "customers": [],
@@ -42,7 +40,6 @@ class UniversalSearchView(APIView):
 
         if self._can_view(request, "products"):
             results["products"] = self.search_products(query)
-            results["product_references"] = self.search_product_references(query)
 
         if self._can_view(request, "locations"):
             results["locations"] = self.search_locations(query)
@@ -76,6 +73,7 @@ class UniversalSearchView(APIView):
                 "standard_code": product.standard_code,
                 "name": product.name,
                 "description": product.description,
+                "variant_kind": product.variant_kind,
                 "storage_location": {
                     "id": product.storage_location_id,
                     "code": product.storage_location.code,
@@ -100,30 +98,6 @@ class UniversalSearchView(APIView):
                 "description": location.description,
             }
             for location in locations
-        ]
-
-    def search_product_references(self, query):
-        references = (
-            ProductReference.objects
-            .select_related("product")
-            .filter(
-                reference_code__icontains=query,
-            )
-            .order_by("reference_code")[:10]
-        )
-
-        return [
-            {
-                "id": reference.id,
-                "reference_code": reference.reference_code,
-                "manufacturer": reference.manufacturer,
-                "product": {
-                    "id": reference.product_id,
-                    "standard_code": reference.product.standard_code,
-                    "name": reference.product.name,
-                },
-            }
-            for reference in references
         ]
 
     def search_suppliers(self, query):

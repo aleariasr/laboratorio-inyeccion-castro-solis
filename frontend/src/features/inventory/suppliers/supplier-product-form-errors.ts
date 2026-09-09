@@ -7,7 +7,6 @@ import type {
 
 const FIELD_MAP: Record<string, SupplierProductFormField> = {
   product: "productId",
-  supplier_reference: "supplierReference",
   manufacturer: "manufacturer",
   preferred_supplier: "preferredSupplier",
   notes: "notes",

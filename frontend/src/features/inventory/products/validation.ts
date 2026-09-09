@@ -1,12 +1,19 @@
 import type {
   ProductFormErrors,
   ProductFormValues,
+  ProductVariantFormErrors,
+  ProductVariantFormValues,
 } from "./types";
+
+const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 
 export function validateProductForm(
   values: ProductFormValues,
 ): ProductFormErrors {
   const errors: ProductFormErrors = {};
+
+  const customSalePrice =
+    values.customSalePrice.trim();
 
   const standardCode =
     values.standardCode.trim();
@@ -62,6 +69,47 @@ export function validateProductForm(
   } else if (unitOfMeasure.length > 20) {
     errors.unitOfMeasure =
       "La unidad de medida no puede superar 20 caracteres.";
+  }
+
+  if (
+    customSalePrice &&
+    (!DECIMAL_PATTERN.test(customSalePrice) ||
+      Number(customSalePrice) <= 0)
+  ) {
+    errors.customSalePrice =
+      "Ingrese un precio válido mayor que cero, o déjelo vacío.";
+  }
+
+  return errors;
+}
+
+export function validateProductVariantForm(
+  values: ProductVariantFormValues,
+): ProductVariantFormErrors {
+  const errors: ProductVariantFormErrors = {};
+
+  const name = values.name.trim();
+  const unitOfMeasure = values.unitOfMeasure.trim();
+  const customSalePrice = values.customSalePrice.trim();
+
+  if (!name) {
+    errors.name = "El nombre del producto es obligatorio.";
+  } else if (name.length > 150) {
+    errors.name = "El nombre no puede superar 150 caracteres.";
+  }
+
+  if (unitOfMeasure && unitOfMeasure.length > 20) {
+    errors.unitOfMeasure =
+      "La unidad de medida no puede superar 20 caracteres.";
+  }
+
+  if (
+    customSalePrice &&
+    (!DECIMAL_PATTERN.test(customSalePrice) ||
+      Number(customSalePrice) <= 0)
+  ) {
+    errors.customSalePrice =
+      "Ingrese un precio válido mayor que cero, o déjelo vacío.";
   }
 
   return errors;

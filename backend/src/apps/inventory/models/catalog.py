@@ -18,3 +18,4 @@ class StockMovementType(models.TextChoices):
     ADJUSTMENT = "ADJUSTMENT", "Ajuste"
     INITIAL = "INITIAL", "Inventario inicial"
     REVERSAL = "REVERSAL", "Reversión"
+    SERVICE_USE = "SERVICE_USE", "Uso en servicio"

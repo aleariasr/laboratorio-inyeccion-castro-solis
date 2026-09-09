@@ -41,6 +41,7 @@ import type {
 import { getProducts } from "@/features/inventory/products/api";
 import type { Product } from "@/features/inventory/products/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 type LoadState =
   | {
@@ -573,7 +574,7 @@ export default function InventoryCountDetailPage() {
     }
 
     if (
-      !globalThis.confirm(
+      !confirmWithFocusRestore(
         `¿Eliminar la línea de ${item.product_detail.standard_code} — ${item.product_detail.name}?`,
       )
     ) {
@@ -700,7 +701,7 @@ export default function InventoryCountDetailPage() {
     }
 
     if (
-      !globalThis.confirm(
+      !confirmWithFocusRestore(
         "¿Aprobar este conteo? Se generarán los movimientos de ajuste correspondientes por cada diferencia y el conteo ya no podrá editarse.",
       )
     ) {
@@ -736,7 +737,7 @@ export default function InventoryCountDetailPage() {
     }
 
     if (
-      !globalThis.confirm(
+      !confirmWithFocusRestore(
         "¿Anular este conteo en borrador? Esta acción no se puede deshacer.",
       )
     ) {
@@ -772,7 +773,7 @@ export default function InventoryCountDetailPage() {
     }
 
     if (
-      !globalThis.confirm(
+      !confirmWithFocusRestore(
         "¿Eliminar este conteo en borrador? Esta acción no se puede deshacer y se perderán todas sus líneas.",
       )
     ) {

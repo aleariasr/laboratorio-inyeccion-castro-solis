@@ -20,7 +20,6 @@ class SupplierProductSerializer(serializers.ModelSerializer):
             "supplier_detail",
             "product",
             "product_detail",
-            "supplier_reference",
             "manufacturer",
             "preferred_supplier",
             "notes",

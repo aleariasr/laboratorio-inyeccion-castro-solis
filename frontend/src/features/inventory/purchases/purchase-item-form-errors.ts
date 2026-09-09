@@ -6,7 +6,7 @@ import type {
 } from "./types";
 
 const FIELD_MAP: Record<string, PurchaseItemFormField> = {
-  supplier_product: "supplierProductId",
+  product: "productId",
   quantity: "quantity",
   unit_cost: "unitCost",
 };

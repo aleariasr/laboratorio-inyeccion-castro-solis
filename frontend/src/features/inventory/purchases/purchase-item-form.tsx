@@ -13,13 +13,14 @@ import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { searchSupplierProducts } from "./api";
+import { searchActiveProducts } from "../suppliers/api";
+import type { Product } from "../products/types";
+
 import { validatePurchaseItemForm } from "./purchase-item-validation";
 import type {
   PurchaseItemFormErrors,
   PurchaseItemFormField,
   PurchaseItemFormValues,
-  SupplierProduct,
 } from "./types";
 
 type PurchaseItemFormMode = "create" | "edit";
@@ -27,9 +28,8 @@ type PurchaseItemFormMode = "create" | "edit";
 type PurchaseItemFormProps = {
   mode: PurchaseItemFormMode;
   initialValues: PurchaseItemFormValues;
-  supplierId: number;
-  supplierProductDisplayLabel?: string;
-  canReadSuppliers: boolean;
+  productDisplayLabel?: string;
+  canReadProducts: boolean;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -48,16 +48,15 @@ function mergeErrors(
   };
 }
 
-function formatSupplierProductLabel(supplierProduct: SupplierProduct): string {
-  return `${supplierProduct.product_detail.standard_code} — ${supplierProduct.product_detail.name}`;
+function formatProductLabel(product: Product): string {
+  return `${product.standard_code} — ${product.name}`;
 }
 
 export function PurchaseItemForm({
   mode,
   initialValues,
-  supplierId,
-  supplierProductDisplayLabel,
-  canReadSuppliers,
+  productDisplayLabel,
+  canReadProducts,
   token,
   isSubmitting = false,
   submitError = null,
@@ -72,12 +71,12 @@ export function PurchaseItemForm({
   const [localErrors, setLocalErrors] = useState<PurchaseItemFormErrors>({});
 
   const [selectedLabel, setSelectedLabel] = useState<string | null>(
-    mode === "edit" ? supplierProductDisplayLabel ?? null : null,
+    mode === "edit" ? productDisplayLabel ?? null : null,
   );
 
   const [query, setQuery] = useState("");
 
-  const [results, setResults] = useState<SupplierProduct[]>([]);
+  const [results, setResults] = useState<Product[]>([]);
 
   const [isListOpen, setIsListOpen] = useState(false);
 
@@ -85,12 +84,12 @@ export function PurchaseItemForm({
 
   const errors = mergeErrors(localErrors, serverErrors);
 
-  const effectiveSearchError = canReadSuppliers
+  const effectiveSearchError = canReadProducts
     ? searchError
-    : "No tiene permiso para buscar productos de proveedores.";
+    : "No tiene permiso para buscar productos.";
 
   useEffect(() => {
-    if (mode === "edit" || !canReadSuppliers) {
+    if (mode === "edit" || !canReadProducts) {
       return;
     }
 
@@ -103,13 +102,13 @@ export function PurchaseItemForm({
     const controller = new AbortController();
 
     const timeoutId = globalThis.setTimeout(() => {
-      searchSupplierProducts(token, supplierId, trimmedQuery, controller.signal)
-        .then((supplierProducts) => {
+      searchActiveProducts(token, trimmedQuery, controller.signal)
+        .then((products) => {
           if (controller.signal.aborted) {
             return;
           }
 
-          setResults(supplierProducts);
+          setResults(products);
           setSearchError(null);
         })
         .catch((error: unknown) => {
@@ -121,7 +120,7 @@ export function PurchaseItemForm({
             return;
           }
 
-          setSearchError("No fue posible buscar productos del proveedor.");
+          setSearchError("No fue posible buscar productos.");
         });
     }, 350);
 
@@ -129,7 +128,7 @@ export function PurchaseItemForm({
       globalThis.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [mode, canReadSuppliers, query, supplierId, token]);
+  }, [mode, canReadProducts, query, token]);
 
   useEffect(() => {
     if (mode === "edit") {
@@ -143,14 +142,13 @@ export function PurchaseItemForm({
     }
 
     const exactMatch = results.find(
-      (supplierProduct) =>
-        supplierProduct.product_detail.standard_code.trim().toLowerCase() === trimmedQuery,
+      (product) => product.standard_code.trim().toLowerCase() === trimmedQuery,
     );
 
     if (exactMatch) {
-      selectSupplierProduct(exactMatch);
+      selectProduct(exactMatch);
     }
-    // selectSupplierProduct se recrea en cada render; incluirla aqui
+    // selectProduct se recrea en cada render; incluirla aqui
     // re-dispararia el efecto sin necesidad. Solo depende de mode/query/results.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, query, results]);
@@ -174,22 +172,22 @@ export function PurchaseItemForm({
     });
   }
 
-  function handleChange(field: Exclude<PurchaseItemFormField, "supplierProductId">) {
+  function handleChange(field: Exclude<PurchaseItemFormField, "productId">) {
     return (event: ChangeEvent<HTMLInputElement>): void => {
       updateValue(field, event.target.value);
     };
   }
 
-  function selectSupplierProduct(supplierProduct: SupplierProduct): void {
-    updateValue("supplierProductId", String(supplierProduct.id));
-    setSelectedLabel(formatSupplierProductLabel(supplierProduct));
+  function selectProduct(product: Product): void {
+    updateValue("productId", String(product.id));
+    setSelectedLabel(formatProductLabel(product));
     setQuery("");
     setResults([]);
     setIsListOpen(false);
   }
 
   function clearSelected(): void {
-    updateValue("supplierProductId", "");
+    updateValue("productId", "");
     setSelectedLabel(null);
     setQuery("");
     setResults([]);
@@ -226,15 +224,15 @@ export function PurchaseItemForm({
       {submitError && <FormError message={submitError} />}
 
       <Field
-        id="purchase-item-supplier-product"
-        label="Producto del proveedor"
+        id="purchase-item-product"
+        label="Producto"
         required
         hint={
           mode === "create"
-            ? "Busque por referencia, fabricante o producto. Solo productos activos de este proveedor."
+            ? "Busque por código o nombre. Solo se muestran productos activos."
             : "El producto de la línea no puede modificarse; elimine la línea y cree una nueva si desea cambiarlo."
         }
-        error={errors.supplierProductId}
+        error={errors.productId}
       >
         {mode === "edit" ? (
           <div className="flex h-11 items-center rounded-[var(--radius-md)] border border-border bg-surface-muted px-4 text-sm font-medium text-foreground">
@@ -256,7 +254,7 @@ export function PurchaseItemForm({
         ) : (
           <div className="relative">
             <Input
-              id="purchase-item-supplier-product"
+              id="purchase-item-product"
               value={query}
               onChange={(event) => {
                 const nextValue = event.target.value;
@@ -282,8 +280,8 @@ export function PurchaseItemForm({
                   event.preventDefault();
                 }
               }}
-              hasError={Boolean(errors.supplierProductId)}
-              placeholder="Referencia, fabricante o producto"
+              hasError={Boolean(errors.productId)}
+              placeholder="Código o nombre del producto"
               autoComplete="off"
               disabled={isSubmitting}
             />
@@ -300,29 +298,23 @@ export function PurchaseItemForm({
 
                 {!effectiveSearchError && results.length > 0 && (
                   <ul className="max-h-64 overflow-y-auto">
-                    {results.map((supplierProduct) => (
-                      <li key={supplierProduct.id}>
+                    {results.map((product) => (
+                      <li key={product.id}>
                         <button
                           type="button"
                           onMouseDown={(event) => {
                             event.preventDefault();
-                            selectSupplierProduct(supplierProduct);
+                            selectProduct(product);
                           }}
                           className="block w-full px-4 py-2.5 text-left text-sm hover:bg-surface-muted"
                         >
                           <span className="font-mono font-semibold text-foreground">
-                            {supplierProduct.product_detail.standard_code}
+                            {product.standard_code}
                           </span>
 
                           <span className="ml-2 text-muted-foreground">
-                            {supplierProduct.product_detail.name}
+                            {product.name}
                           </span>
-
-                          {supplierProduct.supplier_reference && (
-                            <span className="ml-2 text-xs text-[var(--color-text-subtle)]">
-                              Ref. {supplierProduct.supplier_reference}
-                            </span>
-                          )}
                         </button>
                       </li>
                     ))}

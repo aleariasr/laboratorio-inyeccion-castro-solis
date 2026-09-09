@@ -230,3 +230,21 @@ export function canReadReports(user: AuthUser): boolean {
     hasModulePermission(user, "view_reports")
   );
 }
+
+// --- Caja ---
+// Por ahora solo ADMIN tiene los permisos view_cash/add_cash
+// asignados (ver setup_roles.py) — igual patrón que Reportes.
+
+export function canReadCash(user: AuthUser): boolean {
+  return (
+    isModuleAdmin(user) ||
+    hasModulePermission(user, "view_cash")
+  );
+}
+
+export function canWriteCash(user: AuthUser): boolean {
+  return (
+    isModuleAdmin(user) ||
+    hasModulePermission(user, "add_cash")
+  );
+}

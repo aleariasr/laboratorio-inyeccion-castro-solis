@@ -153,3 +153,7 @@ class DocumentsPermission(ModulePermission):
 
 class MovementsPermission(ModulePermission):
     module = "movements"
+
+
+class CashPermission(ModulePermission):
+    module = "cash"

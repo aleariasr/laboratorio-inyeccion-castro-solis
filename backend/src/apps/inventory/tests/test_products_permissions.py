@@ -112,6 +112,34 @@ class ProductsPermissionApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_inventory_user_can_add_variant(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {
+                "name": "Variante genérica",
+                "variant_kind": "GENERIC",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_read_only_user_cannot_add_variant(self):
+        self.client.force_authenticate(self.read_only_user)
+
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {
+                "name": "Variante genérica",
+                "variant_kind": "GENERIC",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_authenticated_user_without_group_cannot_list_products(self):
         self.client.force_authenticate(self.plain_user)
 

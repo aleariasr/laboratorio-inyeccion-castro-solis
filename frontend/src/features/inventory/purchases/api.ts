@@ -18,7 +18,6 @@ import type {
   PurchaseItemInline,
   PurchaseItemWritePayload,
   PurchaseWritePayload,
-  SupplierProduct,
 } from "./types";
 
 function buildPurchasesQuery(
@@ -188,29 +187,6 @@ export function deletePurchaseItem(
       token,
     },
   );
-}
-
-export function searchSupplierProducts(
-  token: string,
-  supplierId: number,
-  query: string,
-  signal?: AbortSignal,
-): Promise<SupplierProduct[]> {
-  const searchParams = new URLSearchParams({
-    supplier: String(supplierId),
-    q: query,
-    is_active: "true",
-    page: "1",
-    page_size: "20",
-  });
-
-  return apiGet<PaginatedResponse<SupplierProduct>>(
-    `/api/inventory/supplier-products/?${searchParams.toString()}`,
-    {
-      token,
-      signal,
-    },
-  ).then((response) => response.results);
 }
 
 async function getAllPages<T>(

@@ -2,6 +2,22 @@ from django.conf import settings
 from django.db import models
 
 
+class PaymentMethod(models.TextChoices):
+    """
+    Compartido entre apps.sales (Sale) y apps.customers
+    (InjectorServiceRecord) para saber cuánto de lo vendido/cobrado
+    en una semana fue efectivo (necesario para apps.cash). Vive en
+    core porque apps.customers no puede importar de apps.sales (ya
+    es al revés: Sale.customer importa de apps.customers) y ambas
+    apps necesitan esta misma clasificación.
+    """
+
+    CASH = "CASH", "Efectivo"
+    CARD = "CARD", "Tarjeta"
+    TRANSFER = "TRANSFER", "Transferencia"
+    OTHER = "OTHER", "Otro"
+
+
 class TimeStampedModel(models.Model):
     """
     Modelo abstracto que agrega fechas de creación y modificación.
@@ -104,5 +120,8 @@ class ModulePermissions(models.Model):
             ("cancel_services", "Servicios: cancelar"),
             ("view_reports", "Reportes: ver"),
             ("view_documents", "Documentos: ver"),
+            ("add_documents", "Documentos: crear"),
             ("view_movements", "Movimientos de inventario: ver"),
+            ("view_cash", "Caja: ver"),
+            ("add_cash", "Caja: crear"),
         ]

@@ -57,7 +57,6 @@ class SupplierProductApiTest(APITestCase):
         self.supplier_product = SupplierProduct.objects.create(
             supplier=self.supplier,
             product=self.product,
-            supplier_reference="BOSCH-001",
             manufacturer="Bosch",
             preferred_supplier=True,
             created_by=self.user,
@@ -83,7 +82,6 @@ class SupplierProductApiTest(APITestCase):
             item["product_detail"]["name"],
             "Tornillo bloqueo Cummins",
         )
-        self.assertEqual(item["supplier_reference"], "BOSCH-001")
         self.assertEqual(item["manufacturer"], "Bosch")
         self.assertTrue(item["preferred_supplier"])
 
@@ -116,7 +114,6 @@ class SupplierProductApiTest(APITestCase):
             {
                 "supplier": supplier.id,
                 "product": product.id,
-                "supplier_reference": "DEN-555",
                 "manufacturer": "Denso",
                 "preferred_supplier": False,
                 "notes": "Referencia inicial del proveedor",
@@ -130,7 +127,6 @@ class SupplierProductApiTest(APITestCase):
 
         self.assertEqual(supplier_product.supplier, supplier)
         self.assertEqual(supplier_product.product, product)
-        self.assertEqual(supplier_product.supplier_reference, "DEN-555")
         self.assertEqual(supplier_product.manufacturer, "Denso")
         self.assertFalse(supplier_product.preferred_supplier)
         self.assertEqual(
@@ -144,7 +140,6 @@ class SupplierProductApiTest(APITestCase):
         response = self.client.patch(
             f"/api/inventory/supplier-products/{self.supplier_product.id}/",
             {
-                "supplier_reference": "BOSCH-002",
                 "manufacturer": "Bosch Alemania",
                 "preferred_supplier": False,
             },
@@ -155,10 +150,6 @@ class SupplierProductApiTest(APITestCase):
 
         self.supplier_product.refresh_from_db()
 
-        self.assertEqual(
-            self.supplier_product.supplier_reference,
-            "BOSCH-002",
-        )
         self.assertEqual(
             self.supplier_product.manufacturer,
             "Bosch Alemania",
@@ -171,7 +162,7 @@ class SupplierProductApiTest(APITestCase):
         response = self.client.get(
             "/api/inventory/supplier-products/",
             {
-                "q": "BOSCH-001",
+                "q": "1-423-124-108",
             },
         )
 

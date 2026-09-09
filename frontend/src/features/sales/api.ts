@@ -1,6 +1,7 @@
 import {
   apiDelete,
   apiGet,
+  apiGetBlob,
   apiPatch,
   apiPost,
 } from "@/lib/api/client";
@@ -181,4 +182,14 @@ export function getLatestProductCostHistory(
     `/api/inventory/product-cost-history/?${searchParams.toString()}`,
     { token, signal },
   ).then((response) => response.results[0] ?? null);
+}
+
+export function getSaleInvoicePdf(
+  token: string,
+  saleId: number,
+): Promise<Blob> {
+  return apiGetBlob(`/api/documents/sales/${saleId}/invoice/`, {
+    token,
+    timeoutMs: 30_000,
+  });
 }

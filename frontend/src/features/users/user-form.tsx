@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import type { AppRole } from "@/features/auth/permissions";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 import {
   PERMISSION_ACTION_LABELS,
@@ -251,7 +252,7 @@ export function UserForm({
   function handleCancel(): void {
     if (
       isDirty &&
-      !globalThis.confirm("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
     ) {
       return;
     }

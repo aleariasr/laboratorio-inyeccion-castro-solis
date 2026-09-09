@@ -9,7 +9,6 @@ export type PurchaseItemInline = {
   supplier_product: number;
   supplier_product_detail: {
     id: number;
-    supplier_reference: string;
     manufacturer: string;
     product: {
       id: number;
@@ -127,26 +126,26 @@ export function buildPurchaseWritePayload(
 
 export type PurchaseItemWritePayload = {
   purchase: number;
-  supplier_product: number;
+  product: number;
   quantity: number;
   unit_cost: string;
 };
 
 export type PurchaseItemFormValues = {
-  supplierProductId: string;
+  productId: string;
   quantity: string;
   unitCost: string;
 };
 
 export type PurchaseItemFormField =
-  | "supplierProductId"
+  | "productId"
   | "quantity"
   | "unitCost";
 
 export type PurchaseItemFormErrors = Partial<Record<PurchaseItemFormField, string>>;
 
 export const EMPTY_PURCHASE_ITEM_FORM_VALUES: PurchaseItemFormValues = {
-  supplierProductId: "",
+  productId: "",
   quantity: "",
   unitCost: "",
 };
@@ -157,7 +156,7 @@ export function buildPurchaseItemWritePayload(
 ): PurchaseItemWritePayload {
   return {
     purchase: purchaseId,
-    supplier_product: Number(values.supplierProductId),
+    product: Number(values.productId),
     quantity: Number(values.quantity),
     unit_cost: values.unitCost.trim(),
   };

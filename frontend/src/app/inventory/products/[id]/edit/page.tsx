@@ -587,6 +587,8 @@ export default function EditProductPage() {
         <ProductForm
           key={loadState.product.id}
           mode="edit"
+          productId={loadState.product.id}
+          token={token ?? ""}
           initialValues={productToFormValues(
             loadState.product,
           )}

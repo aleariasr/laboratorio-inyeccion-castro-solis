@@ -14,14 +14,19 @@ import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 import { searchCustomers } from "./api";
-import type {
-  CustomerSummary,
-  SaleFormErrors,
-  SaleFormField,
-  SaleFormValues,
+import {
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHOD_OPTIONS,
+  type CustomerSummary,
+  type PaymentMethod,
+  type SaleFormErrors,
+  type SaleFormField,
+  type SaleFormValues,
 } from "./types";
 import { validateSaleForm } from "./validation";
 
@@ -47,6 +52,7 @@ function areValuesEqual(
   return (
     left.customerId === right.customerId &&
     left.saleDate === right.saleDate &&
+    left.paymentMethod === right.paymentMethod &&
     left.notes === right.notes &&
     left.isActive === right.isActive
   );
@@ -244,7 +250,7 @@ export function SaleForm({
   function handleCancel(): void {
     if (
       isDirty &&
-      !globalThis.confirm("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
     ) {
       return;
     }
@@ -398,6 +404,33 @@ export function SaleForm({
               hasError={Boolean(errors.saleDate)}
               disabled={isSubmitting}
             />
+          </Field>
+
+          <Field
+            id="sale-payment-method"
+            label="Método de pago"
+            required
+            error={errors.paymentMethod}
+          >
+            <Select
+              id="sale-payment-method"
+              name="paymentMethod"
+              value={values.paymentMethod}
+              onChange={(event) => {
+                updateValue(
+                  "paymentMethod",
+                  event.target.value as PaymentMethod,
+                );
+              }}
+              hasError={Boolean(errors.paymentMethod)}
+              disabled={isSubmitting}
+            >
+              {PAYMENT_METHOD_OPTIONS.map((method) => (
+                <option key={method} value={method}>
+                  {PAYMENT_METHOD_LABELS[method]}
+                </option>
+              ))}
+            </Select>
           </Field>
 
           <div className="lg:col-span-2">

@@ -8,8 +8,8 @@ export function validatePurchaseItemForm(
 ): PurchaseItemFormErrors {
   const errors: PurchaseItemFormErrors = {};
 
-  if (!values.supplierProductId) {
-    errors.supplierProductId = "Debe seleccionar un producto del proveedor.";
+  if (!values.productId) {
+    errors.productId = "Debe seleccionar un producto.";
   }
 
   const quantity = values.quantity.trim();

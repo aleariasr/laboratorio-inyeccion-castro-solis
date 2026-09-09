@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 import type {
   SupplierFormErrors,
@@ -164,7 +165,7 @@ export function SupplierForm({
   function handleCancel(): void {
     if (
       isDirty &&
-      !globalThis.confirm("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
     ) {
       return;
     }

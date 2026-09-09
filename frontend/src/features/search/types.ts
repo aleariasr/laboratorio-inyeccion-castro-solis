@@ -3,6 +3,7 @@ export type UniversalSearchProduct = {
   standard_code: string;
   name: string;
   description: string;
+  variant_kind: "ORIGINAL" | "GENERIC" | "OTHER";
   storage_location: {
     id: number;
     code: string;
@@ -13,17 +14,6 @@ export type UniversalSearchLocation = {
   id: number;
   code: string;
   description: string;
-};
-
-export type UniversalSearchProductReference = {
-  id: number;
-  reference_code: string;
-  manufacturer: string;
-  product: {
-    id: number;
-    standard_code: string;
-    name: string;
-  };
 };
 
 export type UniversalSearchSupplier = {
@@ -66,7 +56,6 @@ export type UniversalSearchInjector = {
 export type UniversalSearchResults = {
   products: UniversalSearchProduct[];
   locations: UniversalSearchLocation[];
-  product_references: UniversalSearchProductReference[];
   suppliers: UniversalSearchSupplier[];
   purchases: UniversalSearchPurchase[];
   customers: UniversalSearchCustomer[];

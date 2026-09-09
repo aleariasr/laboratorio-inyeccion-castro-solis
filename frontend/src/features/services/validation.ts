@@ -1,6 +1,8 @@
 import type {
   ServiceAccessoryFormErrors,
   ServiceAccessoryFormValues,
+  ServicePriceFormErrors,
+  ServicePriceFormValues,
   ServiceRecordCreateFormErrors,
   ServiceRecordCreateFormValues,
   ServiceRecordTechnicalFormErrors,
@@ -32,6 +34,8 @@ export function validateServiceRecordTechnicalForm(
 
   const resistance = values.resistance.trim();
   const leakage = values.leakage.trim();
+  const inductance = values.inductance.trim();
+  const isolation = values.isolation.trim();
 
   if (resistance && !DECIMAL_PATTERN.test(resistance)) {
     errors.resistance = "Ingrese un número válido (ej. 1.250).";
@@ -39,6 +43,30 @@ export function validateServiceRecordTechnicalForm(
 
   if (leakage && !DECIMAL_PATTERN.test(leakage)) {
     errors.leakage = "Ingrese un número válido (ej. 0.100).";
+  }
+
+  if (inductance && !DECIMAL_PATTERN.test(inductance)) {
+    errors.inductance = "Ingrese un número válido (ej. 1.250).";
+  }
+
+  if (isolation && !DECIMAL_PATTERN.test(isolation)) {
+    errors.isolation = "Ingrese un número válido (ej. 1.250).";
+  }
+
+  return errors;
+}
+
+export function validateServicePriceForm(
+  values: ServicePriceFormValues,
+): ServicePriceFormErrors {
+  const errors: ServicePriceFormErrors = {};
+
+  const price = values.price.trim();
+
+  if (price) {
+    if (!DECIMAL_PATTERN.test(price) || Number(price) <= 0) {
+      errors.price = "Ingrese un precio válido mayor que cero.";
+    }
   }
 
   return errors;
@@ -49,8 +77,8 @@ export function validateServiceAccessoryForm(
 ): ServiceAccessoryFormErrors {
   const errors: ServiceAccessoryFormErrors = {};
 
-  if (!values.accessoryId) {
-    errors.accessoryId = "Debe seleccionar un accesorio.";
+  if (!values.productId) {
+    errors.productId = "Debe seleccionar un producto.";
   }
 
   const quantity = Number(values.quantity);

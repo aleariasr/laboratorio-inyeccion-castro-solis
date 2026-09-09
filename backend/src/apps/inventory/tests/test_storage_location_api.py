@@ -318,6 +318,54 @@ class StorageLocationApiTest(APITestCase):
 
         self.assertFalse(product.is_active)
 
+    def test_create_location_accepts_free_alphanumeric_code(self):
+        response = self.client.post(
+            "/api/inventory/locations/",
+            {
+                "code": "bodega1",
+                "description": "Bodega principal",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertTrue(
+            StorageLocation.objects.filter(code="BODEGA1").exists()
+        )
+
+    def test_create_location_rejects_code_over_max_length(self):
+        response = self.client.post(
+            "/api/inventory/locations/",
+            {
+                "code": "A" * 11,
+                "description": "Código demasiado largo",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("code", response.data)
+
+    def test_create_location_rejects_code_with_symbols(self):
+        response = self.client.post(
+            "/api/inventory/locations/",
+            {
+                "code": "A-101",
+                "description": "Código con guion",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("code", response.data)
+
     def test_delete_location_is_not_allowed(self):
         response = self.client.delete(
             f"/api/inventory/locations/{self.location.id}/"

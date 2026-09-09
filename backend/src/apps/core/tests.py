@@ -36,9 +36,13 @@ from apps.sales.models import Sale, SaleItem, SaleStatus
 # Tabla de todas las subclases de ModulePermission que declaran
 # add_/change_ (y opcionalmente cancel_), usada por
 # ModulePermissionMatrixAllModulesTest para no tener que repetir la
-# misma mecánica 12 veces a mano. reports/documents/movements quedan
-# fuera de esta tabla porque solo declaran view_<module> (ver
-# READ_ONLY_MODULE_SPECS) y no tienen add_/change_/cancel_.
+# misma mecánica 12 veces a mano. reports/movements quedan fuera de
+# esta tabla porque solo declaran view_<module> (ver
+# READ_ONLY_MODULE_SPECS) y no tienen add_/change_/cancel_. documents
+# tampoco entra aquí: desde §2.2 (proforma) declara add_documents,
+# pero no change_/cancel_ (no hay noción de "editar" o "cancelar" un
+# documento generado), así que no encaja en ninguna de las dos formas
+# — se prueba aparte en test_documents_has_add_but_no_change_or_cancel.
 MODULE_PERMISSION_SPECS = [
     ("products", ProductsPermission, False),
     ("locations", LocationsPermission, False),
@@ -57,7 +61,6 @@ MODULE_PERMISSION_SPECS = [
 # API en estos módulos.
 READ_ONLY_MODULE_SPECS = [
     ("reports", ReportsPermission),
-    ("documents", DocumentsPermission),
     ("movements", MovementsPermission),
 ]
 
@@ -438,10 +441,10 @@ class SetupRolesCommandTest(TestCase):
             )
         )
 
-        # 34 = cantidad de tuplas en ModulePermissions.Meta.permissions
+        # 37 = cantidad de tuplas en ModulePermissions.Meta.permissions
         # al momento de escribir este test. Un cambio en este número
         # es la señal de que hay que revisar ROLE_PERMISSIONS también.
-        self.assertEqual(len(all_module_codenames), 34)
+        self.assertEqual(len(all_module_codenames), 37)
 
         admin_group = Group.objects.get(name=ROLE_ADMIN)
         admin_codenames = set(
@@ -675,7 +678,7 @@ class ModulePermissionMatrixAllModulesTest(TestCase):
 
     def test_read_only_modules_have_no_write_permission_in_database(self):
         """
-        reports, documents y movements solo declaran view_<module> en
+        reports y movements solo declaran view_<module> en
         ModulePermissions: no existe add_/change_/cancel_ para ellos.
         Si alguna vez se agrega una de esas variantes sin actualizar
         este test, hay que revisar también setup_roles y el frontend,
@@ -705,6 +708,46 @@ class ModulePermissionMatrixAllModulesTest(TestCase):
                     ).exists()
                 )
 
+    def test_documents_has_add_but_no_change_or_cancel(self):
+        """
+        documents dejó de ser puramente de solo lectura en §2.2
+        (proforma), que agregó add_documents — pero sigue sin
+        change_/cancel_documents, porque no existe la noción de
+        "editar" o "cancelar" un documento ya generado (proforma o
+        factura). DocumentsPermission importado solo para dejar
+        explícito qué clase gobierna este módulo.
+        """
+        self.assertIsNotNone(DocumentsPermission)
+
+        self.assertTrue(
+            Permission.objects.filter(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename="view_documents",
+            ).exists()
+        )
+        self.assertTrue(
+            Permission.objects.filter(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename="add_documents",
+            ).exists()
+        )
+        self.assertFalse(
+            Permission.objects.filter(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename="change_documents",
+            ).exists()
+        )
+        self.assertFalse(
+            Permission.objects.filter(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename="cancel_documents",
+            ).exists()
+        )
+
 
 from datetime import date
 
@@ -714,7 +757,6 @@ from rest_framework.test import APITestCase
 from apps.customers.models import Customer, Injector
 from apps.inventory.models import (
     Product,
-    ProductReference,
     Purchase,
     StorageLocation,
     Supplier,
@@ -743,14 +785,6 @@ class UniversalSearchApiTest(APITestCase):
             name="Tornillo bloqueo Cummins",
             description="Pieza de prueba",
             storage_location=self.location,
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        self.reference = ProductReference.objects.create(
-            product=self.product,
-            reference_code="ALT-001",
-            manufacturer="Bosch",
             created_by=self.user,
             updated_by=self.user,
         )
@@ -844,20 +878,27 @@ class UniversalSearchApiTest(APITestCase):
             "1-423-124-108",
         )
 
-    def test_search_finds_product_reference(self):
+    def test_search_by_standard_code_finds_all_variants(self):
+        Product.objects.create(
+            standard_code="1-423-124-108",
+            name="Tornillo bloqueo Cummins (genérico)",
+            variant_kind="GENERIC",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
         response = self.client.get(
             "/api/search/",
             {
-                "q": "ALT-001",
+                "q": "1-423",
             },
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            response.data["results"]["product_references"][0][
-                "reference_code"
-            ],
-            "ALT-001",
+            len(response.data["results"]["products"]),
+            2,
         )
 
     def test_search_finds_supplier(self):
@@ -1329,7 +1370,6 @@ class BusinessReportsApiTest(APITestCase):
         self.supplier_product = SupplierProduct.objects.create(
             supplier=self.supplier,
             product=self.product,
-            supplier_reference="SUP-TOP-001",
             created_by=self.user,
             updated_by=self.user,
         )
@@ -1569,7 +1609,6 @@ class BusinessReportsApiTest(APITestCase):
         second_supplier_product = SupplierProduct.objects.create(
             supplier=second_supplier,
             product=self.product,
-            supplier_reference="SUP-TOP-002",
             created_by=self.user,
             updated_by=self.user,
         )
@@ -1930,7 +1969,6 @@ class BusinessReportsApiTest(APITestCase):
         cheap_supplier_product = SupplierProduct.objects.create(
             supplier=cheap_supplier,
             product=self.product,
-            supplier_reference="SUP-TOP-BARATO",
             created_by=self.user,
             updated_by=self.user,
         )
@@ -2059,7 +2097,6 @@ class BusinessReportsApiTest(APITestCase):
         second_supplier_product = SupplierProduct.objects.create(
             supplier=second_supplier,
             product=self.product,
-            supplier_reference="SUP-TOP-003",
             created_by=self.user,
             updated_by=self.user,
         )

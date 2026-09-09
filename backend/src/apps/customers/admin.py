@@ -3,9 +3,10 @@ from django.contrib import admin
 from .models import (
     Customer,
     Injector,
-    InjectorAccessory,
     InjectorServiceAccessory,
     InjectorServiceRecord,
+    ServiceType,
+    ServiceTypePriceHistory,
 )
 
 
@@ -72,8 +73,24 @@ class InjectorServiceRecordAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(InjectorAccessory)
-class InjectorAccessoryAdmin(admin.ModelAdmin):
+@admin.register(InjectorServiceAccessory)
+class InjectorServiceAccessoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "service_record",
+        "product",
+        "quantity",
+        "notes",
+    )
+    search_fields = (
+        "service_record__injector__injector_number",
+        "product__standard_code",
+        "product__name",
+        "notes",
+    )
+
+
+@admin.register(ServiceType)
+class ServiceTypeAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "description",
@@ -88,16 +105,18 @@ class InjectorAccessoryAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(InjectorServiceAccessory)
-class InjectorServiceAccessoryAdmin(admin.ModelAdmin):
+@admin.register(ServiceTypePriceHistory)
+class ServiceTypePriceHistoryAdmin(admin.ModelAdmin):
     list_display = (
+        "service_type",
         "service_record",
-        "accessory",
-        "quantity",
-        "notes",
+        "price",
+        "charged_at",
     )
     search_fields = (
+        "service_type__name",
         "service_record__injector__injector_number",
-        "accessory__name",
-        "notes",
+    )
+    list_filter = (
+        "charged_at",
     )

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 import type {
   StorageLocationFormErrors,
@@ -219,7 +220,7 @@ export function LocationForm({
   function handleCancel(): void {
     if (
       isDirty &&
-      !globalThis.confirm(
+      !confirmWithFocusRestore(
         "Hay cambios sin guardar. ¿Desea salir y descartarlos?",
       )
     ) {
@@ -266,7 +267,7 @@ export function LocationForm({
             id="location-code"
             label="Código"
             required
-            hint="Formato: una letra y un número entre 1 y 9999. Ejemplo: A124."
+            hint="Letras y números, sin espacios. Máximo 10 caracteres. Ejemplo: A124 o BODEGA1."
             error={errors.code}
           >
             <Input
@@ -288,7 +289,7 @@ export function LocationForm({
               ]
                 .filter(Boolean)
                 .join(" ")}
-              maxLength={5}
+              maxLength={10}
               autoComplete="off"
               spellCheck={false}
               disabled={isSubmitting}

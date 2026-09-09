@@ -125,6 +125,38 @@ export function ServiceTechnicalForm({
             disabled={isSubmitting}
           />
         </Field>
+
+        <Field
+          id="service-inductance"
+          label="Inductancia"
+          error={errors.inductance}
+        >
+          <Input
+            id="service-inductance"
+            value={values.inductance}
+            onChange={handleChange("inductance")}
+            hasError={Boolean(errors.inductance)}
+            inputMode="decimal"
+            autoComplete="off"
+            disabled={isSubmitting}
+          />
+        </Field>
+
+        <Field
+          id="service-isolation"
+          label="Aislamiento"
+          error={errors.isolation}
+        >
+          <Input
+            id="service-isolation"
+            value={values.isolation}
+            onChange={handleChange("isolation")}
+            hasError={Boolean(errors.isolation)}
+            inputMode="decimal"
+            autoComplete="off"
+            disabled={isSubmitting}
+          />
+        </Field>
       </div>
 
       <Field id="service-notes-before" label="Notas antes del servicio" error={errors.notesBefore}>

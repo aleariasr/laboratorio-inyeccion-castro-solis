@@ -1,15 +1,17 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/client";
+import { apiDelete, apiGet, apiGetBlob, apiPatch, apiPost } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/lib/api/types";
 
 import type {
-  Accessory,
-  AccessoryWritePayload,
   ServiceAccessory,
   ServiceAccessoryWritePayload,
+  ServicePriceWritePayload,
   ServiceRecord,
   ServiceRecordCreatePayload,
   ServiceRecordFilters,
   ServiceRecordTechnicalWritePayload,
+  ServiceType,
+  ServiceTypePriceHistory,
+  ServiceTypeWritePayload,
 } from "./types";
 
 function buildServiceRecordsQuery(filters: ServiceRecordFilters): string {
@@ -108,6 +110,20 @@ export function updateServiceRecordTechnicalData(
   );
 }
 
+export function updateServiceRecordPrice(
+  token: string,
+  serviceRecordId: number,
+  payload: ServicePriceWritePayload,
+): Promise<ServiceRecord> {
+  return apiPatch<ServiceRecord>(
+    `/api/customers/service-records/${serviceRecordId}/`,
+    payload,
+    {
+      token,
+    },
+  );
+}
+
 export function startServiceRecord(
   token: string,
   serviceRecordId: number,
@@ -160,39 +176,9 @@ export function cancelServiceRecord(
   );
 }
 
-// Accesorios: catálogo global, gestionado inline (igual que las
-// categorías de costos de importación en Compras)
-export function getAccessories(
-  token: string,
-  query: string,
-  signal?: AbortSignal,
-): Promise<Accessory[]> {
-  const searchParams = new URLSearchParams({
-    q: query,
-    is_active: "true",
-    page: "1",
-    page_size: "100",
-  });
-
-  return apiGet<PaginatedResponse<Accessory>>(
-    `/api/customers/accessories/?${searchParams.toString()}`,
-    {
-      token,
-      signal,
-    },
-  ).then((response) => response.results);
-}
-
-export function createAccessory(
-  token: string,
-  payload: AccessoryWritePayload,
-): Promise<Accessory> {
-  return apiPost<Accessory>("/api/customers/accessories/", payload, {
-    token,
-  });
-}
-
-// Líneas de accesorios usados en un servicio
+// Líneas de accesorios usados en un servicio. El accesorio es un
+// producto real del inventario (ver ../inventory/suppliers/api para
+// searchActiveProducts, reutilizado para el buscador del formulario).
 export function getServiceAccessories(
   token: string,
   serviceRecordId: number,
@@ -222,25 +208,73 @@ export function createServiceAccessory(
   });
 }
 
-export function updateServiceAccessory(
-  token: string,
-  serviceAccessoryId: number,
-  payload: { quantity: number; notes: string },
-): Promise<ServiceAccessory> {
-  return apiPatch<ServiceAccessory>(
-    `/api/customers/service-accessories/${serviceAccessoryId}/`,
-    payload,
-    {
-      token,
-    },
-  );
-}
-
 export function deleteServiceAccessory(
   token: string,
   serviceAccessoryId: number,
 ): Promise<null> {
   return apiDelete(`/api/customers/service-accessories/${serviceAccessoryId}/`, {
     token,
+  });
+}
+
+// Tipo de servicio: catálogo persistente, gestionado inline (mismo patrón
+// que los accesorios de arriba).
+export function getServiceTypes(
+  token: string,
+  query: string,
+  signal?: AbortSignal,
+): Promise<ServiceType[]> {
+  const searchParams = new URLSearchParams({
+    q: query,
+    is_active: "true",
+    page: "1",
+    page_size: "100",
+  });
+
+  return apiGet<PaginatedResponse<ServiceType>>(
+    `/api/customers/service-types/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
+  ).then((response) => response.results);
+}
+
+export function createServiceType(
+  token: string,
+  payload: ServiceTypeWritePayload,
+): Promise<ServiceType> {
+  return apiPost<ServiceType>("/api/customers/service-types/", payload, {
+    token,
+  });
+}
+
+export function getLatestServiceTypePriceHistory(
+  token: string,
+  serviceTypeId: number,
+  signal?: AbortSignal,
+): Promise<ServiceTypePriceHistory | null> {
+  const searchParams = new URLSearchParams({
+    service_type: String(serviceTypeId),
+    page: "1",
+    page_size: "1",
+  });
+
+  return apiGet<PaginatedResponse<ServiceTypePriceHistory>>(
+    `/api/customers/service-type-price-history/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
+  ).then((response) => response.results[0] ?? null);
+}
+
+export function getServiceInvoicePdf(
+  token: string,
+  serviceRecordId: number,
+): Promise<Blob> {
+  return apiGetBlob(`/api/documents/services/${serviceRecordId}/invoice/`, {
+    token,
+    timeoutMs: 30_000,
   });
 }

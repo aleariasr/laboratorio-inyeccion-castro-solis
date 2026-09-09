@@ -8,7 +8,6 @@ from .inventory_count import (
     InventoryCountViewSet,
 )
 from .product import (
-    ProductReferenceViewSet,
     ProductViewSet,
     StorageLocationViewSet,
 )
@@ -28,7 +27,6 @@ __all__ = [
     "ProductCostHistoryViewSet",
     "InventoryCountItemViewSet",
     "InventoryCountViewSet",
-    "ProductReferenceViewSet",
     "ProductViewSet",
     "StorageLocationViewSet",
     "PurchaseItemViewSet",

@@ -132,6 +132,9 @@ class InjectorServiceRecordApiTest(APITestCase):
             {
                 "resistance": "1.250",
                 "leakage": "0.100",
+                "inductance": "2.500",
+                "isolation": "3.750",
+                "price": "15000.0000",
                 "notes_before": "Notas antes",
                 "notes_after": "Notas después",
                 "observations": "Observaciones internas",
@@ -145,6 +148,9 @@ class InjectorServiceRecordApiTest(APITestCase):
 
         self.assertEqual(str(self.service_record.resistance), "1.250")
         self.assertEqual(str(self.service_record.leakage), "0.100")
+        self.assertEqual(str(self.service_record.inductance), "2.500")
+        self.assertEqual(str(self.service_record.isolation), "3.750")
+        self.assertEqual(str(self.service_record.price), "15000.0000")
         self.assertEqual(self.service_record.notes_before, "Notas antes")
         self.assertEqual(self.service_record.notes_after, "Notas después")
         self.assertEqual(
@@ -152,6 +158,25 @@ class InjectorServiceRecordApiTest(APITestCase):
             "Observaciones internas",
         )
         self.assertEqual(self.service_record.updated_by, self.user)
+
+    def test_update_service_record_rejects_zero_price(self):
+        response = self.client.patch(
+            f"/api/customers/service-records/{self.service_record.id}/",
+            {
+                "price": "0.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("price", response.data)
+
+        self.service_record.refresh_from_db()
+
+        self.assertIsNone(self.service_record.price)
 
     def test_start_service(self):
         response = self.client.post(
@@ -203,6 +228,9 @@ class InjectorServiceRecordApiTest(APITestCase):
             format="json",
         )
 
+        self.service_record.price = "20000.0000"
+        self.service_record.save(update_fields=["price"])
+
         response = self.client.post(
             f"/api/customers/service-records/{self.service_record.id}/deliver/",
             {},
@@ -218,6 +246,33 @@ class InjectorServiceRecordApiTest(APITestCase):
             InjectorServiceStatus.DELIVERED,
         )
         self.assertIsNotNone(self.service_record.delivered_at)
+
+    def test_cannot_deliver_service_without_price(self):
+        self.client.post(
+            f"/api/customers/service-records/{self.service_record.id}/start/",
+            {},
+            format="json",
+        )
+        self.client.post(
+            f"/api/customers/service-records/{self.service_record.id}/mark-ready/",
+            {},
+            format="json",
+        )
+
+        response = self.client.post(
+            f"/api/customers/service-records/{self.service_record.id}/deliver/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.service_record.refresh_from_db()
+
+        self.assertEqual(
+            self.service_record.status,
+            InjectorServiceStatus.READY,
+        )
 
     def test_cancel_service(self):
         response = self.client.post(
@@ -262,6 +317,10 @@ class InjectorServiceRecordApiTest(APITestCase):
             {},
             format="json",
         )
+
+        self.service_record.price = "20000.0000"
+        self.service_record.save(update_fields=["price"])
+
         self.client.post(
             f"/api/customers/service-records/{self.service_record.id}/deliver/",
             {},

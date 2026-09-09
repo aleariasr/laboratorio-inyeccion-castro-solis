@@ -384,6 +384,7 @@ export default function NewProductPage() {
         locationsState.locations.length > 0 && (
           <ProductForm
             mode="create"
+            token={token ?? ""}
             initialValues={
               EMPTY_PRODUCT_FORM_VALUES
             }

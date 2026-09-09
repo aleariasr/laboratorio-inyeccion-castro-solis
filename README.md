@@ -26,10 +26,14 @@ Estado actual:
 
     Backend base cerrado.
     Infraestructura productiva base implementada.
-    Frontend operativo en progreso (login, estado del sistema, búsqueda universal, productos, ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores y servicios, conteos físicos, movimientos de inventario).
-    Validación con flujos reales pendiente.
+    Frontend operativo completo para los flujos del negocio (login, estado del sistema, búsqueda
+    universal, productos con variantes original/genérico, ubicaciones, proveedores, compras, costos
+    de importación, ventas, clientes, inyectores y servicios, cierre de caja semanal, proforma y
+    facturas internas en PDF, conteos físicos, movimientos de inventario, reportes).
+    Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo §5 (sin definir todavía).
+    Validación con flujos y datos reales: pendiente.
 
-El backend base ya incluye autenticación, usuarios, roles, permisos por módulo, inventario, compras, costos, ventas, clientes, inyectores, búsqueda universal, reportes JSON, endpoint administrativo de estado y generación inicial de documentos PDF con códigos de barras reales.
+El backend base ya incluye autenticación, usuarios, roles, permisos por módulo, inventario, compras, costos, ventas, clientes, inyectores, servicios, cierre de caja, búsqueda universal, reportes JSON, endpoint administrativo de estado y generación de documentos PDF (etiquetas, proforma y facturas internas) con códigos de barras reales.
 
 Documento principal de cierre:
 
@@ -76,8 +80,8 @@ Documento principal de cierre:
 - Usuario de solo lectura.
 - Endpoint administrativo de estado.
 - Ubicaciones físicas.
-- Productos.
-- Referencias o códigos alternos de producto.
+- Productos, con variantes (original/genérico/otro) que comparten un mismo código estándar y ubicación pero tienen precio y stock propios (§3.6) — reemplaza el antiguo modelo de "referencias" puramente descriptivas.
+- Precio de venta editable por producto, con sugerencia calculada desde el último costo de compra.
 - Proveedores.
 - Referencias proveedor-producto.
 - Compras.
@@ -85,17 +89,19 @@ Documento principal de cierre:
 - Costos de importación.
 - Resumen de costos por compra.
 - Historial de costos append-only.
-- Ventas.
+- Ventas, con método de pago (efectivo/tarjeta/transferencia/otro).
 - Confirmación y anulación de ventas.
 - Validación de stock suficiente.
 - Clientes.
 - Inyectores.
-- Accesorios de inyectores.
+- Servicios de inyector: precio (sugerido desde tipo de servicio + accesorios reales usados, editable), método de pago, catálogo de "Tipo de Servicio" con histórico de precio.
+- Accesorios de servicio ligados al inventario real de productos, con descuento y reversión de stock.
+- Cierre de caja semanal (sábado a viernes), suma ventas y servicios pagados en efectivo, total congelado al cerrar, permisos solo ADMIN por ahora.
+- Documentos PDF: etiquetas, proforma y facturas internas (no fiscales) para ventas confirmadas y servicios entregados.
 - Conteo físico.
 - Ajustes auditables de inventario.
 - Búsqueda universal.
 - Reportes JSON.
-- Documentos PDF iniciales.
 - Etiquetas PDF con código de barras Code128 real.
 
 ## Frontend operativo
@@ -104,14 +110,16 @@ Documento principal de cierre:
 - Panel de inicio.
 - Pantalla administrativa de estado del sistema.
 - Búsqueda universal con atajo de teclado y navegación a detalle.
-- Módulo de productos: listado, detalle, creación, edición, referencias equivalentes, historial de movimientos e impresión de etiquetas.
+- Módulo de productos: listado, detalle, creación, edición, precio de venta editable con sugerencia, variantes original/genérico bajo el mismo código (creación guiada, sin afectar el formulario normal de creación), historial de movimientos e impresión de etiquetas.
 - Módulo de ubicaciones: listado, detalle, creación y edición.
 - Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
 - Módulo de compras: listado con filtros, detalle, creación, edición de borrador, líneas de compra, confirmación y anulación con motivo.
 - Módulo de costos de importación: categorías, costos por compra con conversión de moneda mediante tipo de cambio, resumen de costos con desglose por producto, aplicación de costos e histórico append-only.
-- Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido y validación de stock disponible, confirmación y anulación con motivo.
+- Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido y validación de stock disponible, confirmación y anulación con motivo, método de pago, descarga de factura interna para ventas confirmadas.
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
-- Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), y bandeja operativa de servicios (recepción, iniciar, marcar listo, entregar, anular) con datos técnicos editables y gestión de accesorios utilizados.
+- Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), y bandeja operativa de servicios (recepción, iniciar, marcar listo, entregar, anular — la entrega exige que el servicio tenga precio definido) con datos técnicos editables, precio con sugerencia (tipo de servicio + accesorios usados) y método de pago, gestión de accesorios reales de inventario, tarjeta resumen de precio total, y descarga de factura interna para servicios entregados.
+- Módulo de cierre de caja: listado, detalle, creación con previsualización del total esperado antes de confirmar, semana sábado-viernes, solo visible para ADMIN por ahora.
+- Proforma: generación desde el listado de productos, cliente opcional.
 - Módulo de conteos físicos: listado con filtros (búsqueda, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con Enter, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas en borrador, aprobación y anulación.
 - Navegación por roles y permisos.
 - Módulo de movimientos de inventario: listado general paginado con filtros (producto, ubicación, tipo, dirección, rango de fechas), modo kardex automático con saldo corriente al filtrar por un solo producto, y enlace desde cada movimiento a su origen (compra, venta o conteo físico).
@@ -287,7 +295,8 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
 
     GET /api/inventory/locations/
     GET /api/inventory/products/
-    GET /api/inventory/product-references/
+    GET /api/inventory/products/?standard_code=<codigo>
+    POST /api/inventory/products/{id}/add-variant/
     GET /api/inventory/suppliers/
     GET /api/inventory/supplier-products/
     GET /api/inventory/purchases/
@@ -324,6 +333,13 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     POST /api/customers/service-records/{id}/cancel/
     GET /api/customers/accessories/
     GET /api/customers/service-accessories/
+    GET /api/customers/service-types/
+
+## Caja
+
+    GET /api/cash/closings/
+    POST /api/cash/closings/
+    GET /api/cash/closings/preview/?week_start=YYYY-MM-DD
 
 ## Búsqueda, reportes y documentos
 
@@ -337,6 +353,9 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/reports/top-selling-products/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
     GET /api/reports/top-customers/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&ordering=total
     GET /api/documents/product-labels/?product=<id>&product=<id>
+    POST /api/documents/proforma/
+    GET /api/documents/sales/{id}/invoice/
+    GET /api/documents/services/{id}/invoice/
 
 ---
 
@@ -379,24 +398,33 @@ Validación técnica del backend base:
 
     Django check: OK
     Migraciones pendientes: no
-    Tests backend: 372 OK
+    Tests backend: suite completa en verde (último recuento parcial confirmado: 323 en
+    apps.inventory + apps.core, 2026-09-09 — correr `make test` para el número exacto de la
+    suite completa antes de citar un total).
     Build backend Docker: OK
 
-El backend base queda cerrado como `0.2.0-alpha`.
+El backend base queda cerrado como `0.2.0-alpha`. Las fases posteriores (frontend operativo,
+backlog de la visita al cliente 2026-09) están descritas en [Roadmap](docs/roadmap.md).
 
 ---
 
 # Pendientes principales
 
-No se recomienda seguir agregando backend por adelantado sin validación real. Las siguientes fases recomendadas son:
+El frontend operativo y el backlog de la visita al cliente (2026-09) ya están completos — ver
+[Roadmap](docs/roadmap.md). Lo que queda antes de operar con datos reales del negocio:
 
-1. Completar el frontend operativo: reportes.
-2. Validación de flujos reales con pantallas.
-3. Ajustes del modelo según uso real.
-4. Documentos PDF adicionales.
-5. Migración DBF legacy con archivos reales.
-6. Caja y procesos financieros si el levantamiento lo confirma.
-7. Validación final sobre la estación gráfica objetivo.
+1. Validación con usuarios y datos reales (Fase 8 del roadmap): revisión de flujos, campos,
+   reportes, documentos y permisos reales, con el negocio operando de verdad.
+2. Migración DBF legacy con archivos reales del cliente (Fase 10) — no puede avanzar sin esos
+   archivos.
+3. Dos riesgos de la app de escritorio Windows sin validar con uso real extendido: el
+   endurecimiento de las tareas programadas ocultas (§10.3 de
+   [windows-desktop-stage-closure.md](docs/windows-desktop-stage-closure.md)) y el flujo
+   "Actualizar aplicación" nunca probado contra hardware real — ver
+   [checklist vigente](docs/windows-production-checklist.md).
+4. Documentos PDF adicionales más allá de proforma y facturas (Fase 9): catálogo interno, reportes
+   en PDF, boletas de recepción/entrega de inyector — solo si el negocio los pide de verdad.
+5. Manuales de usuario y técnico, capacitación y plan de soporte formal (Fase 12).
 
 ---
 

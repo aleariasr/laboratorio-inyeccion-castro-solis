@@ -16,3 +16,15 @@ class InjectorAlreadyExistsError(CustomerError):
 
 class InvalidServiceTransitionError(CustomerError):
     """La transición de estado del servicio no es válida."""
+
+
+class ServiceNotEditableError(CustomerError):
+    """El servicio ya no admite cambios (entregado o anulado)."""
+
+
+class InsufficientStockForServiceError(CustomerError):
+    """No hay inventario suficiente para usar este producto como accesorio."""
+
+
+class ServiceMissingPriceError(CustomerError):
+    """El servicio no tiene precio definido, no se puede entregar así."""

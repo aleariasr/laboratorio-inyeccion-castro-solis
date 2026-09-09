@@ -7,22 +7,18 @@ import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { createAccessory, getAccessories } from "./api";
+import { searchActiveProducts } from "../inventory/suppliers/api";
+import type { Product } from "../inventory/products/types";
+
 import { validateServiceAccessoryForm } from "./validation";
 import type {
-  Accessory,
   ServiceAccessoryFormErrors,
   ServiceAccessoryFormValues,
 } from "./types";
 
-type ServiceAccessoryFormMode = "create" | "edit";
-
 type ServiceAccessoryFormProps = {
-  mode: ServiceAccessoryFormMode;
   initialValues: ServiceAccessoryFormValues;
-  accessoryDisplayLabel?: string;
-  canReadInjectors: boolean;
-  canWriteInjectors: boolean;
+  canReadProducts: boolean;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -41,12 +37,13 @@ function mergeErrors(
   };
 }
 
+function formatProductLabel(product: Product): string {
+  return `${product.standard_code} — ${product.name}`;
+}
+
 export function ServiceAccessoryForm({
-  mode,
   initialValues,
-  accessoryDisplayLabel,
-  canReadInjectors,
-  canWriteInjectors,
+  canReadProducts,
   token,
   isSubmitting = false,
   submitError = null,
@@ -58,56 +55,63 @@ export function ServiceAccessoryForm({
 
   const [localErrors, setLocalErrors] = useState<ServiceAccessoryFormErrors>({});
 
-  const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
 
-  const [accessoriesError, setAccessoriesError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
-  const [isNewAccessoryOpen, setIsNewAccessoryOpen] = useState(false);
+  const [results, setResults] = useState<Product[]>([]);
 
-  const [newAccessoryName, setNewAccessoryName] = useState("");
+  const [isListOpen, setIsListOpen] = useState(false);
 
-  const [newAccessoryError, setNewAccessoryError] = useState<string | null>(null);
-
-  const [isCreatingAccessory, setIsCreatingAccessory] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const errors = mergeErrors(localErrors, serverErrors);
 
-  const effectiveAccessoriesError = canReadInjectors
-    ? accessoriesError
-    : "No tiene permiso para consultar accesorios.";
+  const effectiveSearchError = canReadProducts
+    ? searchError
+    : "No tiene permiso para buscar productos.";
 
   useEffect(() => {
-    if (mode === "edit" || !canReadInjectors) {
+    if (!canReadProducts) {
+      return;
+    }
+
+    const trimmedQuery = query.trim();
+
+    if (trimmedQuery.length < 2) {
       return;
     }
 
     const controller = new AbortController();
 
-    getAccessories(token, "", controller.signal)
-      .then((result) => {
-        if (controller.signal.aborted) {
-          return;
-        }
+    const timeoutId = globalThis.setTimeout(() => {
+      searchActiveProducts(token, trimmedQuery, controller.signal)
+        .then((products) => {
+          if (controller.signal.aborted) {
+            return;
+          }
 
-        setAccessories(result);
-        setAccessoriesError(null);
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) {
-          return;
-        }
+          setResults(products);
+          setSearchError(null);
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) {
+            return;
+          }
 
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
 
-        setAccessoriesError("No fue posible cargar los accesorios.");
-      });
+          setSearchError("No fue posible buscar productos.");
+        });
+    }, 350);
 
     return () => {
+      globalThis.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [mode, canReadInjectors, token]);
+  }, [canReadProducts, query, token]);
 
   function updateValue(field: keyof ServiceAccessoryFormValues, value: string): void {
     setValues((current) => ({
@@ -128,44 +132,19 @@ export function ServiceAccessoryForm({
     });
   }
 
-  async function handleCreateAccessory(): Promise<void> {
-    if (!canWriteInjectors) {
-      setNewAccessoryError("No tiene permiso para crear accesorios.");
-      return;
-    }
+  function selectProduct(product: Product): void {
+    updateValue("productId", String(product.id));
+    setSelectedLabel(formatProductLabel(product));
+    setQuery("");
+    setResults([]);
+    setIsListOpen(false);
+  }
 
-    const trimmedName = newAccessoryName.trim();
-
-    if (!trimmedName) {
-      setNewAccessoryError("El nombre del accesorio es obligatorio.");
-      return;
-    }
-
-    setIsCreatingAccessory(true);
-    setNewAccessoryError(null);
-
-    try {
-      const accessory = await createAccessory(token, {
-        name: trimmedName,
-        description: "",
-      });
-
-      setAccessories((current) =>
-        [...current, accessory].sort((left, right) =>
-          left.name.localeCompare(right.name, "es", { sensitivity: "base" }),
-        ),
-      );
-
-      updateValue("accessoryId", String(accessory.id));
-      setNewAccessoryName("");
-      setIsNewAccessoryOpen(false);
-    } catch (error: unknown) {
-      setNewAccessoryError(
-        error instanceof Error ? error.message : "No fue posible crear el accesorio.",
-      );
-    } finally {
-      setIsCreatingAccessory(false);
-    }
+  function clearSelected(): void {
+    updateValue("productId", "");
+    setSelectedLabel(null);
+    setQuery("");
+    setResults([]);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -182,96 +161,104 @@ export function ServiceAccessoryForm({
     void onSubmit(values);
   }
 
-  const submitLabel = mode === "create" ? "Agregar accesorio" : "Guardar cambios";
-
-  const submittingLabel = mode === "create" ? "Agregando…" : "Guardando…";
-
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
       {submitError && <FormError message={submitError} />}
 
-      <Field id="service-accessory-item" label="Accesorio" required error={errors.accessoryId}>
-        {mode === "edit" ? (
-          <div className="flex h-11 items-center rounded-[var(--radius-md)] border border-border bg-surface-muted px-4 text-sm font-medium text-foreground">
-            {accessoryDisplayLabel ?? "Accesorio no disponible"}
+      <Field
+        id="service-accessory-product"
+        label="Producto"
+        required
+        hint="Busque por código o nombre. Solo se muestran productos activos; al agregarlo se descuenta del inventario."
+        error={errors.productId}
+      >
+        {selectedLabel ? (
+          <div className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-border bg-surface-muted px-4 py-2.5">
+            <span className="text-sm font-medium text-foreground">{selectedLabel}</span>
+
+            <button
+              type="button"
+              onClick={clearSelected}
+              className="text-xs font-semibold text-primary hover:underline"
+              disabled={isSubmitting}
+            >
+              Cambiar
+            </button>
           </div>
         ) : (
-          <>
-            <div className="flex gap-2">
-              <select
-                id="service-accessory-item"
-                value={values.accessoryId}
-                onChange={(event) => {
-                  updateValue("accessoryId", event.target.value);
-                }}
-                disabled={isSubmitting}
-                className="h-11 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
-              >
-                <option value="">Seleccione…</option>
-                {accessories.map((accessory) => (
-                  <option key={accessory.id} value={accessory.id}>
-                    {accessory.name}
-                  </option>
-                ))}
-              </select>
+          <div className="relative">
+            <Input
+              id="service-accessory-product"
+              value={query}
+              onChange={(event) => {
+                const nextValue = event.target.value;
 
-              {canWriteInjectors && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setIsNewAccessoryOpen((current) => !current);
-                    setNewAccessoryError(null);
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Nuevo
-                </Button>
-              )}
-            </div>
+                setQuery(nextValue);
+                setIsListOpen(true);
 
-            {effectiveAccessoriesError && <p className="mt-2 text-sm text-danger">{effectiveAccessoriesError}</p>}
-          </>
+                if (nextValue.trim().length < 2) {
+                  setResults([]);
+                  setSearchError(null);
+                }
+              }}
+              onFocus={() => {
+                setIsListOpen(true);
+              }}
+              onBlur={() => {
+                globalThis.setTimeout(() => {
+                  setIsListOpen(false);
+                }, 150);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                }
+              }}
+              hasError={Boolean(errors.productId)}
+              placeholder="Código o nombre del producto"
+              autoComplete="off"
+              disabled={isSubmitting}
+            />
+
+            {isListOpen && query.trim().length >= 2 && (
+              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-md)]">
+                {effectiveSearchError && (
+                  <p className="px-4 py-3 text-sm text-[var(--color-danger)]">{effectiveSearchError}</p>
+                )}
+
+                {!effectiveSearchError && results.length === 0 && (
+                  <p className="px-4 py-3 text-sm text-muted-foreground">Sin resultados.</p>
+                )}
+
+                {!effectiveSearchError && results.length > 0 && (
+                  <ul className="max-h-64 overflow-y-auto">
+                    {results.map((product) => (
+                      <li key={product.id}>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            selectProduct(product);
+                          }}
+                          className="block w-full px-4 py-2.5 text-left text-sm hover:bg-surface-muted"
+                        >
+                          <span className="font-mono font-semibold text-foreground">
+                            {product.standard_code}
+                          </span>
+
+                          <span className="ml-2 text-muted-foreground">
+                            {product.name}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </Field>
-
-      {isNewAccessoryOpen && mode === "create" && (
-        <div className="rounded-[var(--radius-md)] border border-border bg-surface-muted px-4 py-3">
-          {newAccessoryError && <p className="mb-2 text-sm text-danger">{newAccessoryError}</p>}
-
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[220px] flex-1">
-              <label
-                htmlFor="new-service-accessory"
-                className="mb-1 block text-xs font-semibold text-foreground"
-              >
-                Nombre del nuevo accesorio
-              </label>
-
-              <Input
-                id="new-service-accessory"
-                value={newAccessoryName}
-                onChange={(event) => {
-                  setNewAccessoryName(event.target.value);
-                }}
-                maxLength={100}
-                disabled={isCreatingAccessory}
-              />
-            </div>
-
-            <Button
-              type="button"
-              isLoading={isCreatingAccessory}
-              loadingText="Creando…"
-              onClick={() => {
-                void handleCreateAccessory();
-              }}
-            >
-              Crear
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id="service-accessory-quantity" label="Cantidad" required error={errors.quantity}>
@@ -307,8 +294,8 @@ export function ServiceAccessoryForm({
           Cancelar
         </Button>
 
-        <Button type="submit" isLoading={isSubmitting} loadingText={submittingLabel}>
-          {submitLabel}
+        <Button type="submit" isLoading={isSubmitting} loadingText="Agregando…">
+          Agregar accesorio
         </Button>
       </div>
     </form>

@@ -1,10 +1,13 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from apps.inventory.models import (
     Currency,
+    Product,
     Purchase,
     PurchaseItem,
     PurchaseStatus,
+    SupplierProduct,
 )
 
 from .supplier import SupplierSerializer
@@ -13,12 +16,18 @@ from .supplier import SupplierSerializer
 class PurchaseItemSerializer(serializers.ModelSerializer):
     supplier_product_detail = serializers.SerializerMethodField()
     subtotal = serializers.SerializerMethodField()
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        write_only=True,
+        required=False,
+    )
 
     class Meta:
         model = PurchaseItem
         fields = (
             "id",
             "purchase",
+            "product",
             "supplier_product",
             "supplier_product_detail",
             "quantity",
@@ -28,6 +37,7 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = (
+            "supplier_product",
             "created_at",
             "updated_at",
             "subtotal",
@@ -44,7 +54,38 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
                 "Solo se pueden modificar líneas de compras en borrador."
             )
 
+        if self.instance is None and "product" not in attrs:
+            raise serializers.ValidationError(
+                {"product": ["Este campo es requerido."]}
+            )
+
         return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        product = validated_data.pop("product")
+        purchase = validated_data["purchase"]
+
+        supplier_product, _ = SupplierProduct.objects.get_or_create(
+            supplier=purchase.supplier,
+            product=product,
+            defaults={
+                "created_by": validated_data.get("created_by"),
+                "updated_by": validated_data.get("updated_by"),
+            },
+        )
+
+        if PurchaseItem.objects.filter(
+            purchase=purchase,
+            supplier_product=supplier_product,
+        ).exists():
+            raise serializers.ValidationError(
+                {"product": ["Este producto ya fue agregado a la compra."]}
+            )
+
+        validated_data["supplier_product"] = supplier_product
+
+        return super().create(validated_data)
 
     def get_supplier_product_detail(self, obj):
         supplier_product = obj.supplier_product
@@ -60,7 +101,6 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
                 "standard_code": supplier_product.product.standard_code,
                 "name": supplier_product.product.name,
             },
-            "supplier_reference": supplier_product.supplier_reference,
             "manufacturer": supplier_product.manufacturer,
         }
 
@@ -88,7 +128,6 @@ class PurchaseItemInlineSerializer(serializers.ModelSerializer):
 
         return {
             "id": supplier_product.id,
-            "supplier_reference": supplier_product.supplier_reference,
             "manufacturer": supplier_product.manufacturer,
             "product": {
                 "id": supplier_product.product_id,

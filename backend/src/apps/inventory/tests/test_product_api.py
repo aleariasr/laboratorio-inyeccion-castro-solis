@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
@@ -7,11 +9,15 @@ from rest_framework.test import APITestCase
 from apps.core.permissions import ROLE_INVENTORY
 
 from apps.inventory.models import (
+    Currency,
     MovementDirection,
     Product,
+    ProductCostHistory,
+    Purchase,
     StockMovement,
     StockMovementType,
     StorageLocation,
+    Supplier,
 )
 
 User = get_user_model()
@@ -585,3 +591,332 @@ class ProductApiTest(APITestCase):
                 id=self.product.id,
             ).exists()
         )
+
+    def create_cost_history(self, suggested_price, currency=Currency.CRC, exchange_rate="1.0000"):
+        supplier = Supplier.objects.create(
+            name=f"Proveedor prueba {ProductCostHistory.objects.count() + 1}",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        purchase = Purchase.objects.create(
+            supplier=supplier,
+            invoice_number=f"FAC-{ProductCostHistory.objects.count() + 1:03d}",
+            purchase_date=date.today(),
+            currency=currency,
+            exchange_rate=exchange_rate,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        return ProductCostHistory.objects.create(
+            product=self.product,
+            purchase=purchase,
+            original_unit_cost="100.0000",
+            cost_factor="1.200000",
+            final_unit_cost="120.0000",
+            currency=currency,
+            exchange_rate=exchange_rate,
+            margin_percentage="30.0000",
+            suggested_price=suggested_price,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def test_effective_sale_price_is_null_without_custom_price_or_history(self):
+        response = self.client.get(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["custom_sale_price"])
+        self.assertIsNone(response.data["latest_suggested_price"])
+        self.assertIsNone(response.data["effective_sale_price"])
+
+    def test_effective_sale_price_uses_latest_suggested_price_when_no_custom_price(self):
+        self.create_cost_history("100.0000")
+        self.create_cost_history("156.0000")
+
+        response = self.client.get(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["custom_sale_price"])
+        self.assertEqual(
+            response.data["latest_suggested_price"],
+            "156.0000",
+        )
+        self.assertEqual(
+            response.data["effective_sale_price"],
+            "156.0000",
+        )
+
+    def test_effective_sale_price_converts_usd_suggested_price_to_crc(self):
+        self.create_cost_history(
+            "10.0000",
+            currency=Currency.USD,
+            exchange_rate="520.0000",
+        )
+
+        response = self.client.get(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["latest_suggested_price"],
+            "5200.0000",
+        )
+        self.assertEqual(
+            response.data["effective_sale_price"],
+            "5200.0000",
+        )
+
+    def test_effective_sale_price_prefers_custom_sale_price_over_suggested(self):
+        self.create_cost_history("156.0000")
+
+        self.product.custom_sale_price = "200.0000"
+        self.product.save(update_fields=["custom_sale_price"])
+
+        response = self.client.get(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["custom_sale_price"],
+            "200.0000",
+        )
+        self.assertEqual(
+            response.data["latest_suggested_price"],
+            "156.0000",
+        )
+        self.assertEqual(
+            response.data["effective_sale_price"],
+            "200.0000",
+        )
+
+    def test_product_list_includes_effective_sale_price(self):
+        self.create_cost_history("156.0000")
+
+        response = self.client.get("/api/inventory/products/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        item = response.data["results"][0]
+        self.assertEqual(item["effective_sale_price"], "156.0000")
+
+    def test_update_custom_sale_price(self):
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {
+                "custom_sale_price": "199.9900",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.product.refresh_from_db()
+        self.assertEqual(
+            str(self.product.custom_sale_price),
+            "199.9900",
+        )
+
+    def test_custom_sale_price_must_be_positive(self):
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {
+                "custom_sale_price": "0",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    def test_custom_sale_price_can_be_cleared(self):
+        self.product.custom_sale_price = "200.0000"
+        self.product.save(update_fields=["custom_sale_price"])
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {
+                "custom_sale_price": None,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.product.refresh_from_db()
+        self.assertIsNone(self.product.custom_sale_price)
+
+    def test_add_variant_shares_standard_code_and_storage_location(self):
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {
+                "name": "Producto (genérico)",
+                "variant_kind": "GENERIC",
+                "custom_sale_price": "5000.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        variant = Product.objects.get(id=response.data["id"])
+
+        self.assertEqual(variant.standard_code, self.product.standard_code)
+        self.assertEqual(variant.storage_location, self.location)
+        self.assertEqual(variant.variant_kind, "GENERIC")
+        self.assertEqual(str(variant.custom_sale_price), "5000.0000")
+        self.assertNotEqual(variant.id, self.product.id)
+
+    def test_add_variant_defaults_unit_of_measure_from_parent(self):
+        self.product.unit_of_measure = "juego"
+        self.product.save(update_fields=["unit_of_measure"])
+
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {
+                "name": "Variante sin unidad explícita",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["unit_of_measure"], "juego")
+
+    def test_add_variant_ignores_submitted_code_and_location(self):
+        other_location = StorageLocation.objects.create(
+            code="B202",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {
+                "name": "Variante con intento de override",
+                "standard_code": "OTRO-CODIGO",
+                "storage_location": other_location.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.data["standard_code"],
+            self.product.standard_code,
+        )
+        self.assertEqual(
+            response.data["storage_location"],
+            self.location.id,
+        )
+
+    def test_products_can_share_standard_code(self):
+        response = self.client.post(
+            "/api/inventory/products/",
+            {
+                "standard_code": self.product.standard_code,
+                "name": "Segunda fila, mismo código",
+                "storage_location": self.location.id,
+            },
+            format="json",
+        )
+
+        # El formulario normal de creación sigue rechazando códigos
+        # duplicados a propósito (solo add-variant puede crearlos) —
+        # ver §3.6: solo verifica que el modelo en sí ya lo permite.
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        Product.objects.create(
+            standard_code=self.product.standard_code,
+            name="Segunda fila, mismo código",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.assertEqual(
+            Product.objects.filter(
+                standard_code=self.product.standard_code,
+            ).count(),
+            2,
+        )
+
+    def test_filter_products_by_exact_standard_code(self):
+        Product.objects.create(
+            standard_code=self.product.standard_code,
+            name="Variante hermana",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        Product.objects.create(
+            standard_code=f"{self.product.standard_code}-X",
+            name="Código parecido pero distinto",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/products/",
+            {
+                "standard_code": self.product.standard_code,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_cannot_move_variant_with_siblings_to_different_location(self):
+        other_location = StorageLocation.objects.create(
+            code="B202",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        sibling = Product.objects.create(
+            standard_code=self.product.standard_code,
+            name="Variante hermana",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/products/{sibling.id}/",
+            {
+                "storage_location": other_location.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("storage_location", response.data)
+
+    def test_can_move_lone_product_to_different_location(self):
+        other_location = StorageLocation.objects.create(
+            code="B202",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {
+                "storage_location": other_location.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -6,7 +6,6 @@ from apps.inventory.views import (
     InventoryCountItemViewSet,
     InventoryCountViewSet,
     ProductCostHistoryViewSet,
-    ProductReferenceViewSet,
     ProductViewSet,
     PurchaseItemViewSet,
     PurchaseViewSet,
@@ -26,11 +25,6 @@ router.register(
     "products",
     ProductViewSet,
     basename="product",
-)
-router.register(
-    "product-references",
-    ProductReferenceViewSet,
-    basename="product-reference",
 )
 router.register(
     "suppliers",

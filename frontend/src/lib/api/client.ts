@@ -228,6 +228,16 @@ export function apiPostBlob(
   });
 }
 
+export function apiGetBlob(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<Blob> {
+  return apiBlobRequest(path, {
+    ...options,
+    method: "GET",
+  });
+}
+
 export function apiGet<T>(
   path: string,
   options: ApiRequestOptions = {},

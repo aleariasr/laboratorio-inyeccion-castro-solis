@@ -4,7 +4,7 @@ import type {
 } from "./types";
 
 const LOCATION_CODE_PATTERN =
-  /^[A-Z][1-9][0-9]{0,3}$/;
+  /^[A-Za-z0-9]+$/;
 
 export function validateStorageLocationForm(
   values: StorageLocationFormValues,
@@ -21,14 +21,14 @@ export function validateStorageLocationForm(
   if (!code) {
     errors.code =
       "El código de ubicación es obligatorio.";
-  } else if (code.length > 5) {
+  } else if (code.length > 10) {
     errors.code =
-      "El código no puede superar 5 caracteres.";
+      "El código no puede superar 10 caracteres.";
   } else if (
     !LOCATION_CODE_PATTERN.test(code)
   ) {
     errors.code =
-      "Use un formato como A124: una letra, seguida de un número entre 1 y 9999.";
+      "El código solo puede tener letras y números, sin espacios.";
   }
 
   if (description.length > 255) {

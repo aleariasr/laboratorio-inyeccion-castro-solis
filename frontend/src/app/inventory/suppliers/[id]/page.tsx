@@ -678,10 +678,6 @@ export default function SupplierDetailPage() {
                       </th>
 
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Referencia
-                      </th>
-
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Fabricante
                       </th>
 
@@ -715,10 +711,6 @@ export default function SupplierDetailPage() {
                           <p className="mt-1 text-sm text-muted-foreground">
                             {supplierProduct.product_detail.name}
                           </p>
-                        </td>
-
-                        <td className="px-5 py-4 text-sm text-foreground">
-                          {supplierProduct.supplier_reference || "Sin referencia"}
                         </td>
 
                         <td className="px-5 py-4 text-sm text-foreground">

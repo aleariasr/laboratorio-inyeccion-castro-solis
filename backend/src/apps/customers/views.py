@@ -3,7 +3,7 @@ from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, mixins, status, viewsets
 
 from apps.core.permissions import (
     CustomersPermission,
@@ -18,38 +18,45 @@ from apps.core.query_params import (
 from apps.customers.exceptions import (
     CustomerAlreadyExistsError,
     InjectorAlreadyExistsError,
+    InsufficientStockForServiceError,
     InvalidServiceTransitionError,
+    ServiceMissingPriceError,
+    ServiceNotEditableError,
 )
 from apps.customers.models import (
     Customer,
     Injector,
-    InjectorAccessory,
     InjectorServiceRecord,
 )
 
 from apps.customers.serializers import (
     CustomerSerializer,
-    InjectorAccessorySerializer,
     InjectorSerializer,
     InjectorServiceAccessorySerializer,
     InjectorServiceRecordSerializer,
+    ServiceTypePriceHistorySerializer,
+    ServiceTypeSerializer,
 )
 from apps.customers.services import (
+    add_service_accessory,
     cancel_service,
     deliver_service,
     mark_ready,
     receive_injector,
     register_customer,
     register_injector,
+    remove_service_accessory,
     start_service,
+    sync_service_type_price_history,
 )
 
 from apps.customers.models import (
     Customer,
     Injector,
-    InjectorAccessory,
     InjectorServiceAccessory,
     InjectorServiceRecord,
+    ServiceType,
+    ServiceTypePriceHistory,
 )
 
 
@@ -285,8 +292,13 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        serializer.save(
+        service_record = serializer.save(
             updated_by=self.request.user,
+        )
+
+        sync_service_type_price_history(
+            service_record=service_record,
+            user=self.request.user,
         )
 
     @action(
@@ -375,7 +387,10 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
                 delivered_at=delivered_at,
                 user=request.user,
             )
-        except InvalidServiceTransitionError as exc:
+        except (
+            InvalidServiceTransitionError,
+            ServiceMissingPriceError,
+        ) as exc:
             return Response(
                 {"detail": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -415,15 +430,15 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
         )
 
 
-class InjectorAccessoryViewSet(viewsets.ModelViewSet):
-    serializer_class = InjectorAccessorySerializer
-    permission_classes = [InjectorsPermission]
+class ServiceTypeViewSet(viewsets.ModelViewSet):
+    serializer_class = ServiceTypeSerializer
+    permission_classes = [ServicesPermission]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
 
     def get_queryset(self):
-        queryset = InjectorAccessory.objects.all()
+        queryset = ServiceType.objects.all()
 
         query = self.request.query_params.get("q", "").strip()
         is_active = parse_boolean_query_param(
@@ -451,7 +466,39 @@ class InjectorAccessoryViewSet(viewsets.ModelViewSet):
             updated_by=self.request.user,
         )
 
-class InjectorServiceAccessoryViewSet(viewsets.ModelViewSet):
+
+class ServiceTypePriceHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ServiceTypePriceHistorySerializer
+    permission_classes = [ServicesPermission]
+
+    def get_queryset(self):
+        queryset = (
+            ServiceTypePriceHistory.objects
+            .select_related("service_type", "service_record")
+            .order_by("-charged_at", "-id")
+        )
+
+        service_type_id = self.request.query_params.get("service_type")
+
+        if service_type_id:
+            queryset = queryset.filter(service_type_id=service_type_id)
+
+        return queryset
+
+
+class InjectorServiceAccessoryViewSet(
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.ListModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Sin PATCH/PUT a propósito: el producto y la cantidad no se pueden editar
+    una vez creado (ya descontó inventario) — se elimina la línea (revierte
+    el movimiento) y se crea una nueva si hace falta cambiarla.
+    """
+
     serializer_class = InjectorServiceAccessorySerializer
     permission_classes = [ServicesPermission]
 
@@ -462,7 +509,7 @@ class InjectorServiceAccessoryViewSet(viewsets.ModelViewSet):
                 "service_record",
                 "service_record__injector",
                 "service_record__injector__customer",
-                "accessory",
+                "product",
             )
             .order_by("-created_at", "-id")
         )
@@ -474,13 +521,46 @@ class InjectorServiceAccessoryViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-    def perform_create(self, serializer):
-        serializer.save(
-            created_by=self.request.user,
-            updated_by=self.request.user,
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            service_accessory = add_service_accessory(
+                service_record=serializer.validated_data["service_record"],
+                product=serializer.validated_data["product"],
+                quantity=serializer.validated_data["quantity"],
+                notes=serializer.validated_data.get("notes", ""),
+                user=request.user,
+            )
+        except (
+            ServiceNotEditableError,
+            InsufficientStockForServiceError,
+        ) as exc:
+            return Response(
+                {"detail": str(exc) or exc.__class__.__name__},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        output_serializer = self.get_serializer(service_accessory)
+
+        return Response(
+            output_serializer.data,
+            status=status.HTTP_201_CREATED,
         )
 
-    def perform_update(self, serializer):
-        serializer.save(
-            updated_by=self.request.user,
-        )
+    def destroy(self, request, *args, **kwargs):
+        service_accessory = self.get_object()
+
+        try:
+            remove_service_accessory(
+                service_accessory=service_accessory,
+                user=request.user,
+            )
+        except ServiceNotEditableError as exc:
+            return Response(
+                {"detail": str(exc) or exc.__class__.__name__},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

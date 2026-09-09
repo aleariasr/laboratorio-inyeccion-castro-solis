@@ -7,6 +7,7 @@ import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 import {
   calculatePurchaseCosts,
@@ -366,7 +367,7 @@ export function PurchaseCostsSection({
     }
 
     if (
-      !globalThis.confirm(
+      !confirmWithFocusRestore(
         "¿Aplicar estos costos a los productos de la compra? Se creará un nuevo registro de histórico de costos por cada línea.",
       )
     ) {

@@ -63,7 +63,6 @@ class ImportCostApiTest(APITestCase):
         self.supplier_product = SupplierProduct.objects.create(
             supplier=self.supplier,
             product=self.product,
-            supplier_reference="SUP-P001",
             manufacturer="Bosch",
             created_by=self.user,
             updated_by=self.user,
