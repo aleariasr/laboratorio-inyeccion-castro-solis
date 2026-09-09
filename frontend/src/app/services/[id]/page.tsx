@@ -52,6 +52,7 @@ import {
   type ServiceRecordTechnicalFormValues,
   type ServiceStatus,
 } from "@/features/services/types";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
@@ -193,6 +194,17 @@ export default function ServiceDetailPage() {
     loadState.serviceRecord.status !== "DELIVERED" &&
     loadState.serviceRecord.status !== "CANCELLED" &&
     hasWriteAccess;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "service",
+          id: loadState.serviceRecord.id,
+          label: `${loadState.serviceRecord.injector_detail.injector_number} · ${loadState.serviceRecord.injector_detail.customer_detail.display_name}`,
+          href: `/services/${loadState.serviceRecord.id}`,
+        }
+      : null,
+  );
 
   const accessoriesTotal =
     loadState.status === "success"

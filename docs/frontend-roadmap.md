@@ -520,19 +520,22 @@ Crear la primera pantalla operativa y administrativa.
 
 ## Inicio
 
-Debe mostrar información útil, no métricas decorativas.
+**Implementado 2026-09-09.** Hasta esa fecha `/dashboard` era enteramente decorativo (seis
+tarjetas estáticas sin datos ni enlaces) pese a que este documento ya pedía explícitamente
+"información útil, no métricas decorativas" desde antes de construir el frontend — quedó así sin
+que nadie lo notara hasta una auditoría posterior. Ahora consume `GET /api/dashboard/summary/`
+(`apps/core/views/dashboard.py`), con cada sección oculta si el usuario no tiene el permiso de ese
+módulo (mismo patrón `_can_view` que la búsqueda universal):
 
-Candidatos iniciales:
+- productos bajo mínimo (conteo, enlaza a `/inventory/products`);
+- servicios en proceso / listos (conteo, enlaza a `/services`);
+- ventas recientes (últimas 5 confirmadas, cada una enlaza a su detalle);
+- compras recientes (últimas 5 confirmadas, cada una enlaza a su detalle);
+- accesos rápidos: reutiliza `NAVIGATION_ITEMS` + `canAccessNavigationItem` del menú lateral, no una
+  lista aparte — cada tarjeta es un enlace real al módulo correspondiente.
 
-- productos bajo mínimo;
-- servicios listos;
-- servicios en proceso;
-- compras recientes;
-- ventas recientes;
-- accesos rápidos;
-- estado general.
-
-Solo se mostrarán datos que tengan respaldo en endpoints existentes o requerimientos confirmados.
+No se implementó "estado general" como sección aparte: ya existe una pantalla dedicada
+(`/system/status`, solo ADMIN) y duplicarla en el dashboard no aportaba nada nuevo.
 
 ## Estado del sistema
 
@@ -581,23 +584,20 @@ Convertir la búsqueda en el principal mecanismo de acceso rápido.
 - resaltado de coincidencias;
 - mensajes sin resultados.
 
-## Pendientes backend
+## Pendientes backend (resuelto 2026-09-09)
 
-Antes de considerarla definitiva se debe revisar búsqueda por:
+Cobertura final de `GET /api/search/` — "referencia" y "fabricante" ya no aplican (el modelo de
+`ProductReference` se retiró en §3.6, sustituido por variantes de `Product` que ya se encuentran
+por código/nombre/descripción):
 
-- código;
-- nombre;
-- descripción;
-- ubicación;
-- referencia;
-- fabricante;
-- proveedor;
-- factura;
-- cliente;
-- identificación;
-- teléfono;
-- inyector;
-- servicio.
+- código, nombre y descripción de producto;
+- ubicación (código);
+- proveedor (nombre);
+- factura (número de compra);
+- cliente (nombre, identificación, teléfono);
+- inyector (número);
+- ventas (por nombre de cliente, categoría nueva);
+- servicio de inyector (por número de inyector o nombre de cliente, categoría nueva).
 
 ## Criterio de cierre
 

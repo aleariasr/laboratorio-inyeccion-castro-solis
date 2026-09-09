@@ -32,8 +32,10 @@ const EMPTY_RESULTS: UniversalSearchResults = {
   locations: [],
   suppliers: [],
   purchases: [],
+  sales: [],
   customers: [],
   injectors: [],
+  services: [],
 };
 
 type SearchState =
@@ -88,6 +90,28 @@ function formatPurchaseStatus(
   return labels[value] ?? value;
 }
 
+function formatSaleStatus(value: string): string {
+  const labels: Record<string, string> = {
+    DRAFT: "Borrador",
+    CONFIRMED: "Confirmada",
+    CANCELLED: "Anulada",
+  };
+
+  return labels[value] ?? value;
+}
+
+function formatServiceStatus(value: string): string {
+  const labels: Record<string, string> = {
+    RECEIVED: "Recibido",
+    IN_PROGRESS: "En proceso",
+    READY: "Listo",
+    DELIVERED: "Entregado",
+    CANCELLED: "Anulado",
+  };
+
+  return labels[value] ?? value;
+}
+
 function getSearchErrorMessage(
   error: unknown,
 ): string {
@@ -114,8 +138,10 @@ function getTotalResults(
     results.locations.length +
     results.suppliers.length +
     results.purchases.length +
+    results.sales.length +
     results.customers.length +
-    results.injectors.length
+    results.injectors.length +
+    results.services.length
   );
 }
 
@@ -809,6 +835,36 @@ export default function SearchPage() {
                 </ResultSection>
 
                 <ResultSection
+                  title="Ventas"
+                  count={
+                    results.sales.length
+                  }
+                >
+                  {results.sales.map(
+                    (sale) => (
+                      <ResultRow
+                        key={sale.id}
+                        eyebrow={`Venta #${sale.id}`}
+                        title={
+                          sale.customer.display_name
+                        }
+                        description={`Del ${formatDate(
+                          sale.sale_date,
+                        )}`}
+                        href={`/sales/${sale.id}`}
+                        metadata={
+                          <span className="font-semibold">
+                            {formatSaleStatus(
+                              sale.status,
+                            )}
+                          </span>
+                        }
+                      />
+                    ),
+                  )}
+                </ResultSection>
+
+                <ResultSection
                   title="Clientes"
                   count={
                     results.customers.length
@@ -863,6 +919,36 @@ export default function SearchPage() {
                                   .display_name
                               }
                             </strong>
+                          </span>
+                        }
+                      />
+                    ),
+                  )}
+                </ResultSection>
+
+                <ResultSection
+                  title="Servicios"
+                  count={
+                    results.services.length
+                  }
+                >
+                  {results.services.map(
+                    (serviceRecord) => (
+                      <ResultRow
+                        key={serviceRecord.id}
+                        eyebrow={
+                          serviceRecord.injector_number
+                        }
+                        title={
+                          serviceRecord.customer
+                            .display_name
+                        }
+                        href={`/services/${serviceRecord.id}`}
+                        metadata={
+                          <span className="font-semibold">
+                            {formatServiceStatus(
+                              serviceRecord.status,
+                            )}
                           </span>
                         }
                       />

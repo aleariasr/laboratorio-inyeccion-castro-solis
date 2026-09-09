@@ -18,6 +18,7 @@ import {
 import { formatDate } from "@/features/inventory/purchases/format";
 import { getInjector, getInjectorServiceRecords } from "@/features/injectors/api";
 import type { Injector, InjectorServiceRecordSummary } from "@/features/injectors/types";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 
 type LoadState =
@@ -92,6 +93,17 @@ export default function InjectorDetailPage() {
   const hasWriteAccess = user ? canWriteInjectors(user) : false;
 
   const hasServicesAccess = user ? canReadServices(user) : false;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "injector",
+          id: loadState.injector.id,
+          label: `${loadState.injector.injector_number} · ${loadState.injector.customer_detail.display_name}`,
+          href: `/injectors/${loadState.injector.id}`,
+        }
+      : null,
+  );
 
   useEffect(() => {
     if (

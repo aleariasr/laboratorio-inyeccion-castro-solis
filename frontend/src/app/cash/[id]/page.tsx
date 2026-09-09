@@ -13,6 +13,7 @@ import { canReadCash } from "@/features/auth/permissions";
 import { getCashClosing } from "@/features/cash/api";
 import type { CashClosing } from "@/features/cash/types";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 
 type LoadState =
@@ -63,6 +64,17 @@ export default function CashClosingDetailPage() {
   const closingId = Number(params.id);
 
   const hasCashAccess = user ? canReadCash(user) : false;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "cash",
+          id: loadState.closing.id,
+          label: `Cierre de caja · ${loadState.closing.week_start}`,
+          href: `/cash/${loadState.closing.id}`,
+        }
+      : null,
+  );
 
   useEffect(() => {
     if (
@@ -252,16 +264,16 @@ export default function CashClosingDetailPage() {
         <div className="app-status-card overflow-hidden">
           <div className="grid gap-6 p-6 sm:grid-cols-3">
             <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
-              <p className="text-sm text-muted-foreground">Efectivo esperado</p>
+              <p className="text-sm text-muted-foreground">Total esperado</p>
               <p className="mt-2 font-mono text-2xl font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.expected_cash_total)}
+                ₡{formatMoney(loadState.closing.expected_total)}
               </p>
             </div>
 
             <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
-              <p className="text-sm text-muted-foreground">Efectivo contado</p>
+              <p className="text-sm text-muted-foreground">Total contado</p>
               <p className="mt-2 font-mono text-2xl font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.counted_cash_total)}
+                ₡{formatMoney(loadState.closing.counted_total)}
               </p>
             </div>
 
@@ -283,6 +295,36 @@ export default function CashClosingDetailPage() {
                 ].join(" ")}
               >
                 ₡{formatMoney(loadState.closing.difference)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 border-t border-[var(--color-border-soft)] p-6 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Efectivo</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                ₡{formatMoney(loadState.closing.expected_cash)}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground">Tarjeta</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                ₡{formatMoney(loadState.closing.expected_card)}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground">Transferencia</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                ₡{formatMoney(loadState.closing.expected_transfer)}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground">Otro</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                ₡{formatMoney(loadState.closing.expected_other)}
               </p>
             </div>
           </div>

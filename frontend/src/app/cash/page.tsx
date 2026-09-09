@@ -250,11 +250,11 @@ export default function CashClosingsPage() {
                         </td>
 
                         <td className="px-5 py-4 text-right align-top font-mono text-sm text-foreground">
-                          ₡{formatMoney(closing.expected_cash_total)}
+                          ₡{formatMoney(closing.expected_total)}
                         </td>
 
                         <td className="px-5 py-4 text-right align-top font-mono text-sm text-foreground">
-                          ₡{formatMoney(closing.counted_cash_total)}
+                          ₡{formatMoney(closing.counted_total)}
                         </td>
 
                         <td

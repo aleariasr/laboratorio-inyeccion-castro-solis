@@ -18,6 +18,7 @@ import {
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import { getCustomer, getCustomerInjectors } from "@/features/customers/api";
 import type { Customer, CustomerInjector } from "@/features/customers/types";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { getSales } from "@/features/sales/api";
 import type { Sale } from "@/features/sales/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -109,6 +110,17 @@ export default function CustomerDetailPage() {
   const hasInjectorsAccess = user ? canReadInjectors(user) : false;
 
   const hasSalesAccess = user ? canReadSales(user) : false;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "customer",
+          id: loadState.customer.id,
+          label: loadState.customer.display_name,
+          href: `/customers/${loadState.customer.id}`,
+        }
+      : null,
+  );
 
   useEffect(() => {
     if (

@@ -53,13 +53,35 @@ export type UniversalSearchInjector = {
   };
 };
 
+export type UniversalSearchSale = {
+  id: number;
+  customer: {
+    id: number;
+    display_name: string;
+  };
+  sale_date: string;
+  status: string;
+};
+
+export type UniversalSearchServiceRecord = {
+  id: number;
+  injector_number: string;
+  customer: {
+    id: number;
+    display_name: string;
+  };
+  status: string;
+};
+
 export type UniversalSearchResults = {
   products: UniversalSearchProduct[];
   locations: UniversalSearchLocation[];
   suppliers: UniversalSearchSupplier[];
   purchases: UniversalSearchPurchase[];
+  sales: UniversalSearchSale[];
   customers: UniversalSearchCustomer[];
   injectors: UniversalSearchInjector[];
+  services: UniversalSearchServiceRecord[];
 };
 
 export type UniversalSearchResponse = {

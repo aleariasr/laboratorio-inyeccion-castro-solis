@@ -9,12 +9,13 @@ from apps.cash.exceptions import (
     DifferenceReasonRequiredError,
     InvalidWeekStartError,
 )
-from apps.cash.selectors import cash_closings, expected_cash_total
+from apps.cash.selectors import cash_closings, expected_totals_by_method
 from apps.cash.serializers import (
     CashClosingCreateSerializer,
     CashClosingSerializer,
 )
 from apps.cash.services import SATURDAY, create_cash_closing
+from apps.core.models import PaymentMethod
 from apps.core.permissions import CashPermission
 from apps.core.query_params import parse_date_query_param
 
@@ -43,8 +44,8 @@ class CashClosingViewSet(
         try:
             closing = create_cash_closing(
                 week_start=input_serializer.validated_data["week_start"],
-                counted_cash_total=input_serializer.validated_data[
-                    "counted_cash_total"
+                counted_total=input_serializer.validated_data[
+                    "counted_total"
                 ],
                 difference_reason=input_serializer.validated_data.get(
                     "difference_reason", "",
@@ -98,10 +99,16 @@ class CashClosingViewSet(
 
         week_end = week_start + timedelta(days=6)
 
+        breakdown = expected_totals_by_method(week_start, week_end)
+
         return Response(
             {
                 "week_start": week_start,
                 "week_end": week_end,
-                "expected_cash_total": expected_cash_total(week_start, week_end),
+                "expected_total": sum(breakdown.values()),
+                "expected_cash": breakdown[PaymentMethod.CASH],
+                "expected_card": breakdown[PaymentMethod.CARD],
+                "expected_transfer": breakdown[PaymentMethod.TRANSFER],
+                "expected_other": breakdown[PaymentMethod.OTHER],
             }
         )

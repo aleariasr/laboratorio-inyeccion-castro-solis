@@ -426,13 +426,21 @@ Estado resumido:
 
     Infraestructura productiva base: implementada.
     Backend base: cerrado.
-    App de escritorio Windows (Electron + WSL2 + Docker Engine): implementada.
-    Frontend operativo: login, sesión, navegación, estado del sistema, búsqueda universal, productos,
+    App de escritorio Windows (Electron + WSL2 + Docker Engine): implementada, con dos mecanismos
+    sin validar con uso real extendido (ver windows-production-checklist.md).
+    Frontend operativo: login, sesión, navegación, estado del sistema, búsqueda universal completa
+    (2026-09-09: ahora cubre productos por nombre/descripción, clientes por identificación/teléfono,
+    ventas y servicios de inyector, que antes faltaban por completo), productos (con variantes §3.6),
     ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores, servicios,
-    conteos físicos, movimientos de inventario, administración de usuarios, reportes y etiquetas PDF
-    implementados. Ver el "Resumen funcional implementado" del README principal para el detalle completo.
+    cierre de caja, proforma y facturas internas, conteos físicos, movimientos de inventario,
+    administración de usuarios, reportes y etiquetas PDF implementados. La pantalla de inicio
+    (`/dashboard`, 2026-09-09) ahora muestra datos reales (productos bajo mínimo, servicios en
+    proceso/listos, ventas y compras recientes, todo filtrado por permiso) y accesos rápidos como
+    enlaces reales a cada módulo, en vez de las tarjetas decorativas sin datos que tenía antes. Ver
+    el "Resumen funcional implementado" del README principal para el detalle completo.
+    Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo §5 (sin definir).
     Validación con usuarios reales: pendiente.
-    Migración DBF legacy: pendiente.
+    Migración DBF legacy: pendiente (archivos reales ya disponibles, 2026-09-09).
 
 > Nota: la lista anterior refleja el estado verificado contra el código en esta revisión. Este
 > documento no siempre se mantiene sincronizado en tiempo real; ante cualquier duda, el

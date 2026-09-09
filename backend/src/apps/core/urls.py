@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    DashboardSummaryView,
     LowStockProductsReportView,
     ProductMovementsReportView,
     ProductSupplierPricesReportView,
@@ -16,6 +17,11 @@ app_name = "core"
 
 urlpatterns = [
     path("search/", UniversalSearchView.as_view(), name="search"),
+    path(
+        "dashboard/summary/",
+        DashboardSummaryView.as_view(),
+        name="dashboard-summary",
+    ),
     path(
         "reports/low-stock-products/",
         LowStockProductsReportView.as_view(),

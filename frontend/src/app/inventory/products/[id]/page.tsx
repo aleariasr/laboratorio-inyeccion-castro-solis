@@ -41,6 +41,7 @@ import {
 import { getLatestProductCostHistory } from "@/features/inventory/purchases/api";
 import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
 import type { ProductCostHistory } from "@/features/inventory/purchases/types";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import type { PaginatedResponse } from "@/lib/api/types";
 import {
   ApiError,
@@ -251,6 +252,17 @@ export default function ProductDetailPage() {
 
   const hasWriteAccess =
     user ? canWriteProducts(user) : false;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "product",
+          id: loadState.product.id,
+          label: `${loadState.product.standard_code} · ${loadState.product.name}`,
+          href: `/inventory/products/${loadState.product.id}`,
+        }
+      : null,
+  );
 
   const movementTotalPages =
     movementLoadState.status === "success"

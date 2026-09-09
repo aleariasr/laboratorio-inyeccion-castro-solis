@@ -12,8 +12,12 @@ class CashClosingSerializer(serializers.ModelSerializer):
             "id",
             "week_start",
             "week_end",
-            "expected_cash_total",
-            "counted_cash_total",
+            "expected_total",
+            "expected_cash",
+            "expected_card",
+            "expected_transfer",
+            "expected_other",
+            "counted_total",
             "difference",
             "difference_reason",
             "notes",
@@ -26,7 +30,7 @@ class CashClosingSerializer(serializers.ModelSerializer):
 
 class CashClosingCreateSerializer(serializers.Serializer):
     week_start = serializers.DateField()
-    counted_cash_total = serializers.DecimalField(
+    counted_total = serializers.DecimalField(
         max_digits=14,
         decimal_places=4,
         min_value=Decimal("0"),

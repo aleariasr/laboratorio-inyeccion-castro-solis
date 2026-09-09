@@ -1,254 +1,584 @@
 "use client";
 
-import { AppShell } from "@/components/layout/app-shell";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-type ModuleItem = {
-  name: string;
-  description: string;
-  icon: React.ReactNode;
+import { LoadingState } from "@/components/feedback/loading-state";
+import { StatePanel } from "@/components/feedback/state-panel";
+import {
+  AlertIcon,
+  CartIcon,
+  DropletIcon,
+  InventoryIcon,
+  LocationIcon,
+  ReceiptIcon,
+  TruckIcon,
+  UsersIcon,
+  WrenchIcon,
+} from "@/components/icons/app-icons";
+import { AppShell } from "@/components/layout/app-shell";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/features/auth/auth-context";
+import { canReadCash } from "@/features/auth/permissions";
+import { getDashboardSummary } from "@/features/dashboard/api";
+import type { DashboardSummary } from "@/features/dashboard/types";
+import type { NavigationIconComponent } from "@/components/navigation/navigation-types";
+import { getRecentlyViewed } from "@/features/recently-viewed/storage";
+import type {
+  RecentlyViewedEntry,
+  RecentlyViewedType,
+} from "@/features/recently-viewed/types";
+import {
+  ApiError,
+  ApiNetworkError,
+  ApiTimeoutError,
+} from "@/lib/api/errors";
+
+type LoadState =
+  | {
+      status: "loading";
+      data: null;
+      message: null;
+    }
+  | {
+      status: "success";
+      data: DashboardSummary;
+      message: null;
+    }
+  | {
+      status: "error";
+      data: null;
+      message: string;
+    };
+
+function formatDate(value: string): string {
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("es-CR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiTimeoutError) {
+    return "La consulta tardó demasiado tiempo en responder.";
+  }
+
+  if (error instanceof ApiNetworkError) {
+    return "No fue posible comunicarse con el sistema local.";
+  }
+
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return "No fue posible cargar el resumen de inicio.";
+}
+
+const RECENTLY_VIEWED_LABELS: Record<RecentlyViewedType, string> = {
+  product: "Producto",
+  location: "Ubicación",
+  supplier: "Proveedor",
+  purchase: "Compra",
+  sale: "Venta",
+  customer: "Cliente",
+  injector: "Inyector",
+  service: "Servicio",
+  cash: "Cierre de caja",
+};
+
+const RECENTLY_VIEWED_ICONS: Record<
+  RecentlyViewedType,
+  NavigationIconComponent
+> = {
+  product: InventoryIcon,
+  location: LocationIcon,
+  supplier: TruckIcon,
+  purchase: ReceiptIcon,
+  sale: CartIcon,
+  customer: UsersIcon,
+  injector: DropletIcon,
+  service: WrenchIcon,
+  cash: ReceiptIcon,
+};
+
+type SectionIconProps = {
+  icon: NavigationIconComponent;
   accent: string;
   surface: string;
 };
 
-function InventoryIcon() {
+function SectionIcon({ icon: Icon, accent, surface }: SectionIconProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      className="size-7"
-      aria-hidden="true"
+    <span
+      className="flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-lg)]"
+      style={{ background: surface, color: accent }}
     >
-      <path
-        d="M4.5 7.5 12 3.8l7.5 3.7L12 11.2 4.5 7.5Z"
-        strokeLinejoin="round"
-      />
-
-      <path
-        d="M4.5 7.5v8.8L12 20.2l7.5-3.9V7.5M12 11.2v9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      <Icon className="size-5" />
+    </span>
   );
 }
 
-function SalesIcon() {
+function isSectionEmpty(data: DashboardSummary): boolean {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      className="size-7"
-      aria-hidden="true"
-    >
-      <path
-        d="M5 6.2h14v12.3H5z"
-        strokeLinejoin="round"
-      />
-
-      <path
-        d="M8 9.2h8M8 12.2h5M8 15.2h3"
-        strokeLinecap="round"
-      />
-    </svg>
+    (data.low_stock_products?.length ?? 0) === 0 &&
+    (data.services_ready?.length ?? 0) === 0 &&
+    (data.draft_sales?.length ?? 0) === 0 &&
+    (data.draft_purchases?.length ?? 0) === 0 &&
+    !data.cash_pending_week_start
   );
 }
-
-function CustomersIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      className="size-7"
-      aria-hidden="true"
-    >
-      <circle cx="9" cy="8.2" r="3.1" />
-
-      <path
-        d="M3.8 18.8c.5-3.1 2.2-4.8 5.2-4.8s4.7 1.7 5.2 4.8"
-        strokeLinecap="round"
-      />
-
-      <path
-        d="M15.2 6.2a2.7 2.7 0 0 1 0 5.2M16.1 14c2.4.2 3.7 1.8 4.1 4.3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function PurchasesIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      className="size-7"
-      aria-hidden="true"
-    >
-      <path
-        d="M6.3 7.2h11.4l1.1 12H5.2l1.1-12Z"
-        strokeLinejoin="round"
-      />
-
-      <path
-        d="M9 8V6.1a3 3 0 0 1 6 0V8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function ReportsIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      className="size-7"
-      aria-hidden="true"
-    >
-      <path
-        d="M5 19V5M5 19h14"
-        strokeLinecap="round"
-      />
-
-      <path
-        d="m8 15 3-3 2.5 2 4.5-6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function DocumentsIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      className="size-7"
-      aria-hidden="true"
-    >
-      <path
-        d="M7 3.8h7l4 4v12.4H7V3.8Z"
-        strokeLinejoin="round"
-      />
-
-      <path
-        d="M14 3.8v4h4M10 12h5M10 15h5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-const MODULES: ModuleItem[] = [
-  {
-    name: "Inventario",
-    description:
-      "Productos, ubicaciones, existencias y movimientos.",
-    icon: <InventoryIcon />,
-    accent: "#075184",
-    surface: "#eaf3f8",
-  },
-  {
-    name: "Ventas",
-    description:
-      "Registro y consulta de ventas.",
-    icon: <SalesIcon />,
-    accent: "#248a3d",
-    surface: "#edf8ef",
-  },
-  {
-    name: "Clientes e inyectores",
-    description:
-      "Clientes, inyectores y seguimiento de servicios.",
-    icon: <CustomersIcon />,
-    accent: "#6e4bb8",
-    surface: "#f3effb",
-  },
-  {
-    name: "Compras",
-    description:
-      "Proveedores, compras y costos.",
-    icon: <PurchasesIcon />,
-    accent: "#a05a00",
-    surface: "#fff6e5",
-  },
-  {
-    name: "Reportes",
-    description:
-      "Información operativa para análisis y decisiones.",
-    icon: <ReportsIcon />,
-    accent: "#0066cc",
-    surface: "#edf5ff",
-  },
-  {
-    name: "Documentos",
-    description:
-      "Etiquetas, catálogos y documentos internos.",
-    icon: <DocumentsIcon />,
-    accent: "#c02b63",
-    surface: "#fceef4",
-  },
-];
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  const {
+    status: authStatus,
+    user,
+    token,
+    logout,
+  } = useAuth();
+
+  const [loadState, setLoadState] = useState<LoadState>({
+    status: "loading",
+    data: null,
+    message: null,
+  });
+
+  const [recentlyViewed, setRecentlyViewed] = useState<
+    RecentlyViewedEntry[]
+  >([]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setRecentlyViewed(getRecentlyViewed());
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated" || !token) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    getDashboardSummary(token, controller.signal)
+      .then((data) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setLoadState({
+          status: "success",
+          data,
+          message: null,
+        });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 401) {
+          void logout().then(() => {
+            router.replace("/login");
+          });
+
+          return;
+        }
+
+        setLoadState({
+          status: "error",
+          data: null,
+          message: getErrorMessage(error),
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [authStatus, logout, router, token]);
+
+  const canSeeCash = user ? canReadCash(user) : false;
+
   return (
     <AppShell
       title="Inicio"
-      description="Seleccione el área en la que desea trabajar."
+      description="Lo que hay que atender hoy."
     >
-      <section aria-labelledby="modules-title">
-        <h2
-          id="modules-title"
-          className="sr-only"
-        >
-          Áreas del sistema
-        </h2>
+      {loadState.status === "loading" && (
+        <LoadingState message="Cargando resumen…" />
+      )}
 
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {MODULES.map((module, index) => (
-            <article
-              key={module.name}
-              className="app-module-card"
-              style={{
-                animationDelay: `${index * 55}ms`,
+      {loadState.status === "error" && (
+        <StatePanel
+          title="No se pudo cargar el resumen"
+          message={loadState.message}
+          tone="error"
+          action={
+            <Button
+              type="button"
+              onClick={() => {
+                globalThis.location.reload();
               }}
             >
-              <div
-                className="app-module-icon"
-                style={{
-                  background: module.surface,
-                  color: module.accent,
+              Reintentar
+            </Button>
+          }
+        />
+      )}
+
+      {loadState.status === "success" && (
+        <div className="grid gap-6">
+          {canSeeCash && loadState.data.cash_pending_week_start && (
+            <div className="app-status-card flex flex-col gap-3 border-l-4 border-l-[var(--color-warning,#a05a00)] p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <AlertIcon className="mt-0.5 size-5 shrink-0 text-[var(--color-warning,#a05a00)]" />
+
+                <div>
+                  <p className="font-semibold text-foreground">
+                    Falta cerrar la caja de la semana pasada
+                  </p>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Semana del{" "}
+                    {formatDate(loadState.data.cash_pending_week_start)}{" "}
+                    todavía sin cierre.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={() => {
+                  router.push("/cash/new");
                 }}
               >
-                {module.icon}
-              </div>
+                Cerrar caja
+              </Button>
+            </div>
+          )}
 
-              <div className="mt-6">
-                <h3 className="text-[19px] font-semibold tracking-[-0.025em] text-foreground">
-                  {module.name}
-                </h3>
+          {isSectionEmpty(loadState.data) ? (
+            <StatePanel
+              title="No hay pendientes ahora mismo"
+              message="Bajo mínimo, servicios listos, borradores y caja están al día."
+              tone="neutral"
+            />
+          ) : (
+            <section className="grid gap-6 lg:grid-cols-2">
+              {loadState.data.services_ready !== null && (
+                <div className="app-status-card overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border-soft)] p-5">
+                    <div className="flex items-center gap-4">
+                      <SectionIcon
+                        icon={WrenchIcon}
+                        accent="#6e4bb8"
+                        surface="#f3effb"
+                      />
 
-                <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
-                  {module.description}
-                </p>
+                      <div>
+                        <h2 className="text-base font-semibold text-foreground">
+                          Servicios listos para entregar
+                        </h2>
+
+                        {loadState.data.services_in_progress_count !==
+                          null && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {
+                              loadState.data.services_in_progress_count
+                            }{" "}
+                            en proceso todavía.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        router.push("/services");
+                      }}
+                    >
+                      Ver todos
+                    </Button>
+                  </div>
+
+                  {loadState.data.services_ready.length === 0 ? (
+                    <p className="p-5 text-sm text-muted-foreground">
+                      Ningún servicio listo para entregar en este momento.
+                    </p>
+                  ) : (
+                    <ul>
+                      {loadState.data.services_ready.map((service) => (
+                        <li key={service.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              router.push(`/services/${service.id}`);
+                            }}
+                            className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border-soft)] px-5 py-3.5 text-left transition-colors last:border-b-0 hover:bg-surface-muted/50"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold text-foreground">
+                                {service.customer_display_name}
+                              </span>
+
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {service.injector_number}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {loadState.data.low_stock_products !== null && (
+                <div className="app-status-card overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border-soft)] p-5">
+                    <div className="flex items-center gap-4">
+                      <SectionIcon
+                        icon={InventoryIcon}
+                        accent="#075184"
+                        surface="#eaf3f8"
+                      />
+
+                      <h2 className="text-base font-semibold text-foreground">
+                        Productos bajo mínimo
+                      </h2>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        router.push("/inventory/products");
+                      }}
+                    >
+                      Ver todos
+                    </Button>
+                  </div>
+
+                  {loadState.data.low_stock_products.length === 0 ? (
+                    <p className="p-5 text-sm text-muted-foreground">
+                      Ningún producto bajo su mínimo.
+                    </p>
+                  ) : (
+                    <ul>
+                      {loadState.data.low_stock_products.map((product) => (
+                        <li key={product.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              router.push(
+                                `/inventory/products/${product.id}`,
+                              );
+                            }}
+                            className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border-soft)] px-5 py-3.5 text-left transition-colors last:border-b-0 hover:bg-surface-muted/50"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold text-foreground">
+                                {product.name}
+                              </span>
+
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {product.standard_code}
+                              </span>
+                            </span>
+
+                            <span className="shrink-0 font-mono text-sm font-semibold text-[var(--color-warning,#a05a00)]">
+                              {product.current_stock} / {product.minimum_stock}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {loadState.data.draft_sales !== null && (
+                <div className="app-status-card overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border-soft)] p-5">
+                    <div className="flex items-center gap-4">
+                      <SectionIcon
+                        icon={CartIcon}
+                        accent="#248a3d"
+                        surface="#edf8ef"
+                      />
+
+                      <h2 className="text-base font-semibold text-foreground">
+                        Ventas en borrador
+                      </h2>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        router.push("/sales");
+                      }}
+                    >
+                      Ver todas
+                    </Button>
+                  </div>
+
+                  {loadState.data.draft_sales.length === 0 ? (
+                    <p className="p-5 text-sm text-muted-foreground">
+                      No hay ventas a medias.
+                    </p>
+                  ) : (
+                    <ul>
+                      {loadState.data.draft_sales.map((sale) => (
+                        <li key={sale.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              router.push(`/sales/${sale.id}`);
+                            }}
+                            className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border-soft)] px-5 py-3.5 text-left transition-colors last:border-b-0 hover:bg-surface-muted/50"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold text-foreground">
+                                {sale.customer_display_name ??
+                                  "Sin cliente"}
+                              </span>
+
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(sale.sale_date)}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {loadState.data.draft_purchases !== null && (
+                <div className="app-status-card overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border-soft)] p-5">
+                    <div className="flex items-center gap-4">
+                      <SectionIcon
+                        icon={TruckIcon}
+                        accent="#a05a00"
+                        surface="#fff6e5"
+                      />
+
+                      <h2 className="text-base font-semibold text-foreground">
+                        Compras en borrador
+                      </h2>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        router.push("/inventory/purchases");
+                      }}
+                    >
+                      Ver todas
+                    </Button>
+                  </div>
+
+                  {loadState.data.draft_purchases.length === 0 ? (
+                    <p className="p-5 text-sm text-muted-foreground">
+                      No hay compras a medias.
+                    </p>
+                  ) : (
+                    <ul>
+                      {loadState.data.draft_purchases.map((purchase) => (
+                        <li key={purchase.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              router.push(
+                                `/inventory/purchases/${purchase.id}`,
+                              );
+                            }}
+                            className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border-soft)] px-5 py-3.5 text-left transition-colors last:border-b-0 hover:bg-surface-muted/50"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold text-foreground">
+                                {purchase.supplier_name}
+                              </span>
+
+                              <span className="text-xs text-muted-foreground">
+                                Factura {purchase.invoice_number} ·{" "}
+                                {formatDate(purchase.purchase_date)}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
+          {recentlyViewed.length > 0 && (
+            <section aria-labelledby="recently-viewed-title">
+              <h2
+                id="recently-viewed-title"
+                className="mb-4 text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+              >
+                Vistos recientemente
+              </h2>
+
+              <div className="app-status-card overflow-hidden">
+                <ul className="grid sm:grid-cols-2">
+                  {recentlyViewed.map((entry) => {
+                    const EntryIcon = RECENTLY_VIEWED_ICONS[entry.type];
+
+                    return (
+                    <li key={`${entry.type}-${entry.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push(entry.href);
+                        }}
+                        className="flex w-full items-center gap-3 border-b border-[var(--color-border-soft)] px-5 py-3.5 text-left transition-colors hover:bg-surface-muted/50"
+                      >
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-primary">
+                          <EntryIcon className="size-4" />
+                        </span>
+
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-foreground">
+                            {entry.label}
+                          </span>
+
+                          <span className="text-xs text-muted-foreground">
+                            {RECENTLY_VIEWED_LABELS[entry.type]}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                    );
+                  })}
+                </ul>
               </div>
-            </article>
-          ))}
+            </section>
+          )}
         </div>
-      </section>
+      )}
     </AppShell>
   );
 }

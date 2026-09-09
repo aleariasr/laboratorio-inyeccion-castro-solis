@@ -212,6 +212,9 @@ Categorías actuales:
 
 ## Limitaciones detectadas
 
+> **Resuelto 2026-09-09** — la lista de abajo describe el estado en el momento de esta auditoría,
+> ya no el estado actual. Ver la nota de "Todavía pendiente" al final de este documento.
+
 Actualmente la búsqueda es más limitada que el requerimiento funcional original.
 
 Productos:
@@ -1025,7 +1028,7 @@ Cada cambio deberá incluir:
 
 ## Todavía pendiente (verificado en el código actual)
 
-- La búsqueda universal (`GET /api/search/`) sigue exactamente tan limitada como se describe más arriba en este documento: productos solo por código estándar, clientes solo por nombre visible, sin buscar por identificación ni teléfono, sin cubrir ventas ni servicios de inyector.
+- ~~La búsqueda universal (`GET /api/search/`) sigue exactamente tan limitada como se describe más arriba en este documento~~ — resuelto 2026-09-09: `search_products` ahora busca también por nombre y descripción, `search_customers` también por identificación y teléfono, y se agregaron categorías nuevas `sales` (por nombre de cliente, mismo criterio que `SalesViewSet`) y `services` (por número de inyector o nombre de cliente, mismo criterio que `InjectorServiceRecordViewSet`) — ver `apps/core/views/search.py`.
 - ~~La administración de roles de usuario sigue sin ser posible desde la API~~ — resuelto: `UserSerializer` y `UserCreateSerializer` (`apps/accounts/serializers.py`) exponen `groups` como campo de escritura (`SlugRelatedField`), y existe `RoleListView` para consultar los roles disponibles.
 
 Estos pendientes deben resolverse junto con las pantallas correspondientes (compras, ventas, administración de usuarios), siguiendo la regla que ya establece este documento: "cada grupo de filtros se implementará junto con su pantalla correspondiente."

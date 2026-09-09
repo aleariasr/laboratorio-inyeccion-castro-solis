@@ -140,7 +140,7 @@ export function CashClosingForm({
 
     const validationErrors = validateCashClosingForm(
       values,
-      effectivePreview?.expected_cash_total ?? null,
+      effectivePreview?.expected_total ?? null,
     );
 
     setLocalErrors(validationErrors);
@@ -153,15 +153,14 @@ export function CashClosingForm({
   }
 
   const difference =
-    effectivePreview && values.countedCashTotal.trim()
-      ? Number(values.countedCashTotal) -
-        Number(effectivePreview.expected_cash_total)
+    effectivePreview && values.countedTotal.trim()
+      ? Number(values.countedTotal) - Number(effectivePreview.expected_total)
       : null;
 
   const weekStartHint = isLoadingPreview
-    ? "Calculando efectivo esperado…"
+    ? "Calculando total esperado…"
     : effectivePreview
-      ? `Semana del ${effectivePreview.week_start} al ${effectivePreview.week_end}. Efectivo esperado: ₡${formatMoney(effectivePreview.expected_cash_total)}.`
+      ? `Semana del ${effectivePreview.week_start} al ${effectivePreview.week_end}.`
       : "Elija el sábado de inicio de la semana a cerrar.";
 
   return (
@@ -187,20 +186,60 @@ export function CashClosingForm({
         />
       </Field>
 
+      {effectivePreview && (
+        <div className="grid gap-3 rounded-[var(--radius-lg)] bg-surface-muted/50 p-4 sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Efectivo</p>
+            <p className="font-mono text-sm font-semibold text-foreground">
+              ₡{formatMoney(effectivePreview.expected_cash)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Tarjeta</p>
+            <p className="font-mono text-sm font-semibold text-foreground">
+              ₡{formatMoney(effectivePreview.expected_card)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Transferencia</p>
+            <p className="font-mono text-sm font-semibold text-foreground">
+              ₡{formatMoney(effectivePreview.expected_transfer)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Otro</p>
+            <p className="font-mono text-sm font-semibold text-foreground">
+              ₡{formatMoney(effectivePreview.expected_other)}
+            </p>
+          </div>
+
+          <div className="col-span-2 border-t border-[var(--color-border-soft)] pt-3 sm:col-span-4">
+            <p className="text-xs text-muted-foreground">Total esperado</p>
+            <p className="font-mono text-base font-semibold text-foreground">
+              ₡{formatMoney(effectivePreview.expected_total)}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
           id="cash-closing-counted"
-          label="Efectivo contado"
+          label="Total contado"
           required
-          error={errors.countedCashTotal}
+          hint="Efectivo + vouchers de tarjeta + comprobantes de transferencia, todo junto."
+          error={errors.countedTotal}
         >
           <Input
             id="cash-closing-counted"
-            value={values.countedCashTotal}
+            value={values.countedTotal}
             onChange={(event) => {
-              updateValue("countedCashTotal", event.target.value);
+              updateValue("countedTotal", event.target.value);
             }}
-            hasError={Boolean(errors.countedCashTotal)}
+            hasError={Boolean(errors.countedTotal)}
             inputMode="decimal"
             autoComplete="off"
             disabled={isSubmitting}

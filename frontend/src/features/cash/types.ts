@@ -2,8 +2,12 @@ export type CashClosing = {
   id: number;
   week_start: string;
   week_end: string;
-  expected_cash_total: string;
-  counted_cash_total: string;
+  expected_total: string;
+  expected_cash: string;
+  expected_card: string;
+  expected_transfer: string;
+  expected_other: string;
+  counted_total: string;
   difference: string;
   difference_reason: string;
   notes: string;
@@ -15,7 +19,11 @@ export type CashClosing = {
 export type CashClosingPreview = {
   week_start: string;
   week_end: string;
-  expected_cash_total: string;
+  expected_total: string;
+  expected_cash: string;
+  expected_card: string;
+  expected_transfer: string;
+  expected_other: string;
 };
 
 export type CashClosingFilters = {
@@ -25,21 +33,21 @@ export type CashClosingFilters = {
 
 export type CashClosingWritePayload = {
   week_start: string;
-  counted_cash_total: string;
+  counted_total: string;
   difference_reason: string;
   notes: string;
 };
 
 export type CashClosingFormValues = {
   weekStart: string;
-  countedCashTotal: string;
+  countedTotal: string;
   differenceReason: string;
   notes: string;
 };
 
 export type CashClosingFormField =
   | "weekStart"
-  | "countedCashTotal"
+  | "countedTotal"
   | "differenceReason"
   | "notes";
 
@@ -47,7 +55,7 @@ export type CashClosingFormErrors = Partial<Record<CashClosingFormField, string>
 
 export const EMPTY_CASH_CLOSING_FORM_VALUES: CashClosingFormValues = {
   weekStart: "",
-  countedCashTotal: "",
+  countedTotal: "",
   differenceReason: "",
   notes: "",
 };
@@ -57,7 +65,7 @@ export function buildCashClosingWritePayload(
 ): CashClosingWritePayload {
   return {
     week_start: values.weekStart,
-    counted_cash_total: values.countedCashTotal.trim(),
+    counted_total: values.countedTotal.trim(),
     difference_reason: values.differenceReason.trim(),
     notes: values.notes.trim(),
   };

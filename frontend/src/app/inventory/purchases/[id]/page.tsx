@@ -34,6 +34,7 @@ import {
   type PurchaseItemInline,
   type PurchaseStatus,
 } from "@/features/inventory/purchases/types";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
@@ -172,6 +173,17 @@ export default function PurchaseDetailPage() {
     loadState.status === "success" &&
     loadState.purchase.status === "DRAFT" &&
     hasWriteAccess;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "purchase",
+          id: loadState.purchase.id,
+          label: `${loadState.purchase.supplier_detail.name} · Factura ${loadState.purchase.invoice_number}`,
+          href: `/inventory/purchases/${loadState.purchase.id}`,
+        }
+      : null,
+  );
 
   const itemFormInitialValues =
     itemFormState.mode === "edit"

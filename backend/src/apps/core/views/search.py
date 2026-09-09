@@ -1,15 +1,17 @@
+from django.db.models import Q
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.permissions import ROLE_ADMIN
-from apps.customers.models import Customer, Injector
+from apps.customers.models import Customer, Injector, InjectorServiceRecord
 from apps.inventory.models import (
     Product,
     Purchase,
     StorageLocation,
     Supplier,
 )
+from apps.sales.models import Sale, SaleStatus
 
 
 class UniversalSearchView(APIView):
@@ -31,8 +33,10 @@ class UniversalSearchView(APIView):
             "locations": [],
             "suppliers": [],
             "purchases": [],
+            "sales": [],
             "customers": [],
             "injectors": [],
+            "services": [],
         }
 
         if len(query) < 2:
@@ -50,11 +54,17 @@ class UniversalSearchView(APIView):
         if self._can_view(request, "purchases"):
             results["purchases"] = self.search_purchases(query)
 
+        if self._can_view(request, "sales"):
+            results["sales"] = self.search_sales(query)
+
         if self._can_view(request, "customers"):
             results["customers"] = self.search_customers(query)
 
         if self._can_view(request, "injectors"):
             results["injectors"] = self.search_injectors(query)
+
+        if self._can_view(request, "services"):
+            results["services"] = self.search_service_records(query)
 
         return Response({"query": query, "results": results})
 
@@ -63,7 +73,9 @@ class UniversalSearchView(APIView):
             Product.objects
             .select_related("storage_location")
             .filter(
-                standard_code__icontains=query,
+                Q(standard_code__icontains=query)
+                | Q(name__icontains=query)
+                | Q(description__icontains=query)
             )[:10]
         )
 
@@ -144,11 +156,37 @@ class UniversalSearchView(APIView):
             for purchase in purchases
         ]
 
+    def search_sales(self, query):
+        sales = (
+            Sale.objects
+            .select_related("customer")
+            .filter(
+                status=SaleStatus.CONFIRMED,
+                customer__display_name__icontains=query,
+            )
+            .order_by("-sale_date", "-id")[:10]
+        )
+
+        return [
+            {
+                "id": sale.id,
+                "customer": {
+                    "id": sale.customer_id,
+                    "display_name": sale.customer.display_name,
+                },
+                "sale_date": sale.sale_date,
+                "status": sale.status,
+            }
+            for sale in sales
+        ]
+
     def search_customers(self, query):
         customers = (
             Customer.objects
             .filter(
-                display_name__icontains=query,
+                Q(display_name__icontains=query)
+                | Q(identification__icontains=query)
+                | Q(phone__icontains=query)
             )
             .order_by("display_name")[:10]
         )
@@ -185,4 +223,28 @@ class UniversalSearchView(APIView):
                 },
             }
             for injector in injectors
+        ]
+
+    def search_service_records(self, query):
+        service_records = (
+            InjectorServiceRecord.objects
+            .select_related("injector__customer")
+            .filter(
+                Q(injector__injector_number__icontains=query)
+                | Q(injector__customer__display_name__icontains=query)
+            )
+            .order_by("-received_at")[:10]
+        )
+
+        return [
+            {
+                "id": service_record.id,
+                "injector_number": service_record.injector.injector_number,
+                "customer": {
+                    "id": service_record.injector.customer_id,
+                    "display_name": service_record.injector.customer.display_name,
+                },
+                "status": service_record.status,
+            }
+            for service_record in service_records
         ]

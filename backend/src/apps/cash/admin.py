@@ -8,8 +8,8 @@ class CashClosingAdmin(admin.ModelAdmin):
     list_display = (
         "week_start",
         "week_end",
-        "expected_cash_total",
-        "counted_cash_total",
+        "expected_total",
+        "counted_total",
         "difference",
         "created_by",
     )

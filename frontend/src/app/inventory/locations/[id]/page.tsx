@@ -30,6 +30,7 @@ import type {
   Product,
   ProductFilters,
 } from "@/features/inventory/products/types";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import {
   ApiError,
   ApiNetworkError,
@@ -148,6 +149,17 @@ export default function StorageLocationDetailPage() {
 
   const hasProductsAccess =
     user ? canReadProducts(user) : false;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "location",
+          id: loadState.location.id,
+          label: `${loadState.location.code} · ${loadState.location.description || "Sin descripción"}`,
+          href: `/inventory/locations/${loadState.location.id}`,
+        }
+      : null,
+  );
 
   useEffect(() => {
     if (

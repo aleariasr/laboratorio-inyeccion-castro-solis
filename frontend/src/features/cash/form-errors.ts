@@ -4,7 +4,7 @@ import type { CashClosingFormErrors, CashClosingFormField } from "./types";
 
 const FIELD_MAP: Record<string, CashClosingFormField> = {
   week_start: "weekStart",
-  counted_cash_total: "countedCashTotal",
+  counted_total: "countedTotal",
   difference_reason: "differenceReason",
   notes: "notes",
 };

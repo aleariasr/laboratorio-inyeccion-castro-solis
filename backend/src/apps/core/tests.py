@@ -749,18 +749,27 @@ class ModulePermissionMatrixAllModulesTest(TestCase):
         )
 
 
-from datetime import date
+from datetime import date, timedelta
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.customers.models import Customer, Injector
+from apps.cash.models import CashClosing
+from apps.cash.selectors import pending_closing_week_start
+from apps.customers.models import (
+    Customer,
+    Injector,
+    InjectorServiceRecord,
+    InjectorServiceStatus,
+)
 from apps.inventory.models import (
     Product,
     Purchase,
     StorageLocation,
     Supplier,
 )
+from apps.sales.models import Sale, SaleStatus
 
 
 class UniversalSearchApiTest(APITestCase):
@@ -821,6 +830,21 @@ class UniversalSearchApiTest(APITestCase):
             customer=self.customer,
             injector_number="INY-001",
             description="Inyector Bosch",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.sale = Sale.objects.create(
+            customer=self.customer,
+            sale_date=date.today(),
+            status=SaleStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.service_record = InjectorServiceRecord.objects.create(
+            injector=self.injector,
+            received_at=timezone.now(),
             created_by=self.user,
             updated_by=self.user,
         )
@@ -957,7 +981,104 @@ class UniversalSearchApiTest(APITestCase):
             "INY-001",
         )
 
-    
+    def test_search_finds_product_by_name(self):
+        response = self.client.get(
+            "/api/search/",
+            {
+                "q": "Tornillo",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["results"]["products"][0]["standard_code"],
+            "1-423-124-108",
+        )
+
+    def test_search_finds_product_by_description(self):
+        response = self.client.get(
+            "/api/search/",
+            {
+                "q": "Pieza de prueba",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["results"]["products"][0]["standard_code"],
+            "1-423-124-108",
+        )
+
+    def test_search_finds_customer_by_identification(self):
+        response = self.client.get(
+            "/api/search/",
+            {
+                "q": "1-1111-1111",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["results"]["customers"][0]["display_name"],
+            "CLIENTE DIESEL",
+        )
+
+    def test_search_finds_customer_by_phone(self):
+        response = self.client.get(
+            "/api/search/",
+            {
+                "q": "8888-8888",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["results"]["customers"][0]["display_name"],
+            "CLIENTE DIESEL",
+        )
+
+    def test_search_finds_sale_by_customer_name(self):
+        response = self.client.get(
+            "/api/search/",
+            {
+                "q": "Diesel",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["results"]["sales"][0]["id"],
+            self.sale.id,
+        )
+
+    def test_search_finds_service_record_by_injector_number(self):
+        response = self.client.get(
+            "/api/search/",
+            {
+                "q": "INY-001",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["results"]["services"][0]["id"],
+            self.service_record.id,
+        )
+
+    def test_search_finds_service_record_by_customer_name(self):
+        response = self.client.get(
+            "/api/search/",
+            {
+                "q": "Diesel",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["results"]["services"][0]["id"],
+            self.service_record.id,
+        )
+
     def test_search_hides_categories_the_user_cannot_read(self):
         limited_user = User.objects.create_user(
             username="search-limited",
@@ -1005,6 +1126,188 @@ class UniversalSearchApiTest(APITestCase):
             "CLIENTE DIESEL",
         )
         self.assertEqual(response.data["results"]["products"], [])
+
+    def test_search_hides_sales_and_services_without_permission(self):
+        limited_user = User.objects.create_user(
+            username="search-no-sales-services",
+            password="12345678",
+        )
+        limited_user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename="view_customers",
+            ),
+        )
+        self.client.force_authenticate(limited_user)
+
+        response = self.client.get(
+            "/api/search/",
+            {"q": "Diesel"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"]["sales"], [])
+        self.assertEqual(response.data["results"]["services"], [])
+
+
+class DashboardSummaryApiTest(APITestCase):
+    def setUp(self):
+        call_command("setup_roles")
+
+        self.user = User.objects.create_user(
+            username="dashboard-admin",
+            password="12345678",
+        )
+        self.user.groups.add(Group.objects.get(name=ROLE_ADMIN))
+        self.client.force_authenticate(self.user)
+
+        self.location = StorageLocation.objects.create(
+            code="D101",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.low_stock_product = Product.objects.create(
+            standard_code="LOW-001",
+            name="Producto bajo mínimo",
+            storage_location=self.location,
+            minimum_stock=5,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.customer = Customer.objects.create(
+            customer_type="PERSON",
+            display_name="Cliente Dashboard",
+            identification="2-2222-2222",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.injector = Injector.objects.create(
+            customer=self.customer,
+            injector_number="INY-900",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        InjectorServiceRecord.objects.create(
+            injector=self.injector,
+            received_at=timezone.now(),
+            status=InjectorServiceStatus.IN_PROGRESS,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self.ready_service = InjectorServiceRecord.objects.create(
+            injector=self.injector,
+            received_at=timezone.now(),
+            status=InjectorServiceStatus.READY,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.draft_sale = Sale.objects.create(
+            customer=self.customer,
+            sale_date=date.today(),
+            status=SaleStatus.DRAFT,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.supplier = Supplier.objects.create(
+            name="Proveedor Dashboard",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.draft_purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-900",
+            purchase_date=date.today(),
+            currency="CRC",
+            status=PurchaseStatus.DRAFT,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def test_dashboard_summary_returns_all_sections_for_admin(self):
+        response = self.client.get("/api/dashboard/summary/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(
+            response.data["low_stock_products"][0]["standard_code"],
+            "LOW-001",
+        )
+        self.assertEqual(response.data["services_in_progress_count"], 1)
+        self.assertEqual(
+            response.data["services_ready"][0]["id"],
+            self.ready_service.id,
+        )
+        self.assertEqual(
+            response.data["services_ready"][0]["injector_number"],
+            "INY-900",
+        )
+        self.assertEqual(len(response.data["draft_sales"]), 1)
+        self.assertEqual(
+            response.data["draft_sales"][0]["id"],
+            self.draft_sale.id,
+        )
+        self.assertEqual(len(response.data["draft_purchases"]), 1)
+        self.assertEqual(
+            response.data["draft_purchases"][0]["invoice_number"],
+            "FAC-900",
+        )
+        self.assertIsNotNone(response.data["cash_pending_week_start"])
+
+    def test_dashboard_summary_cash_pending_is_null_once_closed(self):
+        pending_week_start = pending_closing_week_start()
+
+        CashClosing.objects.create(
+            week_start=pending_week_start,
+            week_end=pending_week_start + timedelta(days=6),
+            expected_total=Decimal("0"),
+            expected_cash=Decimal("0"),
+            expected_card=Decimal("0"),
+            expected_transfer=Decimal("0"),
+            expected_other=Decimal("0"),
+            counted_total=Decimal("0"),
+            difference=Decimal("0"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get("/api/dashboard/summary/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["cash_pending_week_start"])
+
+    def test_dashboard_summary_hides_sections_without_permission(self):
+        limited_user = User.objects.create_user(
+            username="dashboard-sales-only",
+            password="12345678",
+        )
+        limited_user.groups.add(Group.objects.get(name=ROLE_SALES))
+        self.client.force_authenticate(limited_user)
+
+        response = self.client.get("/api/dashboard/summary/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data["draft_sales"])
+        self.assertIsNone(response.data["low_stock_products"])
+        self.assertIsNone(response.data["services_in_progress_count"])
+        self.assertIsNone(response.data["services_ready"])
+        self.assertIsNone(response.data["draft_purchases"])
+        self.assertIsNone(response.data["cash_pending_week_start"])
+
+    def test_dashboard_summary_requires_authentication(self):
+        self.client.force_authenticate(user=None)
+
+        response = self.client.get("/api/dashboard/summary/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
 
 class InventoryReportsApiTest(APITestCase):
     def setUp(self):

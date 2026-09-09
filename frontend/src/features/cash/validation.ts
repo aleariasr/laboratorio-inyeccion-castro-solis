@@ -6,7 +6,7 @@ const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 
 export function validateCashClosingForm(
   values: CashClosingFormValues,
-  expectedCashTotal: string | null,
+  expectedTotal: string | null,
 ): CashClosingFormErrors {
   const errors: CashClosingFormErrors = {};
 
@@ -20,22 +20,22 @@ export function validateCashClosingForm(
     }
   }
 
-  const countedCashTotal = values.countedCashTotal.trim();
+  const countedTotal = values.countedTotal.trim();
 
-  if (!countedCashTotal) {
-    errors.countedCashTotal = "Debe indicar el efectivo contado.";
+  if (!countedTotal) {
+    errors.countedTotal = "Debe indicar el total contado.";
   } else if (
-    !DECIMAL_PATTERN.test(countedCashTotal) ||
-    Number(countedCashTotal) < 0
+    !DECIMAL_PATTERN.test(countedTotal) ||
+    Number(countedTotal) < 0
   ) {
-    errors.countedCashTotal = "Ingrese un monto válido, mayor o igual a cero.";
+    errors.countedTotal = "Ingrese un monto válido, mayor o igual a cero.";
   }
 
   if (
-    expectedCashTotal !== null &&
-    countedCashTotal &&
-    DECIMAL_PATTERN.test(countedCashTotal) &&
-    Number(countedCashTotal) !== Number(expectedCashTotal) &&
+    expectedTotal !== null &&
+    countedTotal &&
+    DECIMAL_PATTERN.test(countedTotal) &&
+    Number(countedTotal) !== Number(expectedTotal) &&
     !values.differenceReason.trim()
   ) {
     errors.differenceReason =

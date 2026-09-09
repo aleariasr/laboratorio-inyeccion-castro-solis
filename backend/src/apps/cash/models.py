@@ -10,13 +10,19 @@ class CashClosing(AuditModel):
     """
     Cierre de caja semanal (sábado a viernes).
 
-    Se crea una sola vez por semana: expected_cash_total se calcula
-    y se guarda ("se fija") en el momento del cierre, a partir de las
-    ventas y servicios en efectivo confirmados/entregados en ese
-    rango de fechas. No se recalcula después aunque esas ventas o
-    servicios se editen más tarde — un cierre ya hecho es un registro
-    histórico. created_by/created_at (de AuditModel) son quién y
-    cuándo se hizo el cierre; no existe edición posterior.
+    Cubre los 4 métodos de pago (efectivo, tarjeta, transferencia,
+    otro — ver PaymentMethod en apps.core.models), no solo efectivo:
+    el negocio concilia efectivo contado + vouchers del datafono +
+    comprobantes de transferencia contra lo registrado en el sistema,
+    todo junto. Se crea una sola vez por semana: expected_total (y su
+    desglose por método, expected_cash/expected_card/
+    expected_transfer/expected_other) se calcula y se guarda ("se
+    fija") en el momento del cierre, a partir de las ventas y
+    servicios confirmados/entregados en ese rango de fechas. No se
+    recalcula después aunque esas ventas o servicios se editen más
+    tarde — un cierre ya hecho es un registro histórico.
+    created_by/created_at (de AuditModel) son quién y cuándo se hizo
+    el cierre; no existe edición posterior.
     """
 
     week_start = models.DateField(
@@ -28,24 +34,60 @@ class CashClosing(AuditModel):
         help_text="Viernes de cierre (week_start + 6 días).",
     )
 
-    expected_cash_total = models.DecimalField(
+    expected_total = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         validators=[MinValueValidator(Decimal("0"))],
-        help_text="Efectivo esperado según ventas y servicios, calculado al momento del cierre.",
+        help_text=(
+            "Total esperado según ventas y servicios confirmados/entregados "
+            "esa semana, sumando los 4 métodos de pago. Calculado y fijado "
+            "al momento del cierre."
+        ),
     )
 
-    counted_cash_total = models.DecimalField(
+    expected_cash = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         validators=[MinValueValidator(Decimal("0"))],
-        help_text="Efectivo contado físicamente al hacer el cierre.",
+        help_text="Desglose de expected_total: solo lo pagado en efectivo.",
+    )
+
+    expected_card = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Desglose de expected_total: solo lo pagado con tarjeta.",
+    )
+
+    expected_transfer = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Desglose de expected_total: solo lo pagado por transferencia.",
+    )
+
+    expected_other = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Desglose de expected_total: otros métodos de pago.",
+    )
+
+    counted_total = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text=(
+            "Total contado/verificado físicamente al hacer el cierre "
+            "(efectivo + vouchers de tarjeta + comprobantes de transferencia "
+            "+ otros, todo junto en un solo monto)."
+        ),
     )
 
     difference = models.DecimalField(
         max_digits=14,
         decimal_places=4,
-        help_text="counted_cash_total menos expected_cash_total.",
+        help_text="counted_total menos expected_total.",
     )
 
     difference_reason = models.TextField(

@@ -29,6 +29,7 @@ import {
   type SupplierProductFormErrors,
   type SupplierProductFormValues,
 } from "@/features/inventory/suppliers/types";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 
 type LoadState =
@@ -140,6 +141,17 @@ export default function SupplierDetailPage() {
   const hasWriteAccess = user ? canWriteSuppliers(user) : false;
 
   const hasProductsAccess = user ? canReadProducts(user) : false;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "supplier",
+          id: loadState.supplier.id,
+          label: loadState.supplier.name,
+          href: `/inventory/suppliers/${loadState.supplier.id}`,
+        }
+      : null,
+  );
 
   const supplierProductFormInitialValues =
     supplierProductFormState.mode === "edit"

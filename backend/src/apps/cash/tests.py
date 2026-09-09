@@ -84,11 +84,17 @@ class CashClosingApiTest(APITestCase):
 
         self.client.force_authenticate(self.user)
 
-    def create_cash_sale(self, sale_date, quantity=2, unit_price="1500.0000"):
+    def create_sale(
+        self,
+        sale_date,
+        quantity=2,
+        unit_price="1500.0000",
+        payment_method=PaymentMethod.CASH,
+    ):
         sale = Sale.objects.create(
             sale_date=sale_date,
             currency="CRC",
-            payment_method=PaymentMethod.CASH,
+            payment_method=payment_method,
             created_by=self.user,
             updated_by=self.user,
         )
@@ -106,16 +112,38 @@ class CashClosingApiTest(APITestCase):
 
         return sale
 
-    def create_cash_service(self, delivered_at, price="20000.0000"):
+    # Alias por compatibilidad con el nombre usado en el resto de este
+    # archivo antes de que el cierre cubriera los 4 métodos de pago.
+    def create_cash_sale(self, sale_date, quantity=2, unit_price="1500.0000"):
+        return self.create_sale(
+            sale_date,
+            quantity=quantity,
+            unit_price=unit_price,
+            payment_method=PaymentMethod.CASH,
+        )
+
+    def create_service(
+        self,
+        delivered_at,
+        price="20000.0000",
+        payment_method=PaymentMethod.CASH,
+    ):
         return InjectorServiceRecord.objects.create(
             injector=self.injector,
             received_at=timezone.now(),
             delivered_at=delivered_at,
             status=InjectorServiceStatus.DELIVERED,
-            payment_method=PaymentMethod.CASH,
+            payment_method=payment_method,
             price=Decimal(price),
             created_by=self.user,
             updated_by=self.user,
+        )
+
+    def create_cash_service(self, delivered_at, price="20000.0000"):
+        return self.create_service(
+            delivered_at,
+            price=price,
+            payment_method=PaymentMethod.CASH,
         )
 
     def test_preview_requires_authentication(self):
@@ -144,8 +172,61 @@ class CashClosingApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["week_end"], WEEK_END)
         self.assertEqual(
-            Decimal(response.data["expected_cash_total"]),
+            Decimal(response.data["expected_cash"]),
             Decimal("23000.0000"),
+        )
+        self.assertEqual(
+            Decimal(response.data["expected_total"]),
+            Decimal("23000.0000"),
+        )
+        self.assertEqual(Decimal(response.data["expected_card"]), Decimal("0.0000"))
+        self.assertEqual(
+            Decimal(response.data["expected_transfer"]), Decimal("0.0000")
+        )
+        self.assertEqual(Decimal(response.data["expected_other"]), Decimal("0.0000"))
+
+    def test_preview_breaks_down_all_payment_methods(self):
+        # El negocio concilia efectivo + vouchers de tarjeta +
+        # comprobantes de transferencia contra el sistema — el
+        # desglose y el total deben incluir los 4 métodos, no solo
+        # efectivo.
+        self.create_sale(
+            WEEK_START,
+            unit_price="1000.0000",
+            payment_method=PaymentMethod.CASH,
+        )
+        self.create_sale(
+            WEEK_START + timedelta(days=1),
+            unit_price="2000.0000",
+            payment_method=PaymentMethod.CARD,
+        )
+        self.create_sale(
+            WEEK_START + timedelta(days=2),
+            unit_price="3000.0000",
+            payment_method=PaymentMethod.TRANSFER,
+        )
+        self.create_service(
+            timezone.make_aware(
+                datetime.combine(WEEK_START + timedelta(days=3), time.min),
+            ),
+            price="4000.0000",
+            payment_method=PaymentMethod.OTHER,
+        )
+
+        response = self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": WEEK_START.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Decimal(response.data["expected_cash"]), Decimal("2000.0000"))
+        self.assertEqual(Decimal(response.data["expected_card"]), Decimal("4000.0000"))
+        self.assertEqual(
+            Decimal(response.data["expected_transfer"]), Decimal("6000.0000")
+        )
+        self.assertEqual(Decimal(response.data["expected_other"]), Decimal("4000.0000"))
+        self.assertEqual(
+            Decimal(response.data["expected_total"]), Decimal("16000.0000")
         )
 
     def test_preview_rejects_non_saturday_week_start(self):
@@ -156,25 +237,7 @@ class CashClosingApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_preview_ignores_non_cash_and_out_of_range_sales(self):
-        # Venta en tarjeta dentro de la semana: no debe contar.
-        card_sale = Sale.objects.create(
-            sale_date=WEEK_START,
-            currency="CRC",
-            payment_method=PaymentMethod.CARD,
-            created_by=self.user,
-            updated_by=self.user,
-        )
-        SaleItem.objects.create(
-            sale=card_sale,
-            product=self.product,
-            quantity=1,
-            unit_price=Decimal("1000.0000"),
-            created_by=self.user,
-            updated_by=self.user,
-        )
-        confirm_sale(sale=card_sale, user=self.user)
-
+    def test_preview_ignores_out_of_range_sales(self):
         # Venta en efectivo pero fuera del rango de la semana.
         self.create_cash_sale(WEEK_START - timedelta(days=1))
 
@@ -185,7 +248,7 @@ class CashClosingApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            Decimal(response.data["expected_cash_total"]),
+            Decimal(response.data["expected_total"]),
             Decimal("0.0000"),
         )
 
@@ -196,14 +259,14 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": WEEK_START.isoformat(),
-                "counted_cash_total": "3000.0000",
+                "counted_total": "3000.0000",
             },
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(
-            Decimal(response.data["expected_cash_total"]),
+            Decimal(response.data["expected_total"]),
             Decimal("3000.0000"),
         )
         self.assertEqual(
@@ -222,7 +285,7 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": WEEK_START.isoformat(),
-                "counted_cash_total": "3000.0000",
+                "counted_total": "3000.0000",
             },
             format="json",
         )
@@ -231,7 +294,7 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": WEEK_START.isoformat(),
-                "counted_cash_total": "3000.0000",
+                "counted_total": "3000.0000",
             },
             format="json",
         )
@@ -246,7 +309,7 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": WEEK_START.isoformat(),
-                "counted_cash_total": "2500.0000",
+                "counted_total": "2500.0000",
             },
             format="json",
         )
@@ -261,7 +324,7 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": WEEK_START.isoformat(),
-                "counted_cash_total": "2500.0000",
+                "counted_total": "2500.0000",
                 "difference_reason": "Faltante sin explicación clara, se investigará.",
             },
             format="json",
@@ -278,7 +341,7 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": (WEEK_START + timedelta(days=1)).isoformat(),
-                "counted_cash_total": "0.0000",
+                "counted_total": "0.0000",
             },
             format="json",
         )
@@ -292,7 +355,7 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": WEEK_START.isoformat(),
-                "counted_cash_total": "3000.0000",
+                "counted_total": "3000.0000",
             },
             format="json",
         )
@@ -309,7 +372,7 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": WEEK_START.isoformat(),
-                "counted_cash_total": "3000.0000",
+                "counted_total": "3000.0000",
             },
             format="json",
         )
@@ -350,7 +413,7 @@ class CashClosingApiTest(APITestCase):
             "/api/cash/closings/",
             {
                 "week_start": WEEK_START.isoformat(),
-                "counted_cash_total": "0.0000",
+                "counted_total": "0.0000",
             },
             format="json",
         )

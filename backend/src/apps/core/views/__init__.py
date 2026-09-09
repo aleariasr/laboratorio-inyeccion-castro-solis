@@ -1,3 +1,4 @@
+from .dashboard import DashboardSummaryView
 from .reports import (
     LowStockProductsReportView,
     ProductMovementsReportView,
@@ -11,6 +12,7 @@ from .reports import (
 from .search import UniversalSearchView
 
 __all__ = [
+    "DashboardSummaryView",
     "LowStockProductsReportView",
     "ProductMovementsReportView",
     "ProductSupplierPricesReportView",

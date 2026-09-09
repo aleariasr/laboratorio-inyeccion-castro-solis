@@ -35,6 +35,7 @@ import {
   type SaleItemInline,
   type SaleStatus,
 } from "@/features/sales/types";
+import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
@@ -165,6 +166,19 @@ export default function SaleDetailPage() {
     loadState.status === "success" &&
     loadState.sale.status === "DRAFT" &&
     hasWriteAccess;
+
+  useRecordRecentlyViewed(
+    loadState.status === "success"
+      ? {
+          type: "sale",
+          id: loadState.sale.id,
+          label: `Venta #${loadState.sale.id} · ${
+            loadState.sale.customer_detail?.display_name ?? "Sin cliente"
+          }`,
+          href: `/sales/${loadState.sale.id}`,
+        }
+      : null,
+  );
 
   const itemFormInitialValues =
     itemFormState.mode === "edit"
