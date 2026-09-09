@@ -28,6 +28,9 @@ pnpm-debug.log*
 # Backups and database exports
 backups/
 *.sql
+
+# Archivos DBF legacy reales del cliente (datos de negocio, no van al repo)
+backend/legacy_data/
 *.sql.gz
 *.dump
 *.backup

@@ -19,7 +19,6 @@ LICS está orientado a producción real, no a prototipo académico. Las decision
 # Índice
 
 - [Estado del proyecto](#estado-del-proyecto)
-- [Capturas del sistema](#capturas-del-sistema)
 - [Resumen funcional implementado](#resumen-funcional-implementado)
 - [Arquitectura general](#arquitectura-general)
 - [Tecnologías principales](#tecnologías-principales)
@@ -29,7 +28,6 @@ LICS está orientado a producción real, no a prototipo académico. Las decision
 - [Documentación](#documentación)
 - [Estado de validación](#estado-de-validación)
 - [Pendientes principales](#pendientes-principales)
-- [Filosofía de desarrollo](#filosofía-de-desarrollo)
 
 ---
 

@@ -38,7 +38,7 @@ check:
 	$(BACKEND) check
 
 test:
-	$(BACKEND) test apps.accounts apps.core apps.inventory apps.customers apps.sales apps.configuration apps.documents
+	$(BACKEND) test apps.accounts apps.core apps.inventory apps.customers apps.sales apps.configuration apps.documents apps.legacy_migration
 
 test-inventory:
 	$(BACKEND) test apps.inventory
@@ -60,6 +60,9 @@ test-configuration:
 
 test-documents:
 	$(BACKEND) test apps.documents
+
+test-legacy-migration:
+	$(BACKEND) test apps.legacy_migration
 
 run:
 	$(BACKEND) runserver 0.0.0.0:8000
