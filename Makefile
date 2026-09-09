@@ -38,7 +38,7 @@ check:
 	$(BACKEND) check
 
 test:
-	$(BACKEND) test apps.accounts apps.core apps.inventory apps.customers apps.sales apps.configuration apps.documents
+	$(BACKEND) test apps.accounts apps.core apps.inventory apps.customers apps.sales apps.configuration apps.documents apps.cash
 
 test-inventory:
 	$(BACKEND) test apps.inventory
@@ -60,6 +60,9 @@ test-configuration:
 
 test-documents:
 	$(BACKEND) test apps.documents
+
+test-cash:
+	$(BACKEND) test apps.cash
 
 run:
 	$(BACKEND) runserver 0.0.0.0:8000
