@@ -16,19 +16,37 @@ LICS está orientado a producción real, no a prototipo académico. Las decision
 
 ---
 
+# Índice
+
+- [Estado del proyecto](#estado-del-proyecto)
+- [Capturas del sistema](#capturas-del-sistema)
+- [Resumen funcional implementado](#resumen-funcional-implementado)
+- [Arquitectura general](#arquitectura-general)
+- [Tecnologías principales](#tecnologías-principales)
+- [Arquitectura del repositorio](#arquitectura-del-repositorio)
+- [Entornos](#entornos)
+- [Endpoints principales](#endpoints-principales)
+- [Documentación](#documentación)
+- [Estado de validación](#estado-de-validación)
+- [Pendientes principales](#pendientes-principales)
+- [Filosofía de desarrollo](#filosofía-de-desarrollo)
+
+---
+
 # Estado del proyecto
 
 Versión actual:
 
-    2.0.0
+    2.1.0
 
 Estado actual:
 
     Backend base cerrado.
     Infraestructura productiva base implementada.
-    Frontend operativo completo para los flujos del negocio (login, estado del sistema, búsqueda
-    universal, productos con variantes original/genérico, ubicaciones, proveedores, compras, costos
-    de importación, ventas, clientes, inyectores y servicios, cierre de caja semanal, proforma y
+    Frontend operativo completo para los flujos del negocio (login, panel de inicio accionable con
+    vistos recientemente, estado del sistema, búsqueda universal ampliada, productos con variantes
+    original/genérico, ubicaciones, proveedores, compras, costos de importación, ventas, clientes,
+    inyectores y servicios, cierre de caja semanal con desglose por método de pago, proforma y
     facturas internas en PDF, conteos físicos, movimientos de inventario, reportes).
     Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo §5 (sin definir todavía).
     Validación con flujos y datos reales: pendiente.
@@ -38,6 +56,72 @@ El backend base ya incluye autenticación, usuarios, roles, permisos por módulo
 Documento principal de cierre:
 
 - [Cierre de backend base](docs/backend-base-closure.md)
+
+---
+
+## Acceso y panel principal
+
+| Inicio de sesión | Panel de inicio |
+|---|---|
+| ![Inicio de sesión](docs/images/screenshots/login.png) | ![Panel de inicio](docs/images/screenshots/dashboard.png) |
+
+![Búsqueda universal](docs/images/screenshots/busqueda-universal.png)
+
+## Inventario
+
+| Listado de productos | Producto con variantes |
+|---|---|
+| ![Listado de productos](docs/images/screenshots/productos-listado.png) | ![Producto con variantes](docs/images/screenshots/producto-detalle-variantes.png) |
+
+| Ubicaciones | Movimientos (kardex) | Conteos físicos |
+|---|---|---|
+| ![Ubicaciones](docs/images/screenshots/ubicaciones-listado.png) | ![Movimientos de inventario](docs/images/screenshots/movimientos-inventario.png) | ![Conteos físicos](docs/images/screenshots/conteos-fisicos.png) |
+
+## Compras y costos
+
+| Detalle de compra | Resumen de costos de importación |
+|---|---|
+| ![Detalle de compra](docs/images/screenshots/compra-detalle.png) | ![Costos de importación](docs/images/screenshots/costos-importacion.png) |
+
+## Ventas
+
+| Listado de ventas | Detalle de venta |
+|---|---|
+| ![Listado de ventas](docs/images/screenshots/ventas-listado.png) | ![Detalle de venta](docs/images/screenshots/venta-detalle.png) |
+
+## Clientes y servicio técnico
+
+![Detalle de cliente](docs/images/screenshots/cliente-detalle.png)
+
+| Bandeja de servicios | Detalle de servicio |
+|---|---|
+| ![Bandeja de servicios](docs/images/screenshots/servicios-bandeja.png) | ![Detalle de servicio](docs/images/screenshots/servicio-detalle.png) |
+
+## Caja
+
+| Nuevo cierre (desglose por método de pago) | Detalle de cierre |
+|---|---|
+| ![Nuevo cierre de caja](docs/images/screenshots/cierre-caja-nuevo.png) | ![Detalle de cierre de caja](docs/images/screenshots/cierre-caja-detalle.png) |
+
+## Reportes y documentos
+
+| Galería de reportes | Reporte abierto |
+|---|---|
+| ![Galería de reportes](docs/images/screenshots/reportes-galeria.png) | ![Reporte abierto](docs/images/screenshots/reporte-ejemplo.png) |
+
+| Factura interna | Proforma | Etiqueta con código de barras |
+|---|---|---|
+| ![Factura interna](docs/images/screenshots/factura-pdf.png) | ![Proforma](docs/images/screenshots/proforma-pdf.png) | ![Etiqueta de producto](docs/images/screenshots/etiqueta-pdf.png) |
+
+## Administración
+
+| Usuarios | Estado del sistema |
+|---|---|
+| ![Usuarios](docs/images/screenshots/usuarios-listado.png) | ![Estado del sistema](docs/images/screenshots/estado-sistema.png) |
+
+## App de escritorio (Windows)
+
+![App de escritorio en Windows](docs/images/screenshots/app-escritorio-windows.png)
 
 ---
 
@@ -96,7 +180,7 @@ Documento principal de cierre:
 - Inyectores.
 - Servicios de inyector: precio (sugerido desde tipo de servicio + accesorios reales usados, editable), método de pago, catálogo de "Tipo de Servicio" con histórico de precio.
 - Accesorios de servicio ligados al inventario real de productos, con descuento y reversión de stock.
-- Cierre de caja semanal (sábado a viernes), suma ventas y servicios pagados en efectivo, total congelado al cerrar, permisos solo ADMIN por ahora.
+- Cierre de caja semanal (sábado a viernes), suma ventas y servicios por método de pago (efectivo/tarjeta/transferencia/otro), con desglose por método y total congelados al cerrar, permisos solo ADMIN por ahora.
 - Documentos PDF: etiquetas, proforma y facturas internas (no fiscales) para ventas confirmadas y servicios entregados.
 - Conteo físico.
 - Ajustes auditables de inventario.
@@ -107,9 +191,9 @@ Documento principal de cierre:
 ## Frontend operativo
 
 - Autenticación con inicio y cierre de sesión.
-- Panel de inicio.
+- Panel de inicio accionable: servicios listos para entregar, productos bajo mínimo, borradores de venta y de compra pendientes, alerta de cierre de caja pendiente de la semana, y "vistos recientemente" con los últimos elementos abiertos en todo el sistema (productos, ubicaciones, proveedores, compras, ventas, clientes, inyectores, servicios y cierres de caja).
 - Pantalla administrativa de estado del sistema.
-- Búsqueda universal con atajo de teclado y navegación a detalle.
+- Búsqueda universal con atajo de teclado y navegación a detalle, cubriendo productos (nombre/descripción/código), ubicaciones, proveedores, clientes (nombre/identificación/teléfono), ventas y servicios de inyector.
 - Módulo de productos: listado, detalle, creación, edición, precio de venta editable con sugerencia, variantes original/genérico bajo el mismo código (creación guiada, sin afectar el formulario normal de creación), historial de movimientos e impresión de etiquetas.
 - Módulo de ubicaciones: listado, detalle, creación y edición.
 - Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
@@ -118,7 +202,7 @@ Documento principal de cierre:
 - Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido y validación de stock disponible, confirmación y anulación con motivo, método de pago, descarga de factura interna para ventas confirmadas.
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
 - Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), y bandeja operativa de servicios (recepción, iniciar, marcar listo, entregar, anular — la entrega exige que el servicio tenga precio definido) con datos técnicos editables, precio con sugerencia (tipo de servicio + accesorios usados) y método de pago, gestión de accesorios reales de inventario, tarjeta resumen de precio total, y descarga de factura interna para servicios entregados.
-- Módulo de cierre de caja: listado, detalle, creación con previsualización del total esperado antes de confirmar, semana sábado-viernes, solo visible para ADMIN por ahora.
+- Módulo de cierre de caja: listado, detalle, creación con previsualización del desglose esperado por método de pago (efectivo/tarjeta/transferencia/otro) y el total antes de confirmar, un único campo de "total contado" (así se concilia igual que en el proceso real: efectivo + vouchers de datáfono + comprobantes de transferencia contra lo registrado), semana sábado-viernes, solo visible para ADMIN por ahora.
 - Proforma: generación desde el listado de productos, cliente opcional.
 - Módulo de conteos físicos: listado con filtros (búsqueda, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con Enter, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas en borrador, aprobación y anulación.
 - Navegación por roles y permisos.
@@ -369,7 +453,9 @@ Documentos de estado:
 
 - [Cierre de backend base](docs/backend-base-closure.md)
 - [Cierre de infraestructura productiva base](docs/infrastructure-stage-closure.md)
-- [Lista de preparación para producción](docs/production-readiness-checklist.md)
+- [Cierre de etapa: app de escritorio Windows](docs/windows-desktop-stage-closure.md)
+- [Lista de preparación para producción — Windows (vigente)](docs/windows-production-checklist.md)
+- [Lista de preparación para producción (histórica, plan Linux/kiosco)](docs/production-readiness-checklist.md)
 - [Roadmap](docs/roadmap.md)
 
 Documentos técnicos:
@@ -379,16 +465,25 @@ Documentos técnicos:
 - [Dominio de inventario](docs/domain/inventory.md)
 - [Estructura de instalación en producción](docs/production-layout.md)
 
+Documentos de frontend:
+
+- [Auditoría previa al frontend](docs/frontend-audit.md)
+- [Roadmap de frontend](docs/frontend-roadmap.md)
+- [Sistema de diseño del frontend](docs/frontend-design-system.md)
+
 Documentos operativos:
 
 - [Desarrollo](docs/development.md)
 - [Despliegue en Windows (vigente)](infra/windows/README.md)
-- [Cierre de etapa: app de escritorio Windows](docs/windows-desktop-stage-closure.md)
 - [Despliegue (histórico, plan Linux/kiosco)](docs/deployment.md)
 - [Backups y restauración](docs/backup-restore.md)
 - [Proceso de actualización](docs/update-process.md)
 - [Seguridad](docs/security.md)
 - [Solución de problemas](docs/troubleshooting.md)
+
+Insumos y trabajo en curso (no son documentación de referencia del sistema tal como está hoy):
+
+- [Backlog de la visita al cliente (2026-09, 20 puntos)](docs/backlog-cliente-2026-09.md) — ya implementado.
 
 ---
 
@@ -425,26 +520,3 @@ El frontend operativo y el backlog de la visita al cliente (2026-09) ya están c
 4. Documentos PDF adicionales más allá de proforma y facturas (Fase 9): catálogo interno, reportes
    en PDF, boletas de recepción/entrega de inyector — solo si el negocio los pide de verdad.
 5. Manuales de usuario y técnico, capacitación y plan de soporte formal (Fase 12).
-
----
-
-# Filosofía de desarrollo
-
-LICS debe mantenerse como software de producción real.
-
-Reglas principales:
-
-- No guardar secretos, contraseñas ni archivos `.env` en Git.
-- No modificar producción sin respaldo previo.
-- No editar stock directamente.
-- No borrar físicamente operaciones críticas.
-- No implementar funcionalidades por suposición.
-- Documentar cambios importantes.
-- Mantener separación clara entre desarrollo, staging local y producción.
-- Validar recuperación ante fallos.
-- Priorizar estabilidad sobre rapidez.
-- Mantener scripts críticos idempotentes o con validación previa de estado.
-- Usar PostgreSQL como base de datos de producción.
-- Tratar cada actualización productiva como una operación crítica.
-
-Este enfoque busca reducir el riesgo operativo y facilitar la evolución del sistema a largo plazo.

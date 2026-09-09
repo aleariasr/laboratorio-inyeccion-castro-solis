@@ -416,11 +416,19 @@ Incluye:
 
 ---
 
+# Documentos de referencia adicionales
+
+Estos documentos no describen el estado actual del sistema; son insumos y trabajo en curso.
+
+- [Backlog de la visita al cliente (2026-09, 20 puntos)](backlog-cliente-2026-09.md) — ya implementado salvo §5; se conserva como registro de la decisión original.
+
+---
+
 # Estado actual
 
 Versión actual:
 
-    2.0.0
+    2.1.0
 
 Estado resumido:
 
@@ -429,18 +437,19 @@ Estado resumido:
     App de escritorio Windows (Electron + WSL2 + Docker Engine): implementada, con dos mecanismos
     sin validar con uso real extendido (ver windows-production-checklist.md).
     Frontend operativo: login, sesión, navegación, estado del sistema, búsqueda universal completa
-    (2026-09-09: ahora cubre productos por nombre/descripción, clientes por identificación/teléfono,
-    ventas y servicios de inyector, que antes faltaban por completo), productos (con variantes §3.6),
-    ubicaciones, proveedores, compras, costos de importación, ventas, clientes, inyectores, servicios,
-    cierre de caja, proforma y facturas internas, conteos físicos, movimientos de inventario,
-    administración de usuarios, reportes y etiquetas PDF implementados. La pantalla de inicio
-    (`/dashboard`, 2026-09-09) ahora muestra datos reales (productos bajo mínimo, servicios en
-    proceso/listos, ventas y compras recientes, todo filtrado por permiso) y accesos rápidos como
-    enlaces reales a cada módulo, en vez de las tarjetas decorativas sin datos que tenía antes. Ver
-    el "Resumen funcional implementado" del README principal para el detalle completo.
+    (cubre productos por nombre/descripción, clientes por identificación/teléfono, ventas y
+    servicios de inyector), productos (con variantes §3.6), ubicaciones, proveedores, compras,
+    costos de importación, ventas, clientes, inyectores, servicios, cierre de caja con desglose por
+    método de pago (efectivo/tarjeta/transferencia/otro), proforma y facturas internas, conteos
+    físicos, movimientos de inventario, administración de usuarios, reportes y etiquetas PDF
+    implementados. La pantalla de inicio (`/dashboard`) muestra pendientes accionables (productos
+    bajo mínimo, servicios listos, borradores de venta/compra, alerta de cierre de caja pendiente)
+    y una sección de "vistos recientemente" con lo último abierto en todo el sistema, en vez de las
+    tarjetas decorativas sin datos que tenía antes. Ver el "Resumen funcional implementado" del
+    README principal para el detalle completo.
     Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo §5 (sin definir).
     Validación con usuarios reales: pendiente.
-    Migración DBF legacy: pendiente (archivos reales ya disponibles, 2026-09-09).
+    Migración DBF legacy: pendiente (archivos reales ya disponibles).
 
 > Nota: la lista anterior refleja el estado verificado contra el código en esta revisión. Este
 > documento no siempre se mantiene sincronizado en tiempo real; ante cualquier duda, el
@@ -448,24 +457,3 @@ Estado resumido:
 
 La fase en curso es la validación de flujos reales con usuarios y los ajustes derivados de ese uso,
 según lo descrito en el [roadmap](roadmap.md).
-
----
-
-# Regla de mantenimiento documental
-
-Todo cambio importante del sistema debe reflejarse en la documentación correspondiente.
-
-Ejemplos:
-
-- cambios de arquitectura;
-- cambios de instalación;
-- nuevos scripts;
-- cambios en backup o restore;
-- cambios en actualización;
-- nuevas apps backend;
-- nuevos endpoints;
-- nuevas reglas de negocio;
-- cambios de permisos;
-- cambios en la estrategia de producción.
-
-La documentación forma parte del sistema de producción y debe versionarse junto con el código.
