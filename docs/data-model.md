@@ -541,6 +541,13 @@ Flujo requerido:
 7. Conciliar stock final.
 8. Generar reporte de migración.
 
+> Nota de implementación: este flujo se implementó tal cual, como 4 management commands de la app
+> `apps.legacy_migration` (`migrate_legacy_extract`, `migrate_legacy_validate`,
+> `migrate_legacy_import`, `migrate_legacy_report`), corridos en ese orden. La importación usa
+> exclusivamente los services/selectors reales ya existentes (`confirm_purchase()`,
+> `adjust_stock()`) — nunca inserta stock a mano. Detalle completo, decisiones de mapeo y hallazgos
+> reales en [dbf-migration-closure.md](dbf-migration-closure.md).
+
 Fuentes legacy identificadas:
 
 - `INVEN01`: proveedores;
@@ -548,6 +555,13 @@ Fuentes legacy identificadas:
 - `INVEN05`: compras/facturas;
 - `INVEN06`: salidas/ventas;
 - `INVEN08`: stock auxiliar.
+
+> Nota de implementación: `INVEN06` (salidas/ventas) **no se migró**. Se verificó, inspeccionando
+> el archivo byte a byte, que está mayormente corrupto en su origen (idéntico en las dos copias
+> entregadas por el cliente, no es un artefacto de una copia puntual) y no es reconstruible de
+> forma confiable — por eso no se reconstruyó historial de ventas legacy, solo el estado actual del
+> inventario y el historial de compras (`INVEN05`, que sí resultó legible y confiable). Ver
+> [dbf-migration-closure.md](dbf-migration-closure.md) para el detalle técnico.
 
 La migración debe registrar trazabilidad técnica separada del modelo principal.
 
@@ -567,6 +581,11 @@ Campos conceptuales:
 - errores bloqueantes;
 - advertencias.
 
+> Nota de implementación: el modelo real (`MigrationRun`) tiene `status` (`PENDING`/`RUNNING`/
+> `COMPLETED`/`FAILED`), `started_at`, `finished_at`, `summary` (`JSONField`) y `notes`, más
+> `created_by`/`created_at` heredados de `AuditModel` (quién/cuándo se disparó). Errores y
+> advertencias no son campos propios: se consultan agregando sobre `MigrationIssue` por severidad.
+
 ### LegacyRecordMap
 
 Relaciona registros legacy con registros creados en el modelo nuevo.
@@ -581,6 +600,15 @@ Campos conceptuales:
 - fecha de migración.
 
 Esta tabla evita contaminar el modelo principal con campos legacy, pero permite auditar, repetir y reconciliar la migración.
+
+> Nota de implementación: `LegacyRecordMap` real tiene `run` (FK a `MigrationRun`), `source_table`,
+> `source_key`, `target_model` (texto, ej. `"inventory.Supplier"` — no un `GenericForeignKey`, acá
+> solo hace falta trazabilidad de auditoría, no una relación navegable de Django) y `target_id`.
+> Única por `(source_table, source_key, target_model)` y no por ejecución: así, si un comando de
+> importación se corre de nuevo (por ejemplo tras un corte a mitad de camino), detecta qué ya se
+> importó y no lo duplica — esto fue necesario en la práctica, no solo teórico: la importación real
+> contra los datos del cliente se cortó dos veces por errores reales de datos, y se pudo retomar sin
+> perder ni duplicar nada gracias a este mecanismo.
 
 ### MigrationIssue
 
@@ -598,6 +626,16 @@ Ejemplos:
 - relación incompleta.
 
 La migración solo debe aprobarse cuando los errores bloqueantes estén resueltos o documentados formalmente.
+
+> Nota de implementación: `MigrationIssue` real tiene `severity` (`BLOCKING`/`WARNING`/`INFO`),
+> `category` (una de las de la lista de arriba, más `FECHA_CORREGIDA`, `UBICACION_NO_CONFIRMADA`,
+> `UBICACION_NO_DETECTADA`, `CONFLICTO_ENTRE_COPIAS` y `AJUSTE_CONCILIACION`, que surgieron de
+> hallazgos reales no anticipados en este diseño conceptual), `source_table`, `source_key`,
+> `message` y `context` (`JSONField` con los valores comparados). Una excepción práctica al "una
+> fila por inconsistencia": el bug de fecha de 2 dígitos (ver `dbf-migration-closure.md`) afectó a
+> ~11.000 líneas por la misma causa mecánica — en vez de crear una fila por cada una (lo que
+> ahogaría las inconsistencias que sí importa revisar), se cuentan agregadas en
+> `MigrationRun.summary` y se corrigen igual, solo que sin una fila de auditoría por instancia.
 
 ## Validación contra sistema legacy
 
@@ -617,6 +655,12 @@ El reporte debe incluir:
 - advertencias no bloqueantes.
 
 La migración se considera aceptable solo si las diferencias están explicadas y documentadas.
+
+> Nota de implementación: este reporte es literalmente `migrate_legacy_report`. "Total de salidas
+> detectadas e importadas" no aplica — `INVEN06` (ventas) quedó fuera del alcance (ver arriba).
+> Resultado real de la migración corrida contra los datos del cliente (2026-09-09): 73/73
+> proveedores, 3.655/3.655 productos, 2.079 compras (12.446/13.576 líneas) importados; 0 errores
+> bloqueantes. Detalle completo en [dbf-migration-closure.md](dbf-migration-closure.md).
 
 ## Decisiones importantes
 

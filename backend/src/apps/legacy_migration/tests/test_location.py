@@ -41,3 +41,18 @@ class ResolveLocationsTests(SimpleTestCase):
         self.assertIsNone(result["1"].location_code)
         self.assertIsNone(result["1"].low_confidence_token)
         self.assertEqual(result["1"].clean_name, "CIGUEÑAL FORD 5000")
+
+    def test_location_with_trailing_subdivision_letter_is_detected(self):
+        # Alejandro encontró estas en el catálogo real: estante + posición
+        # + una letra de subdivisión (no solo dígitos al final).
+        names = {
+            "1": "PUNTA NISSAN FD6 DLLA151SN517 A339B",
+            "2": "RETENEDOR CIGUEÑAL B. TOYOTA 17MM A287D",
+            "3": "ARANDELA COPA REV INYECTOR L.ROVER A239A",
+        }
+        result = resolve_locations(names)
+
+        self.assertEqual(result["1"].location_code, "A339B")
+        self.assertEqual(result["1"].clean_name, "PUNTA NISSAN FD6 DLLA151SN517")
+        self.assertEqual(result["2"].location_code, "A287D")
+        self.assertEqual(result["3"].location_code, "A239A")

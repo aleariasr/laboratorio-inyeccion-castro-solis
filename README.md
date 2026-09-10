@@ -47,6 +47,8 @@ Estado actual:
     inyectores y servicios, cierre de caja semanal con desglose por método de pago, proforma y
     facturas internas en PDF, conteos físicos, movimientos de inventario, reportes).
     Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo §5 (sin definir todavía).
+    Migración de datos legacy DBF del cliente (proveedores, productos y compras): completada
+    (2026-09-09) — ver docs/dbf-migration-closure.md.
     Validación con flujos y datos reales: pendiente.
 
 El backend base ya incluye autenticación, usuarios, roles, permisos por módulo, inventario, compras, costos, ventas, clientes, inyectores, servicios, cierre de caja, búsqueda universal, reportes JSON, endpoint administrativo de estado y generación de documentos PDF (etiquetas, proforma y facturas internas) con códigos de barras reales.
@@ -185,6 +187,10 @@ Documento principal de cierre:
 - Búsqueda universal.
 - Reportes JSON.
 - Etiquetas PDF con código de barras Code128 real.
+- Migración de datos legacy DBF del cliente (proveedores, productos, compras): pipeline de
+  extracción, staging, validación, normalización, importación y conciliación (`apps.legacy_migration`),
+  con trazabilidad completa y sin contaminar el modelo de negocio — ver
+  [dbf-migration-closure.md](docs/dbf-migration-closure.md).
 
 ## Frontend operativo
 
@@ -452,6 +458,8 @@ Documentos de estado:
 - [Cierre de backend base](docs/backend-base-closure.md)
 - [Cierre de infraestructura productiva base](docs/infrastructure-stage-closure.md)
 - [Cierre de etapa: app de escritorio Windows](docs/windows-desktop-stage-closure.md)
+- [Cierre: migración legacy DBF](docs/dbf-migration-closure.md)
+- [Guía: llevar esta versión a producción](docs/guia-despliegue-produccion.md)
 - [Lista de preparación para producción — Windows (vigente)](docs/windows-production-checklist.md)
 - [Lista de preparación para producción (histórica, plan Linux/kiosco)](docs/production-readiness-checklist.md)
 - [Roadmap](docs/roadmap.md)
@@ -508,8 +516,10 @@ El frontend operativo y el backlog de la visita al cliente (2026-09) ya están c
 
 1. Validación con usuarios y datos reales (Fase 8 del roadmap): revisión de flujos, campos,
    reportes, documentos y permisos reales, con el negocio operando de verdad.
-2. Migración DBF legacy con archivos reales del cliente (Fase 10) — no puede avanzar sin esos
-   archivos.
+2. Correr la migración DBF legacy (Fase 10, ya implementada y probada) contra los archivos reales
+   en la máquina de producción — ver
+   [Cierre: migración legacy DBF](docs/dbf-migration-closure.md) y
+   `scripts/migrate-legacy-dbf.sh`.
 3. Dos riesgos de la app de escritorio Windows sin validar con uso real extendido: el
    endurecimiento de las tareas programadas ocultas (§10.3 de
    [windows-desktop-stage-closure.md](docs/windows-desktop-stage-closure.md)) y el flujo

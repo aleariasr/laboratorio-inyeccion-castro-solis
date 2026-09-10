@@ -34,7 +34,9 @@ Estado resumido:
     concreto todavía — pendiente de que el cliente identifique qué le molesta específicamente del
     proceso de clientes/servicios).
     Validación con usuarios reales: pendiente.
-    Migración DBF legacy: pendiente.
+    Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
+    cliente importados y conciliados contra el stock auxiliar legacy. Ver "Fase 10" abajo y
+    docs/dbf-migration-closure.md.
 
 ---
 
@@ -412,36 +414,45 @@ Base técnica existente:
 
 # Fase 10: migración legacy DBF
 
-Estado: pendiente.
+Estado: completada (2026-09-09).
 
-No debe implementarse sin archivos reales o muestras representativas.
+Fuentes legacy migradas:
 
-Fuentes legacy identificadas:
+- `INVEN01`: proveedores — 73 detectados, 73 importados.
+- `INVEN03`: piezas/productos — 3.655 detectados, 3.655 importados.
+- `INVEN05`: compras/facturas — 13.576 líneas detectadas, 12.446 importadas en 2.079 compras
+  reales confirmadas.
+- `INVEN08`: stock auxiliar — usado como fuente de conciliación final.
 
-- `INVEN01`: proveedores;
-- `INVEN03`: piezas/productos;
-- `INVEN05`: compras/facturas;
-- `INVEN06`: salidas/ventas;
-- `INVEN08`: stock auxiliar.
+`INVEN06` (salidas/ventas) **quedó fuera del alcance**: se verificó que está mayormente corrupto
+en su origen (idéntico en ambas copias entregadas por el cliente, no es un problema de una copia
+puntual) y no es reconstruible de forma confiable. En consecuencia, no se reconstruyó historial de
+ventas legacy — solo el estado actual del inventario y el historial de compras.
 
-Flujo requerido:
+Flujo implementado (app `apps.legacy_migration`, 4 management commands en orden):
 
-1. Extracción.
-2. Staging.
-3. Validación.
-4. Normalización.
-5. Importación.
-6. Conciliación.
-7. Reporte de errores.
-8. Trazabilidad de registros legacy.
+1. Extracción (`migrate_legacy_extract`) — fusiona las dos copias entregadas por el cliente.
+2. Staging (`LegacyStagingRecord`).
+3. Validación (`migrate_legacy_validate`) — genera `MigrationIssue` sin tocar nada de negocio.
+4. Normalización e importación (`migrate_legacy_import`) — usando los services reales
+   (`confirm_purchase()`, `adjust_stock()`), idempotente.
+5. Conciliación final contra `INVEN08` mediante un único movimiento `ADJUSTMENT` por producto.
+6. Reporte (`migrate_legacy_report`) — totales reales, huérfanos, diferencias, errores.
+7. Trazabilidad completa vía `LegacyRecordMap` (sin contaminar el modelo principal).
 
-Regla importante:
+Regla importante (cumplida): los códigos legacy no contaminan el modelo principal — toda la
+trazabilidad vive en las tablas técnicas de `apps.legacy_migration`.
 
-Los códigos legacy no deben contaminar el modelo principal si solo sirven para trazabilidad técnica. Esa trazabilidad debe manejarse mediante tablas o estructuras de migración.
+Resultado: 0 errores bloqueantes. 1.797 productos sin ubicación detectable quedaron en una
+ubicación `SINUB` para asignación física posterior; 1.886 productos requirieron ajuste de
+conciliación; 11.291 fechas se corrigieron por un bug de año de 2 dígitos del sistema legacy nunca
+corregido (Y2K). Detalle completo de hallazgos, decisiones y números en
+[dbf-migration-closure.md](dbf-migration-closure.md).
 
-Documento relacionado:
+Documentos relacionados:
 
 - [Modelo de datos](data-model.md)
+- [Cierre: migración legacy DBF](dbf-migration-closure.md)
 
 ---
 

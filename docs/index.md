@@ -24,6 +24,8 @@ LICS es un sistema local/offline orientado a producción real. La documentación
 11. [Seguridad](security.md)
 12. [Solución de problemas](troubleshooting.md)
 13. [Lista de preparación para producción (histórica, plan Linux/kiosco superado)](production-readiness-checklist.md)
+13b. [Cierre: migración legacy DBF](dbf-migration-closure.md)
+13c. [Guía: llevar esta versión a producción](guia-despliegue-produccion.md)
 14. [Auditoría previa al frontend](frontend-audit.md)
 15. [Roadmap de frontend](frontend-roadmap.md)
 16. [Sistema de diseño del frontend](frontend-design-system.md)
@@ -136,6 +138,28 @@ Incluye:
 - actualizaciones;
 - frontend;
 - validación operativa.
+
+## Cierre: migración legacy DBF
+
+Archivo:
+
+- [dbf-migration-closure.md](dbf-migration-closure.md)
+
+Propósito:
+
+Documenta el cierre de la migración de los archivos DBF legacy reales
+del cliente — decisiones de mapeo confirmadas, hallazgos técnicos reales
+(archivo de ventas corrupto, bug de año de 2 dígitos, ubicación
+embebida en el nombre de la pieza), arquitectura implementada
+(`apps.legacy_migration`) y resultado final verificado.
+
+Incluye:
+
+- alcance y fuentes migradas (y por qué `INVEN06` quedó fuera);
+- hallazgos técnicos con causa raíz confirmada;
+- decisiones de mapeo campo a campo;
+- comandos de migración y cómo correrlos;
+- números finales verificados y pendientes operativos posteriores.
 
 ## Roadmap
 
@@ -449,7 +473,9 @@ Estado resumido:
     README principal para el detalle completo.
     Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo §5 (sin definir).
     Validación con usuarios reales: pendiente.
-    Migración DBF legacy: pendiente (archivos reales ya disponibles).
+    Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
+    cliente importados y conciliados contra el stock auxiliar legacy. Ver
+    [dbf-migration-closure.md](dbf-migration-closure.md).
 
 > Nota: la lista anterior refleja el estado verificado contra el código en esta revisión. Este
 > documento no siempre se mantiene sincronizado en tiempo real; ante cualquier duda, el

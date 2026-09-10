@@ -37,6 +37,7 @@ SKIP_CATEGORIES = {
     MigrationIssueCategory.PRODUCTO_HUERFANO,
     MigrationIssueCategory.PROVEEDOR_FALTANTE,
     MigrationIssueCategory.MONTO_INVALIDO,
+    MigrationIssueCategory.FECHA_INVALIDA,
 }
 
 

@@ -287,3 +287,53 @@ class MigrateLegacyImportDuplicateLineInSameInvoiceTests(TestCase):
         self.assertTrue(
             self.run.issues.filter(category=MigrationIssueCategory.CODIGO_DUPLICADO).exists()
         )
+
+
+class MigrateLegacyImportBlankDateTests(TestCase):
+    """
+    Regresión: una línea de compra con FECFAC_05 vacío queda como
+    `None` en el staging. La validación ya la marca como
+    FECHA_INVALIDA, pero esa categoría faltaba en SKIP_CATEGORIES del
+    comando de importación, así que la línea igual se intentaba
+    importar y explotaba al parsear `None` como fecha.
+    """
+
+    def setUp(self):
+        self.run = MigrationRun.objects.create()
+
+        _stage(self.run, SourceTable.INVEN01, "bases1", "2", {"CODPRO_01": 2, "NOMPRO_01": "MADISA"})
+        _stage(
+            self.run,
+            SourceTable.INVEN03,
+            "bases1",
+            "7135-74",
+            {
+                "CODPIE_03": "7135-74",
+                "NOMPIE_03": "CAMISA VALVULA TRASIEGO PERKINS 354 B147",
+                "STOCK_03": 8,
+                "PREVEN_03": 4000.0,
+                "CANMIN_03": 2,
+            },
+        )
+        _stage(self.run, SourceTable.INVEN08, "bases1", "7135-74", {"CODPIE_08": "7135-74", "STOCK_08": 8})
+
+        _stage(
+            self.run,
+            SourceTable.INVEN05,
+            "bases1",
+            "800:2:1",
+            {
+                "NUMFAC_05": 800, "CODPRO_05": 2, "FECFAC_05": None, "NUMITE_05": 1,
+                "CODPIE_05": "7135-74", "CANFAC_05": 2, "PRECOL_05": 100.0, "PREDOL_05": 0.2,
+            },
+        )
+
+        call_command("migrate_legacy_validate", run=self.run.pk)
+
+    def test_line_with_blank_date_is_skipped_not_crashed_on(self):
+        call_command("migrate_legacy_import", run=self.run.pk)
+
+        self.assertFalse(Purchase.objects.filter(invoice_number="800").exists())
+        self.assertTrue(
+            self.run.issues.filter(category=MigrationIssueCategory.RELACION_INCOMPLETA).exists()
+        )
