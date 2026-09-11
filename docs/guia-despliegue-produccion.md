@@ -202,3 +202,15 @@ wsl -d lics-wsl -- sudo cat /opt/lics/ADMIN_CREDENTIALS_INICIALES.txt
 # 4. Con los .DBF reales copiados a C:\lics-dev\invent\:
 wsl -d lics-wsl -- /opt/lics/scripts/migrate-legacy-dbf.sh /mnt/c/lics-dev/invent
 ```
+
+```powershell
+# ver estado de las dos tareas
+Get-ScheduledTask -TaskName "LICS - Iniciar backend", "LICS - Mantener sesion WSL activa" | Get-ScheduledTaskInfo
+
+# ver si el proceso wsl.exe de "mantener sesión" sigue vivo
+Get-Process wsl -ErrorAction SilentlyContinue
+
+# relanzar cualquiera de las dos manualmente si se cayó
+Start-ScheduledTask -TaskName "LICS - Mantener sesion WSL activa"
+Start-ScheduledTask -TaskName "LICS - Iniciar backend"
+```
