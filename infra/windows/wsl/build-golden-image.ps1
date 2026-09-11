@@ -45,6 +45,16 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OutputPath,
 
+    # Fuerza una imagen dorada 100% desde cero: desregistra la distro
+    # lics-build existente (si hay) antes de importar de nuevo, en vez de
+    # reutilizarla. Usar para el primer release de produccion real de un
+    # cliente, o cada vez que se sospeche que la distro build acumulo
+    # estado de builds anteriores (imagenes Docker viejas, .env.prod viejo,
+    # admin inicial viejo, etc.). Mas lento (reinstala Docker Engine y todo
+    # el resto desde cero) pero garantiza que no quede nada de builds
+    # previos.
+    [switch]$Fresh,
+
     # Uso interno: la marca este mismo script via RunOnce para reanudarse
     # automaticamente despues de un reinicio de Windows. No se pasa a mano.
     [switch]$Resume
@@ -66,7 +76,7 @@ function Write-Log {
 
 function Save-State {
     New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
-    @{ releaseDir = $ReleaseDir; outputPath = $OutputPath } | ConvertTo-Json | Set-Content -Path $StateFile -Encoding UTF8
+    @{ releaseDir = $ReleaseDir; outputPath = $OutputPath; fresh = [bool]$Fresh } | ConvertTo-Json | Set-Content -Path $StateFile -Encoding UTF8
 }
 
 function Restore-StateIfResuming {
@@ -74,7 +84,8 @@ function Restore-StateIfResuming {
         $saved = Get-Content $StateFile -Raw | ConvertFrom-Json
         $script:ReleaseDir = $saved.releaseDir
         $script:OutputPath = $saved.outputPath
-        Write-Log "Reanudando despues del reinicio (release: $ReleaseDir)"
+        $script:Fresh = [bool]$saved.fresh
+        Write-Log "Reanudando despues del reinicio (release: $ReleaseDir, fresh: $Fresh)"
     }
 }
 
@@ -82,7 +93,8 @@ function Register-ResumeAfterReboot {
     $scriptPath = $MyInvocation.MyCommand.Path
     if (-not $scriptPath) { $scriptPath = $PSCommandPath }
 
-    $command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -ReleaseDir `"$ReleaseDir`" -OutputPath `"$OutputPath`" -Resume"
+    $freshFlag = if ($Fresh) { " -Fresh" } else { "" }
+    $command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -ReleaseDir `"$ReleaseDir`" -OutputPath `"$OutputPath`"$freshFlag -Resume"
     New-Item -Path $RunOnceKey -Force | Out-Null
     New-ItemProperty -Path $RunOnceKey -Name 'LICSBuildResume' -Value $command -PropertyType String -Force | Out-Null
     Write-Log "Reanudacion automatica registrada para despues del reinicio."
@@ -219,6 +231,14 @@ function Get-ValidRootfsFile {
 
 function Step-InstallDistro {
     $existing = (wsl -l -q) 2>$null
+
+    if ($Fresh -and ($existing -contains $DistroName)) {
+        Write-Log "Fresh activo: desregistrando la distro $DistroName existente para reconstruir 100% desde cero..."
+        wsl --unregister $DistroName
+        if ($LASTEXITCODE -ne 0) { throw "wsl --unregister $DistroName fallo con codigo $LASTEXITCODE" }
+        $existing = (wsl -l -q) 2>$null
+    }
+
     if ($existing -contains $DistroName) {
         Write-Log "La distro $DistroName ya existe, se omite instalacion."
         return
@@ -331,6 +351,7 @@ try {
 
     Write-Log "Release: $ReleaseDir"
     Write-Log "Salida:  $OutputPath"
+    if ($Fresh) { Write-Log "Modo FRESH: se reconstruye todo desde cero (distro, Docker Engine, imagenes, admin, secretos)." }
 
     Step-EnableFeatures
     Step-InstallDistro

@@ -118,12 +118,23 @@ generate_env_file() {
     local env_file="/opt/lics/infra/docker/.env.prod"
     local version
 
+    version="$(tr -d '[:space:]' < /opt/lics/VERSION)"
+
+    # Ojo: NO saltarse esto por completo si .env.prod ya existe. Reconstruir
+    # la imagen dorada reutilizando una distro lics-build ya aprovisionada
+    # (caso real de uso, ver install_application) dejaba antes LICS_VERSION
+    # pegado en la version de la PRIMERA vez que se genero este archivo en
+    # esa distro -- compose.prod.yml usa LICS_VERSION como tag de imagen
+    # (image: lics-backend:${LICS_VERSION}), asi que el compose terminaba
+    # levantando una imagen vieja aunque install_application y load_images
+    # si hubieran actualizado el codigo y cargado las imagenes nuevas. Se
+    # actualiza solo la linea de version y se dejan los secretos (password
+    # de postgres, secret key de Django) intactos.
     if [[ -f "${env_file}" ]]; then
-        log_ok ".env.prod ya existe, no se regenera."
+        sed -i "s|^LICS_VERSION=.*|LICS_VERSION=${version}|" "${env_file}"
+        log_ok ".env.prod ya existia, se actualizo LICS_VERSION a ${version} (secretos sin tocar)."
         return
     fi
-
-    version="$(tr -d '[:space:]' < /opt/lics/VERSION)"
 
     cp /opt/lics/infra/docker/.env.prod.example "${env_file}"
 

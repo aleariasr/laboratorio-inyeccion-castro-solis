@@ -37,6 +37,14 @@
 .PARAMETER SkipActions
     Si se pasa, solo reconstruye la imagen dorada y no toca GitHub Actions.
 
+.PARAMETER Fresh
+    Reconstruye la distro lics-build 100% desde cero (la desregistra si ya
+    existe) en vez de reutilizarla. Usar para el primer release real de
+    produccion de un cliente, o cuando se sospeche que la distro acumulo
+    estado de builds anteriores (esto fue justo lo que paso con el release
+    2.2.0: LICS_VERSION quedo pegado en una version vieja porque .env.prod
+    no se regeneraba en una distro reutilizada).
+
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File cut-release.ps1
 #>
@@ -45,7 +53,8 @@ param(
     [string]$ReleaseParentDir = "C:\lics-dev",
     [string]$OutputPath = "C:\lics-build\lics-wsl-rootfs.tar",
     [string]$WorkflowFile = "build-windows-installer.yml",
-    [switch]$SkipActions
+    [switch]$SkipActions,
+    [switch]$Fresh
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,7 +96,12 @@ if (-not (Test-Path $buildScript)) {
 }
 
 Write-Log "Reconstruyendo la imagen dorada (esto tarda varios minutos)..."
-& $buildScript -ReleaseDir $releaseDir -OutputPath $OutputPath
+if ($Fresh) {
+    Write-Log "Fresh activo: la distro lics-build se reconstruye desde cero (mas lento)."
+    & $buildScript -ReleaseDir $releaseDir -OutputPath $OutputPath -Fresh
+} else {
+    & $buildScript -ReleaseDir $releaseDir -OutputPath $OutputPath
+}
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "build-golden-image.ps1 termino con codigo $LASTEXITCODE. No se dispara el workflow."
