@@ -48,8 +48,13 @@ class VariantKind(models.TextChoices):
     Distingue variantes de un mismo código universal (standard_code)
     representadas como filas Product separadas — ver §3.6: un
     original y su equivalente genérico son productos distintos, cada
-    uno con su propio precio y stock, pero comparten standard_code y
-    storage_location.
+    uno con su propio precio y stock, pero comparten standard_code.
+
+    Lo habitual es que compartan también storage_location, y por eso
+    `add-variant` copia la del producto padre, pero NO es una
+    restricción: en los datos reales del cliente hay 152 familias de
+    equivalentes repartidas en estantes distintos, y forzarlo impedía
+    reubicar una familia.
     """
 
     ORIGINAL = "ORIGINAL", "Original"

@@ -49,13 +49,18 @@ Nada pendiente de registrar.
   algo, una nota de ubicación. Los 124 productos que quedaron en `SINUB`
   con un equivalente sí ubicado reciben la pista de dónde ir a
   buscarlos. Idempotente y reversible con `--rollback` sin guardar
-  estado nuevo, porque la traza ya vive en `LegacyRecordMap`. Los totales
-  dependen del export de los `.DBF` cargado en el staging: 392 grupos
-  (869 productos, 477 cambian de código) con el export viejo que tiene
-  desarrollo, 396 grupos (878 productos, 482 cambian) con el export de
-  septiembre de 2026 que tiene producción. Detalle completo, incluidas
-  las dos trampas del algoritmo, en `docs/dbf-migration-closure.md`,
-  sección "Etapa posterior".
+  estado nuevo, porque la traza ya vive en `LegacyRecordMap`. **Solo se
+  aplican los grupos de 2 miembros** (`--max-group-size`, default 2):
+  los de 3 o más se forman por encadenamiento y en los datos reales unen
+  piezas distintas (un rodillo suelto con un juego de rodillos, una punta
+  con una válvula), así que se reportan y se excluyen. Además, **el valor
+  crudo de `REFPIE_03` se guarda en `description` de todo producto que lo
+  tenga, agrupe o no**, para no perder ese dato del legacy. Con el export
+  que tiene producción: 333 grupos aplicables (666 productos), 63 grupos
+  excluidos, 1.118 productos que solo reciben la referencia, 1.784
+  productos actualizados en total. Detalle completo, incluidas las tres
+  trampas del algoritmo, en `docs/dbf-migration-closure.md`, sección
+  "Etapa posterior".
 - **Requiere actualizar la aplicación instalada antes de correrse en
   producción**: el backend productivo corre desde la imagen, sin montar
   el código, así que el comando no existe en el contenedor hasta que se
@@ -83,14 +88,31 @@ Nada pendiente de registrar.
   por máquina. Ver `docs/troubleshooting.md`, sección "Windows: el acceso
   directo Reiniciar LICS".
 
+### Changed
+
+- **`ProductSerializer` ya no impide cambiar la ubicación de un producto
+  con variantes.** La regla anterior rechazaba cualquier cambio con
+  "todas deben permanecer en la misma ubicación". Se quitó por dos
+  razones: es falsa en este negocio (111 familias de equivalentes del
+  cliente están repartidas en estantes distintos) y producía un bloqueo
+  mutuo — para mudar una familia unificada había que mover al primero, y
+  mover al primero siempre fallaba, así que una familia de variantes no
+  se podía reubicar nunca. El bug ya existía; casi no se notaba porque
+  casi no había familias. Compartir ubicación queda como valor por
+  defecto de `add-variant`, no como restricción. Sin este cambio, los
+  100 productos en `SINUB` a los que la migración les escribe "su
+  equivalente está en G102, candidato a ubicar ahí" no habrían podido
+  moverse ahí desde el sistema. El docstring de `VariantKind` y el test
+  correspondiente se actualizaron.
+
 ### Validated
 
-- Migración de equivalencias verificada de punta a punta contra los datos
-  reales del cliente (12/09/2026): suite completa en **603 tests OK** (13
-  nuevos), y cinco corridas del comando más cuatro del script
-  demostrando idempotencia (segunda corrida: 392 grupos saltados, 0
-  pendientes), rollback exacto (`3.178 / 478` vuelve a `3.655 / 1`),
-  rollback idempotente, y que una segunda corrida no crea respaldo.
+- Migración de equivalencias ejercitada de punta a punta contra los datos
+  reales del cliente (12/09/2026): suite completa del proyecto en verde,
+  más corridas del comando y del script demostrando idempotencia (la
+  segunda corrida reporta 0 productos pendientes), rollback exacto (el
+  estado vuelve byte a byte al inicial), rollback idempotente, y que una
+  segunda corrida no crea respaldo.
 
 ### Fixed
 

@@ -875,7 +875,13 @@ class ProductApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 2)
 
-    def test_cannot_move_variant_with_siblings_to_different_location(self):
+    def test_can_move_variant_with_siblings_to_different_location(self):
+        """
+        Regresión: la API rechazaba esto. Se quitó la restricción porque
+        los datos reales tienen familias de equivalentes repartidas en
+        varios estantes, y porque impedía reubicar una familia (mover al
+        primero siempre fallaba). Ver ProductSerializer.validate.
+        """
         other_location = StorageLocation.objects.create(
             code="B202",
             created_by=self.user,
@@ -898,11 +904,13 @@ class ProductApiTest(APITestCase):
             format="json",
         )
 
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST,
-        )
-        self.assertIn("storage_location", response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        sibling.refresh_from_db()
+        self.assertEqual(sibling.storage_location, other_location)
+
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.storage_location, self.location)
 
     def test_can_move_lone_product_to_different_location(self):
         other_location = StorageLocation.objects.create(

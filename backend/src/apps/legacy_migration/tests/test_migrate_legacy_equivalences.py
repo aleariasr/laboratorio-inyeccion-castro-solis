@@ -11,7 +11,10 @@ escenario inventado:
 - la nota de texto libre ("TORNECA", que es un proveedor) que NO debe
   pegar productos entre sí;
 - la referencia que sí apunta a un código existente pero a una pieza
-  que no tiene nada que ver.
+  que no tiene nada que ver;
+- la cadena A->B->C, que forma un grupo de 3 y queda excluida por
+  defecto porque en los datos reales ese encadenamiento une piezas
+  distintas.
 """
 
 import io
@@ -40,6 +43,9 @@ PIEZAS = [
     ("FREE-2", "TORNILLO ALLEN TAPA GOB C310", "TORNECA", 38, 500.0),
     ("DIFF-1", "PISTON AVANCE BOMBA VE D155", "", 2, 30000.0),
     ("DIFF-2", "COPA INYECTOR GASOLINA DELPHI E240", "DIFF-1", 6, 1300.0),
+    ("CHAIN-A", "SET EMPAQUE BOMBA PE B300", "", 7, 25000.0),
+    ("CHAIN-B", "SET EMPAQUE BOMBA PE B300", "CHAIN-A", 2, 25000.0),
+    ("CHAIN-C", "SET EMPAQUE BOMBA PE B300", "CHAIN-B", 9, 25000.0),
 ]
 
 
@@ -282,4 +288,89 @@ class MigrateLegacyEquivalencesTests(TestCase):
         with self.assertRaises(CommandError):
             self._run()
 
+        self.assertEqual(self._snapshot(), before)
+
+    # ------------------------------------------------------------------
+    # Referencia cruda: nada del legacy se pierde
+    # ------------------------------------------------------------------
+
+    def test_guarda_la_referencia_cruda_de_los_que_no_agrupan(self):
+        self._run()
+
+        # "TORNECA" es un proveedor, no agrupa nada, pero el dato queda.
+        libre = self._by_legacy_code("FREE-1")
+        self.assertEqual(libre.standard_code, "FREE-1")
+        self.assertEqual(libre.variant_kind, VariantKind.ORIGINAL)
+        self.assertIn("Referencia legacy: TORNECA", libre.description)
+        self.assertNotIn("Código universal compartido:", libre.description)
+
+        # Referencia a un código que existe pero es otra pieza.
+        distinto = self._by_legacy_code("DIFF-2")
+        self.assertEqual(distinto.standard_code, "DIFF-2")
+        self.assertIn("Referencia legacy: DIFF-1", distinto.description)
+
+    def test_los_agrupados_tambien_conservan_su_referencia_cruda(self):
+        self._run()
+
+        variante = self._by_legacy_code("KG3S6")
+        self.assertIn("Código universal compartido: G3S6", variante.description)
+        self.assertIn("Referencia legacy: G3S6", variante.description)
+
+    def test_no_toca_productos_sin_referencia(self):
+        sin_referencia = self._by_legacy_code("G3S6")
+        sin_referencia.description = ""
+        sin_referencia.save()
+
+        solitario = self._by_legacy_code("DIFF-1")
+        antes = (solitario.standard_code, solitario.description)
+
+        self._run()
+
+        solitario.refresh_from_db()
+        self.assertEqual((solitario.standard_code, solitario.description), antes)
+
+    # ------------------------------------------------------------------
+    # Tope de tamaño de grupo
+    # ------------------------------------------------------------------
+
+    def test_excluye_los_grupos_encadenados_por_defecto(self):
+        self._run()
+
+        for legacy_code in ("CHAIN-A", "CHAIN-B", "CHAIN-C"):
+            product = self._by_legacy_code(legacy_code)
+            self.assertEqual(
+                product.standard_code,
+                legacy_code,
+                "un grupo de 3 no debe aplicarse con el tope por defecto",
+            )
+            self.assertNotIn(
+                "Código universal compartido:", product.description
+            )
+
+        # Pero la referencia cruda sí se guarda igual.
+        self.assertIn(
+            "Referencia legacy: CHAIN-A",
+            self._by_legacy_code("CHAIN-B").description,
+        )
+
+    def test_max_group_size_mayor_si_los_agrupa(self):
+        self._run(max_group_size=3)
+
+        family = Product.objects.filter(standard_code="CHAIN-A")
+        self.assertEqual(family.count(), 3)
+        self.assertEqual(
+            family.filter(variant_kind=VariantKind.ORIGINAL).count(), 1
+        )
+
+    def test_max_group_size_cero_desactiva_el_tope(self):
+        self._run(max_group_size=0)
+        self.assertEqual(Product.objects.filter(standard_code="CHAIN-A").count(), 3)
+
+    def test_el_rollback_limpia_tambien_la_referencia_cruda(self):
+        before = self._snapshot()
+
+        self._run()
+        self.assertNotEqual(self._snapshot(), before)
+
+        self._run(rollback=True)
         self.assertEqual(self._snapshot(), before)

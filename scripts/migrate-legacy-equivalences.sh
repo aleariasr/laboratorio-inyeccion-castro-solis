@@ -133,8 +133,9 @@ confirm_before_writing_production_data() {
     local pending_products="$2"
 
     printf '\n'
-    log_warning "Esto va a reagrupar ${pending_groups} grupos (${pending_products} productos) en la base de datos de PRODUCCIÓN."
-    log_warning "Cambia el código que se ve en pantalla y en las etiquetas de esos productos."
+    log_warning "Esto va a actualizar ${pending_products} productos en la base de datos de PRODUCCIÓN."
+    log_warning "${pending_groups} son grupos de equivalencia; al resto solo se le guarda la referencia legacy en la descripción."
+    log_warning "A los agrupados les cambia el código que se ve en pantalla y en las etiquetas."
     log_warning "NO se crean ni se borran productos, y no se tocan precios, stock ni ubicaciones."
     log_warning "Antes de escribir una sola fila se va a crear un respaldo completo."
     printf '\n'
@@ -179,7 +180,10 @@ do_apply() {
     pending_groups="$(read_counter "${output}" "grupos_pendientes")"
     pending_products="$(read_counter "${output}" "productos_pendientes")"
 
-    if [[ "${pending_groups}" -eq 0 ]]; then
+    # La compuerta mira los PRODUCTOS, no los grupos: hay productos que
+    # se actualizan solo para guardarles la referencia legacy cruda en la
+    # descripción y no pertenecen a ningún grupo.
+    if [[ "${pending_products}" -eq 0 ]]; then
         printf '\n'
         log_ok "No hay nada pendiente: los grupos de equivalencia ya están aplicados."
         log_info "No se creó respaldo ni se tocó la base de datos."
@@ -199,9 +203,9 @@ do_apply() {
     run_verification
     output="${VERIFICATION_OUTPUT}"
 
-    pending_groups="$(read_counter "${output}" "grupos_pendientes")"
-    if [[ "${pending_groups}" -ne 0 ]]; then
-        die "Quedaron ${pending_groups} grupos pendientes después de aplicar. Revisá la salida de arriba antes de volver a correrlo."
+    pending_products="$(read_counter "${output}" "productos_pendientes")"
+    if [[ "${pending_products}" -ne 0 ]]; then
+        die "Quedaron ${pending_products} productos pendientes después de aplicar. Revisá la salida de arriba antes de volver a correrlo."
     fi
 
     printf '\n'

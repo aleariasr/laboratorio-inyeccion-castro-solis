@@ -259,6 +259,18 @@ Dos trampas que el código evita a propósito:
    negativos reales (`0-928-400-713` / `1-465-ZS0-082`, los dos ZME de
    CP3 para KIA; `3--177` / `3-177`, que es un typo). Esa lista es para
    revisión humana, nunca para automatizar.
+3. **Los grupos de 3 o más no se aplican.** Validar por arista evita las
+   uniones absurdas, pero no evita las cadenas plausibles: si A equivale
+   a B y B equivale a C, el cierre transitivo los junta a los tres aunque
+   A y C no tengan nada que ver. En los datos reales eso produce grupos
+   como `RODILLO BOMBA VE` (₡3.000) junto a `RODILLO B. VE SET`
+   (₡40.000), o una `PUNTA C.R. HINO` junto a una `VALVULA C.R. KS08`.
+   Son 63 grupos y 212 productos. El comando los detecta, los reporta y
+   los **excluye**; entrarían solo con `--max-group-size` mayor a 2, y
+   eso requiere revisarlos uno por uno con la administradora.
+
+   Los 333 grupos de a dos que sí se aplican tienen 2 casos con
+   similitud interna floja, contra 5 de 63 en los grandes.
 
 ## Decisión de modelo
 
@@ -296,6 +308,15 @@ Tres líneas administradas por prefijo, todas buscables (la búsqueda por
     Ubicación propia: SINUB (sin ubicar) — su equivalente C0433-171-074
     está en G102; candidato a ubicar ahí.
 
+A eso se suma una cuarta línea, `Referencia legacy: <valor>`, con el
+contenido crudo de `REFPIE_03` **en todo producto que lo tenga, agrupe o
+no**. Los 1.118 productos cuya referencia no forma ningún grupo
+(números de fabricante Bosch/Denso, notas sueltas, los miembros de los
+grupos excluidos) reciben solo esa línea: no cambian de código, de
+variante ni de ubicación. Así el dato del legacy queda consultable en vez
+de perderse, que era el motivo original por el que este campo había
+quedado sin migrar.
+
 El código propio de cada fila va a `description` porque el código que se
 ve en pantalla pasa a ser el compartido; sin esa línea, buscar `KG3S6`
 dejaría de encontrar la pieza. Todo lo que una persona haya escrito a
@@ -317,12 +338,26 @@ ubicar en una lista de trabajo para bodega.
 
 ## Ubicaciones: qué NO se toca
 
-152 grupos tienen miembros en ubicaciones reales distintas. **No se
-mueve ninguno.** Cada producto se queda donde dice el legacy y el hecho
-queda anotado en `description`. Es una inconsistencia real entre el
-docstring de `VariantKind` (que dice que las variantes comparten
-`storage_location`) y el dato del cliente; se documenta en vez de
-resolverse inventando.
+111 grupos aplicables tienen miembros en ubicaciones reales distintas.
+**No se mueve ninguno.** Cada producto se queda donde dice el legacy y el
+hecho queda anotado en `description`.
+
+Eso obligó a un cambio de regla de negocio. `ProductSerializer.validate`
+rechazaba cualquier cambio de ubicación en un producto con variantes,
+con el mensaje "todas deben permanecer en la misma ubicación". Esa regla
+se quitó, por dos razones:
+
+1. **Es falsa en este negocio.** 111 familias de equivalentes están
+   repartidas en estantes distintos en los datos reales del cliente.
+2. **Producía un bloqueo mutuo.** Para mudar una familia unificada había
+   que mover al primero, y mover al primero siempre fallaba: una familia
+   de variantes no se podía reubicar nunca. El bug ya existía; nadie lo
+   había notado porque casi no había familias.
+
+Sin ese cambio, los 100 productos en `SINUB` a los que esta migración
+les escribe "su equivalente está en G102, candidato a ubicar ahí" no
+habrían podido moverse a G102 desde el sistema. Compartir ubicación
+queda como valor por defecto de `add-variant`, no como restricción.
 
 ## Resultado (2026-09-12)
 
@@ -334,23 +369,27 @@ se migró con el nuevo.
 | | Export viejo (dev) | Export nuevo (producción) |
 |---|---|---|
 | Productos en el catálogo | 3.655 | 3.674 |
-| Grupos de equivalencia | **392** | **396** |
-| Productos involucrados | **869** | **878** |
-| Productos que cambian de `standard_code` | **477** | **482** |
-| Grupos en varias ubicaciones reales | 152 | 152 |
-| Productos `SINUB` con pista de ubicación | 124 | 127 |
+| Productos con `REFPIE_03` | 1.661 | 1.671 |
+| Grupos detectados | 392 | 396 |
+| Grupos **aplicables** (2 miembros) | **330** | **333** |
+| Grupos **excluidos** por tamaño | 62 | 63 |
+| Productos agrupados | **660** | **666** |
+| Productos solo con referencia guardada | 1.113 | 1.118 |
+| **Total de productos actualizados** | **1.773** | **1.784** |
+| Grupos en varias ubicaciones reales | 112 | 111 |
+| Productos `SINUB` con pista de ubicación | 97 | 100 |
 | Productos creados o borrados | **0** | **0** |
 
 Estado de verificación, dicho sin adornos:
 
-- La columna de **desarrollo está verificada corriendo el comando y el
-  script contra la base real**: `standard_code` distintos 3.655 → 3.178,
-  variantes no-`ORIGINAL` 0 → 477, idempotencia y rollback demostrados.
+- La columna de **desarrollo se verifica corriendo el comando y el
+  script contra la base real**: idempotencia, rollback exacto y que una
+  segunda corrida no crea respaldo.
 - La columna de **producción está calculada a partir del export nuevo,
   no verificada contra esa base todavía**. Sirve como control: si el
-  `--dry-run` en producción muestra 396 / 878 / 482, confirma que el
-  staging de esa máquina corresponde al export nuevo. Si muestra
-  392 / 869 / 477, corresponde al viejo y hay que revisar antes de
+  `--dry-run` en producción reporta 333 grupos aplicables y 1.784
+  productos, el staging de esa máquina corresponde al export nuevo. Si
+  reporta 330 y 1.773, corresponde al viejo y hay que revisar antes de
   aplicar.
 
 Suite completa: **603 tests OK**, incluidos 13 nuevos en
@@ -417,14 +456,16 @@ grupos que faltaban.
 
 ## Pendientes de esta etapa
 
-- Revisar los 392 grupos con la administradora antes de correr esto en
-  la máquina del cliente.
-- Revisar a mano las 95 aristas descartadas por nombre distinto: hay
+- **Los 63 grupos excluidos por encadenamiento** (212 productos) siguen
+  sin agruparse. Es la lista corta que vale la pena revisar con la
+  administradora; con su visto bueno se aplican subiendo
+  `--max-group-size`, o a mano desde la UI.
+- Revisar las 95 aristas descartadas por nombre distinto: hay
   equivalentes reales ahí.
-- Los 972 valores de `REFPIE_03` que no forman grupo siguen sin campo
-  operativo. 776 son números de fabricante (Bosch/Denso) que hoy no se
-  pueden buscar en el sistema; darles un campo propio queda como mejora
-  posterior, no como parte de esta migración.
+- La referencia cruda queda en `description`, que es buscable, pero
+  sigue sin campo propio. Los ~776 números de fabricante (Bosch/Denso)
+  se pueden encontrar con la búsqueda general; un campo dedicado y un
+  filtro propio quedan como mejora posterior.
 - Los dos entornos tienen exports distintos de los `.DBF`: producción se
   migró con el export de septiembre de 2026 (3.674 productos) y
   desarrollo sigue con el anterior (3.655). La diferencia son 19

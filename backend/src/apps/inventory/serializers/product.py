@@ -9,7 +9,6 @@ from apps.inventory.selectors import (
     current_stock,
     effective_sale_price,
     latest_suggested_price,
-    variant_family,
 )
 
 
@@ -219,22 +218,15 @@ class ProductSerializer(serializers.ModelSerializer):
                 }
             )
 
-        location_is_changing = (
-            "storage_location" in attrs
-            and resulting_location != self.instance.storage_location
-        )
-
-        if location_is_changing:
-            if variant_family(self.instance).exists():
-                raise serializers.ValidationError(
-                    {
-                        "storage_location": (
-                            "Este producto comparte código con otras "
-                            "variantes; todas deben permanecer en la "
-                            "misma ubicación."
-                        )
-                    }
-                )
+        # Antes se rechazaba cualquier cambio de ubicación en un
+        # producto con variantes, asumiendo que toda la familia comparte
+        # estante. Los datos reales del cliente lo desmienten: 152
+        # familias de equivalentes están repartidas en estantes
+        # distintos. Además la regla producía un bloqueo mutuo — para
+        # mudar una familia unificada había que mover al primero, y
+        # mover al primero siempre fallaba, así que una familia no se
+        # podía reubicar nunca. Compartir ubicación queda como valor por
+        # defecto de `add-variant`, no como restricción.
 
         return attrs
 
