@@ -20,6 +20,19 @@ El formato utiliza estas categorías:
 > sección: el contenido de 2.2.0 nunca se registró acá. Al cerrar la
 > próxima versión hay que decidir si esto entra como 2.2.0 o como 2.2.1.
 
+### Added
+
+- `infra/windows/electron/resources/windows/Reiniciar-LICS.bat`: acceso
+  directo para el personal del taller que relanza las dos tareas programadas
+  de LICS y verifica el resultado, pensado para usarse sin conocimiento
+  técnico y sin permisos de administrador. Reintenta `healthcheck.sh` cada 10
+  segundos hasta 2 minutos, muestra el estado final y, si falla, pide una
+  foto de la ventana e indica explícitamente que no se reinstale LICS. Se
+  instala solo (está dentro de `resources/windows`, que `extraResources` ya
+  copia entero); el acceso directo en el escritorio se crea a mano una vez
+  por máquina. Ver `docs/troubleshooting.md`, sección "Windows: el acceso
+  directo Reiniciar LICS".
+
 ### Fixed
 
 - **El instalador de Windows no podía instalarse en una máquina limpia.**

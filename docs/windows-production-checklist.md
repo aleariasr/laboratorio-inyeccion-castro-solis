@@ -79,6 +79,14 @@ negocio en una máquina:
 - [ ] Contraseña de ese administrador cambiada de inmediato (o
       reemplazado por un usuario administrador propio, con este
       desactivado).
+- [ ] Acceso directo **"Reiniciar LICS"** creado en el escritorio, apuntando
+      a `C:\Program Files\LICS\resources\windows\Reiniciar-LICS.bat`. Es
+      lo primero que debe probar el personal del taller si LICS no abre, y
+      evita llamadas a soporte por algo que se resuelve solo. Ver
+      `docs/troubleshooting.md`, sección "Windows: el acceso directo
+      Reiniciar LICS".
+- [ ] Al personal del taller se le mostró ese acceso directo y se le dijo
+      explícitamente que **nunca** reinstale el `.exe` por su cuenta.
 
 ## Validación mínima antes de confiar datos reales del negocio
 

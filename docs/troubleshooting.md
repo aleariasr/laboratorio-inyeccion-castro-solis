@@ -181,7 +181,11 @@ Síntoma: usando la app de escritorio en Windows (ver `infra/windows/README.md`)
 
 Causa raíz confirmada (con uso real extendido, no solo teoría): WSL2 apagaba la distro `lics-wsl` completa (todo `systemd`, no solo Docker) segundos después de terminar de arrancar, cuando no quedaba ningún proceso `wsl.exe` conectado como cliente — la única tarea programada que arrancaba la distro corría `start.sh` y terminaba en cuanto ese script terminaba, sin dejar ningún cliente detrás. `nginx` no volvía solo tras esto porque depende de que `backend`/`frontend` ya estén resueltos por DNS, y esa lógica de orden es de `docker compose`, no del daemon. Ver el detalle completo, con el log exacto que lo confirmó, en la sección "Problema conocido" de `infra/windows/README.md`.
 
-Fix aplicado: una segunda tarea programada ("LICS - Mantener sesion WSL activa") mantiene un `wsl.exe -d lics-wsl -- sleep infinity` corriendo de forma indefinida, así WSL2 nunca ve la distro sin clientes. Si esto vuelve a aparecer, diagnosticar en este orden, todo vía PowerShell en la Windows:
+Fix aplicado: una segunda tarea programada ("LICS - Mantener sesion WSL activa") mantiene un `wsl.exe -d lics-wsl -- sleep infinity` corriendo de forma indefinida, así WSL2 nunca ve la distro sin clientes.
+
+**Para el usuario del taller, antes de llamar a soporte:** el escritorio tiene un acceso directo **"Reiniciar LICS"** (`Reiniciar-LICS.bat`, ver más abajo) que relanza las dos tareas programadas y verifica el resultado, sin tocar datos. Es lo primero que hay que probar. Si ese script termina en "TERMINADO", el problema está resuelto y no hace falta nada más.
+
+Si esto vuelve a aparecer y el acceso directo no lo resuelve, diagnosticar en este orden, todo vía PowerShell en la Windows:
 
 ## 1. Confirmar que la tarea de mantener sesión está activa
 
@@ -370,3 +374,48 @@ termina.
 
 La prueba real de que la instalación quedó bien es reiniciar Windows, iniciar
 sesión sin tocar nada, esperar un par de minutos y abrir el ícono de LICS.
+
+
+# Windows: el acceso directo "Reiniciar LICS"
+
+`infra/windows/electron/resources/windows/Reiniciar-LICS.bat` se instala junto
+con el resto de los recursos, así que en una máquina con LICS queda en:
+
+```
+C:\Program Files\LICS\resources\windows\Reiniciar-LICS.bat
+```
+
+Está pensado para que lo use el personal del taller sin conocimiento técnico y
+sin permisos de administrador. Hace, en orden:
+
+1. Detiene y vuelve a lanzar "LICS - Mantener sesion WSL activa" (la que evita
+   que WSL2 apague la distro por quedarse sin clientes).
+2. Lanza "LICS - Iniciar backend".
+3. Reintenta `healthcheck.sh` cada 10 segundos, hasta 12 veces (2 minutos).
+4. Muestra el estado final completo y espera a que cierren la ventana.
+
+Si alguna tarea no responde avisa pero continúa igual, porque el árbitro real
+es el healthcheck, no el código de `schtasks`. Si a los 2 minutos el sistema
+sigue sin estar sano, muestra el detalle y le pide al usuario una foto de la
+ventana, indicándole explícitamente que **no** reinstale LICS.
+
+## Dejar el acceso directo en el escritorio
+
+Al instalar en una máquina nueva, crear el acceso directo a mano (una vez):
+
+1. Ir a `C:\Program Files\LICS\resources\windows\`.
+2. Clic derecho sobre `Reiniciar-LICS.bat` > Enviar a > Escritorio (crear
+   acceso directo).
+3. Renombrar el acceso directo a **Reiniciar LICS**.
+
+Para que lo vean todas las cuentas de Windows de esa computadora, mover el
+acceso directo a `C:\Users\Public\Desktop` (requiere administrador).
+
+## Limitación conocida
+
+Las distros de WSL2 se registran **por usuario de Windows**. Si el taller
+empieza a usar LICS con una cuenta distinta de la que corrió la instalación,
+ni las tareas programadas ni este script van a encontrar `lics-wsl`. Lo mismo
+aplica a `.wslconfig`, que también es por usuario. Mientras se use la misma
+cuenta de siempre no hay problema; si en algún momento cambian de cuenta, hay
+que reinstalar desde esa cuenta.
