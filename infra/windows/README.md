@@ -132,6 +132,35 @@ C:\lics-build\lics-wsl-rootfs.tar
 (ya está listo `electron/build/icon.ico`, un placeholder con el nombre LICS —
 reemplazalo cuando tengan un logo real).
 
+### El runtime de WSL2 también va adentro del `.exe`
+
+Habilitar las características de Windows (`Microsoft-Windows-Subsystem-Linux`
+y `VirtualMachinePlatform`) **no instala WSL2**. Si el paquete del runtime no
+está instalado, `wsl.exe` queda como un stub que solo entiende
+`--install`/`--status`/`--help` e imprime la ayuda ante cualquier otro
+comando, `--import` incluido. Eso fue exactamente lo que pasó en la primera
+instalación real, el 11/09/2026, sobre una Windows 11 limpia: el instalador
+moría con "Hubo un problema configurando WSL2 (código 1)". La validación de
+agosto no lo detectó porque esa máquina ya tenía WSL instalado de antes.
+
+En una PC con internet se resuelve con `wsl --install --no-distribution`,
+pero la máquina del cliente es offline por diseño, así que el MSI oficial
+tiene que viajar dentro del instalador. Descargalo una vez de
+[github.com/microsoft/WSL/releases](https://github.com/microsoft/WSL/releases)
+(el asset `wsl.<version>.x64.msi`, ~250 MB) y dejalo al lado del `.tar`:
+
+```
+C:\lics-build\wsl.2.7.14.0.x64.msi
+```
+
+El workflow lo copia a `resources\windows\` en cada corrida, igual que el
+`.tar`, y `install-wsl-distro.ps1` lo instala con `msiexec /qn` solo si
+detecta que el runtime falta. Tiene que haber **exactamente un** `wsl.*.x64.msi`
+en `C:\lics-build`; si hay cero o más de uno, el workflow falla a propósito
+antes de compilar.
+
+Ninguno de los dos archivos va a git (ver `.gitignore`).
+
 ### Compilar el `.exe`: GitHub Actions con runner self-hosted, no `windows-latest`
 
 Un runner `windows-latest` de GitHub **no sirve acá**: el instalador final

@@ -289,3 +289,84 @@ mano las que ya no hagan falta para diagnóstico:
 wsl -d lics-wsl -- bash -c "du -sh /opt/lics-updates/* 2>/dev/null"
 wsl -d lics-wsl -- bash -c "rm -rf /opt/lics-updates/<carpeta-vieja>"
 ```
+# Windows: la instalación del .exe falla con "código 1"
+
+Síntoma: durante la instalación de LICS aparece el cartel "Hubo un problema
+configurando WSL2 (código 1). Revise el registro de instalación y contacte a
+soporte técnico antes de usar LICS."
+
+Ese código 1 es el `catch` genérico de `install-wsl-distro.ps1`, no un
+diagnóstico. Lo primero es correr esto en PowerShell **como administrador**:
+
+```powershell
+wsl --version
+```
+
+## 1. Imprime la ayuda de wsl.exe en vez de números de versión
+
+El runtime de WSL2 no está instalado. Tener habilitadas las características de
+Windows no alcanza: sin el paquete del runtime, `wsl.exe` es un stub que no
+soporta `--import`, así que la imagen dorada nunca se puede importar.
+
+Con internet:
+
+```powershell
+wsl --install --no-distribution
+```
+
+Sin internet (el caso normal en el cliente), el instalador ya trae el MSI
+adentro. Instalarlo a mano:
+
+```powershell
+msiexec /i "C:\Program Files\LICS\resources\windows\wsl.<version>.x64.msi" /qn /norestart /l*v C:\lics-wsl-msi.log
+```
+
+Reiniciar Windows, verificar que `wsl --version` ahora sí devuelve versiones,
+y recién entonces volver a correr la configuración:
+
+```powershell
+$res = "C:\Program Files\LICS\resources\windows"
+powershell -NoProfile -ExecutionPolicy Bypass -File "$res\install-wsl-distro.ps1" -RootfsPath "$res\lics-wsl-rootfs.tar"
+"EXIT=$LASTEXITCODE"
+```
+
+Si el MSI no está en esa carpeta, el `.exe` se compiló sin él: revisar
+`infra/windows/README.md`, sección "El runtime de WSL2 también va adentro del
+.exe".
+
+## 2. Devuelve versiones correctamente
+
+Entonces el runtime está bien y el problema es otro. El script ahora incluye
+la salida real de `wsl` en el mensaje de error, así que correlo a mano con el
+bloque de arriba y leé lo que dice después de "Salida de wsl:".
+
+Casos vistos:
+
+- **"ya existe una distribución con ese nombre"**: quedó una `lics-wsl` de un
+  intento anterior. Si no tiene datos que valga la pena conservar,
+  `wsl --unregister lics-wsl` y volver a correr. Si sí los tiene, hacer backup
+  primero (ver arriba, "Verificar un respaldo").
+- **La distro importa pero no arranca**: casi siempre es el antivirus
+  frenando el I/O del `.vhdx`. Ver la sección "Windows: caídas intermitentes
+  de conexión".
+
+## 3. No reinstalar el .exe encima para "probar"
+
+Reinstalar no aporta información y vuelve a mostrar el mismo cartel si la
+distro ya existe. Todo lo que hace el instalador se verifica sin tocar nada:
+
+```powershell
+wsl -l -v
+Get-ScheduledTask -TaskName 'LICS - Iniciar backend','LICS - Mantener sesion WSL activa' |
+  Get-ScheduledTaskInfo | Select-Object TaskName, LastRunTime, LastTaskResult
+Get-Content "$env:USERPROFILE\.wslconfig"
+(Get-MpPreference).ExclusionPath
+wsl -d lics-wsl -- /opt/lics/scripts/healthcheck.sh
+```
+
+En `LastTaskResult`, `0` es éxito y `267009` significa "corriendo ahora", que
+es lo correcto para "Mantener sesion WSL activa" porque esa tarea nunca
+termina.
+
+La prueba real de que la instalación quedó bien es reiniciar Windows, iniciar
+sesión sin tocar nada, esperar un par de minutos y abrir el ícono de LICS.

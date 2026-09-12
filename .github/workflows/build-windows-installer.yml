@@ -10,7 +10,9 @@ name: build-windows-installer
 # Por eso este workflow lo copia en cada corrida desde C:\lics-build\ (fuera
 # del repo, generado una sola vez con wsl/build-golden-image.ps1) hacia
 # adentro del checkout — así no depende de una copia manual que además se
-# borraría con cada checkout limpio.
+# borraría con cada checkout limpio. Lo mismo aplica al MSI del runtime de
+# WSL2: la máquina del cliente no tiene internet, así que el instalador tiene
+# que poder instalar WSL2 desde adentro del propio .exe.
 #
 # shell: powershell (no pwsh) porque este runner self-hosted solo tiene
 # Windows PowerShell 5.1 instalado, no PowerShell 7.
@@ -43,6 +45,19 @@ jobs:
           New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
           Copy-Item -Path $source -Destination $dest -Force
           Write-Host "Imagen dorada copiada: $((Get-Item $dest).Length / 1GB) GB"
+
+      - name: Copiar el runtime de WSL2 desde C:\lics-build
+        run: |
+          $candidates = @(Get-ChildItem -Path "C:\lics-build" -Filter "wsl.*.x64.msi" -File -ErrorAction SilentlyContinue)
+          if ($candidates.Count -ne 1) {
+            Write-Error "Se esperaba exactamente un wsl.*.x64.msi en C:\lics-build (hay $($candidates.Count)). El instalador lo necesita para poder instalar WSL2 en una maquina del cliente sin internet (ver infra/windows/README.md)."
+            exit 1
+          }
+          Remove-Item "resources\windows\wsl.*.x64.msi" -Force -ErrorAction SilentlyContinue
+          $dest = "resources\windows\$($candidates[0].Name)"
+          New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
+          Copy-Item -Path $candidates[0].FullName -Destination $dest -Force
+          Write-Host "Runtime de WSL2 copiado: $($candidates[0].Name)"
 
       - run: npm install
 
