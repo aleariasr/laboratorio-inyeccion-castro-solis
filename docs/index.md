@@ -457,7 +457,7 @@ Estos documentos no describen el estado actual del sistema; son insumos y trabaj
 
 Versión actual:
 
-    2.1.0
+    2.3.0
 
 Estado resumido:
 
@@ -481,12 +481,14 @@ Estado resumido:
     Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
     cliente importados y conciliados contra el stock auxiliar legacy. Ver
     [dbf-migration-closure.md](dbf-migration-closure.md).
-    Agrupación de equivalencias legacy: completada y verificada (2026-09-12) — 392 grupos de
-    productos equivalentes (869 productos) unificados bajo un mismo código universal usando
-    `standard_code` + `variant_kind` (§3.6), sin crear ni borrar productos y sin tocar precios,
-    stock ni ubicaciones. Reversible con `./scripts/migrate-legacy-equivalences.sh --rollback`.
-    Pendiente: revisar los grupos con la administradora antes de correrlo en la máquina del
-    cliente.
+    Agrupación de equivalencias legacy: implementada y verificada en desarrollo (2026-09-12) —
+    392 grupos de productos equivalentes (869 productos) unificados bajo un mismo código universal
+    usando `standard_code` + `variant_kind` (§3.6), sin crear ni borrar productos y sin tocar
+    precios, stock ni ubicaciones. Reversible con
+    `./scripts/migrate-legacy-equivalences.sh --rollback`. En producción se esperan 396 grupos
+    (878 productos), porque esa máquina se migró con el export nuevo de los `.DBF`; requiere
+    actualizar la aplicación instalada antes de correrlo. Ver
+    [dbf-migration-closure.md](dbf-migration-closure.md), sección "Etapa posterior".
 
 > Nota: la lista anterior refleja el estado verificado contra el código en esta revisión. Este
 > documento no siempre se mantiene sincronizado en tiempo real; ante cualquier duda, el

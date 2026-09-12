@@ -16,9 +16,18 @@ El formato utiliza estas categorías:
 
 ## [No liberado]
 
-> `VERSION` ya dice `2.2.0` pero este archivo salta de `2.1.0` a esta
-> sección: el contenido de 2.2.0 nunca se registró acá. Al cerrar la
-> próxima versión hay que decidir si esto entra como 2.2.0 o como 2.2.1.
+Nada pendiente de registrar.
+
+---
+
+## [2.3.0] - 2026-09-12
+
+> Esta sección cierra también lo que se construyó como `2.2.0`, que nunca
+> tuvo entrada propia en este archivo: `VERSION` llegó a decir `2.2.0` y
+> se generó `release/lics-2.2.0-linux-amd64/`, pero el changelog saltaba
+> de `2.1.0` a "No liberado". En vez de inventar una sección `2.2.0`
+> retroactiva, todo ese contenido queda acá bajo `2.3.0`, que es la
+> versión que efectivamente se libera.
 
 ### Added
 
@@ -28,8 +37,8 @@ El formato utiliza estas categorías:
   real de equivalencia entre filas del catálogo que son la misma pieza
   física comprada a distinto proveedor. Nuevo comando
   `apps/legacy_migration/management/commands/migrate_legacy_equivalences.py`
-  que agrupa 392 conjuntos (869 productos, 477 cambian de
-  `standard_code`) usando el mecanismo que el modelo ya tenía construido
+  que agrupa los conjuntos equivalentes usando el mecanismo que el
+  modelo ya tenía construido
   y vacío desde la migración `0023`: `standard_code` compartido +
   `variant_kind` (§3.6 de `data-model.md`). **No crea ni borra
   productos, y no toca precios, costos, stock, movimientos ni
@@ -40,9 +49,19 @@ El formato utiliza estas categorías:
   algo, una nota de ubicación. Los 124 productos que quedaron en `SINUB`
   con un equivalente sí ubicado reciben la pista de dónde ir a
   buscarlos. Idempotente y reversible con `--rollback` sin guardar
-  estado nuevo, porque la traza ya vive en `LegacyRecordMap`. Detalle
-  completo, incluidas las dos trampas del algoritmo, en
-  `docs/dbf-migration-closure.md`, sección "Etapa posterior".
+  estado nuevo, porque la traza ya vive en `LegacyRecordMap`. Los totales
+  dependen del export de los `.DBF` cargado en el staging: 392 grupos
+  (869 productos, 477 cambian de código) con el export viejo que tiene
+  desarrollo, 396 grupos (878 productos, 482 cambian) con el export de
+  septiembre de 2026 que tiene producción. Detalle completo, incluidas
+  las dos trampas del algoritmo, en `docs/dbf-migration-closure.md`,
+  sección "Etapa posterior".
+- **Requiere actualizar la aplicación instalada antes de correrse en
+  producción**: el backend productivo corre desde la imagen, sin montar
+  el código, así que el comando no existe en el contenedor hasta que se
+  instala una versión que lo incluya. No hace falta un `.exe` nuevo:
+  alcanza con copiar el release a `C:\lics-dev\` y usar el menú
+  **LICS > Actualizar aplicación (Django/Next)…**.
 - `scripts/migrate-legacy-equivalences.sh`: corre esa migración en
   producción en un solo comando. No necesita los `.DBF` ni ninguna ruta
   (lee el staging de la base). Verifica primero, **sale sin crear

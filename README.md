@@ -35,7 +35,7 @@ LICS está orientado a producción real, no a prototipo académico. Las decision
 
 Versión actual:
 
-    2.1.0
+    2.3.0
 
 Estado actual:
 

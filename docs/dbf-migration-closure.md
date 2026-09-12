@@ -324,18 +324,34 @@ docstring de `VariantKind` (que dice que las variantes comparten
 `storage_location`) y el dato del cliente; se documenta en vez de
 resolverse inventando.
 
-## Resultado verificado (2026-09-12)
+## Resultado (2026-09-12)
 
-| | |
-|---|---|
-| Grupos de equivalencia | **392** |
-| Productos involucrados | **869** |
-| Productos que cambian de `standard_code` | **477** |
-| Grupos en varias ubicaciones reales | 152 |
-| Productos `SINUB` con pista de ubicación | 124 |
-| Productos creados o borrados | **0** |
-| `standard_code` distintos | 3.655 → 3.178 |
-| Variantes no-`ORIGINAL` | 0 → 477 |
+Los números dependen de **cuál export de los `.DBF` se cargó en el
+staging**. El cliente entregó dos: uno hace meses y otro en septiembre de
+2026. El entorno de desarrollo tiene el viejo; la máquina de producción
+se migró con el nuevo.
+
+| | Export viejo (dev) | Export nuevo (producción) |
+|---|---|---|
+| Productos en el catálogo | 3.655 | 3.674 |
+| Grupos de equivalencia | **392** | **396** |
+| Productos involucrados | **869** | **878** |
+| Productos que cambian de `standard_code` | **477** | **482** |
+| Grupos en varias ubicaciones reales | 152 | 152 |
+| Productos `SINUB` con pista de ubicación | 124 | 127 |
+| Productos creados o borrados | **0** | **0** |
+
+Estado de verificación, dicho sin adornos:
+
+- La columna de **desarrollo está verificada corriendo el comando y el
+  script contra la base real**: `standard_code` distintos 3.655 → 3.178,
+  variantes no-`ORIGINAL` 0 → 477, idempotencia y rollback demostrados.
+- La columna de **producción está calculada a partir del export nuevo,
+  no verificada contra esa base todavía**. Sirve como control: si el
+  `--dry-run` en producción muestra 396 / 878 / 482, confirma que el
+  staging de esa máquina corresponde al export nuevo. Si muestra
+  392 / 869 / 477, corresponde al viejo y hay que revisar antes de
+  aplicar.
 
 Suite completa: **603 tests OK**, incluidos 13 nuevos en
 `apps/legacy_migration/tests/test_migrate_legacy_equivalences.py`.
@@ -347,6 +363,16 @@ Suite completa: **603 tests OK**, incluidos 13 nuevos en
 **No necesita los archivos `.DBF` ni ninguna ruta.** Lee el staging que
 ya dejó `migrate-legacy-dbf.sh` en la base de datos
 (`LegacyStagingRecord`). Si el staging no existe, avisa y no hace nada.
+
+Antes hay que **actualizar la aplicación instalada**: en producción el
+backend corre desde la imagen (`image: lics-backend:${LICS_VERSION}`, sin
+montar el código), así que un comando nuevo no existe dentro del
+contenedor que está corriendo hasta que se instala una versión que lo
+incluya. El camino es el de siempre, sin `.exe` nuevo: construir el
+release en la máquina de desarrollo, copiar la carpeta a `C:\lics-dev\`
+en la Windows, y usar el menú **LICS > Actualizar aplicación
+(Django/Next)…** de la app. Después, dentro de la distro
+(`wsl -d lics-wsl`), correr el script desde `/opt/lics/scripts/`.
 
 Orden, distinto a propósito del de `migrate-legacy-dbf.sh`:
 
@@ -399,6 +425,9 @@ grupos que faltaban.
   operativo. 776 son números de fabricante (Bosch/Denso) que hoy no se
   pueden buscar en el sistema; darles un campo propio queda como mejora
   posterior, no como parte de esta migración.
-- La copia de los `.DBF` que el cliente entregó en septiembre trae 19
-  productos y 142 filas con cambios que el staging original nunca vio.
-  Fuera del alcance de esta etapa.
+- Los dos entornos tienen exports distintos de los `.DBF`: producción se
+  migró con el export de septiembre de 2026 (3.674 productos) y
+  desarrollo sigue con el anterior (3.655). La diferencia son 19
+  productos y 142 filas con algún campo cambiado. No bloquea nada, pero
+  hasta que desarrollo se ponga al día los números de una corrida local
+  no van a coincidir con los de producción.

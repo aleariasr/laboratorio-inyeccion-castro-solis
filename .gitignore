@@ -46,9 +46,15 @@ Thumbs.db
 # Editors
 .vscode/
 .idea/
+.claude/
 
 # Temporary audit files
 repo-audit.txt
+
+# Material de trabajo generado en sesiones de asistencia (CSV de revisión,
+# extractos). No es entregable ni código; build-offline-release.sh exige el
+# repositorio limpio, así que no puede quedar como archivo sin trackear.
+Claude outputs/
 
 # Local runtime data
 /data/
