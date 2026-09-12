@@ -38,6 +38,15 @@ negocio en una máquina:
       automático de `build-golden-image.ps1`, que puede dar falso
       negativo — ver `infra/windows/README.md`).
 - [ ] Windows 10/11 con soporte WSL2.
+- [ ] **No** hace falta instalar WSL2 a mano en la máquina del cliente: el
+      instalador lo instala él mismo desde el MSI oficial que trae adentro,
+      sin internet. Lo que sí hace falta es que ese MSI se haya empaquetado
+      al compilar el `.exe` (ver `infra/windows/README.md`, sección "El
+      runtime de WSL2 también va adentro del `.exe`").
+- [ ] Tener en cuenta que una máquina limpia puede pedir **dos** reinicios
+      durante la instalación: uno para activar las características de
+      Windows y otro para terminar de instalar el runtime de WSL2. En ambos
+      casos el instalador avisa y hay que volver a abrirlo.
 - [ ] Espacio en disco suficiente: la imagen dorada, las 4 imágenes
       Docker, y espacio para backups y futuras actualizaciones
       (`/opt/lics-updates/` dentro de la distro, ver
@@ -54,8 +63,17 @@ negocio en una máquina:
       real (no una versión de prueba tipo `0.4.0-beta` usada solo para
       validar mecanismos), a menos que esa sea deliberadamente la
       primera versión de producción.
-- [ ] El instalador terminó sin errores: WSL2 habilitado, distro
-      `lics-wsl` importada, tareas programadas registradas.
+- [ ] El instalador terminó sin errores: WSL2 habilitado, runtime de WSL2
+      instalado, distro `lics-wsl` importada, tareas programadas
+      registradas.
+- [ ] `wsl --version` devuelve números de versión y no la ayuda de
+      `wsl.exe`. Si devuelve la ayuda, el runtime no está instalado y
+      `--import` no puede funcionar — ver `docs/troubleshooting.md`,
+      sección "Windows: la instalación del .exe falla con código 1".
+- [ ] Si apareció "Hubo un problema configurando WSL2 (código 1)", se
+      resolvió y se dejó anotado qué lo causó. Ese código es el `catch`
+      genérico del script, no un diagnóstico: el primer comando a correr
+      siempre es `wsl --version`.
 - [ ] Primer login con el administrador generado automáticamente
       (`wsl -d lics-wsl -- sudo cat /opt/lics/ADMIN_CREDENTIALS_INICIALES.txt`).
 - [ ] Contraseña de ese administrador cambiada de inmediato (o

@@ -14,6 +14,73 @@ El formato utiliza estas categorías:
 
 ---
 
+## [No liberado]
+
+> `VERSION` ya dice `2.2.0` pero este archivo salta de `2.1.0` a esta
+> sección: el contenido de 2.2.0 nunca se registró acá. Al cerrar la
+> próxima versión hay que decidir si esto entra como 2.2.0 o como 2.2.1.
+
+### Fixed
+
+- **El instalador de Windows no podía instalarse en una máquina limpia.**
+  Habilitar las características `Microsoft-Windows-Subsystem-Linux` y
+  `VirtualMachinePlatform` no instala WSL2: si el paquete del runtime nunca
+  se instaló, `wsl.exe` queda como un stub que solo entiende
+  `--install`/`--status`/`--help` e imprime la ayuda ante cualquier otro
+  comando, `--import` incluido. `install-wsl-distro.ps1` daba por hecho que
+  después del reinicio `--import` iba a existir, así que moría con "Hubo un
+  problema configurando WSL2 (código 1)" sin explicar nada. Detectado en la
+  primera instalación real en la máquina del cliente (11/09/2026); la
+  validación de agosto no lo había encontrado porque esa Windows ya tenía
+  WSL instalado de antes. Ahora el script detecta el runtime faltante y lo
+  instala él mismo desde el MSI oficial de Microsoft con `msiexec /qn`, sin
+  internet, y sale con código 2 (el que el hook de NSIS ya traducía a
+  "reinicie y vuelva a abrir el instalador") si Windows pide reinicio.
+- **La detección de la distro existente siempre fallaba.** `wsl.exe` emite
+  UTF-16LE y Windows PowerShell 5.1 (el que usa el hook de NSIS) lo lee como
+  ANSI, dejando un byte nulo entre cada caracter. El `-notcontains` sobre
+  `wsl -l -q` daba siempre verdadero, así que reintentar una instalación
+  intentaba reimportar una distro ya existente y fallaba con código 1. Nuevo
+  helper `Get-WslText` filtra esos bytes nulos y además aísla
+  `$ErrorActionPreference`, porque con `Stop` activo un `2>&1` sobre un
+  comando nativo lanza `NativeCommandError` apenas `wsl.exe` escribe a
+  stderr, justo en los casos que se quieren capturar.
+- Los errores de `install-wsl-distro.ps1` ahora incluyen la salida real de
+  `wsl.exe`, no solo el código de salida. Diagnosticar el problema de arriba
+  llevó tres rondas precisamente porque el mensaje original no decía nada.
+
+### Changed
+
+- `.github/workflows/build-windows-installer.yml` copia
+  `wsl.*.x64.msi` desde `C:\lics-build` al checkout en cada corrida, igual
+  que ya hacía con la imagen dorada, y falla antes de compilar si no hay
+  exactamente uno.
+- El MSI del runtime queda fuera de git (`.gitignore`), igual que el `.tar`.
+- Documentación: `infra/windows/README.md` gana la sección "El runtime de
+  WSL2 también va adentro del `.exe`"; `docs/troubleshooting.md` gana
+  "Windows: la instalación del .exe falla con código 1";
+  `docs/guia-despliegue-produccion.md` y
+  `docs/windows-production-checklist.md` reflejan el requisito y el
+  procedimiento de rescate manual.
+
+### Validated
+
+- Instalación completa en la primera máquina de producción real
+  (Windows 11, 11-12/09/2026): runtime de WSL2 instalado desde el MSI
+  offline, distro `lics-wsl` importada, tareas programadas registradas y
+  arranque automático confirmado tras reiniciar la máquina e iniciar sesión
+  sin intervención manual.
+
+### Pending
+
+- La rama que instala el MSI solo pudo probarse con el runtime ya presente
+  (toma el camino del `else`). Falta ejercitarla de punta a punta en una
+  Windows 11 limpia, idealmente una VM, antes de considerarla validada.
+- `C:\lics-build\wsl.<version>.x64.msi` tiene que estar presente en la
+  máquina de build o el próximo `npm run dist` falla a propósito.
+
+---
+
 ## [2.1.0] - 2026-09-09
 
 ### Added

@@ -75,7 +75,9 @@ C:\lics-dev\lics-2.2.0-linux-amd64\
 
 ## Paso 2 — Generar la imagen dorada y el instalador `.exe` (en la Windows)
 
-Con la carpeta de release ya copiada a `C:\lics-dev\`:
+Con la carpeta de release ya copiada a `C:\lics-dev\`, y con el MSI del
+runtime de WSL2 ya presente en `C:\lics-build\` (requisito de una sola vez
+por máquina de build, ver el recuadro al final de este paso):
 
 ```powershell
 cd infra\windows\wsl
@@ -100,14 +102,42 @@ mano, y bajar el artefacto `LICS-Setup` cuando termine.
 > dorada" en `infra/windows/README.md` si es la primera vez que hacés esto
 > en esta máquina (requiere el runner self-hosted ya registrado una vez).
 
+> **Requisito de una sola vez: el MSI del runtime de WSL2.** Habilitar las
+> características de Windows no instala WSL2. En una máquina limpia
+> `wsl.exe` queda como un stub que no soporta `--import`, así que el
+> instalador no puede importar la imagen dorada y muere con "código 1".
+> Como la máquina del cliente es offline, el MSI oficial tiene que viajar
+> dentro del `.exe`. Bajalo una vez de
+> [github.com/microsoft/WSL/releases](https://github.com/microsoft/WSL/releases)
+> (el asset `wsl.<version>.x64.msi`, ~250 MB) y dejalo al lado de la imagen
+> dorada:
+>
+> ```
+> C:\lics-build\lics-wsl-rootfs.tar
+> C:\lics-build\wsl.2.7.14.0.x64.msi
+> ```
+>
+> El workflow lo copia a `resources\windows\` en cada corrida y falla a
+> propósito, antes de compilar, si no hay exactamente uno. Ninguno de los dos
+> archivos va a git.
+
 ---
 
 ## Paso 3 — Instalar en la máquina del cliente
 
 Con el `.exe` (`LICS-Setup`) ya en la máquina destino:
 
-1. Correr el instalador. Importa la distro WSL2 y registra las tareas
-   programadas de inicio.
+1. Correr el instalador. Activa WSL2 si hace falta, instala el runtime de
+   WSL2 desde el MSI que trae adentro si la máquina no lo tenía, importa la
+   distro y registra las tareas programadas de inicio. En una máquina limpia
+   puede pedir **dos** reinicios (uno por las características de Windows y
+   otro por el runtime); cada vez avisa y hay que volver a abrir el
+   instalador, que retoma donde quedó.
+   > Si aparece "Hubo un problema configurando WSL2 (código 1)", no
+   > reinstalés el `.exe` encima: ese código es un `catch` genérico. Correr
+   > `wsl --version` en PowerShell como administrador y seguir
+   > `docs/troubleshooting.md`, sección "Windows: la instalación del .exe
+   > falla con código 1".
 2. Abrir el ícono **LICS** del escritorio. Primera vez: pantalla de
    "Iniciando…" mientras arrancan los servicios dentro de WSL2.
 3. **Credenciales iniciales.** Se genera un usuario `admin` con contraseña
@@ -172,6 +202,18 @@ etc.) y qué esperar en el reporte: [dbf-migration-closure.md](dbf-migration-clo
   que los encuentren físicamente en la bodega.
 - Confirmá que el backup automático y el watchdog están corriendo (ver
   checklist en [windows-production-checklist.md](windows-production-checklist.md)).
+- **Prueba real de arranque automático:** reiniciá la máquina, iniciá
+  sesión y no toques nada durante un par de minutos; después abrí el ícono
+  de LICS. Si carga sin correr un solo comando, el arranque automático
+  quedó bien. Verificalo además con `Get-ScheduledTaskInfo` (abajo): el
+  `LastRunTime` tiene que ser de ese login, no de la instalación. En
+  `LastTaskResult`, `0` es éxito y `267009` significa "corriendo ahora", que
+  es lo correcto para "Mantener sesion WSL activa" porque esa tarea nunca
+  termina.
+- `.wslconfig` es **por usuario de Windows**. Lo escribe la cuenta que corre
+  la instalación; si el taller opera con otra cuenta distinta, hay que
+  repetir ese ajuste logueado con esa cuenta o WSL2 va a apagar la distro
+  por inactividad y romper los respaldos programados.
 - A partir de acá, cualquier cambio de Django/Next a esta instalación se
   hace con el menú **LICS > Actualizar aplicación (Django/Next)…** — nunca
   reinstalando el `.exe` (eso no actualiza el backend/frontend, ver
