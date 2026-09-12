@@ -22,6 +22,37 @@ El formato utiliza estas categorías:
 
 ### Added
 
+- **Agrupación de productos equivalentes del legacy bajo un mismo código
+  universal.** `REFPIE_03` (INVEN03) no era, como se creía en el cierre
+  de la migración DBF, un campo sin uso operativo: codifica una relación
+  real de equivalencia entre filas del catálogo que son la misma pieza
+  física comprada a distinto proveedor. Nuevo comando
+  `apps/legacy_migration/management/commands/migrate_legacy_equivalences.py`
+  que agrupa 392 conjuntos (869 productos, 477 cambian de
+  `standard_code`) usando el mecanismo que el modelo ya tenía construido
+  y vacío desde la migración `0023`: `standard_code` compartido +
+  `variant_kind` (§3.6 de `data-model.md`). **No crea ni borra
+  productos, y no toca precios, costos, stock, movimientos ni
+  ubicaciones**; solo reescribe `standard_code`, `variant_kind` y
+  `description` de filas que ya existen. Cada producto deja constancia
+  en `description` de bajo qué código universal quedó, cuál era su
+  código legacy propio (que sigue siendo buscable) y, cuando aporta
+  algo, una nota de ubicación. Los 124 productos que quedaron en `SINUB`
+  con un equivalente sí ubicado reciben la pista de dónde ir a
+  buscarlos. Idempotente y reversible con `--rollback` sin guardar
+  estado nuevo, porque la traza ya vive en `LegacyRecordMap`. Detalle
+  completo, incluidas las dos trampas del algoritmo, en
+  `docs/dbf-migration-closure.md`, sección "Etapa posterior".
+- `scripts/migrate-legacy-equivalences.sh`: corre esa migración en
+  producción en un solo comando. No necesita los `.DBF` ni ninguna ruta
+  (lee el staging de la base). Verifica primero, **sale sin crear
+  respaldo si no hay nada pendiente**, pide confirmación explícita,
+  respalda con `backup.sh manual` antes de escribir una sola fila,
+  aplica y vuelve a verificar exigiendo 0 pendientes. Deja log con
+  timestamp en `logs/`. `--rollback` hace lo mismo al revés.
+- `docs/development.md`, sección 10: cómo apuntar los scripts de
+  `scripts/` al stack de desarrollo (`LICS_COMPOSE_FILE` /
+  `LICS_ENV_FILE`) y por qué sin eso fallan con `Estado: missing`.
 - `infra/windows/electron/resources/windows/Reiniciar-LICS.bat`: acceso
   directo para el personal del taller que relanza las dos tareas programadas
   de LICS y verifica el resultado, pensado para usarse sin conocimiento
@@ -32,6 +63,15 @@ El formato utiliza estas categorías:
   copia entero); el acceso directo en el escritorio se crea a mano una vez
   por máquina. Ver `docs/troubleshooting.md`, sección "Windows: el acceso
   directo Reiniciar LICS".
+
+### Validated
+
+- Migración de equivalencias verificada de punta a punta contra los datos
+  reales del cliente (12/09/2026): suite completa en **603 tests OK** (13
+  nuevos), y cinco corridas del comando más cuatro del script
+  demostrando idempotencia (segunda corrida: 392 grupos saltados, 0
+  pendientes), rollback exacto (`3.178 / 478` vuelve a `3.655 / 1`),
+  rollback idempotente, y que una segunda corrida no crea respaldo.
 
 ### Fixed
 

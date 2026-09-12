@@ -110,10 +110,15 @@ conceptual original de `data-model.md`:
   campos nuevos al modelo — quedan solo en el staging crudo, no en
   ningún campo visible del negocio (decisión explícita: no ampliar el
   modelo real solo para la migración).
-- `REFPIE_03` (referencia alterna) y `CANMAX_03` (cantidad máxima): sin
-  campo equivalente en el modelo actual, no se migran a ningún campo
-  operativo — quedan disponibles en el staging crudo por si hacen
-  falta después.
+- `CANMAX_03` (cantidad máxima): sin campo equivalente en el modelo
+  actual, no se migra a ningún campo operativo — queda disponible en el
+  staging crudo por si hace falta después.
+- `REFPIE_03` (referencia alterna): **esta decisión cambió**. En el
+  cierre original no se migró a ningún campo operativo. El 12/09/2026,
+  después de levantar el tema con la administradora de la empresa, se
+  comprobó que sí codifica una relación real de equivalencia entre
+  productos, y se migró. Ver "Etapa posterior" al final de este
+  documento.
 
 ## Arquitectura implementada
 
@@ -186,3 +191,214 @@ subcarpeta `bases1/` con su propia copia).
 - Si en algún momento aparece una copia más completa o menos corrupta
   de `INVEN06`, se podría reconsiderar reconstruir historial de
   ventas — hoy no es viable con los archivos disponibles.
+
+---
+
+# Etapa posterior: agrupación de equivalencias (2026-09-12)
+
+Estado: **completada y verificada**.
+
+Esta etapa es posterior al cierre de arriba y corrige una de sus
+decisiones. No modifica nada de lo ya migrado: no crea, no borra y no
+toca precios, costos, stock, movimientos ni ubicaciones.
+
+## Qué resultó ser `REFPIE_03`
+
+La administradora de la empresa describió el campo como "un código
+numérico que apunta al código de otro producto". Medido contra el
+catálogo real (3.655 productos), esa descripción es aproximada:
+
+- es un `C(13)` de **texto libre**; solo 334 de 1.661 valores poblados
+  son numéricos puros;
+- 1.661 productos (45,4%) tienen valor, y solo 666 resuelven a un código
+  del catálogo;
+- hay **140 pares recíprocos** (A→B y B→A) y **39 ciclos**, con cero
+  autorreferencias y un fan-in máximo de 4.
+
+Esos tres últimos datos descartan la lectura de "genérico padre": una
+relación padre-hijo no puede ser simétrica ni cíclica. Lo que sí es,
+leído como **grupo no dirigido**, es una equivalencia entre filas del
+catálogo que representan la misma pieza física comprada a distinto
+proveedor o marca. Lo confirman el parecido de nombre (similitud mediana
+0,80 entre origen y destino), las 102 fichas que ya traían una
+equivalencia escrita a mano con `=<código>` dentro del nombre, y la
+convención de códigos: `G3S6` / `KG3S6`, `105017-1790` / `C105017-1790`,
+`F-00V-C01-502` / `KF00V-C01-502`.
+
+Corrección al enunciado inicial: el invariante **no** es el precio de
+venta sino el costo. El costo difiere en 362 de 392 grupos (97%); el
+precio de venta, solo en 212 (57%).
+
+## Cómo se construyen los grupos
+
+Dos mecanismos de enlace, los dos presentes en los datos:
+
+- **A (647 aristas)** — `REFPIE_03` de X es igual al `CODPIE_03` de Y. Es
+  el 95% de los enlaces reales.
+- **C (30 aristas)** — dos productos comparten el mismo `REFPIE_03` con
+  forma de código que no es a su vez un código del catálogo (el "código
+  universal" compartido). Existe, pero es el caso minoritario.
+
+Cada arista se valida por separado comparando el nombre sin la ubicación
+(similitud ≥ 0,55) y recién después se toman las componentes conexas.
+**Validar por arista y no por grupo no es un detalle**: sin eso, el
+cierre transitivo une SCV de Toyota, Isuzu y L200 en un mismo grupo a
+través de una cadena de referencias.
+
+El canónico del grupo se elige de forma determinista: más referencias
+entrantes, luego código más corto (la fila derivada es la que lleva
+prefijo), luego alfabético. El resultado no depende del orden de
+ejecución; está verificado desordenando la entrada.
+
+Dos trampas que el código evita a propósito:
+
+1. La arista C solo acepta valores con forma de código. `TORNECA` es un
+   proveedor (está en `INVEN01`) y pegaba 4 productos sin relación en un
+   mismo grupo.
+2. 95 aristas se descartan por nombre distinto. Entre ellas hay falsos
+   negativos reales (`0-928-400-713` / `1-465-ZS0-082`, los dos ZME de
+   CP3 para KIA; `3--177` / `3-177`, que es un typo). Esa lista es para
+   revisión humana, nunca para automatizar.
+
+## Decisión de modelo
+
+No se creó ninguna tabla. El modelo ya lo soportaba: la migración `0023`
+le quitó el `unique` a `Product.standard_code`, existe
+`Product.variant_kind`, existe `selectors/products.py::variant_family()`
+y existe `POST /products/{id}/add-variant`. La §3.6 de
+[data-model.md](data-model.md) ya decía que varias filas `Product`
+comparten `standard_code` para representar variantes de la misma pieza.
+
+La capacidad estaba construida y vacía: `migrate_legacy_import.py` le da
+a cada producto legacy su propio `standard_code = CODPIE_03`. Esta etapa
+solo llena los grupos.
+
+| Campo | Qué pasa |
+|---|---|
+| `standard_code` | pasa a ser el código canónico del grupo |
+| `variant_kind` | canónico `ORIGINAL`, el resto `OTHER` |
+| `description` | recibe las notas administradas (abajo) |
+| precio, costo, stock, movimientos, ubicación, nombre | **sin cambios** |
+
+`variant_kind` de los no canónicos es `OTHER` y no `GENERIC` a
+propósito: los datos no dicen cuál de las filas es la genérica.
+Reclasificar es trabajo de la administradora desde la UI.
+
+## Qué queda escrito en cada producto
+
+Tres líneas administradas por prefijo, todas buscables (la búsqueda por
+`q` de `views/product.py` incluye `description`):
+
+    Código universal compartido: G3S6 — agrupado como variante equivalente
+    a partir de la referencia del sistema legacy (REFPIE_03); comparte
+    código con: KG3S6.
+    Código legacy: KG3S6
+    Ubicación propia: SINUB (sin ubicar) — su equivalente C0433-171-074
+    está en G102; candidato a ubicar ahí.
+
+El código propio de cada fila va a `description` porque el código que se
+ve en pantalla pasa a ser el compartido; sin esa línea, buscar `KG3S6`
+dejaría de encontrar la pieza. Todo lo que una persona haya escrito a
+mano en ese campo sobrevive al apply y al rollback: las líneas se
+reescriben y se borran solo por prefijo.
+
+**`SINUB` no cuenta como ubicación.** Es la marca de "sin ubicar" que
+puso la migración anterior, no un estante. Tratarla como una ubicación
+más hacía que 107 grupos perfectamente ubicados se reportaran como
+"repartidos", con texto engañoso para el mostrador. Excluyéndola, los
+grupos repartidos bajan de 259 a 152.
+
+Los productos que quedaron en `SINUB` y tienen un equivalente sí ubicado
+reciben en cambio una pista accionable. De los 201 productos `SINUB` que
+están en algún grupo: **113 apuntan a un estante concreto**, 11 a varios
+candidatos, y 77 no reciben nota porque su grupo entero está sin ubicar.
+Eso convierte parte de los 1.797 productos en `SINUB` pendientes de
+ubicar en una lista de trabajo para bodega.
+
+## Ubicaciones: qué NO se toca
+
+152 grupos tienen miembros en ubicaciones reales distintas. **No se
+mueve ninguno.** Cada producto se queda donde dice el legacy y el hecho
+queda anotado en `description`. Es una inconsistencia real entre el
+docstring de `VariantKind` (que dice que las variantes comparten
+`storage_location`) y el dato del cliente; se documenta en vez de
+resolverse inventando.
+
+## Resultado verificado (2026-09-12)
+
+| | |
+|---|---|
+| Grupos de equivalencia | **392** |
+| Productos involucrados | **869** |
+| Productos que cambian de `standard_code` | **477** |
+| Grupos en varias ubicaciones reales | 152 |
+| Productos `SINUB` con pista de ubicación | 124 |
+| Productos creados o borrados | **0** |
+| `standard_code` distintos | 3.655 → 3.178 |
+| Variantes no-`ORIGINAL` | 0 → 477 |
+
+Suite completa: **603 tests OK**, incluidos 13 nuevos en
+`apps/legacy_migration/tests/test_migrate_legacy_equivalences.py`.
+
+## Cómo correrlo en producción
+
+    ./scripts/migrate-legacy-equivalences.sh
+
+**No necesita los archivos `.DBF` ni ninguna ruta.** Lee el staging que
+ya dejó `migrate-legacy-dbf.sh` en la base de datos
+(`LegacyStagingRecord`). Si el staging no existe, avisa y no hace nada.
+
+Orden, distinto a propósito del de `migrate-legacy-dbf.sh`:
+
+1. valida el entorno y espera a que backend y postgres estén sanos;
+2. corre en verificación (`--dry-run`) y muestra el resumen exacto;
+3. **si no hay nada pendiente, sale sin crear respaldo y sin tocar
+   nada** — volver a correrlo después de una migración exitosa es seguro
+   y no deja respaldos basura;
+4. pide confirmación explícita;
+5. crea un respaldo completo (`scripts/backup.sh manual`) antes de
+   escribir una sola fila, y dice dónde quedó;
+6. aplica;
+7. vuelve a verificar y exige 0 grupos pendientes.
+
+Cada corrida deja un log en `logs/` con timestamp.
+
+Para correrlo contra el stack de desarrollo en vez del productivo hay
+que exportar `LICS_COMPOSE_FILE` y `LICS_ENV_FILE` — ver
+[development.md](development.md).
+
+## Cómo deshacerlo
+
+    ./scripts/migrate-legacy-equivalences.sh --rollback
+
+Devuelve a cada producto el código legacy con el que se importó y le
+limpia las notas administradas. **No necesita el respaldo ni guarda
+estado nuevo**: `LegacyRecordMap` ya mapea
+`(INVEN03, CODPIE_03) → Product.pk` bajo una constraint única, así que
+el código original nunca se perdió. Los productos que alguien haya
+cambiado a mano después no se tocan.
+
+## Idempotencia
+
+Un grupo se considera ya migrado si, y solo si, **todos** los `Product`
+mapeados desde sus códigos ya están exactamente en el estado deseado
+(`standard_code`, `variant_kind` y `description`). Esa condición se
+deriva solo del contenido del staging y de la ubicación actual de cada
+producto: no depende del orden en que se procesaron los grupos ni de
+cuántas veces se corrió el comando. Correrlo dos veces seguidas deja el
+mismo estado, y una corrida cortada a la mitad retoma exactamente los
+grupos que faltaban.
+
+## Pendientes de esta etapa
+
+- Revisar los 392 grupos con la administradora antes de correr esto en
+  la máquina del cliente.
+- Revisar a mano las 95 aristas descartadas por nombre distinto: hay
+  equivalentes reales ahí.
+- Los 972 valores de `REFPIE_03` que no forman grupo siguen sin campo
+  operativo. 776 son números de fabricante (Bosch/Denso) que hoy no se
+  pueden buscar en el sistema; darles un campo propio queda como mejora
+  posterior, no como parte de esta migración.
+- La copia de los `.DBF` que el cliente entregó en septiembre trae 19
+  productos y 142 filas con cambios que el staging original nunca vio.
+  Fuera del alcance de esta etapa.

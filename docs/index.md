@@ -159,7 +159,11 @@ Incluye:
 - hallazgos técnicos con causa raíz confirmada;
 - decisiones de mapeo campo a campo;
 - comandos de migración y cómo correrlos;
-- números finales verificados y pendientes operativos posteriores.
+- números finales verificados y pendientes operativos posteriores;
+- **etapa posterior (2026-09-12): agrupación de equivalencias** —
+  qué resultó ser realmente `REFPIE_03`, cómo se construyen los 392
+  grupos, qué queda escrito en cada producto, por qué `SINUB` no cuenta
+  como ubicación, y cómo correrlo y deshacerlo en producción.
 
 ## Roadmap
 
@@ -315,6 +319,7 @@ Incluye:
 - comandos Django;
 - PostgreSQL;
 - healthcheck;
+- cómo apuntar los scripts de `scripts/` al stack de desarrollo;
 - reglas de desarrollo.
 
 ## Despliegue en Windows (vigente)
@@ -476,6 +481,12 @@ Estado resumido:
     Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
     cliente importados y conciliados contra el stock auxiliar legacy. Ver
     [dbf-migration-closure.md](dbf-migration-closure.md).
+    Agrupación de equivalencias legacy: completada y verificada (2026-09-12) — 392 grupos de
+    productos equivalentes (869 productos) unificados bajo un mismo código universal usando
+    `standard_code` + `variant_kind` (§3.6), sin crear ni borrar productos y sin tocar precios,
+    stock ni ubicaciones. Reversible con `./scripts/migrate-legacy-equivalences.sh --rollback`.
+    Pendiente: revisar los grupos con la administradora antes de correrlo en la máquina del
+    cliente.
 
 > Nota: la lista anterior refleja el estado verificado contra el código en esta revisión. Este
 > documento no siempre se mantiene sincronizado en tiempo real; ante cualquier duda, el
