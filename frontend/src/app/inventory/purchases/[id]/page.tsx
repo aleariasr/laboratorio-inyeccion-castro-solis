@@ -1048,6 +1048,7 @@ export default function PurchaseDetailPage() {
             canReadProducts={hasProductsAccess}
             purchaseId={loadState.purchase.id}
             currency={loadState.purchase.currency}
+            purchaseExchangeRate={loadState.purchase.exchange_rate}
             token={token ?? ""}
             hasWriteAccess={hasWriteAccess}
           />

@@ -70,6 +70,8 @@ type ApplyState = {
 type PurchaseCostsSectionProps = {
   purchaseId: number;
   currency: Currency;
+  /** Tipo de cambio de la compra, en colones por dólar. */
+  purchaseExchangeRate: string;
   token: string;
   hasWriteAccess: boolean;
   canReadProducts: boolean;
@@ -120,6 +122,7 @@ function MoneyCell({
 export function PurchaseCostsSection({
   purchaseId,
   currency,
+  purchaseExchangeRate,
   token,
   hasWriteAccess,
   canReadProducts,
@@ -516,7 +519,14 @@ export function PurchaseCostsSection({
                           <MoneyCell
                             amount={importCost.amount}
                             currency={importCost.currency}
-                            exchangeRate={importCost.exchange_rate}
+                            // El tipo de cambio del costo convierte a la moneda de
+                            // la compra (es 1 cuando las monedas coinciden), así que
+                            // para el equivalente en colones se usa el de la compra.
+                            exchangeRate={
+                              importCost.currency === currency
+                                ? purchaseExchangeRate
+                                : importCost.exchange_rate
+                            }
                           />
                         </td>
 
