@@ -354,6 +354,11 @@ export function getProductCostHistory(
   );
 }
 
+/**
+ * El cálculo de costos que está rigiendo el precio del producto: el de la
+ * última compra CONFIRMADA. Los cálculos de borradores y de compras anuladas
+ * no definen precio (ver _cost_history_with_suggested_price_in_crc).
+ */
 export function getLatestProductCostHistory(
   token: string,
   productId: number,
@@ -361,6 +366,7 @@ export function getLatestProductCostHistory(
 ): Promise<ProductCostHistory | null> {
   const searchParams = new URLSearchParams({
     product: String(productId),
+    purchase_status: "CONFIRMED",
     page: "1",
     page_size: "1",
   });

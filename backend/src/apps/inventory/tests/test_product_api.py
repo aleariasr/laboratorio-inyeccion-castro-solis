@@ -14,6 +14,7 @@ from apps.inventory.models import (
     Product,
     ProductCostHistory,
     Purchase,
+    PurchaseStatus,
     StockMovement,
     StockMovementType,
     StorageLocation,
@@ -592,7 +593,19 @@ class ProductApiTest(APITestCase):
             ).exists()
         )
 
-    def create_cost_history(self, suggested_price, currency=Currency.CRC, exchange_rate="1.0000"):
+    def create_cost_history(
+        self,
+        suggested_price,
+        currency=Currency.CRC,
+        exchange_rate="1.0000",
+        purchase_status=PurchaseStatus.CONFIRMED,
+    ):
+        """
+        Las compras se crean CONFIRMADAS por defecto porque solo los
+        cálculos de compras confirmadas definen el precio sugerido (ver
+        _cost_history_with_suggested_price_in_crc).
+        """
+
         supplier = Supplier.objects.create(
             name=f"Proveedor prueba {ProductCostHistory.objects.count() + 1}",
             created_by=self.user,
@@ -605,6 +618,7 @@ class ProductApiTest(APITestCase):
             purchase_date=date.today(),
             currency=currency,
             exchange_rate=exchange_rate,
+            status=purchase_status,
             created_by=self.user,
             updated_by=self.user,
         )
@@ -650,6 +664,42 @@ class ProductApiTest(APITestCase):
         self.assertEqual(
             response.data["effective_sale_price"],
             "156.0000",
+        )
+
+    def test_suggested_price_ignores_calculations_of_draft_purchases(self):
+        self.create_cost_history(
+            "156.0000",
+            purchase_status=PurchaseStatus.DRAFT,
+        )
+
+        response = self.client.get(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["latest_suggested_price"])
+        self.assertIsNone(response.data["effective_sale_price"])
+
+    def test_suggested_price_falls_back_when_the_last_purchase_is_cancelled(self):
+        self.create_cost_history("100.0000")
+        self.create_cost_history(
+            "156.0000",
+            purchase_status=PurchaseStatus.CANCELLED,
+        )
+
+        response = self.client.get(
+            f"/api/inventory/products/{self.product.id}/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Vuelve al precio de la compra anterior, no al de la anulada.
+        self.assertEqual(
+            response.data["latest_suggested_price"],
+            "100.0000",
+        )
+        self.assertEqual(
+            response.data["effective_sale_price"],
+            "100.0000",
         )
 
     def test_effective_sale_price_converts_usd_suggested_price_to_crc(self):

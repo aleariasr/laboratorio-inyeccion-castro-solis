@@ -754,12 +754,27 @@ class PurchaseApiTest(APITestCase):
             ).exists()
         )
 
-    def calculate_costs(self, margin="30.0000"):
+    def calculate_costs(self, margin="30.0000", purchase=None):
+        purchase = purchase or self.purchase
+
         response = self.client.post(
-            f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
+            f"/api/inventory/purchases/{purchase.id}/calculate-costs/",
             {
                 "margin_percentage": margin,
             },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        return response
+
+    def confirm_purchase_via_api(self, purchase=None):
+        purchase = purchase or self.purchase
+
+        response = self.client.post(
+            f"/api/inventory/purchases/{purchase.id}/confirm/",
+            {},
             format="json",
         )
 
@@ -771,10 +786,6 @@ class PurchaseApiTest(APITestCase):
         self.calculate_costs()
 
         self.assertEqual(ProductCostHistory.objects.count(), 1)
-        self.assertEqual(
-            latest_suggested_price(self.product),
-            Decimal("130.0000"),
-        )
 
         response = self.client.delete(
             f"/api/inventory/purchase-items/{self.purchase_item.id}/",
@@ -788,8 +799,94 @@ class PurchaseApiTest(APITestCase):
             ProductCostHistory.objects.filter(purchase=self.purchase).count(),
             0,
         )
-        # Y el producto deja de tener un precio sugerido de esta compra.
+
+    def test_delete_draft_purchase_with_calculated_costs(self):
+        self.calculate_costs()
+
+        # ProductCostHistory protege a Purchase, así que esto fallaba con
+        # ProtectedError (error 500).
+        response = self.client.delete(
+            f"/api/inventory/purchases/{self.purchase.id}/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            Purchase.objects.filter(id=self.purchase.id).exists()
+        )
+        self.assertEqual(ProductCostHistory.objects.count(), 0)
+
+    def test_draft_calculation_does_not_set_the_sale_price(self):
+        self.calculate_costs()
+
+        # El cálculo existe, pero la compra es un borrador: el precio de
+        # venta todavía no se mueve.
+        self.assertEqual(ProductCostHistory.objects.count(), 1)
         self.assertIsNone(latest_suggested_price(self.product))
+
+        self.confirm_purchase_via_api()
+
+        self.assertEqual(
+            latest_suggested_price(self.product),
+            Decimal("130.0000"),
+        )
+
+    def test_cancelling_a_purchase_restores_the_previous_sale_price(self):
+        self.confirm_purchase_via_api()
+        self.calculate_costs()
+
+        self.assertEqual(
+            latest_suggested_price(self.product),
+            Decimal("130.0000"),
+        )
+
+        second_purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-002",
+            purchase_date=date.today(),
+            currency="CRC",
+            exchange_rate=Decimal("1.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        PurchaseItem.objects.create(
+            purchase=second_purchase,
+            supplier_product=self.supplier_product,
+            quantity=2,
+            unit_cost=Decimal("200.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.confirm_purchase_via_api(second_purchase)
+        self.calculate_costs("0.0000", purchase=second_purchase)
+
+        self.assertEqual(
+            latest_suggested_price(self.product),
+            Decimal("200.0000"),
+        )
+
+        cancel_response = self.client.post(
+            f"/api/inventory/purchases/{second_purchase.id}/cancel/",
+            {
+                "reason": "Factura equivocada del proveedor.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(cancel_response.status_code, status.HTTP_200_OK)
+
+        # Vuelve al precio de la compra anterior, no se queda con el de la
+        # compra anulada. El histórico de la anulada no se borra.
+        self.assertEqual(
+            latest_suggested_price(self.product),
+            Decimal("130.0000"),
+        )
+        self.assertEqual(
+            ProductCostHistory.objects.filter(
+                purchase=second_purchase,
+            ).count(),
+            1,
+        )
 
     def test_create_purchase_item_discards_cost_calculation(self):
         self.calculate_costs()

@@ -951,6 +951,32 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
   compra CRC + costo USD y compra CRC + costo CRC.
 - **Migración:** no.
 
+### Extra (hallazgo del 2026-10-02, al probar el punto 29). Qué compra define el precio de venta
+
+- **Estado verificado (dos bugs reales):** `latest_suggested_price`
+  (`apps/inventory/selectors/pricing.py`) tomaba la última fila de `ProductCostHistory` del
+  producto **sin mirar el estado de la compra**, y `cancel_purchase` (`services/purchases.py`)
+  revierte el stock pero no toca el historial de costos. Consecuencias: aplicar costos en un
+  **borrador** ya movía el precio de venta del producto, y al **anular** una compra el producto se
+  quedaba con el precio de la factura anulada en vez de volver al de la compra anterior.
+- **Decisión de Alejandro:** solo el cálculo de la **última compra confirmada** define el precio
+  (y los costos que se muestran en el producto). Mientras la compra esté en borrador no aparece
+  nada; al confirmarla aparece; al anularla vuelve el anterior. Sin preguntas ni avisos en
+  pantalla: se muestra lo que de verdad rige.
+- **Cambio aplicado:** filtro `purchase__status=CONFIRMED` en
+  `_cost_history_with_suggested_price_in_crc` (alimenta `latest_suggested_price`,
+  `with_latest_suggested_price` y `effective_sale_price`), y parámetro `?purchase_status=` en
+  `ProductCostHistoryViewSet` que usan los dos `getLatestProductCostHistory` del frontend
+  (producto y venta). El histórico **no se borra**: las filas de borradores y anuladas siguen
+  visibles en la pantalla de su compra, solo dejan de definir precio. Arregla los datos existentes
+  sin migración, porque es un filtro de consulta.
+- **Tests:** `test_product_api.py` (un cálculo de borrador no define precio; con la última compra
+  anulada se cae al precio de la anterior), `test_purchase_api.py` (el precio entra al confirmar;
+  anular devuelve el precio anterior y conserva el histórico), `test_import_cost_api.py` (el
+  filtro nuevo y su validación). El helper `create_cost_history` de `test_product_api.py` creaba
+  compras en borrador y hubo que pasarlas a confirmadas.
+- **Migración:** no.
+
 ---
 
 ## 6. Checklist de avance (marcar al hacer commit)
@@ -963,6 +989,8 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 - [x] 8 — Revertir accesorios al anular un servicio
 - [x] 29 — Borrar el cálculo de costos al eliminar un ítem de compra (y al agregar o
       editar líneas, y al tocar costos de importación)
+- [x] Extra — Solo la última compra **confirmada** define el precio de venta y los costos del
+      producto; al anular una compra vuelve el precio anterior (ver sección 5, "Extra")
 - [ ] 12 — Enlaces en el historial de movimientos (y SERVICE_USE)
 - [ ] 6 — Movimientos en el menú
 - [ ] 24 — Botones de servicio al final

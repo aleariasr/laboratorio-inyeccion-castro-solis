@@ -403,7 +403,15 @@ export function PurchaseCostsSection({
 
     if (
       !confirmWithFocusRestore(
-        "¿Aplicar estos costos a los productos de la compra? Se creará un nuevo registro de histórico de costos por cada línea.",
+        [
+          "¿Aplicar estos costos a los productos de la compra?",
+          "Se creará un nuevo registro de histórico de costos por cada línea.",
+          isDraft
+            ? "El precio de venta de los productos se actualizará cuando la compra se confirme."
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
       )
     ) {
       return;

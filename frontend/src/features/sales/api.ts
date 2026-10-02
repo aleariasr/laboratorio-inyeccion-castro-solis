@@ -167,6 +167,7 @@ export function searchCustomers(
   ).then((response) => response.results);
 }
 
+/** Igual que en compras: solo el cálculo de la última compra confirmada. */
 export function getLatestProductCostHistory(
   token: string,
   productId: number,
@@ -174,6 +175,7 @@ export function getLatestProductCostHistory(
 ): Promise<ProductCostHistory | null> {
   const searchParams = new URLSearchParams({
     product: String(productId),
+    purchase_status: "CONFIRMED",
     page: "1",
     page_size: "1",
   });

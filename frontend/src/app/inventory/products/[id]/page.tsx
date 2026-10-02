@@ -1039,7 +1039,7 @@ export default function ProductDetailPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {loadState.product.custom_sale_price
                       ? "Definido manualmente."
-                      : "Tomado del último precio sugerido calculado en una compra."}
+                      : "Tomado del último precio sugerido calculado en una compra confirmada."}
                   </p>
                 </div>
 

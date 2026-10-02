@@ -2,6 +2,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from rest_framework import viewsets
+from rest_framework.exceptions import ValidationError
 
 from apps.core.permissions import ProductsPermission, PurchasesPermission
 from apps.core.query_params import parse_boolean_query_param
@@ -10,6 +11,7 @@ from apps.inventory.models import (
     ImportCost,
     ImportCostCategory,
     ProductCostHistory,
+    PurchaseStatus,
 )
 from apps.inventory.serializers import (
     ImportCostCategorySerializer,
@@ -139,11 +141,29 @@ class ProductCostHistoryViewSet(viewsets.ReadOnlyModelViewSet):
 
         product_id = self.request.query_params.get("product")
         purchase_id = self.request.query_params.get("purchase")
+        purchase_status = self.request.query_params.get("purchase_status")
 
         if product_id:
             queryset = queryset.filter(product_id=product_id)
 
         if purchase_id:
             queryset = queryset.filter(purchase_id=purchase_id)
+
+        # Con purchase_status=CONFIRMED se obtiene el cálculo que de verdad
+        # está rigiendo el precio del producto (ver
+        # _cost_history_with_suggested_price_in_crc). Sin el filtro se
+        # devuelve todo el histórico, que es lo que necesita la pantalla
+        # de una compra para ver su propio cálculo.
+        if purchase_status:
+            if purchase_status not in PurchaseStatus.values:
+                raise ValidationError(
+                    {
+                        "purchase_status": [
+                            "Estado de compra inválido.",
+                        ],
+                    }
+                )
+
+            queryset = queryset.filter(purchase__status=purchase_status)
 
         return queryset

@@ -1,7 +1,7 @@
 from django.db.models import Case, DecimalField, F, OuterRef, Subquery, When
 from django.db.models.functions import Cast
 
-from apps.inventory.models import Currency, ProductCostHistory
+from apps.inventory.models import Currency, ProductCostHistory, PurchaseStatus
 
 SUGGESTED_PRICE_DECIMAL_FIELD = DecimalField(max_digits=12, decimal_places=4)
 
@@ -15,8 +15,18 @@ def _cost_history_with_suggested_price_in_crc():
     Para que ambos sean comparables/combinables, esta conversión deja
     el sugerido siempre en colones usando el exchange_rate vigente en
     esa compra.
+
+    Solo cuentan los cálculos de compras CONFIRMADAS: el precio de venta
+    sale del costo de mercadería que de verdad entró. Así, un cálculo
+    hecho sobre un borrador no mueve el precio hasta confirmar la compra,
+    y al anular una compra el producto vuelve solo al precio de la compra
+    anterior. Las filas de borradores y anuladas no se borran: siguen
+    como histórico (ver ProductCostHistoryViewSet), solo dejan de definir
+    el precio.
     """
-    return ProductCostHistory.objects.annotate(
+    return ProductCostHistory.objects.filter(
+        purchase__status=PurchaseStatus.CONFIRMED,
+    ).annotate(
         suggested_price_crc=Cast(
             Case(
                 When(

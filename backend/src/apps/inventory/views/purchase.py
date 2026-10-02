@@ -146,10 +146,16 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return super().destroy(
-            request,
-            *args,
-            **kwargs,
+        with transaction.atomic():
+            # ProductCostHistory apunta a Purchase con PROTECT, así que
+            # sin esto borrar un borrador al que ya se le calcularon
+            # costos fallaba con ProtectedError.
+            discard_purchase_cost_calculation(purchase=purchase)
+
+            self.perform_destroy(purchase)
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT,
         )
 
     @action(

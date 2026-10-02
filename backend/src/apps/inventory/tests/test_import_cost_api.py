@@ -17,6 +17,7 @@ from apps.inventory.models import (
     ProductCostHistory,
     Purchase,
     PurchaseItem,
+    PurchaseStatus,
     StorageLocation,
     Supplier,
     SupplierProduct,
@@ -632,6 +633,85 @@ class ImportCostApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["purchase"], self.purchase.id)
+
+    def test_filter_product_cost_history_by_purchase_status(self):
+        product = self.purchase.items.first().supplier_product.product
+
+        # Cálculo de la compra en borrador de setUp.
+        ProductCostHistory.objects.create(
+            product=product,
+            purchase=self.purchase,
+            original_unit_cost="100.0000",
+            cost_factor="1.200000",
+            final_unit_cost="120.0000",
+            currency=Currency.USD,
+            exchange_rate="500.0000",
+            margin_percentage="30.0000",
+            suggested_price="156.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        confirmed_purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-004",
+            purchase_date=date.today(),
+            currency=Currency.USD,
+            exchange_rate="500.0000",
+            status=PurchaseStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        ProductCostHistory.objects.create(
+            product=product,
+            purchase=confirmed_purchase,
+            original_unit_cost="90.0000",
+            cost_factor="1.100000",
+            final_unit_cost="99.0000",
+            currency=Currency.USD,
+            exchange_rate="500.0000",
+            margin_percentage="20.0000",
+            suggested_price="118.8000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/product-cost-history/",
+            {
+                "product": product.id,
+                "purchase_status": PurchaseStatus.CONFIRMED,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(
+            response.data["results"][0]["purchase"],
+            confirmed_purchase.id,
+        )
+
+        # Sin el filtro se ve todo el histórico: es lo que necesita la
+        # pantalla de una compra en borrador para ver su propio cálculo.
+        response = self.client.get(
+            "/api/inventory/product-cost-history/",
+            {
+                "product": product.id,
+            },
+        )
+
+        self.assertEqual(response.data["count"], 2)
+
+    def test_product_cost_history_rejects_invalid_purchase_status(self):
+        response = self.client.get(
+            "/api/inventory/product-cost-history/",
+            {
+                "purchase_status": "CUALQUIERA",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_product_cost_history_is_read_only(self):
         product = self.purchase.items.first().supplier_product.product
