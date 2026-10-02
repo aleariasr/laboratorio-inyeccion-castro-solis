@@ -285,7 +285,7 @@ export default function UserDetailPage() {
                   {loadState.targetUser.is_superuser
                     ? "Superusuario: acceso total al sistema, incluyendo Django admin."
                     : loadState.targetUser.is_staff
-                      ? "Acceso administrativo (is_staff): administra usuarios y todos los módulos."
+                      ? "Administración de usuarios (is_staff): administra usuarios y roles y ve el estado del sistema. No da acceso a los módulos de negocio."
                       : "Cuenta de usuario estándar."}
                 </p>
               </div>
@@ -328,7 +328,7 @@ export default function UserDetailPage() {
               </div>
 
               <div className="app-status-row">
-                <dt>Acceso administrativo (is_staff)</dt>
+                <dt>Administración de usuarios (is_staff)</dt>
                 <dd>{loadState.targetUser.is_staff ? "Sí" : "No"}</dd>
               </div>
 

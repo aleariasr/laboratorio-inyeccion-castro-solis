@@ -391,11 +391,11 @@ export function UserForm({
 
             <span>
               <span className="block text-sm font-semibold text-foreground">
-                Acceso administrativo (is_staff)
+                Administración de usuarios (is_staff)
               </span>
 
               <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                Equivale al rol Administrador: permite administrar usuarios y acceder a todos los módulos, sin depender de los roles ni permisos marcados abajo.
+                Permite administrar usuarios y roles, ver el estado del sistema y entrar al panel técnico de Django. No da acceso a inventario, ventas, servicios ni reportes: para eso marque el rol Administrador o los permisos de abajo.
               </span>
             </span>
           </label>

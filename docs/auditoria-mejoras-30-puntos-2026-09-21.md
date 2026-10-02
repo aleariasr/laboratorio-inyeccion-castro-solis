@@ -956,7 +956,7 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 ## 6. Checklist de avance (marcar al hacer commit)
 
 - [x] 30 — Texto en colones en costos de compras USD
-- [ ] 5 — Texto de is_staff
+- [x] 5 — Texto de is_staff
 - [ ] 11 — Borrar la migración vacía del frontend
 - [ ] 10 — Versión del instalador
 - [ ] 9 — Bloquear semanas futuras en caja
