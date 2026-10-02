@@ -958,7 +958,7 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 - [x] 30 — Texto en colones en costos de compras USD
 - [x] 5 — Texto de is_staff
 - [x] 11 — Borrar la migración vacía del frontend
-- [ ] 10 — Versión del instalador
+- [x] 10 — Versión del instalador
 - [ ] 9 — Bloquear semanas futuras en caja
 - [ ] 8 — Revertir accesorios al anular un servicio
 - [ ] 29 — Borrar el cálculo de costos al eliminar un ítem de compra

@@ -1,6 +1,6 @@
 {
   "name": "lics-desktop",
-  "version": "0.1.0",
+  "version": "2.3.0",
   "description": "Aplicacion de escritorio LICS (Laboratorio de Inyeccion Castro Solis)",
   "main": "main.js",
   "author": "Castro Solis",
@@ -8,6 +8,8 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "sync-version": "node scripts/sync-version.js",
+    "predist": "npm run sync-version",
     "dist": "electron-builder"
   },
   "devDependencies": {

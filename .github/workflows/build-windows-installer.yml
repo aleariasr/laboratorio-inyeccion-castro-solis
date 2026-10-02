@@ -61,6 +61,11 @@ jobs:
 
       - run: npm install
 
+      # El hook "predist" de package.json corre scripts/sync-version.js, que
+      # copia la version del archivo VERSION de la raiz al package.json antes
+      # de empaquetar. Por eso el nombre del .exe y la version que muestra
+      # Windows salen de VERSION y no hay que tocar nada aca al liberar: si
+      # VERSION falta o tiene un formato invalido, este paso falla.
       - name: npm run dist
         run: npm run dist
         env:
