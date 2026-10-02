@@ -1,10 +1,12 @@
 from datetime import timedelta
 
 from django.db import transaction
+from django.utils import timezone
 
 from apps.cash.exceptions import (
     CashClosingAlreadyExistsError,
     DifferenceReasonRequiredError,
+    FutureWeekClosingError,
     InvalidWeekStartError,
 )
 from apps.cash.models import CashClosing
@@ -29,6 +31,16 @@ def create_cash_closing(
         )
 
     week_end = week_start + timedelta(days=6)
+
+    # Un cierre no se puede editar ni borrar (ver CashClosing), así que
+    # cerrar antes de que termine la semana congelaría un total
+    # incompleto para siempre. El viernes mismo sí se permite: es el día
+    # en que se cierra.
+    if week_end > timezone.localdate():
+        raise FutureWeekClosingError(
+            "Todavía no se puede cerrar esta semana: el viernes de cierre "
+            f"({week_end.isoformat()}) no ha llegado."
+        )
 
     if CashClosing.objects.filter(week_start=week_start).exists():
         raise CashClosingAlreadyExistsError(

@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/features/inventory/purchases/format";
 
-import { getCashClosingPreview } from "./api";
+import { getCashClosingPreview, getPendingCashWeek } from "./api";
 import type {
   CashClosingFormErrors,
   CashClosingFormValues,
   CashClosingPreview,
+  PendingCashWeek,
 } from "./types";
 import { validateCashClosingForm } from "./validation";
 
@@ -56,7 +57,46 @@ export function CashClosingForm({
 
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
+  const [pendingWeek, setPendingWeek] = useState<PendingCashWeek | null>(null);
+
   const errors = mergeErrors(localErrors, serverErrors);
+
+  // La semana que toca cerrar la decide el backend (la última ya
+  // terminada): con eso el campo viene precargado y no hay que elegir la
+  // fecha a mano. Queda editable para cerrar una semana vieja que se
+  // haya saltado. El setState va en un setTimeout por la regla de lint
+  // react-hooks/set-state-in-effect.
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const timeoutId = globalThis.setTimeout(() => {
+      getPendingCashWeek(token, controller.signal)
+        .then((result) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          setPendingWeek(result);
+
+          if (!result.is_closed) {
+            setValues((current) =>
+              current.weekStart
+                ? current
+                : { ...current, weekStart: result.week_start },
+            );
+          }
+        })
+        .catch(() => {
+          // Sin sugerencia: el campo queda vacío y se escribe a mano.
+          setPendingWeek(null);
+        });
+    }, 0);
+
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!values.weekStart) {
@@ -141,6 +181,7 @@ export function CashClosingForm({
     const validationErrors = validateCashClosingForm(
       values,
       effectivePreview?.expected_total ?? null,
+      effectivePreview?.can_close ?? null,
     );
 
     setLocalErrors(validationErrors);
@@ -157,11 +198,27 @@ export function CashClosingForm({
       ? Number(values.countedTotal) - Number(effectivePreview.expected_total)
       : null;
 
+  // Una semana en curso se puede consultar pero no cerrar (ver
+  // create_cash_closing en el backend).
+  const futureWeekMessage =
+    effectivePreview && !effectivePreview.can_close
+      ? `Esta semana todavía no termina: se puede cerrar a partir del viernes ${effectivePreview.week_end}.`
+      : null;
+
   const weekStartHint = isLoadingPreview
     ? "Calculando total esperado…"
     : effectivePreview
-      ? `Semana del ${effectivePreview.week_start} al ${effectivePreview.week_end}.`
-      : "Elija el sábado de inicio de la semana a cerrar.";
+      ? [
+          `Semana del ${effectivePreview.week_start} al ${effectivePreview.week_end}.`,
+          pendingWeek && pendingWeek.week_start === effectivePreview.week_start
+            ? "Es la semana que toca cerrar."
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : pendingWeek?.is_closed
+        ? `La semana del ${pendingWeek.week_start} al ${pendingWeek.week_end} ya está cerrada. Elija otra semana.`
+        : "Elija el sábado de inicio de la semana a cerrar.";
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
@@ -172,7 +229,12 @@ export function CashClosingForm({
         label="Inicio de semana (sábado)"
         required
         hint={weekStartHint}
-        error={errors.weekStart || effectivePreviewError || undefined}
+        error={
+          errors.weekStart ||
+          effectivePreviewError ||
+          futureWeekMessage ||
+          undefined
+        }
       >
         <Input
           id="cash-closing-week-start"
@@ -181,7 +243,12 @@ export function CashClosingForm({
           onChange={(event) => {
             updateValue("weekStart", event.target.value);
           }}
-          hasError={Boolean(errors.weekStart || effectivePreviewError)}
+          // Cualquier sábado posterior al de la última semana terminada
+          // tendría su viernes de cierre en el futuro.
+          max={pendingWeek?.week_start}
+          hasError={Boolean(
+            errors.weekStart || effectivePreviewError || futureWeekMessage,
+          )}
           disabled={isSubmitting}
         />
       </Field>
@@ -302,7 +369,12 @@ export function CashClosingForm({
           Cancelar
         </Button>
 
-        <Button type="submit" isLoading={isSubmitting} loadingText="Guardando…">
+        <Button
+          type="submit"
+          isLoading={isSubmitting}
+          loadingText="Guardando…"
+          disabled={futureWeekMessage !== null}
+        >
           Cerrar semana
         </Button>
       </div>

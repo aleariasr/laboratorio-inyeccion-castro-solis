@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,9 +8,15 @@ from rest_framework.response import Response
 from apps.cash.exceptions import (
     CashClosingAlreadyExistsError,
     DifferenceReasonRequiredError,
+    FutureWeekClosingError,
     InvalidWeekStartError,
 )
-from apps.cash.selectors import cash_closings, expected_totals_by_method
+from apps.cash.selectors import (
+    cash_closings,
+    expected_totals_by_method,
+    last_finished_week_start,
+    pending_closing_week_start,
+)
 from apps.cash.serializers import (
     CashClosingCreateSerializer,
     CashClosingSerializer,
@@ -57,6 +64,7 @@ class CashClosingViewSet(
             InvalidWeekStartError,
             CashClosingAlreadyExistsError,
             DifferenceReasonRequiredError,
+            FutureWeekClosingError,
         ) as exc:
             return Response(
                 {"detail": str(exc) or exc.__class__.__name__},
@@ -68,6 +76,27 @@ class CashClosingViewSet(
         return Response(
             output_serializer.data,
             status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=["get"])
+    def pending_week(self, request):
+        """
+        La semana que toca cerrar: la última ya terminada. El formulario
+        de cierre la usa para venir precargado, y como tope del campo de
+        fecha (cualquier sábado posterior tendría su viernes en el
+        futuro). `is_closed` avisa que esa semana ya tiene cierre.
+        """
+
+        week_start = last_finished_week_start()
+
+        return Response(
+            {
+                "week_start": week_start,
+                "week_end": week_start + timedelta(days=6),
+                # pending_closing_week_start devuelve None justamente
+                # cuando esa misma semana ya está cerrada.
+                "is_closed": pending_closing_week_start() is None,
+            }
         )
 
     @action(detail=False, methods=["get"])
@@ -105,6 +134,10 @@ class CashClosingViewSet(
             {
                 "week_start": week_start,
                 "week_end": week_end,
+                # La consulta de una semana en curso se permite a
+                # propósito (sirve para ver cómo va), pero el cierre no:
+                # ver create_cash_closing.
+                "can_close": week_end <= timezone.localdate(),
                 "expected_total": sum(breakdown.values()),
                 "expected_cash": breakdown[PaymentMethod.CASH],
                 "expected_card": breakdown[PaymentMethod.CARD],

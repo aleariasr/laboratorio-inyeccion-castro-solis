@@ -85,17 +85,27 @@ def cash_closings():
     return CashClosing.objects.all().order_by("-week_start")
 
 
+def last_finished_week_start(today=None):
+    """
+    Fecha de inicio (sábado) de la última semana que ya terminó: la del
+    viernes más reciente, o la de hoy mismo si hoy es viernes. Es también
+    el sábado más tarde que se puede cerrar (ver create_cash_closing).
+    """
+    today = today or timezone.localdate()
+
+    days_since_friday = (today.weekday() - FRIDAY) % 7
+    last_friday = today - timedelta(days=days_since_friday)
+
+    return last_friday - timedelta(days=6)
+
+
 def pending_closing_week_start(today=None):
     """
     Fecha de inicio (sábado) de la última semana ya terminada que
     todavía no tiene un CashClosing, o None si esa semana ya está
     cerrada. Usada por el dashboard para avisar "falta cerrar caja".
     """
-    today = today or timezone.localdate()
-
-    days_since_friday = (today.weekday() - FRIDAY) % 7
-    last_friday = today - timedelta(days=days_since_friday)
-    week_start = last_friday - timedelta(days=6)
+    week_start = last_finished_week_start(today)
 
     if CashClosing.objects.filter(week_start=week_start).exists():
         return None

@@ -10,5 +10,9 @@ class CashClosingAlreadyExistsError(CashError):
     """Ya existe un cierre de caja para esta semana."""
 
 
+class FutureWeekClosingError(CashError):
+    """La semana todavía no termina: su viernes de cierre no ha llegado."""
+
+
 class DifferenceReasonRequiredError(CashError):
     """Debe indicarse el motivo cuando hay diferencia entre lo esperado y lo contado."""

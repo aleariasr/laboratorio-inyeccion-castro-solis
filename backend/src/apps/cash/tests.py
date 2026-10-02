@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -335,6 +336,156 @@ class CashClosingApiTest(APITestCase):
             Decimal(response.data["difference"]),
             Decimal("-500.0000"),
         )
+
+    # El viernes de cierre de WEEK_START es WEEK_END. Para probar la
+    # regla de "semana que todavía no termina" se fija la fecha de hoy
+    # con un patch de timezone.localdate, que es lo que consultan
+    # create_cash_closing y el preview.
+    def test_create_cash_closing_future_week_returns_400(self):
+        with patch(
+            "apps.cash.services.timezone.localdate",
+            return_value=WEEK_START - timedelta(days=1),
+        ):
+            response = self.client.post(
+                "/api/cash/closings/",
+                {
+                    "week_start": WEEK_START.isoformat(),
+                    "counted_total": "0.0000",
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("viernes", response.data["detail"])
+        self.assertEqual(CashClosing.objects.count(), 0)
+
+    def test_create_cash_closing_week_in_progress_returns_400(self):
+        self.create_cash_sale(WEEK_START)
+
+        # Jueves: la semana va corriendo y todavía falta el viernes.
+        with patch(
+            "apps.cash.services.timezone.localdate",
+            return_value=WEEK_END - timedelta(days=1),
+        ):
+            response = self.client.post(
+                "/api/cash/closings/",
+                {
+                    "week_start": WEEK_START.isoformat(),
+                    "counted_total": "3000.0000",
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(CashClosing.objects.count(), 0)
+
+    def test_create_cash_closing_on_closing_friday_is_allowed(self):
+        self.create_cash_sale(WEEK_START)
+
+        with patch(
+            "apps.cash.services.timezone.localdate",
+            return_value=WEEK_END,
+        ):
+            response = self.client.post(
+                "/api/cash/closings/",
+                {
+                    "week_start": WEEK_START.isoformat(),
+                    "counted_total": "3000.0000",
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(CashClosing.objects.count(), 1)
+
+    def test_preview_of_week_in_progress_reports_cannot_close(self):
+        self.create_cash_sale(WEEK_START)
+
+        with patch(
+            "apps.cash.views.timezone.localdate",
+            return_value=WEEK_END - timedelta(days=1),
+        ):
+            response = self.client.get(
+                "/api/cash/closings/preview/",
+                {"week_start": WEEK_START.isoformat()},
+            )
+
+        # La consulta se permite: sirve para ver cómo va la semana.
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["can_close"])
+        self.assertEqual(
+            Decimal(response.data["expected_total"]),
+            Decimal("3000.0000"),
+        )
+
+    def test_preview_of_finished_week_reports_can_close(self):
+        with patch(
+            "apps.cash.views.timezone.localdate",
+            return_value=WEEK_END,
+        ):
+            response = self.client.get(
+                "/api/cash/closings/preview/",
+                {"week_start": WEEK_START.isoformat()},
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["can_close"])
+
+    def test_pending_week_returns_last_finished_week(self):
+        # Miércoles de la semana siguiente: la última semana terminada
+        # es la de WEEK_START.
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END + timedelta(days=5),
+        ):
+            response = self.client.get("/api/cash/closings/pending_week/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["week_start"], WEEK_START)
+        self.assertEqual(response.data["week_end"], WEEK_END)
+        self.assertFalse(response.data["is_closed"])
+
+    def test_pending_week_on_closing_friday_is_that_week(self):
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END,
+        ):
+            response = self.client.get("/api/cash/closings/pending_week/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["week_start"], WEEK_START)
+
+    def test_pending_week_reports_already_closed(self):
+        self.create_cash_sale(WEEK_START)
+
+        with patch(
+            "apps.cash.services.timezone.localdate",
+            return_value=WEEK_END,
+        ):
+            self.client.post(
+                "/api/cash/closings/",
+                {
+                    "week_start": WEEK_START.isoformat(),
+                    "counted_total": "3000.0000",
+                },
+                format="json",
+            )
+
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END,
+        ):
+            response = self.client.get("/api/cash/closings/pending_week/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_closed"])
+
+    def test_user_without_cash_role_cannot_read_pending_week(self):
+        self.client.force_authenticate(self.plain_user)
+
+        response = self.client.get("/api/cash/closings/pending_week/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_cash_closing_non_saturday_returns_400(self):
         response = self.client.post(

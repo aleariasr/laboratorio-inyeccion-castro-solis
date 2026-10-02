@@ -7,6 +7,8 @@ const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 export function validateCashClosingForm(
   values: CashClosingFormValues,
   expectedTotal: string | null,
+  // Lo dice el backend (preview.can_close): null mientras no se sabe.
+  canClose: boolean | null = null,
 ): CashClosingFormErrors {
   const errors: CashClosingFormErrors = {};
 
@@ -17,6 +19,9 @@ export function validateCashClosingForm(
 
     if (Number.isNaN(parsedDate.getTime()) || parsedDate.getDay() !== SATURDAY) {
       errors.weekStart = "La semana de un cierre de caja debe iniciar un sábado.";
+    } else if (canClose === false) {
+      errors.weekStart =
+        "Esta semana todavía no ha terminado: se puede cerrar a partir de su viernes.";
     }
   }
 

@@ -16,9 +16,17 @@ export type CashClosing = {
   updated_at: string;
 };
 
+/** La semana que toca cerrar, según el backend (la última ya terminada). */
+export type PendingCashWeek = {
+  week_start: string;
+  week_end: string;
+  is_closed: boolean;
+};
+
 export type CashClosingPreview = {
   week_start: string;
   week_end: string;
+  can_close: boolean;
   expected_total: string;
   expected_cash: string;
   expected_card: string;
