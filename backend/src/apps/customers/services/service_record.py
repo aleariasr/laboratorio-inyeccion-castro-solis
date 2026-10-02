@@ -8,6 +8,9 @@ from apps.customers.models import (
     InjectorServiceRecord,
     InjectorServiceStatus,
 )
+from apps.customers.services.service_accessory import (
+    reverse_accessory_stock_movement,
+)
 
 
 def _change_status(
@@ -127,6 +130,21 @@ def cancel_service(
     if service_record.status == InjectorServiceStatus.CANCELLED:
         raise InvalidServiceTransitionError(
             "El servicio ya está anulado."
+        )
+
+    # Los accesorios ya usados vuelven al inventario, igual que las
+    # líneas de una venta anulada (ver cancel_sale). No se borran: son el
+    # registro histórico de lo que se le había puesto al inyector. Una vez
+    # anulado el servicio ya no se pueden quitar uno por uno
+    # (_LOCKED_STATUSES en service_accessory.py), así que esta es la única
+    # oportunidad de devolver el stock.
+    for service_accessory in service_record.accessories.select_related(
+        "product",
+    ).prefetch_related("stock_movements"):
+        reverse_accessory_stock_movement(
+            service_accessory=service_accessory,
+            notes=f"Anulación de servicio #{service_record.id}",
+            user=user,
         )
 
     service_record.status = InjectorServiceStatus.CANCELLED

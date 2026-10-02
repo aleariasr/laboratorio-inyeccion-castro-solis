@@ -385,6 +385,136 @@ class InjectorServiceAccessoryApiTest(APITestCase):
         )
         self.assertEqual(current_stock(self.product), 4)
 
+    def test_cancel_service_returns_accessories_to_stock(self):
+        # Un servicio no puede llevar dos veces el mismo producto
+        # (uq_service_accessory), así que el segundo accesorio es de otro.
+        other_product = Product.objects.create(
+            standard_code="ORING-002",
+            name="O-ring de inyector",
+            storage_location=self.location,
+            minimum_stock=1,
+            unit_of_measure="unidad",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        StockMovement.create_from_service(
+            product=other_product,
+            movement_type=StockMovementType.INITIAL,
+            direction=MovementDirection.IN,
+            quantity=4,
+            notes="Inventario inicial de prueba.",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        first_response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 2,
+            },
+            format="json",
+        )
+        second_response = self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": other_product.id,
+                "quantity": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second_response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(current_stock(self.product), 3)
+        self.assertEqual(current_stock(other_product), 3)
+
+        response = self.client.post(
+            f"/api/customers/service-records/{self.service_record.id}/cancel/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["status"],
+            InjectorServiceStatus.CANCELLED,
+        )
+
+        # El stock vuelve al valor que tenía antes de los accesorios.
+        self.assertEqual(current_stock(self.product), 5)
+        self.assertEqual(current_stock(other_product), 4)
+
+        reversals = StockMovement.objects.filter(
+            movement_type=StockMovementType.REVERSAL,
+        )
+        self.assertEqual(reversals.count(), 2)
+
+        for accessory_id, quantity in (
+            (first_response.data["id"], 2),
+            (second_response.data["id"], 1),
+        ):
+            accessory = InjectorServiceAccessory.objects.get(id=accessory_id)
+
+            original = accessory.stock_movements.get(
+                movement_type=StockMovementType.SERVICE_USE,
+            )
+            reversal = reversals.get(reverses_movement=original)
+
+            self.assertEqual(reversal.direction, MovementDirection.IN)
+            self.assertEqual(reversal.quantity, quantity)
+            # A diferencia de borrar un accesorio, acá el accesorio
+            # sobrevive: es el registro de lo que se le había puesto.
+            self.assertEqual(reversal.service_accessory, accessory)
+
+        self.assertEqual(
+            InjectorServiceAccessory.objects.filter(
+                service_record=self.service_record,
+            ).count(),
+            2,
+        )
+
+    def test_cancel_service_without_accessories_creates_no_movements(self):
+        movements_before = StockMovement.objects.count()
+
+        response = self.client.post(
+            f"/api/customers/service-records/{self.service_record.id}/cancel/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(StockMovement.objects.count(), movements_before)
+        self.assertEqual(current_stock(self.product), 5)
+
+    def test_cancel_service_twice_does_not_duplicate_reversals(self):
+        self.client.post(
+            "/api/customers/service-accessories/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 2,
+            },
+            format="json",
+        )
+
+        self.client.post(
+            f"/api/customers/service-records/{self.service_record.id}/cancel/",
+        )
+
+        response = self.client.post(
+            f"/api/customers/service-records/{self.service_record.id}/cancel/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            StockMovement.objects.filter(
+                movement_type=StockMovementType.REVERSAL,
+            ).count(),
+            1,
+        )
+        self.assertEqual(current_stock(self.product), 5)
+
     def test_update_service_accessory_is_not_allowed(self):
         create_response = self.client.post(
             "/api/customers/service-accessories/",

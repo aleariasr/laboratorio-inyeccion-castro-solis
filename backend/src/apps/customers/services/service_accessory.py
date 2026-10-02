@@ -70,6 +70,40 @@ def add_service_accessory(
     return service_accessory
 
 
+def reverse_accessory_stock_movement(
+    *,
+    service_accessory: InjectorServiceAccessory,
+    notes,
+    user,
+):
+    """
+    Devuelve al inventario el accesorio usado en un servicio: busca su
+    movimiento SERVICE_USE/OUT original y crea la reversión.
+
+    La comparte remove_service_accessory (al quitar el accesorio) con
+    cancel_service (al anular el servicio completo). reverses_movement es
+    OneToOne, así que un movimiento solo se puede revertir una vez.
+    """
+
+    original_movement = service_accessory.stock_movements.get(
+        movement_type=StockMovementType.SERVICE_USE,
+        direction=MovementDirection.OUT,
+        reverses_movement__isnull=True,
+    )
+
+    return StockMovement.create_from_service(
+        product=service_accessory.product,
+        movement_type=StockMovementType.REVERSAL,
+        direction=MovementDirection.IN,
+        quantity=original_movement.quantity,
+        notes=notes,
+        created_by=user,
+        updated_by=user,
+        service_accessory=service_accessory,
+        reverses_movement=original_movement,
+    )
+
+
 @transaction.atomic
 def remove_service_accessory(
     *,
@@ -80,22 +114,10 @@ def remove_service_accessory(
 
     _ensure_service_is_editable(service_record)
 
-    original_movement = service_accessory.stock_movements.get(
-        movement_type=StockMovementType.SERVICE_USE,
-        direction=MovementDirection.OUT,
-        reverses_movement__isnull=True,
-    )
-
-    StockMovement.create_from_service(
-        product=service_accessory.product,
-        movement_type=StockMovementType.REVERSAL,
-        direction=MovementDirection.IN,
-        quantity=original_movement.quantity,
-        notes=f"Eliminación de accesorio de servicio #{service_record.id}",
-        created_by=user,
-        updated_by=user,
+    reverse_accessory_stock_movement(
         service_accessory=service_accessory,
-        reverses_movement=original_movement,
+        notes=f"Eliminación de accesorio de servicio #{service_record.id}",
+        user=user,
     )
 
     service_accessory.delete()
