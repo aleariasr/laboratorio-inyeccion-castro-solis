@@ -3,7 +3,12 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 
 from apps.inventory.exceptions import InventoryError
-from apps.inventory.models import Currency, ProductCostHistory, Purchase
+from apps.inventory.models import (
+    Currency,
+    ProductCostHistory,
+    Purchase,
+    PurchaseStatus,
+)
 
 
 def _money(value: Decimal) -> Decimal:
@@ -54,6 +59,34 @@ def _calculate_item_cost(item, cost_factor, margin_percentage):
     )
 
     return product, final_unit_cost, suggested_price
+
+
+@transaction.atomic
+def discard_purchase_cost_calculation(*, purchase: Purchase):
+    """
+    Borra el cálculo de costos guardado de una compra en borrador y
+    devuelve cuántas filas borró.
+
+    Cualquier cambio en las líneas o en los costos de importación cambia
+    el factor de costo de toda la factura, así que el cálculo anterior
+    queda obsoleto. Si se dejara, latest_suggested_price (y con él
+    effective_sale_price) seguiría poniéndole al producto un precio
+    sugerido que ya no corresponde a esta compra, incluso el de una línea
+    que se borró. Por eso se borra el cálculo completo de la compra, no
+    solo la fila del producto afectado.
+
+    En una compra confirmada o anulada no hace nada: ahí el histórico es
+    el registro de lo que efectivamente se aplicó.
+    """
+
+    if purchase.status != PurchaseStatus.DRAFT:
+        return 0
+
+    deleted, _ = ProductCostHistory.objects.filter(
+        purchase=purchase,
+    ).delete()
+
+    return deleted
 
 
 def purchase_cost_summary(

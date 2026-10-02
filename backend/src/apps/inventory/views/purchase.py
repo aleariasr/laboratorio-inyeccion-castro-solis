@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 
 from rest_framework import filters, status, viewsets
@@ -38,6 +39,7 @@ from apps.inventory.services import (
     calculate_purchase_costs,
     cancel_purchase,
     confirm_purchase,
+    discard_purchase_cost_calculation,
     purchase_cost_summary,
 )
 
@@ -310,15 +312,29 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
     serializer_class = PurchaseItemSerializer
     permission_classes = [PurchasesPermission]
 
+    # Agregar, editar o borrar una línea cambia el subtotal de la factura
+    # y con él el factor de costo, así que el cálculo de costos guardado
+    # queda obsoleto y se descarta (ver
+    # discard_purchase_cost_calculation).
+    @transaction.atomic
     def perform_create(self, serializer):
         serializer.save(
             created_by=self.request.user,
             updated_by=self.request.user,
         )
 
+        discard_purchase_cost_calculation(
+            purchase=serializer.instance.purchase,
+        )
+
+    @transaction.atomic
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+        discard_purchase_cost_calculation(
+            purchase=serializer.instance.purchase,
         )
 
     def destroy(self, request, *args, **kwargs):
@@ -335,8 +351,13 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return super().destroy(
-            request,
-            *args,
-            **kwargs,
+        with transaction.atomic():
+            discard_purchase_cost_calculation(
+                purchase=purchase_item.purchase,
+            )
+
+            self.perform_destroy(purchase_item)
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT,
         )

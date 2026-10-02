@@ -161,6 +161,8 @@ export default function PurchaseDetailPage() {
     error: null,
   });
 
+  const [costsReloadKey, setCostsReloadKey] = useState(0);
+
   const purchaseId = Number(params.id);
 
   const hasInventoryAccess = user ? canReadPurchases(user) : false;
@@ -330,6 +332,14 @@ export default function PurchaseDetailPage() {
     });
   }
 
+  // Al agregar, editar o borrar una línea, el backend borra el cálculo de
+  // costos de la compra (ver discard_purchase_cost_calculation). El `key`
+  // vuelve a montar PurchaseCostsSection para que no quede en pantalla un
+  // resumen ni un historial que ya no existen.
+  function markCostCalculationDiscarded(): void {
+    setCostsReloadKey((current) => current + 1);
+  }
+
   function removeItemFromState(itemId: number): void {
     setLoadState((current) => {
       if (current.status !== "success") {
@@ -370,6 +380,7 @@ export default function PurchaseDetailPage() {
             });
 
       updateItemsInState(saved);
+      markCostCalculationDiscarded();
 
       setItemFormState({ mode: "closed", item: null });
 
@@ -437,6 +448,7 @@ export default function PurchaseDetailPage() {
       await deletePurchaseItem(token, item.id);
 
       removeItemFromState(item.id);
+      markCostCalculationDiscarded();
 
       setItemActionState((current) => ({
         ...current,
@@ -1045,12 +1057,15 @@ export default function PurchaseDetailPage() {
           </section>
 
           <PurchaseCostsSection
+            key={costsReloadKey}
             canReadProducts={hasProductsAccess}
             purchaseId={loadState.purchase.id}
             currency={loadState.purchase.currency}
             purchaseExchangeRate={loadState.purchase.exchange_rate}
             token={token ?? ""}
             hasWriteAccess={hasWriteAccess}
+            isDraft={loadState.purchase.status === "DRAFT"}
+            wasCalculationDiscarded={costsReloadKey > 0}
           />
 
           {loadState.purchase.status === "DRAFT" && hasWriteAccess && (

@@ -75,6 +75,10 @@ type PurchaseCostsSectionProps = {
   token: string;
   hasWriteAccess: boolean;
   canReadProducts: boolean;
+  /** Solo en borrador el backend descarta el cálculo al cambiar algo. */
+  isDraft: boolean;
+  /** El detalle de la compra ya descartó el cálculo (cambió una línea). */
+  wasCalculationDiscarded: boolean;
 };
 
 function getErrorMessage(error: unknown): string {
@@ -126,6 +130,8 @@ export function PurchaseCostsSection({
   token,
   hasWriteAccess,
   canReadProducts,
+  isDraft,
+  wasCalculationDiscarded,
 }: PurchaseCostsSectionProps) {
   const [loadState, setLoadState] = useState<CostsLoadState>({
     status: "loading",
@@ -161,6 +167,30 @@ export function PurchaseCostsSection({
     isApplying: false,
     error: null,
   });
+
+  const [showDiscardedNotice, setShowDiscardedNotice] = useState(
+    wasCalculationDiscarded,
+  );
+
+  // Al cambiar un costo de importación de una compra en borrador, el
+  // backend borra el cálculo guardado de esa compra (ver
+  // discard_purchase_cost_calculation). Se refleja en pantalla en vez de
+  // dejar un resumen y un historial que ya no existen.
+  function markCalculationDiscarded(): void {
+    if (!isDraft) {
+      return;
+    }
+
+    setSummaryState((current) => ({ ...current, result: null, error: null }));
+
+    setHistoryState((current) =>
+      current.status === "success"
+        ? { status: "success", history: [] }
+        : current,
+    );
+
+    setShowDiscardedNotice(true);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -286,6 +316,7 @@ export function PurchaseCostsSection({
             });
 
       updateImportCostsInState(saved);
+      markCalculationDiscarded();
 
       setFormState({ mode: "closed", importCost: null });
       setActionState({ isSubmitting: false, submitError: null, fieldErrors: {}, pendingToggleId: null });
@@ -321,6 +352,7 @@ export function PurchaseCostsSection({
       });
 
       updateImportCostsInState(updated);
+      markCalculationDiscarded();
 
       setActionState((current) => ({ ...current, pendingToggleId: null }));
     } catch (error: unknown) {
@@ -382,6 +414,8 @@ export function PurchaseCostsSection({
     try {
       const histories = await calculatePurchaseCosts(token, purchaseId, margin);
 
+      setShowDiscardedNotice(false);
+
       setHistoryState((current) => {
         if (current.status !== "success") {
           return current;
@@ -405,6 +439,17 @@ export function PurchaseCostsSection({
 
   return (
     <div className="grid gap-6">
+      {showDiscardedNotice && isDraft && (
+        <p
+          role="status"
+          className="rounded-[var(--radius-md)] border border-[var(--color-border-soft)] bg-surface-muted px-5 py-4 text-sm text-foreground"
+        >
+          Se borraron los costos calculados porque cambiaron las líneas o los
+          costos de importación de esta compra. Vuelva a calcularlos y a
+          aplicarlos.
+        </p>
+      )}
+
       <section className="app-status-card overflow-hidden">
         <div className="flex flex-col gap-4 border-b border-[var(--color-border-soft)] p-6 sm:flex-row sm:items-start sm:justify-between">
           <div>

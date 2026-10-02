@@ -961,7 +961,8 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 - [x] 10 — Versión del instalador
 - [x] 9 — Bloquear semanas futuras en caja (+ lista de semanas por cerrar, sin calendario)
 - [x] 8 — Revertir accesorios al anular un servicio
-- [ ] 29 — Borrar el cálculo de costos al eliminar un ítem de compra
+- [x] 29 — Borrar el cálculo de costos al eliminar un ítem de compra (y al agregar o
+      editar líneas, y al tocar costos de importación)
 - [ ] 12 — Enlaces en el historial de movimientos (y SERVICE_USE)
 - [ ] 6 — Movimientos en el menú
 - [ ] 24 — Botones de servicio al final

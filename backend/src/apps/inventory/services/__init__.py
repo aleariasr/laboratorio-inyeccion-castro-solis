@@ -13,6 +13,7 @@ from .stock import (
 
 from .costs import (
     calculate_purchase_costs,
+    discard_purchase_cost_calculation,
     purchase_cost_summary,
 )
 
@@ -24,5 +25,6 @@ __all__ = [
     "initial_inventory",
     "adjust_stock",
     "calculate_purchase_costs",
+    "discard_purchase_cost_calculation",
     "purchase_cost_summary",
 ]

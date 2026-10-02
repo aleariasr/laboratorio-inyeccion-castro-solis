@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 
 from rest_framework import viewsets
@@ -15,6 +16,7 @@ from apps.inventory.serializers import (
     ImportCostSerializer,
     ProductCostHistorySerializer,
 )
+from apps.inventory.services import discard_purchase_cost_calculation
 
 
 class ImportCostCategoryViewSet(viewsets.ModelViewSet):
@@ -83,16 +85,38 @@ class ImportCostViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    # Crear, editar (incluido activar o desactivar) o borrar un costo de
+    # importación cambia el factor de costo de toda la factura, así que el
+    # cálculo de costos guardado queda obsoleto y se descarta (ver
+    # discard_purchase_cost_calculation).
+    @transaction.atomic
     def perform_create(self, serializer):
         serializer.save(
             created_by=self.request.user,
             updated_by=self.request.user,
         )
 
+        discard_purchase_cost_calculation(
+            purchase=serializer.instance.purchase,
+        )
+
+    @transaction.atomic
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
         )
+
+        discard_purchase_cost_calculation(
+            purchase=serializer.instance.purchase,
+        )
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        purchase = instance.purchase
+
+        instance.delete()
+
+        discard_purchase_cost_calculation(purchase=purchase)
 
 
 class ProductCostHistoryViewSet(viewsets.ReadOnlyModelViewSet):

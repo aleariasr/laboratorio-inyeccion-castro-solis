@@ -420,6 +420,136 @@ class ImportCostApiTest(APITestCase):
             Decimal("110.0000"),
         )
 
+    def create_import_cost(self, amount="50.0000"):
+        return ImportCost.objects.create(
+            purchase=self.purchase,
+            category=self.category,
+            amount=amount,
+            currency=Currency.USD,
+            exchange_rate="1.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def calculate_costs(self, margin="30.0000"):
+        response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
+            {
+                "margin_percentage": margin,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        return response
+
+    def test_create_import_cost_discards_cost_calculation(self):
+        self.calculate_costs()
+
+        self.assertEqual(ProductCostHistory.objects.count(), 1)
+
+        response = self.client.post(
+            "/api/inventory/import-costs/",
+            {
+                "purchase": self.purchase.id,
+                "category": self.category.id,
+                "amount": "25.0000",
+                "currency": Currency.USD,
+                "exchange_rate": "1.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            ProductCostHistory.objects.filter(purchase=self.purchase).count(),
+            0,
+        )
+
+    def test_update_import_cost_discards_cost_calculation(self):
+        import_cost = self.create_import_cost()
+
+        self.calculate_costs()
+
+        response = self.client.patch(
+            f"/api/inventory/import-costs/{import_cost.id}/",
+            {
+                "amount": "80.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            ProductCostHistory.objects.filter(purchase=self.purchase).count(),
+            0,
+        )
+
+    def test_deactivating_import_cost_discards_cost_calculation(self):
+        import_cost = self.create_import_cost()
+
+        self.calculate_costs()
+
+        # Desactivar saca el costo del total (purchase_cost_summary solo
+        # suma los activos), así que el cálculo también queda obsoleto.
+        response = self.client.patch(
+            f"/api/inventory/import-costs/{import_cost.id}/",
+            {
+                "is_active": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            ProductCostHistory.objects.filter(purchase=self.purchase).count(),
+            0,
+        )
+
+    def test_delete_import_cost_discards_cost_calculation(self):
+        import_cost = self.create_import_cost()
+
+        self.calculate_costs()
+
+        response = self.client.delete(
+            f"/api/inventory/import-costs/{import_cost.id}/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(
+            ProductCostHistory.objects.filter(purchase=self.purchase).count(),
+            0,
+        )
+
+    def test_import_cost_change_keeps_calculation_of_confirmed_purchase(self):
+        import_cost = self.create_import_cost()
+
+        self.calculate_costs()
+
+        confirm_response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/confirm/",
+            {},
+            format="json",
+        )
+        self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+
+        response = self.client.patch(
+            f"/api/inventory/import-costs/{import_cost.id}/",
+            {
+                "amount": "80.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # En una compra confirmada el histórico es el registro de lo que se
+        # aplicó: no se borra.
+        self.assertEqual(
+            ProductCostHistory.objects.filter(purchase=self.purchase).count(),
+            1,
+        )
+
     def test_list_product_cost_history(self):
         history = ProductCostHistory.objects.create(
             product=self.purchase.items.first().supplier_product.product,

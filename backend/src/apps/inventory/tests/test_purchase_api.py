@@ -23,7 +23,7 @@ from apps.inventory.models import (
     ImportCostCategory,
     ProductCostHistory,
 )
-from apps.inventory.selectors import current_stock
+from apps.inventory.selectors import current_stock, latest_suggested_price
 
 User = get_user_model()
 
@@ -748,6 +748,100 @@ class PurchaseApiTest(APITestCase):
             response.status_code,
             status.HTTP_204_NO_CONTENT,
         )
+        self.assertFalse(
+            PurchaseItem.objects.filter(
+                id=self.purchase_item.id,
+            ).exists()
+        )
+
+    def calculate_costs(self, margin="30.0000"):
+        response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
+            {
+                "margin_percentage": margin,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        return response
+
+    def test_delete_draft_purchase_item_discards_cost_calculation(self):
+        self.calculate_costs()
+
+        self.assertEqual(ProductCostHistory.objects.count(), 1)
+        self.assertEqual(
+            latest_suggested_price(self.product),
+            Decimal("130.0000"),
+        )
+
+        response = self.client.delete(
+            f"/api/inventory/purchase-items/{self.purchase_item.id}/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # El cálculo de la compra desaparece completo: el factor de costo
+        # dependía de toda la factura.
+        self.assertEqual(
+            ProductCostHistory.objects.filter(purchase=self.purchase).count(),
+            0,
+        )
+        # Y el producto deja de tener un precio sugerido de esta compra.
+        self.assertIsNone(latest_suggested_price(self.product))
+
+    def test_create_purchase_item_discards_cost_calculation(self):
+        self.calculate_costs()
+
+        other_product = Product.objects.create(
+            standard_code="P-002",
+            name="Otra pieza",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            "/api/inventory/purchase-items/",
+            {
+                "purchase": self.purchase.id,
+                "product": other_product.id,
+                "quantity": 2,
+                "unit_cost": "50.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            ProductCostHistory.objects.filter(purchase=self.purchase).count(),
+            0,
+        )
+
+    def test_update_purchase_item_discards_cost_calculation(self):
+        self.calculate_costs()
+
+        response = self.client.patch(
+            f"/api/inventory/purchase-items/{self.purchase_item.id}/",
+            {
+                "quantity": 8,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            ProductCostHistory.objects.filter(purchase=self.purchase).count(),
+            0,
+        )
+
+    def test_delete_purchase_item_without_cost_calculation_still_works(self):
+        response = self.client.delete(
+            f"/api/inventory/purchase-items/{self.purchase_item.id}/",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(
             PurchaseItem.objects.filter(
                 id=self.purchase_item.id,
