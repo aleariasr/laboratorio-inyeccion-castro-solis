@@ -9,12 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/features/inventory/purchases/format";
 
-import { getCashClosingPreview, getPendingCashWeek } from "./api";
+import { getCashClosingPreview, getCloseableWeeks } from "./api";
+import { formatWeekdayDate, formatWeekRange } from "./format";
 import type {
   CashClosingFormErrors,
   CashClosingFormValues,
   CashClosingPreview,
-  PendingCashWeek,
+  CloseableWeeks,
 } from "./types";
 import { validateCashClosingForm } from "./validation";
 
@@ -57,38 +58,55 @@ export function CashClosingForm({
 
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
-  const [pendingWeek, setPendingWeek] = useState<PendingCashWeek | null>(null);
+  const [closeableWeeks, setCloseableWeeks] = useState<CloseableWeeks | null>(
+    null,
+  );
+
+  const [closeableWeeksError, setCloseableWeeksError] = useState<string | null>(
+    null,
+  );
 
   const errors = mergeErrors(localErrors, serverErrors);
 
-  // La semana que toca cerrar la decide el backend (la última ya
-  // terminada): con eso el campo viene precargado y no hay que elegir la
-  // fecha a mano. Queda editable para cerrar una semana vieja que se
-  // haya saltado. El setState va en un setTimeout por la regla de lint
-  // react-hooks/set-state-in-effect.
+  // Qué semanas se pueden cerrar lo decide el backend (las ya terminadas
+  // sin cierre): se ofrecen como lista y viene elegida la más reciente,
+  // así no hay que buscar un sábado en un calendario ni es posible elegir
+  // una semana inválida. El setState va en un setTimeout por la regla de
+  // lint react-hooks/set-state-in-effect.
   useEffect(() => {
     const controller = new AbortController();
 
     const timeoutId = globalThis.setTimeout(() => {
-      getPendingCashWeek(token, controller.signal)
+      getCloseableWeeks(token, controller.signal)
         .then((result) => {
           if (controller.signal.aborted) {
             return;
           }
 
-          setPendingWeek(result);
+          setCloseableWeeks(result);
+          setCloseableWeeksError(null);
 
-          if (!result.is_closed) {
+          const [mostRecent] = result.weeks;
+
+          if (mostRecent) {
             setValues((current) =>
               current.weekStart
                 ? current
-                : { ...current, weekStart: result.week_start },
+                : { ...current, weekStart: mostRecent.week_start },
             );
           }
         })
-        .catch(() => {
-          // Sin sugerencia: el campo queda vacío y se escribe a mano.
-          setPendingWeek(null);
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          setCloseableWeeks(null);
+          setCloseableWeeksError(
+            error instanceof Error
+              ? error.message
+              : "No fue posible consultar las semanas por cerrar.",
+          );
         });
     }, 0);
 
@@ -198,27 +216,21 @@ export function CashClosingForm({
       ? Number(values.countedTotal) - Number(effectivePreview.expected_total)
       : null;
 
-  // Una semana en curso se puede consultar pero no cerrar (ver
-  // create_cash_closing en el backend).
+  // Red de seguridad: la lista solo trae semanas cerrables, pero si el
+  // backend dice que esta no se puede cerrar, no se envía (ver
+  // create_cash_closing).
   const futureWeekMessage =
     effectivePreview && !effectivePreview.can_close
-      ? `Esta semana todavía no termina: se puede cerrar a partir del viernes ${effectivePreview.week_end}.`
+      ? "Esta semana todavía no termina, así que no se puede cerrar."
       : null;
+
+  const hasCloseableWeeks = (closeableWeeks?.weeks.length ?? 0) > 0;
 
   const weekStartHint = isLoadingPreview
     ? "Calculando total esperado…"
-    : effectivePreview
-      ? [
-          `Semana del ${effectivePreview.week_start} al ${effectivePreview.week_end}.`,
-          pendingWeek && pendingWeek.week_start === effectivePreview.week_start
-            ? "Es la semana que toca cerrar."
-            : "",
-        ]
-          .filter(Boolean)
-          .join(" ")
-      : pendingWeek?.is_closed
-        ? `La semana del ${pendingWeek.week_start} al ${pendingWeek.week_end} ya está cerrada. Elija otra semana.`
-        : "Elija el sábado de inicio de la semana a cerrar.";
+    : closeableWeeks && !hasCloseableWeeks
+      ? `No hay semanas pendientes de cerrar. La siguiente se podrá cerrar a partir del ${formatWeekdayDate(closeableWeeks.next_week_end)}.`
+      : "Cada semana de caja va de sábado a viernes y se cierra a partir de su viernes.";
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
@@ -226,31 +238,45 @@ export function CashClosingForm({
 
       <Field
         id="cash-closing-week-start"
-        label="Inicio de semana (sábado)"
+        label="Semana a cerrar"
         required
         hint={weekStartHint}
         error={
           errors.weekStart ||
+          closeableWeeksError ||
           effectivePreviewError ||
           futureWeekMessage ||
           undefined
         }
       >
-        <Input
+        <select
           id="cash-closing-week-start"
-          type="date"
           value={values.weekStart}
           onChange={(event) => {
             updateValue("weekStart", event.target.value);
           }}
-          // Cualquier sábado posterior al de la última semana terminada
-          // tendría su viernes de cierre en el futuro.
-          max={pendingWeek?.week_start}
-          hasError={Boolean(
-            errors.weekStart || effectivePreviewError || futureWeekMessage,
+          disabled={isSubmitting || !hasCloseableWeeks}
+          aria-invalid={
+            Boolean(
+              errors.weekStart || closeableWeeksError || futureWeekMessage,
+            ) || undefined
+          }
+          className="h-12 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)] disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-muted-foreground"
+        >
+          {!hasCloseableWeeks && (
+            <option value="">
+              {closeableWeeks
+                ? "No hay semanas pendientes de cerrar"
+                : "Cargando semanas…"}
+            </option>
           )}
-          disabled={isSubmitting}
-        />
+
+          {closeableWeeks?.weeks.map((week) => (
+            <option key={week.week_start} value={week.week_start}>
+              Semana del {formatWeekRange(week.week_start, week.week_end)}
+            </option>
+          ))}
+        </select>
       </Field>
 
       {effectivePreview && (
@@ -373,7 +399,7 @@ export function CashClosingForm({
           type="submit"
           isLoading={isSubmitting}
           loadingText="Guardando…"
-          disabled={futureWeekMessage !== null}
+          disabled={futureWeekMessage !== null || !hasCloseableWeeks}
         >
           Cerrar semana
         </Button>

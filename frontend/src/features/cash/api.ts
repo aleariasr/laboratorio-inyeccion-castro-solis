@@ -6,7 +6,7 @@ import type {
   CashClosingFilters,
   CashClosingPreview,
   CashClosingWritePayload,
-  PendingCashWeek,
+  CloseableWeeks,
 } from "./types";
 
 export function getCashClosings(
@@ -39,11 +39,11 @@ export function getCashClosing(
   });
 }
 
-export function getPendingCashWeek(
+export function getCloseableWeeks(
   token: string,
   signal?: AbortSignal,
-): Promise<PendingCashWeek> {
-  return apiGet<PendingCashWeek>("/api/cash/closings/pending_week/", {
+): Promise<CloseableWeeks> {
+  return apiGet<CloseableWeeks>("/api/cash/closings/closeable_weeks/", {
     token,
     signal,
   });

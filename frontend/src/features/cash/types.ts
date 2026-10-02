@@ -16,11 +16,17 @@ export type CashClosing = {
   updated_at: string;
 };
 
-/** La semana que toca cerrar, según el backend (la última ya terminada). */
-export type PendingCashWeek = {
+/** Una semana ya terminada que todavía no tiene cierre. */
+export type CloseableWeek = {
   week_start: string;
   week_end: string;
-  is_closed: boolean;
+};
+
+export type CloseableWeeks = {
+  /** De la más reciente a la más antigua. Vacío si no hay pendientes. */
+  weeks: CloseableWeek[];
+  /** Viernes de la semana en curso: cuándo se podrá cerrar la siguiente. */
+  next_week_end: string;
 };
 
 export type CashClosingPreview = {

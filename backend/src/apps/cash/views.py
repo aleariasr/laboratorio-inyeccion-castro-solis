@@ -15,7 +15,7 @@ from apps.cash.selectors import (
     cash_closings,
     expected_totals_by_method,
     last_finished_week_start,
-    pending_closing_week_start,
+    weeks_pending_closing,
 )
 from apps.cash.serializers import (
     CashClosingCreateSerializer,
@@ -79,23 +79,23 @@ class CashClosingViewSet(
         )
 
     @action(detail=False, methods=["get"])
-    def pending_week(self, request):
+    def closeable_weeks(self, request):
         """
-        La semana que toca cerrar: la última ya terminada. El formulario
-        de cierre la usa para venir precargado, y como tope del campo de
-        fecha (cualquier sábado posterior tendría su viernes en el
-        futuro). `is_closed` avisa que esa semana ya tiene cierre.
-        """
+        Las semanas que se pueden cerrar hoy: las ya terminadas que
+        todavía no tienen cierre, de la más reciente a la más antigua. El
+        formulario de cierre las ofrece como lista, en vez de pedir un
+        sábado en un calendario.
 
-        week_start = last_finished_week_start()
+        `next_week_end` es el viernes de la semana en curso: la fecha a
+        partir de la cual se podrá cerrar la siguiente.
+        """
 
         return Response(
             {
-                "week_start": week_start,
-                "week_end": week_start + timedelta(days=6),
-                # pending_closing_week_start devuelve None justamente
-                # cuando esa misma semana ya está cerrada.
-                "is_closed": pending_closing_week_start() is None,
+                "weeks": weeks_pending_closing(),
+                "next_week_end": (
+                    last_finished_week_start() + timedelta(days=13)
+                ),
             }
         )
 

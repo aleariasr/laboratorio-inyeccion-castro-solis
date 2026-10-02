@@ -431,32 +431,121 @@ class CashClosingApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["can_close"])
 
-    def test_pending_week_returns_last_finished_week(self):
+    def test_closeable_weeks_lists_weeks_with_movement_newest_first(self):
+        self.create_cash_sale(WEEK_START)
+        self.create_cash_sale(WEEK_START - timedelta(days=7))
+
         # Miércoles de la semana siguiente: la última semana terminada
         # es la de WEEK_START.
         with patch(
             "apps.cash.selectors.timezone.localdate",
             return_value=WEEK_END + timedelta(days=5),
         ):
-            response = self.client.get("/api/cash/closings/pending_week/")
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["week_start"], WEEK_START)
-        self.assertEqual(response.data["week_end"], WEEK_END)
-        self.assertFalse(response.data["is_closed"])
 
-    def test_pending_week_on_closing_friday_is_that_week(self):
+        weeks = response.data["weeks"]
+
+        self.assertEqual(len(weeks), 2)
+        self.assertEqual(weeks[0]["week_start"], WEEK_START)
+        self.assertEqual(weeks[0]["week_end"], WEEK_END)
+
+        # Ordenadas de la más reciente a la más antigua.
+        self.assertEqual(
+            weeks[1]["week_start"],
+            WEEK_START - timedelta(days=7),
+        )
+
+        # El viernes de la semana en curso: la próxima que se podrá cerrar.
+        self.assertEqual(
+            response.data["next_week_end"],
+            WEEK_END + timedelta(days=7),
+        )
+
+    def test_closeable_weeks_excludes_weeks_without_movement(self):
+        # Solo la semana anterior tuvo ventas.
+        self.create_cash_sale(WEEK_START - timedelta(days=7))
+
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END + timedelta(days=5),
+        ):
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
+
+        week_starts = [week["week_start"] for week in response.data["weeks"]]
+
+        self.assertEqual(week_starts, [WEEK_START - timedelta(days=7)])
+
+    def test_closeable_weeks_is_empty_without_any_movement(self):
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END + timedelta(days=5),
+        ):
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["weeks"], [])
+
+    def test_closeable_weeks_counts_a_week_with_only_services(self):
+        self.create_cash_service(
+            timezone.make_aware(
+                datetime.combine(WEEK_START + timedelta(days=2), time.min),
+            ),
+        )
+
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END + timedelta(days=5),
+        ):
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
+
+        week_starts = [week["week_start"] for week in response.data["weeks"]]
+
+        self.assertEqual(week_starts, [WEEK_START])
+
+    def test_closeable_weeks_ignores_draft_sales(self):
+        # Una venta en borrador no es dinero que conciliar: mismos filtros
+        # que expected_totals_by_method.
+        sale = Sale.objects.create(
+            sale_date=WEEK_START,
+            currency="CRC",
+            payment_method=PaymentMethod.CASH,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        SaleItem.objects.create(
+            sale=sale,
+            product=self.product,
+            quantity=1,
+            unit_price=Decimal("1500.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END + timedelta(days=5),
+        ):
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
+
+        self.assertEqual(response.data["weeks"], [])
+
+    def test_closeable_weeks_on_closing_friday_includes_that_week(self):
+        self.create_cash_sale(WEEK_START)
+
         with patch(
             "apps.cash.selectors.timezone.localdate",
             return_value=WEEK_END,
         ):
-            response = self.client.get("/api/cash/closings/pending_week/")
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["week_start"], WEEK_START)
+        self.assertEqual(response.data["weeks"][0]["week_start"], WEEK_START)
 
-    def test_pending_week_reports_already_closed(self):
+    def test_closeable_weeks_excludes_weeks_already_closed(self):
         self.create_cash_sale(WEEK_START)
+        self.create_cash_sale(WEEK_START - timedelta(days=7))
 
         with patch(
             "apps.cash.services.timezone.localdate",
@@ -475,15 +564,35 @@ class CashClosingApiTest(APITestCase):
             "apps.cash.selectors.timezone.localdate",
             return_value=WEEK_END,
         ):
-            response = self.client.get("/api/cash/closings/pending_week/")
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.data["is_closed"])
 
-    def test_user_without_cash_role_cannot_read_pending_week(self):
+        week_starts = [week["week_start"] for week in response.data["weeks"]]
+
+        self.assertNotIn(WEEK_START, week_starts)
+        # La anterior sigue disponible: cerrar una no cierra las viejas.
+        self.assertIn(WEEK_START - timedelta(days=7), week_starts)
+
+    def test_closeable_weeks_never_includes_the_week_in_progress(self):
+        self.create_cash_sale(WEEK_START)
+        self.create_cash_sale(WEEK_START - timedelta(days=7))
+
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END - timedelta(days=1),
+        ):
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
+
+        week_starts = [week["week_start"] for week in response.data["weeks"]]
+
+        self.assertNotIn(WEEK_START, week_starts)
+        self.assertEqual(week_starts[0], WEEK_START - timedelta(days=7))
+
+    def test_user_without_cash_role_cannot_read_closeable_weeks(self):
         self.client.force_authenticate(self.plain_user)
 
-        response = self.client.get("/api/cash/closings/pending_week/")
+        response = self.client.get("/api/cash/closings/closeable_weeks/")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
