@@ -254,6 +254,19 @@ export function canCancelServices(user: AuthUser): boolean {
   );
 }
 
+// --- Documentos: proformas ---
+// add_documents solo controla la proforma (los demás PDF se piden con
+// GET y caen en view_documents). Hace falta leer productos para
+// armarla.
+
+export function canCreateProformas(user: AuthUser): boolean {
+  return (
+    canReadProducts(user) &&
+    (hasAnyRole(user, ["INVENTORY", "SALES"]) ||
+      hasModulePermission(user, "add_documents"))
+  );
+}
+
 // --- Reportes ---
 
 export function canReadReports(user: AuthUser): boolean {

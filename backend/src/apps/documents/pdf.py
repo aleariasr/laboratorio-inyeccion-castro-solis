@@ -418,11 +418,29 @@ def _build_itemized_document_pdf(
     return buffer
 
 
-def build_proforma_pdf(*, products, customer=None):
-    rows = [
-        (product.standard_code, product.name, effective_sale_price(product))
-        for product in products
-    ]
+def build_proforma_pdf(*, items, customer=None):
+    """
+    items: lista de (producto, cantidad). Mismo formato de línea que la
+    factura de venta: "Nombre × 3" y el importe de la línea. Un producto
+    sin precio sale como "Sin precio definido" y no suma al total.
+    """
+
+    rows = []
+
+    for product, quantity in items:
+        name = product.name
+        unit_price = effective_sale_price(product)
+
+        if quantity != 1:
+            name = f"{name} × {quantity}"
+
+        rows.append(
+            (
+                product.standard_code,
+                name,
+                unit_price * quantity if unit_price is not None else None,
+            )
+        )
 
     return _build_itemized_document_pdf(
         title="PROFORMA",

@@ -664,7 +664,10 @@ export default function ProductsPage() {
     try {
       const blob = await createProforma(
         token,
-        Array.from(selectedProductIds),
+        Array.from(selectedProductIds, (productId) => ({
+          productId,
+          quantity: 1,
+        })),
         customerId,
       );
 

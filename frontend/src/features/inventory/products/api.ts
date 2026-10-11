@@ -258,15 +258,24 @@ export function generateProductLabels(
   );
 }
 
+export type ProformaItem = {
+  productId: number;
+  quantity: number;
+};
+
+/** Si un producto se repite, el backend suma sus cantidades. */
 export function createProforma(
   token: string,
-  productIds: number[],
+  items: ProformaItem[],
   customerId: number | null,
 ): Promise<Blob> {
   return apiPostBlob(
     "/api/documents/proforma/",
     {
-      product_ids: productIds,
+      items: items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+      })),
       customer_id: customerId,
     },
     {

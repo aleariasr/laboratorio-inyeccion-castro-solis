@@ -59,7 +59,7 @@ const ROLE_OPTIONS: Array<{
   {
     value: "SALES",
     label: "Ventas",
-    description: "Registro y consulta de ventas. Busca productos y clientes para armarlas, sin ver costos.",
+    description: "Registro y consulta de ventas, y proformas. Busca productos y clientes para armarlas, sin ver costos.",
   },
   {
     value: "CUSTOMERS",

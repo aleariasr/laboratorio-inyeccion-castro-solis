@@ -21,6 +21,7 @@ from .pdf import (
 )
 
 MAX_PROFORMA_ITEMS = 200
+MAX_PROFORMA_QUANTITY = 9999
 
 
 class ProductLabelsPdfView(APIView):
@@ -71,8 +72,14 @@ class ProductLabelsPdfView(APIView):
 
 class ProformaPdfView(APIView):
     """
-    Genera una proforma en PDF a partir de productos seleccionados en
-    la pantalla de códigos de barra, con un cliente opcional.
+    Genera una proforma en PDF: una lista de productos con su cantidad,
+    al precio de venta vigente, con un cliente opcional. Se arma desde
+    Ventas (/sales/proforma) o desde la selección de la pantalla de
+    Productos (cantidad 1 por producto).
+
+    Cuerpo: {"items": [{"product_id": 1, "quantity": 2}, ...],
+    "customer_id": 5 | null}. Si un producto se repite, sus cantidades
+    se suman en una sola línea.
 
     action = "create" a propósito: esta vista no es un ViewSet (no
     tiene ese atributo por defecto), y ModulePermission._codename()
@@ -85,91 +92,66 @@ class ProformaPdfView(APIView):
     permission_classes = [DocumentsPermission]
 
     def post(self, request):
-        product_ids = request.data.get("product_ids")
+        items = request.data.get("items")
 
-        if not isinstance(product_ids, list) or not product_ids:
-            return Response(
-                {
-                    "product_ids": [
-                        "Debe seleccionar al menos un producto."
-                    ],
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+        if not isinstance(items, list) or not items:
+            return _items_error("Debe agregar al menos un producto.")
+
+        if len(items) > MAX_PROFORMA_ITEMS:
+            return _items_error(
+                f"No puede incluir más de {MAX_PROFORMA_ITEMS} "
+                "productos en una misma proforma."
             )
 
-        if len(product_ids) > MAX_PROFORMA_ITEMS:
-            return Response(
-                {
-                    "product_ids": [
-                        (
-                            "No puede incluir más de "
-                            f"{MAX_PROFORMA_ITEMS} productos "
-                            "en una misma proforma."
-                        ),
-                    ],
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        quantities_by_id = {}
 
-        normalized_ids = []
-        seen_ids = set()
+        for item in items:
+            product_id = item.get("product_id") if isinstance(item, dict) else None
+            quantity = item.get("quantity", 1) if isinstance(item, dict) else None
 
-        for product_id in product_ids:
-            if (
-                isinstance(product_id, bool)
-                or not isinstance(product_id, int)
-                or product_id <= 0
-            ):
-                return Response(
-                    {
-                        "product_ids": [
-                            (
-                                "Todos los identificadores deben "
-                                "ser números enteros positivos."
-                            ),
-                        ],
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
+            if not _is_positive_int(product_id):
+                return _items_error(
+                    "Cada producto debe indicar un identificador entero positivo."
                 )
 
-            if product_id not in seen_ids:
-                seen_ids.add(product_id)
-                normalized_ids.append(product_id)
+            if (
+                not _is_positive_int(quantity)
+                or quantity > MAX_PROFORMA_QUANTITY
+            ):
+                return _items_error(
+                    "La cantidad debe ser un número entero entre 1 y "
+                    f"{MAX_PROFORMA_QUANTITY}."
+                )
+
+            # dict conserva el orden de inserción: el PDF sale en el
+            # orden en que se agregaron, aunque un producto se repita.
+            quantities_by_id[product_id] = (
+                quantities_by_id.get(product_id, 0) + quantity
+            )
 
         products_by_id = {
             product.id: product
             for product in with_latest_suggested_price(
-                Product.objects.filter(id__in=normalized_ids)
+                Product.objects.filter(id__in=quantities_by_id)
             )
         }
 
         missing_ids = [
             product_id
-            for product_id in normalized_ids
+            for product_id in quantities_by_id
             if product_id not in products_by_id
         ]
 
         if missing_ids:
-            return Response(
-                {
-                    "product_ids": [
-                        (
-                            "No existen productos con los "
-                            "siguientes identificadores: "
-                            + ", ".join(
-                                str(product_id)
-                                for product_id in missing_ids
-                            )
-                            + "."
-                        ),
-                    ],
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            return _items_error(
+                "No existen productos con los siguientes identificadores: "
+                + ", ".join(str(product_id) for product_id in missing_ids)
+                + "."
             )
 
-        ordered_products = [
-            products_by_id[product_id]
-            for product_id in normalized_ids
+        ordered_items = [
+            (products_by_id[product_id], quantity)
+            for product_id, quantity in quantities_by_id.items()
         ]
 
         customer_id = request.data.get("customer_id")
@@ -199,7 +181,7 @@ class ProformaPdfView(APIView):
                 )
 
         pdf_buffer = build_proforma_pdf(
-            products=ordered_products,
+            items=ordered_items,
             customer=customer,
         )
 
@@ -209,6 +191,21 @@ class ProformaPdfView(APIView):
             filename="proforma.pdf",
             content_type="application/pdf",
         )
+
+
+def _is_positive_int(value):
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and value > 0
+    )
+
+
+def _items_error(message):
+    return Response(
+        {"items": [message]},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 class SaleInvoicePdfView(APIView):

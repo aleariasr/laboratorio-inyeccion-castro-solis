@@ -17,7 +17,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadSales, canWriteSales } from "@/features/auth/permissions";
+import { canCreateProformas, canReadSales, canWriteSales } from "@/features/auth/permissions";
 import { formatMoney } from "@/features/inventory/purchases/format";
 import { getSales } from "@/features/sales/api";
 import type { Sale, SaleFilters, SaleStatus } from "@/features/sales/types";
@@ -101,6 +101,8 @@ export default function SalesPage() {
   const hasSalesAccess = user ? canReadSales(user) : false;
 
   const hasWriteAccess = user ? canWriteSales(user) : false;
+
+  const hasProformaAccess = user ? canCreateProformas(user) : false;
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasSalesAccess) {
@@ -338,15 +340,31 @@ export default function SalesPage() {
       title="Ventas"
       description="Consulte ventas registradas y su estado."
       actions={
-        hasWriteAccess ? (
-          <Button
-            type="button"
-            onClick={() => {
-              router.push("/sales/new");
-            }}
-          >
-            Nueva venta
-          </Button>
+        hasWriteAccess || hasProformaAccess ? (
+          <div className="flex flex-wrap gap-2">
+            {hasProformaAccess && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  router.push("/sales/proforma");
+                }}
+              >
+                Nueva proforma
+              </Button>
+            )}
+
+            {hasWriteAccess && (
+              <Button
+                type="button"
+                onClick={() => {
+                  router.push("/sales/new");
+                }}
+              >
+                Nueva venta
+              </Button>
+            )}
+          </div>
         ) : undefined
       }
     >

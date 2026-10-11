@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -22,6 +23,7 @@ from apps.customers.models import (
     InjectorServiceRecord,
     InjectorServiceStatus,
 )
+from apps.documents import pdf as documents_pdf
 from apps.inventory.models import Product, StorageLocation
 from apps.inventory.services import initial_inventory
 from apps.sales.models import Sale, SaleItem
@@ -212,14 +214,14 @@ class ProformaPdfApiTest(APITestCase):
         response = self.client.post(
             "/api/documents/proforma/",
             {
-                "product_ids": [self.product.id],
+                "items": [{"product_id": self.product.id}],
             },
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_proforma_requires_product_ids(self):
+    def test_proforma_requires_items(self):
         self.client.force_authenticate(self.user)
 
         response = self.client.post(
@@ -236,7 +238,10 @@ class ProformaPdfApiTest(APITestCase):
         response = self.client.post(
             "/api/documents/proforma/",
             {
-                "product_ids": [self.product.id, self.other_product.id],
+                "items": [
+                    {"product_id": self.product.id},
+                    {"product_id": self.other_product.id},
+                ],
             },
             format="json",
         )
@@ -256,7 +261,7 @@ class ProformaPdfApiTest(APITestCase):
         response = self.client.post(
             "/api/documents/proforma/",
             {
-                "product_ids": [self.product.id],
+                "items": [{"product_id": self.product.id}],
                 "customer_id": self.customer.id,
             },
             format="json",
@@ -274,7 +279,7 @@ class ProformaPdfApiTest(APITestCase):
         response = self.client.post(
             "/api/documents/proforma/",
             {
-                "product_ids": [999999],
+                "items": [{"product_id": 999999}],
             },
             format="json",
         )
@@ -287,7 +292,7 @@ class ProformaPdfApiTest(APITestCase):
         response = self.client.post(
             "/api/documents/proforma/",
             {
-                "product_ids": [self.product.id],
+                "items": [{"product_id": self.product.id}],
                 "customer_id": 999999,
             },
             format="json",
@@ -301,12 +306,119 @@ class ProformaPdfApiTest(APITestCase):
         response = self.client.post(
             "/api/documents/proforma/",
             {
-                "product_ids": [self.product.id],
+                "items": [{"product_id": self.product.id}],
             },
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_sales_user_can_create_proforma(self):
+        # Ventas cotiza desde /sales/proforma (add_documents en su rol).
+        sales_user = User.objects.create_user(
+            username="proforma-sales",
+            password="12345678",
+        )
+        sales_user.groups.add(Group.objects.get(name=ROLE_SALES))
+        self.client.force_authenticate(sales_user)
+
+        response = self.client.post(
+            "/api/documents/proforma/",
+            {
+                "items": [{"product_id": self.product.id, "quantity": 2}],
+                "customer_id": self.customer.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(
+            b"".join(response.streaming_content).startswith(b"%PDF")
+        )
+
+    def post_items_and_capture_rows(self, items):
+        """
+        Devuelve las filas (código, nombre, importe) que la proforma le
+        pasa al generador del PDF, para revisar cantidades sin leer el
+        PDF binario.
+        """
+
+        self.client.force_authenticate(self.user)
+
+        with mock.patch.object(
+            documents_pdf,
+            "_build_itemized_document_pdf",
+            wraps=documents_pdf._build_itemized_document_pdf,
+        ) as build:
+            response = self.client.post(
+                "/api/documents/proforma/",
+                {"items": items},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        return build.call_args.kwargs["rows"]
+
+    def test_proforma_line_shows_quantity_and_line_amount(self):
+        rows = self.post_items_and_capture_rows(
+            [{"product_id": self.product.id, "quantity": 3}],
+        )
+
+        self.assertEqual(
+            rows,
+            [("PROF-001", "Producto proforma × 3", Decimal("45000.0000"))],
+        )
+
+    def test_proforma_quantity_defaults_to_one(self):
+        rows = self.post_items_and_capture_rows(
+            [{"product_id": self.product.id}],
+        )
+
+        self.assertEqual(
+            rows,
+            [("PROF-001", "Producto proforma", Decimal("15000.0000"))],
+        )
+
+    def test_proforma_merges_repeated_products_keeping_order(self):
+        rows = self.post_items_and_capture_rows(
+            [
+                {"product_id": self.product.id, "quantity": 1},
+                {"product_id": self.other_product.id, "quantity": 1},
+                {"product_id": self.product.id, "quantity": 2},
+            ],
+        )
+
+        self.assertEqual(
+            [(code, name) for code, name, _amount in rows],
+            [
+                ("PROF-001", "Producto proforma × 3"),
+                ("PROF-002", "Producto sin precio"),
+            ],
+        )
+        # Sin precio sigue sin precio, aunque tenga cantidad.
+        self.assertIsNone(rows[1][2])
+
+    def test_proforma_rejects_invalid_quantities(self):
+        self.client.force_authenticate(self.user)
+
+        for quantity in (0, -1, 1.5, "2", True, 10_000):
+            with self.subTest(quantity=quantity):
+                response = self.client.post(
+                    "/api/documents/proforma/",
+                    {
+                        "items": [
+                            {"product_id": self.product.id, "quantity": quantity},
+                        ],
+                    },
+                    format="json",
+                )
+
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_400_BAD_REQUEST,
+                )
+                self.assertIn("items", response.data)
 
     def test_authenticated_user_without_group_cannot_create_proforma(self):
         self.client.force_authenticate(self.plain_user)
@@ -314,7 +426,7 @@ class ProformaPdfApiTest(APITestCase):
         response = self.client.post(
             "/api/documents/proforma/",
             {
-                "product_ids": [self.product.id],
+                "items": [{"product_id": self.product.id}],
             },
             format="json",
         )

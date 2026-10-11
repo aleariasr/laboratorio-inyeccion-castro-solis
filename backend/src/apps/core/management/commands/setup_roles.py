@@ -43,6 +43,7 @@ ROLE_PERMISSIONS = {
     # view_products y view_customers son para buscar el producto y el
     # cliente al armar una venta; sin ellos el formulario no funciona
     # (punto 4). Ninguna de las dos pantallas aparece en su menú.
+    # add_documents es para generar proformas desde /sales/proforma.
     ROLE_SALES: [
         "view_sales",
         "add_sales",
@@ -51,6 +52,7 @@ ROLE_PERMISSIONS = {
         "view_products",
         "view_customers",
         "view_documents",
+        "add_documents",
     ],
     # Igual que SALES: view_products es para agregar accesorios a un
     # servicio (punto 4).
