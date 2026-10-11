@@ -64,6 +64,9 @@ const PRICE_FIELD_MAP: Record<string, ServicePriceFormField> = {
   price: "price",
   payment_method: "paymentMethod",
   service_type: "serviceTypeId",
+  discount_type: "discountType",
+  discount_value: "discountValue",
+  tax_percentage: "taxPercentage",
 };
 
 export function mapServicePriceApiFieldErrors(

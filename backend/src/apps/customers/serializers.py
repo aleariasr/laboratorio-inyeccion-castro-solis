@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
+from apps.core.money import DocumentAmountsError, compute_document_amounts
 from apps.core.permissions import is_module_admin
+from apps.customers.selectors import service_amounts
 from apps.inventory.selectors import effective_sale_price
 
 from apps.customers.models import (
@@ -21,13 +23,38 @@ from apps.customers.models import (
 )
 
 
-# Precio, tipo de servicio y método de pago los define solo el
-# Administrador (punto 25); el operario recibe, inicia y marca listo.
-SERVICE_PRICING_FIELDS = ("price", "service_type", "payment_method")
+# Precio, tipo de servicio, método de pago, descuento e impuesto los
+# define solo el Administrador (puntos 25 y 26); el operario recibe,
+# inicia y marca listo.
+SERVICE_AMOUNT_SETTINGS_FIELDS = (
+    "discount_type",
+    "discount_value",
+    "tax_percentage",
+)
+SERVICE_PRICING_FIELDS = (
+    "price",
+    "service_type",
+    "payment_method",
+    *SERVICE_AMOUNT_SETTINGS_FIELDS,
+)
+
+# Lo que el operario recibe vacío: todo lo que dice cuánto se cobra.
+SERVICE_HIDDEN_FROM_OPERATOR_FIELDS = (
+    "price",
+    "payment_method",
+    "discount_type",
+    "discount_value",
+    "tax_percentage",
+    "subtotal",
+    "discount_amount",
+    "tax_amount",
+    "total",
+    "amounts_error",
+)
 
 SERVICE_PRICING_ONLY_ADMIN_MESSAGE = (
-    "Solo el Administrador define el precio, el tipo de servicio y el "
-    "método de pago."
+    "Solo el Administrador define el precio, el tipo de servicio, el "
+    "método de pago, el descuento y el impuesto."
 )
 
 
@@ -245,6 +272,13 @@ class InjectorServiceRecordSerializer(
         source="service_type",
         read_only=True,
     )
+    # Montos del documento (punto 26), mismo criterio que la venta:
+    # congelados si está entregado, en vivo antes. price es el subtotal.
+    subtotal = serializers.SerializerMethodField()
+    discount_amount = serializers.SerializerMethodField()
+    tax_amount = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
+    amounts_error = serializers.SerializerMethodField()
 
     class Meta:
         model = InjectorServiceRecord
@@ -260,6 +294,14 @@ class InjectorServiceRecordSerializer(
             "isolation",
             "price",
             "payment_method",
+            "discount_type",
+            "discount_value",
+            "tax_percentage",
+            "subtotal",
+            "discount_amount",
+            "tax_amount",
+            "total",
+            "amounts_error",
             "service_type",
             "service_type_detail",
             "notes_before",
@@ -312,15 +354,94 @@ class InjectorServiceRecordSerializer(
             if errors:
                 raise serializers.ValidationError(errors)
 
+        if any(
+            field_name in attrs
+            for field_name in ("price", *SERVICE_AMOUNT_SETTINGS_FIELDS)
+        ):
+            self._validate_amounts(attrs)
+
         return attrs
+
+    def _validate_amounts(self, attrs):
+        def resulting(field_name):
+            if field_name in attrs:
+                return attrs[field_name]
+
+            if self.instance is not None:
+                return getattr(self.instance, field_name)
+
+            return InjectorServiceRecord._meta.get_field(
+                field_name,
+            ).get_default()
+
+        price = resulting("price")
+
+        if price is None:
+            # Sin precio no hay contra qué comparar el descuento: solo
+            # rangos. El descuento se vuelve a validar al poner precio y
+            # al entregar.
+            price = resulting("discount_value") or 0
+
+        try:
+            compute_document_amounts(
+                price,
+                resulting("discount_type"),
+                resulting("discount_value"),
+                resulting("tax_percentage"),
+            )
+        except DocumentAmountsError as exc:
+            field_name = (
+                "tax_percentage"
+                if "impuesto" in str(exc)
+                else "discount_value"
+            )
+            raise serializers.ValidationError({field_name: str(exc)})
+
+    def _amounts(self, obj):
+        # Un cálculo por servicio y por respuesta: los cinco campos de
+        # montos lo comparten.
+        cache = self.__dict__.setdefault("_amounts_cache", {})
+
+        if obj.pk not in cache:
+            try:
+                cache[obj.pk] = (service_amounts(obj), None)
+            except DocumentAmountsError as exc:
+                cache[obj.pk] = (None, str(exc))
+
+        return cache[obj.pk]
+
+    def get_subtotal(self, obj):
+        amounts, _error = self._amounts(obj)
+
+        return amounts.subtotal if amounts else None
+
+    def get_discount_amount(self, obj):
+        amounts, _error = self._amounts(obj)
+
+        return amounts.discount_amount if amounts else None
+
+    def get_tax_amount(self, obj):
+        amounts, _error = self._amounts(obj)
+
+        return amounts.tax_amount if amounts else None
+
+    def get_total(self, obj):
+        amounts, _error = self._amounts(obj)
+
+        return amounts.total if amounts else None
+
+    def get_amounts_error(self, obj):
+        _amounts, error = self._amounts(obj)
+
+        return error
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        # El operario no ve cuánto se cobra (punto 25).
+        # El operario no ve cuánto se cobra (puntos 25 y 26).
         if not self._is_module_admin():
-            data["price"] = None
-            data["payment_method"] = None
+            for field_name in SERVICE_HIDDEN_FROM_OPERATOR_FIELDS:
+                data[field_name] = None
 
         return data
 

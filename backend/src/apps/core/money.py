@@ -21,6 +21,12 @@ from django.db import models
 CENT = Decimal("0.01")
 HUNDRED = Decimal("100")
 
+# IVA de Costa Rica. Ventas y servicios creados desde la API (las
+# pantallas) arrancan con este impuesto, editable mientras están
+# abiertos. El modelo guarda 0 por defecto: así los registros viejos y
+# los que se crean por código no cambian (puntos 19 y 26).
+DEFAULT_TAX_PERCENTAGE = Decimal("13.00")
+
 
 class DiscountType(models.TextChoices):
     AMOUNT = "AMOUNT", "Monto"

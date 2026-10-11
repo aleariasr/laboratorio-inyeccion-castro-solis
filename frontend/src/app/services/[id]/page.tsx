@@ -8,6 +8,7 @@ import { FormError } from "@/components/feedback/form-error";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
 import { ArrowLeftIcon } from "@/components/icons/app-icons";
+import { AmountsSummary } from "@/components/documents/amounts-summary";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
@@ -893,32 +894,20 @@ export default function ServiceDetailPage() {
 
                 <p className="mt-1 text-sm text-muted-foreground">
                   {canManage
-                    ? "Tipo de servicio y precio cobrado."
-                    : "Este servicio ya no admite modificaciones."}
+                    ? "Tipo de servicio, precio, descuento e impuesto. El precio incluye la mano de obra y los productos usados."
+                    : loadState.serviceRecord.status === "DELIVERED"
+                      ? "Montos tal como quedaron al entregar el servicio."
+                      : "Este servicio ya no admite modificaciones."}
                 </p>
               </div>
 
               <div className="p-6">
-                <div className="mb-6 rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] p-4 ring-1 ring-[rgb(7_81_132_/_12%)]">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm text-muted-foreground">
-                      Precio del servicio
-                    </p>
-
-                    <p className="font-mono text-2xl font-semibold text-foreground">
-                      {loadState.serviceRecord.price
-                        ? `₡${formatMoney(loadState.serviceRecord.price)}`
-                        : "No definido"}
-                    </p>
-                  </div>
-
-                  {accessoriesTotal > 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Incluye ₡{formatMoney(accessoriesTotal)} en productos usados
-                      (ver tabla de accesorios abajo).
-                    </p>
-                  )}
-                </div>
+                {canManage && accessoriesTotal > 0 && (
+                  <p className="mb-5 text-xs text-muted-foreground">
+                    Los productos usados suman ₡{formatMoney(accessoriesTotal)}
+                    {" "}(ver tabla de accesorios abajo).
+                  </p>
+                )}
 
                 {canManage ? (
                   <ServicePriceForm
@@ -934,21 +923,50 @@ export default function ServiceDetailPage() {
                     onSubmit={handlePriceSubmit}
                   />
                 ) : (
-                  <dl>
-                    <div className="app-status-row">
-                      <dt>Tipo de servicio</dt>
-                      <dd>{loadState.serviceRecord.service_type_detail?.name ?? "—"}</dd>
+                  <div className="grid gap-5">
+                    <div className="max-w-md">
+                      <AmountsSummary
+                        amounts={
+                          loadState.serviceRecord.total !== null
+                            ? {
+                                subtotal: Number(loadState.serviceRecord.subtotal),
+                                discountAmount: Number(
+                                  loadState.serviceRecord.discount_amount,
+                                ),
+                                taxAmount: Number(loadState.serviceRecord.tax_amount),
+                                total: Number(loadState.serviceRecord.total),
+                              }
+                            : null
+                        }
+                        fallbackSubtotal={
+                          loadState.serviceRecord.price !== null
+                            ? Number(loadState.serviceRecord.price)
+                            : null
+                        }
+                        discountType={loadState.serviceRecord.discount_type ?? "AMOUNT"}
+                        discountValue={loadState.serviceRecord.discount_value ?? "0"}
+                        taxPercentage={loadState.serviceRecord.tax_percentage ?? "0"}
+                        showZeroRows={false}
+                        subtotalLabel="Precio (subtotal)"
+                      />
                     </div>
 
-                    <div className="app-status-row">
-                      <dt>Método de pago</dt>
-                      <dd>
-                        {loadState.serviceRecord.payment_method
-                          ? PAYMENT_METHOD_LABELS[loadState.serviceRecord.payment_method]
-                          : "—"}
-                      </dd>
-                    </div>
-                  </dl>
+                    <dl>
+                      <div className="app-status-row">
+                        <dt>Tipo de servicio</dt>
+                        <dd>{loadState.serviceRecord.service_type_detail?.name ?? "—"}</dd>
+                      </div>
+
+                      <div className="app-status-row">
+                        <dt>Método de pago</dt>
+                        <dd>
+                          {loadState.serviceRecord.payment_method
+                            ? PAYMENT_METHOD_LABELS[loadState.serviceRecord.payment_method]
+                            : "—"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
                 )}
               </div>
             </section>

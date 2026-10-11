@@ -28,3 +28,7 @@ class InsufficientStockForServiceError(CustomerError):
 
 class ServiceMissingPriceError(CustomerError):
     """El servicio no tiene precio definido, no se puede entregar así."""
+
+
+class ServiceAmountsError(CustomerError):
+    """El descuento o el impuesto no son válidos para el precio."""

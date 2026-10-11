@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.core.money import DiscountType, compute_document_amounts
 from apps.core.permissions import (
     ROLE_ADMIN,
     ROLE_CUSTOMERS,
@@ -505,13 +506,14 @@ class InvoicePdfApiTest(APITestCase):
             updated_by=self.sales_user,
         )
 
-    def create_confirmed_sale(self):
+    def create_confirmed_sale(self, **amount_settings):
         sale = Sale.objects.create(
             customer=self.customer,
             sale_date=date.today(),
             currency="CRC",
             created_by=self.sales_user,
             updated_by=self.sales_user,
+            **amount_settings,
         )
 
         SaleItem.objects.create(
@@ -546,6 +548,20 @@ class InvoicePdfApiTest(APITestCase):
 
         content = b"".join(response.streaming_content)
         self.assertTrue(content.startswith(b"%PDF"))
+
+    def test_sale_invoice_with_discount_and_tax_returns_pdf(self):
+        sale = self.create_confirmed_sale(
+            discount_type="PERCENT",
+            discount_value=Decimal("10"),
+            tax_percentage=Decimal("13"),
+        )
+
+        self.client.force_authenticate(self.sales_user)
+
+        response = self.client.get(f"/api/documents/sales/{sale.id}/invoice/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(b"".join(response.streaming_content).startswith(b"%PDF"))
 
     def test_sale_invoice_rejects_draft_sale(self):
         sale = Sale.objects.create(
@@ -615,6 +631,26 @@ class InvoicePdfApiTest(APITestCase):
         content = b"".join(response.streaming_content)
         self.assertTrue(content.startswith(b"%PDF"))
 
+    def test_service_invoice_with_discount_and_tax_returns_pdf(self):
+        service_record = self.create_delivered_service()
+        InjectorServiceRecord.objects.filter(pk=service_record.pk).update(
+            discount_value=Decimal("1000"),
+            tax_percentage=Decimal("13"),
+            subtotal_amount=Decimal("20000"),
+            discount_amount=Decimal("1000"),
+            tax_amount=Decimal("2470"),
+            total_amount=Decimal("21470"),
+        )
+
+        self.client.force_authenticate(self.admin_user)
+
+        response = self.client.get(
+            f"/api/documents/services/{service_record.id}/invoice/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(b"".join(response.streaming_content).startswith(b"%PDF"))
+
     def test_service_invoice_rejects_non_delivered_service(self):
         service_record = InjectorServiceRecord.objects.create(
             injector=self.injector,
@@ -663,3 +699,53 @@ class InvoicePdfApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class DocumentAmountsSummaryTest(APITestCase):
+    """
+    Las líneas Subtotal / Descuento / Impuesto que pintan la factura de
+    venta y la de servicio (puntos 19 y 26). Se prueban aparte porque
+    leer el texto del PDF es frágil.
+    """
+
+    def test_lists_subtotal_discount_and_tax(self):
+        summary = documents_pdf.DocumentAmountsSummary(
+            amounts=compute_document_amounts(
+                Decimal("20000"),
+                DiscountType.PERCENT,
+                Decimal("10"),
+                Decimal("13"),
+            ),
+            tax_percentage=Decimal("13.00"),
+            discount_percentage=Decimal("10.0000"),
+        )
+
+        self.assertEqual(
+            summary.lines(),
+            [
+                ("Subtotal", "CRC 20 000"),
+                ("Descuento (10 %)", "- CRC 2 000"),
+                ("Impuesto (13 %)", "CRC 2 340"),
+            ],
+        )
+
+    def test_omits_zero_lines(self):
+        only_tax = documents_pdf.DocumentAmountsSummary(
+            amounts=compute_document_amounts(
+                Decimal("1000"),
+                DiscountType.AMOUNT,
+                Decimal("0"),
+                Decimal("13"),
+            ),
+            tax_percentage=Decimal("13"),
+        )
+        nothing = documents_pdf.DocumentAmountsSummary(
+            amounts=compute_document_amounts(Decimal("1000")),
+            tax_percentage=Decimal("0"),
+        )
+
+        self.assertEqual(
+            [label for label, _amount in only_tax.lines()],
+            ["Subtotal", "Impuesto (13 %)"],
+        )
+        self.assertEqual(nothing.lines(), [])

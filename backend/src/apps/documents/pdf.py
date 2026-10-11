@@ -9,6 +9,7 @@ from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 
 from apps.core.money import DiscountType
+from apps.customers.selectors import service_amounts
 from apps.inventory.selectors import effective_sale_price
 from apps.sales.selectors import sale_amounts
 
@@ -610,6 +611,35 @@ def build_service_invoice_pdf(*, service_record, accessories):
 
     y -= 10 * mm
 
+    # Punto 26: con descuento o impuesto, Subtotal / Descuento /
+    # Impuesto van arriba de la barra y la barra muestra lo cobrado. Sin
+    # ellos, el documento queda igual que antes (la barra con el precio).
+    amounts = service_amounts(service_record)
+    summary_lines = []
+
+    if amounts is not None:
+        summary_lines = DocumentAmountsSummary(
+            amounts=amounts,
+            tax_percentage=service_record.tax_percentage,
+            discount_percentage=(
+                service_record.discount_value
+                if service_record.discount_type == DiscountType.PERCENT
+                else None
+            ),
+        ).lines()
+
+    if summary_lines:
+        pdf.setFont("Helvetica", 9)
+
+        for label, amount_text in summary_lines:
+            pdf.setFillColor(PROFORMA_MUTED_TEXT)
+            pdf.drawString(PROFORMA_PAGE_MARGIN + 3 * mm, y, label)
+            pdf.setFillColor(colors.black)
+            pdf.drawRightString(column_price_x, y, amount_text)
+            y -= 5 * mm
+
+        y -= 3 * mm
+
     total_bar_height = 12 * mm
     pdf.setFillColor(PROFORMA_BRAND_BLUE)
     pdf.rect(
@@ -630,8 +660,8 @@ def build_service_invoice_pdf(*, service_record, accessories):
     )
 
     price_text = (
-        f"CRC {_format_money(service_record.price)}"
-        if service_record.price is not None
+        f"CRC {_format_money(amounts.total)}"
+        if amounts is not None
         else "Sin precio definido"
     )
 

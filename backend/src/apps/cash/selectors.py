@@ -41,6 +41,9 @@ def sales_total_by_method(week_start, week_end, payment_method):
 
 
 def services_total_by_method(week_start, week_end, payment_method):
+    # total_amount es lo cobrado (precio − descuento + impuesto),
+    # congelado al entregar (punto 26). Un servicio entregado sin montos
+    # congelados es anterior a ese cambio: ahí price ya era el total.
     return (
         InjectorServiceRecord.objects.filter(
             status=InjectorServiceStatus.DELIVERED,
@@ -51,7 +54,7 @@ def services_total_by_method(week_start, week_end, payment_method):
         )
         .aggregate(
             total=Coalesce(
-                Sum("price"),
+                Sum(Coalesce("total_amount", "price")),
                 0,
                 output_field=MONEY_FIELD,
             )

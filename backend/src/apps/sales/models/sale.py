@@ -5,13 +5,12 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.core.models import ActivableModel, AuditModel, PaymentMethod
-from apps.core.money import DiscountType
+from apps.core.money import DEFAULT_TAX_PERCENTAGE, DiscountType
 
-# IVA de Costa Rica: toda venta creada desde la API (la pantalla)
-# arranca con 13 % y se puede cambiar o poner en 0 mientras está en
-# borrador (punto 19). Lo aplica SaleSerializer al crear, no el modelo:
-# así las ventas existentes y las que se crean por código quedan en 0.
-DEFAULT_SALE_TAX_PERCENTAGE = Decimal("13.00")
+# Toda venta creada desde la API arranca con el IVA (ver
+# DEFAULT_TAX_PERCENTAGE). Lo aplica SaleSerializer al crear, no el
+# modelo (punto 19).
+DEFAULT_SALE_TAX_PERCENTAGE = DEFAULT_TAX_PERCENTAGE
 from apps.customers.models import Customer
 from apps.inventory.models import Product
 

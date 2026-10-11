@@ -2,11 +2,14 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 
+import { AmountsSummary } from "@/components/documents/amounts-summary";
+import { DiscountTaxFields } from "@/components/documents/discount-tax-fields";
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/features/inventory/purchases/format";
+import { computeDocumentAmounts } from "@/lib/document-amounts";
 
 import { createServiceType, getLatestServiceTypePriceHistory, getServiceTypes } from "./api";
 import {
@@ -216,6 +219,26 @@ export function ServicePriceForm({
     void onSubmit(values);
   }
 
+  // Vista previa de lo que se va a cobrar con lo escrito; lo que se
+  // guarda lo calcula el backend (punto 26).
+  const livePrice =
+    values.price.trim() && Number.isFinite(Number(values.price))
+      ? Number(values.price)
+      : null;
+
+  const livePreviewResult =
+    livePrice !== null
+      ? computeDocumentAmounts(
+          livePrice,
+          values.discountType,
+          Number(values.discountValue || 0),
+          Number(values.taxPercentage || 0),
+        )
+      : null;
+
+  const livePreview =
+    livePreviewResult && livePreviewResult.ok ? livePreviewResult.amounts : null;
+
   const serviceTypePrice =
     priceReference && String(priceReference.service_type) === values.serviceTypeId
       ? Number(priceReference.price)
@@ -355,6 +378,35 @@ export function ServicePriceForm({
           )}
         </div>
       </Field>
+
+      <DiscountTaxFields
+        idPrefix="service"
+        discountType={values.discountType}
+        discountValue={values.discountValue}
+        taxPercentage={values.taxPercentage}
+        onDiscountTypeChange={(value) => {
+          updateValue("discountType", value);
+        }}
+        onDiscountValueChange={(value) => {
+          updateValue("discountValue", value);
+        }}
+        onTaxPercentageChange={(value) => {
+          updateValue("taxPercentage", value);
+        }}
+        discountError={errors.discountValue}
+        taxError={errors.taxPercentage}
+        disabled={isSubmitting}
+      />
+
+      <AmountsSummary
+        amounts={livePreview}
+        fallbackSubtotal={livePrice}
+        discountType={values.discountType}
+        discountValue={values.discountValue || "0"}
+        taxPercentage={values.taxPercentage || "0"}
+        showZeroRows
+        subtotalLabel="Precio (subtotal)"
+      />
 
       <Field
         id="service-payment-method"

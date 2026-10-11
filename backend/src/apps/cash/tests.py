@@ -22,6 +22,7 @@ from apps.customers.models import (
 from apps.inventory.models import Product, StorageLocation
 from apps.inventory.services import initial_inventory
 from apps.sales.models import Sale, SaleItem
+from apps.customers.services import deliver_service
 from apps.sales.services import confirm_sale
 
 User = get_user_model()
@@ -218,6 +219,39 @@ class CashClosingApiTest(APITestCase):
         self.assertEqual(
             Decimal(response.data["expected_cash"]),
             Decimal("3051.0000"),
+        )
+
+    def test_preview_counts_services_with_discount_and_tax(self):
+        # Punto 26: la caja suma lo cobrado al entregar.
+        # 20 000 − 1 000 = 19 000 + 13 % = 21 470.
+        service_record = InjectorServiceRecord.objects.create(
+            injector=self.injector,
+            received_at=timezone.now(),
+            status=InjectorServiceStatus.READY,
+            payment_method=PaymentMethod.CASH,
+            price=Decimal("20000.0000"),
+            discount_value=Decimal("1000"),
+            tax_percentage=Decimal("13"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        deliver_service(
+            service_record=service_record,
+            delivered_at=timezone.make_aware(
+                datetime.combine(WEEK_START + timedelta(days=2), time.min),
+            ),
+            user=self.user,
+        )
+
+        response = self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": WEEK_START.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            Decimal(response.data["expected_cash"]),
+            Decimal("21470.0000"),
         )
 
     def test_preview_breaks_down_all_payment_methods(self):

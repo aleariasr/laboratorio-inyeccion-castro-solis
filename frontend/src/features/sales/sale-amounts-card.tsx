@@ -2,20 +2,17 @@
 
 import { useState, type FormEvent } from "react";
 
+import { AmountsSummary } from "@/components/documents/amounts-summary";
+import { DiscountTaxFields } from "@/components/documents/discount-tax-fields";
 import { FormError } from "@/components/feedback/form-error";
-import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   computeDocumentAmounts,
-  DISCOUNT_TYPE_LABELS,
-  formatPercentage,
   type DiscountType,
   type DocumentAmounts,
 } from "@/lib/document-amounts";
 import { ApiError } from "@/lib/api/errors";
 
-import { formatMoney } from "../inventory/purchases/format";
 import { updateSaleAmounts } from "./api";
 import type { Sale } from "./types";
 
@@ -158,50 +155,15 @@ export function SaleAmountsCard({
     }
   }
 
-  // Lo escrito mientras se edita; lo guardado en una venta cerrada.
-  const shownDiscountType = canEdit ? discountType : sale.discount_type;
-  const shownDiscountValue = canEdit ? discountValue || "0" : sale.discount_value;
-  const shownTaxPercentage = canEdit ? taxPercentage || "0" : sale.tax_percentage;
-
-  const discountLabel =
-    shownDiscountType === "PERCENT" && Number(shownDiscountValue) > 0
-      ? `Descuento (${formatPercentage(shownDiscountValue)} %)`
-      : "Descuento";
-
   const summary = (
-    <dl className="grid gap-2.5 rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] p-5 text-sm ring-1 ring-[rgb(7_81_132_/_12%)]">
-      <div className="flex justify-between gap-4 text-muted-foreground">
-        <dt>Subtotal</dt>
-        <dd className="font-mono">
-          ₡{formatMoney(amounts?.subtotal ?? linesSubtotal(sale))}
-        </dd>
-      </div>
-
-      {(canEdit || (amounts && amounts.discountAmount > 0)) && (
-        <div className="flex justify-between gap-4 text-muted-foreground">
-          <dt>{discountLabel}</dt>
-          <dd className="font-mono">
-            {amounts ? `− ₡${formatMoney(amounts.discountAmount)}` : "—"}
-          </dd>
-        </div>
-      )}
-
-      {(canEdit || (amounts && amounts.taxAmount > 0)) && (
-        <div className="flex justify-between gap-4 text-muted-foreground">
-          <dt>Impuesto ({formatPercentage(shownTaxPercentage)} %)</dt>
-          <dd className="font-mono">
-            {amounts ? `₡${formatMoney(amounts.taxAmount)}` : "—"}
-          </dd>
-        </div>
-      )}
-
-      <div className="mt-1 flex items-baseline justify-between gap-4 border-t border-[rgb(7_81_132_/_14%)] pt-3">
-        <dt className="font-semibold text-foreground">Total</dt>
-        <dd className="font-mono text-2xl font-semibold text-foreground">
-          {amounts ? `₡${formatMoney(amounts.total)}` : "—"}
-        </dd>
-      </div>
-    </dl>
+    <AmountsSummary
+      amounts={amounts}
+      fallbackSubtotal={linesSubtotal(sale)}
+      discountType={canEdit ? discountType : sale.discount_type}
+      discountValue={canEdit ? discountValue || "0" : sale.discount_value}
+      taxPercentage={canEdit ? taxPercentage || "0" : sale.tax_percentage}
+      showZeroRows={canEdit}
+    />
   );
 
   return (
@@ -236,82 +198,27 @@ export function SaleAmountsCard({
             <div className="grid gap-5">
               {submitError && <FormError message={submitError} />}
 
-              <Field
-                id="sale-discount-value"
-                label="Descuento"
-                hint={
-                  discountType === "AMOUNT"
-                    ? "Monto en colones que se rebaja del subtotal."
-                    : "Porcentaje del subtotal que se rebaja."
-                }
-                error={fieldErrors.discountValue}
-              >
-                <div className="flex gap-2">
-                  <div
-                    role="radiogroup"
-                    aria-label="Tipo de descuento"
-                    className="inline-flex shrink-0 rounded-[var(--radius-md)] border border-border bg-surface-muted p-1"
-                  >
-                    {(["AMOUNT", "PERCENT"] as DiscountType[]).map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        role="radio"
-                        aria-checked={discountType === type}
-                        onClick={() => {
-                          setDiscountType(type);
-                          setServerErrors({});
-                        }}
-                        disabled={isSubmitting}
-                        className={[
-                          "rounded-[calc(var(--radius-md)-4px)] px-3.5 text-sm font-semibold transition-colors",
-                          discountType === type
-                            ? "bg-surface text-primary shadow-sm"
-                            : "text-muted-foreground hover:text-foreground",
-                        ].join(" ")}
-                      >
-                        {type === "AMOUNT" ? "₡ Monto" : "% Porcentaje"}
-                      </button>
-                    ))}
-                  </div>
-
-                  <Input
-                    id="sale-discount-value"
-                    value={discountValue}
-                    onChange={(event) => {
-                      setDiscountValue(event.target.value);
-                      setServerErrors({});
-                    }}
-                    hasError={Boolean(fieldErrors.discountValue)}
-                    inputMode="decimal"
-                    autoComplete="off"
-                    placeholder="0"
-                    aria-label={`Descuento (${DISCOUNT_TYPE_LABELS[discountType].toLowerCase()})`}
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </Field>
-
-              <Field
-                id="sale-tax-percentage"
-                label="Impuesto (%)"
-                hint="13 % por defecto. Póngalo en 0 si la venta no lleva impuesto."
-                error={fieldErrors.taxPercentage}
-              >
-                <Input
-                  id="sale-tax-percentage"
-                  value={taxPercentage}
-                  onChange={(event) => {
-                    setTaxPercentage(event.target.value);
-                    setServerErrors({});
-                  }}
-                  hasError={Boolean(fieldErrors.taxPercentage)}
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="0"
-                  disabled={isSubmitting}
-                />
-              </Field>
+              <DiscountTaxFields
+                idPrefix="sale"
+                discountType={discountType}
+                discountValue={discountValue}
+                taxPercentage={taxPercentage}
+                onDiscountTypeChange={(value) => {
+                  setDiscountType(value);
+                  setServerErrors({});
+                }}
+                onDiscountValueChange={(value) => {
+                  setDiscountValue(value);
+                  setServerErrors({});
+                }}
+                onTaxPercentageChange={(value) => {
+                  setTaxPercentage(value);
+                  setServerErrors({});
+                }}
+                discountError={fieldErrors.discountValue}
+                taxError={fieldErrors.taxPercentage}
+                disabled={isSubmitting}
+              />
 
               {isDirty && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] bg-surface-muted px-4 py-3">

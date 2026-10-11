@@ -1,3 +1,5 @@
+import type { DiscountType } from "@/lib/document-amounts";
+
 import type { CustomerSummary, PaymentMethod } from "../sales/types";
 
 export type { PaymentMethod };
@@ -33,6 +35,17 @@ export type ServiceRecord = {
   // Administrador (punto 25).
   price: string | null;
   payment_method: PaymentMethod | null;
+  // Descuento e impuesto al documento (punto 26); price es el subtotal.
+  // Montos congelados al entregar, en vivo antes. Todo esto llega en
+  // null al operario (punto 25).
+  discount_type: DiscountType | null;
+  discount_value: string | null;
+  tax_percentage: string | null;
+  subtotal: string | null;
+  discount_amount: string | null;
+  tax_amount: string | null;
+  total: string | null;
+  amounts_error: string | null;
   service_type: number | null;
   service_type_detail: ServiceType | null;
   notes_before: string;
@@ -150,15 +163,27 @@ export type ServicePriceWritePayload = {
   price: string;
   payment_method: PaymentMethod;
   service_type: number | null;
+  discount_type: DiscountType;
+  discount_value: string;
+  tax_percentage: string;
 };
 
 export type ServicePriceFormValues = {
   price: string;
   paymentMethod: PaymentMethod;
   serviceTypeId: string;
+  discountType: DiscountType;
+  discountValue: string;
+  taxPercentage: string;
 };
 
-export type ServicePriceFormField = "price" | "paymentMethod" | "serviceTypeId";
+export type ServicePriceFormField =
+  | "price"
+  | "paymentMethod"
+  | "serviceTypeId"
+  | "discountType"
+  | "discountValue"
+  | "taxPercentage";
 
 export type ServicePriceFormErrors = Partial<Record<ServicePriceFormField, string>>;
 
@@ -169,6 +194,10 @@ export function serviceRecordToPriceFormValues(
     price: serviceRecord.price ?? "",
     paymentMethod: serviceRecord.payment_method ?? "CASH",
     serviceTypeId: serviceRecord.service_type ? String(serviceRecord.service_type) : "",
+    discountType: serviceRecord.discount_type ?? "AMOUNT",
+    // "1000.0000" → "1000", "13.00" → "13": así se ve en los campos.
+    discountValue: String(Number(serviceRecord.discount_value ?? 0)),
+    taxPercentage: String(Number(serviceRecord.tax_percentage ?? 0)),
   };
 }
 
@@ -179,6 +208,9 @@ export function buildServicePriceWritePayload(
     price: values.price.trim(),
     payment_method: values.paymentMethod,
     service_type: values.serviceTypeId ? Number(values.serviceTypeId) : null,
+    discount_type: values.discountType,
+    discount_value: values.discountValue.trim() || "0",
+    tax_percentage: values.taxPercentage.trim() || "0",
   };
 }
 

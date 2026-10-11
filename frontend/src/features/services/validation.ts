@@ -1,3 +1,5 @@
+import { computeDocumentAmounts } from "@/lib/document-amounts";
+
 import type {
   ServiceAccessoryFormErrors,
   ServiceAccessoryFormValues,
@@ -67,6 +69,20 @@ export function validateServicePriceForm(
     if (!DECIMAL_PATTERN.test(price) || Number(price) <= 0) {
       errors.price = "Ingrese un precio válido mayor que cero.";
     }
+  }
+
+  // Mismas reglas que el backend (apps/core/money.py). Sin precio solo
+  // se validan los rangos: el descuento se compara al poner el precio.
+  const discountValue = Number(values.discountValue.trim() || 0);
+  const amounts = computeDocumentAmounts(
+    price && !errors.price ? Number(price) : discountValue,
+    values.discountType,
+    discountValue,
+    Number(values.taxPercentage.trim() || 0),
+  );
+
+  if (!amounts.ok) {
+    errors[amounts.field] = amounts.message;
   }
 
   return errors;

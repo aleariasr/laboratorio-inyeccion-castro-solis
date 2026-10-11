@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import filters, mixins, permissions, status, viewsets
 
+from apps.core.money import DEFAULT_TAX_PERCENTAGE
 from apps.core.permissions import (
     CustomersPermission,
     InjectorsPermission,
@@ -21,6 +22,7 @@ from apps.customers.exceptions import (
     InjectorAlreadyExistsError,
     InsufficientStockForServiceError,
     InvalidServiceTransitionError,
+    ServiceAmountsError,
     ServiceMissingPriceError,
     ServiceNotEditableError,
 )
@@ -283,6 +285,9 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
             injector=serializer.validated_data["injector"],
             received_at=serializer.validated_data["received_at"],
             user=request.user,
+            # Igual que las ventas: lo que se recibe por la pantalla
+            # arranca con el IVA (punto 26).
+            tax_percentage=DEFAULT_TAX_PERCENTAGE,
         )
 
         output_serializer = self.get_serializer(service_record)
@@ -392,6 +397,7 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
             )
         except (
             InvalidServiceTransitionError,
+            ServiceAmountsError,
             ServiceMissingPriceError,
         ) as exc:
             return Response(

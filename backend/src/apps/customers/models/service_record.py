@@ -1,9 +1,10 @@
 from decimal import Decimal
 
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.core.models import ActivableModel, AuditModel, PaymentMethod
+from apps.core.money import DiscountType
 
 from .injector import Injector
 
@@ -90,6 +91,62 @@ class InjectorServiceRecord(AuditModel, ActivableModel):
         max_length=20,
         choices=InjectorServiceStatus.choices,
         default=InjectorServiceStatus.RECEIVED,
+    )
+
+    # Descuento e impuesto al documento (punto 26), igual que la venta:
+    # price es el subtotal (mano de obra + accesorios). Solo el
+    # Administrador los define (punto 25). Ver apps/core/money.py.
+    discount_type = models.CharField(
+        max_length=10,
+        choices=DiscountType.choices,
+        default=DiscountType.AMOUNT,
+    )
+
+    discount_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+
+    tax_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[
+            MinValueValidator(Decimal("0")),
+            MaxValueValidator(Decimal("100")),
+        ],
+    )
+
+    # Montos congelados al entregar (deliver_service). Nulos antes: ahí
+    # se calculan en vivo. La caja suma total_amount.
+    subtotal_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    discount_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    tax_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    total_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
     )
 
     class Meta:
