@@ -997,7 +997,8 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
       solo para quien tiene `view_reports` (hoy, el Administrador). Consecuencia conocida: los
       roles Inventario y Solo lectura conservan `view_movements` en el backend sin forma de usarlo
       desde la interfaz; revisar al rediseñar los roles (puntos 13 y 4).
-- [ ] 24 — Botones de servicio al final
+- [x] 24 — Botones de servicio al final (solo las transiciones; Anular, Descargar factura y
+      Volver se quedan en el encabezado, como en compras)
 - [ ] 1 — Filtros en cierres de caja
 - [ ] 3 — Cambio y reseteo de contraseñas
 - [ ] 13 — Inventario sin costos, compras, proveedores ni conteos (permiso `view_costs`)

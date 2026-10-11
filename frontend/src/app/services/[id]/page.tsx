@@ -730,55 +730,6 @@ export default function ServiceDetailPage() {
       }
       actions={
         <div className="flex flex-wrap items-center gap-3">
-          {loadState.status === "success" && loadState.serviceRecord.status === "RECEIVED" && hasWriteAccess && (
-            <Button
-              type="button"
-              isLoading={transitionState.pendingAction === "start"}
-              loadingText="Iniciando…"
-              onClick={() => {
-                void runTransition("start", null, startServiceRecord);
-              }}
-            >
-              Iniciar
-            </Button>
-          )}
-
-          {loadState.status === "success" && loadState.serviceRecord.status === "IN_PROGRESS" && hasWriteAccess && (
-            <Button
-              type="button"
-              isLoading={transitionState.pendingAction === "mark-ready"}
-              loadingText="Marcando…"
-              onClick={() => {
-                void runTransition("mark-ready", null, markServiceRecordReady);
-              }}
-            >
-              Marcar listo
-            </Button>
-          )}
-
-          {loadState.status === "success" && loadState.serviceRecord.status === "READY" && hasWriteAccess && (
-            <Button
-              type="button"
-              isLoading={transitionState.pendingAction === "deliver"}
-              loadingText="Entregando…"
-              disabled={loadState.serviceRecord.price === null}
-              title={
-                loadState.serviceRecord.price === null
-                  ? "Defina el precio del servicio antes de entregarlo, para que se cuente en el cierre de caja."
-                  : undefined
-              }
-              onClick={() => {
-                void runTransition(
-                  "deliver",
-                  "¿Confirmar la entrega de este inyector al cliente?",
-                  deliverServiceRecord,
-                );
-              }}
-            >
-              Entregar
-            </Button>
-          )}
-
           {loadState.status === "success" && loadState.serviceRecord.status === "DELIVERED" && (
             <Button
               type="button"
@@ -1179,6 +1130,68 @@ export default function ServiceDetailPage() {
               </div>
             )}
           </section>
+
+          {/*
+            La acción que hace avanzar el servicio va al final de la página y
+            de ancho completo, igual que "Confirmar compra" en el detalle de
+            compra. Las tres son excluyentes (dependen del estado), así que
+            acá siempre se ve una sola. Anular, Descargar factura y Volver se
+            quedan en el encabezado, también como en compras.
+          */}
+          {loadState.serviceRecord.status === "RECEIVED" && hasWriteAccess && (
+            <Button
+              type="button"
+              variant="primary"
+              className="w-full"
+              isLoading={transitionState.pendingAction === "start"}
+              loadingText="Iniciando…"
+              onClick={() => {
+                void runTransition("start", null, startServiceRecord);
+              }}
+            >
+              Iniciar
+            </Button>
+          )}
+
+          {loadState.serviceRecord.status === "IN_PROGRESS" && hasWriteAccess && (
+            <Button
+              type="button"
+              variant="primary"
+              className="w-full"
+              isLoading={transitionState.pendingAction === "mark-ready"}
+              loadingText="Marcando…"
+              onClick={() => {
+                void runTransition("mark-ready", null, markServiceRecordReady);
+              }}
+            >
+              Marcar listo
+            </Button>
+          )}
+
+          {loadState.serviceRecord.status === "READY" && hasWriteAccess && (
+            <Button
+              type="button"
+              variant="primary"
+              className="w-full"
+              isLoading={transitionState.pendingAction === "deliver"}
+              loadingText="Entregando…"
+              disabled={loadState.serviceRecord.price === null}
+              title={
+                loadState.serviceRecord.price === null
+                  ? "Defina el precio del servicio antes de entregarlo, para que se cuente en el cierre de caja."
+                  : undefined
+              }
+              onClick={() => {
+                void runTransition(
+                  "deliver",
+                  "¿Confirmar la entrega de este inyector al cliente?",
+                  deliverServiceRecord,
+                );
+              }}
+            >
+              Entregar
+            </Button>
+          )}
         </div>
       )}
     </AppShell>
