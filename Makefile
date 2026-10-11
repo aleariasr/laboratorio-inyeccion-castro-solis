@@ -38,34 +38,34 @@ check:
 	$(BACKEND) check
 
 test:
-	$(BACKEND) test apps.accounts apps.core apps.inventory apps.customers apps.sales apps.configuration apps.documents apps.cash apps.legacy_migration
+	$(BACKEND) test --buffer apps.accounts apps.core apps.inventory apps.customers apps.sales apps.configuration apps.documents apps.cash apps.legacy_migration
 
 test-inventory:
-	$(BACKEND) test apps.inventory
+	$(BACKEND) test --buffer apps.inventory
 
 test-core:
-	$(BACKEND) test apps.core
+	$(BACKEND) test --buffer apps.core
 
 test-customers:
-	$(BACKEND) test apps.customers
+	$(BACKEND) test --buffer apps.customers
 
 test-sales:
-	$(BACKEND) test apps.sales
+	$(BACKEND) test --buffer apps.sales
 
 test-accounts:
-	$(BACKEND) test apps.accounts
+	$(BACKEND) test --buffer apps.accounts
 
 test-configuration:
-	$(BACKEND) test apps.configuration
+	$(BACKEND) test --buffer apps.configuration
 
 test-documents:
-	$(BACKEND) test apps.documents
+	$(BACKEND) test --buffer apps.documents
 
 test-cash:
-	$(BACKEND) test apps.cash
+	$(BACKEND) test --buffer apps.cash
 
 test-legacy-migration:
-	$(BACKEND) test apps.legacy_migration
+	$(BACKEND) test --buffer apps.legacy_migration
 
 run:
 	$(BACKEND) runserver 0.0.0.0:8000
