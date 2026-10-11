@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.authtoken.models import Token
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
@@ -17,7 +18,12 @@ from apps.core.permissions import (
 )
 from apps.core.query_params import parse_boolean_query_param
 
-from .serializers import UserCreateSerializer, UserSerializer
+from .serializers import (
+    ChangeOwnPasswordSerializer,
+    SetPasswordSerializer,
+    UserCreateSerializer,
+    UserSerializer,
+)
 
 
 class LoginView(APIView):
@@ -137,3 +143,75 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
         return super().destroy(request, *args, **kwargs)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="set-password",
+    )
+    def set_password(self, request, pk=None):
+        """
+        Restablece la contraseña de otro usuario (para cuando la olvidó).
+
+        Cierra las sesiones de esa persona borrando su token: DRF usa un
+        token por usuario, así que queda fuera en todas las máquinas y
+        tiene que entrar con la contraseña nueva.
+        """
+
+        user = self.get_object()
+
+        if user == request.user:
+            raise PermissionDenied(
+                "Para cambiar su propia contraseña use "
+                "\"Cambiar mi contraseña\", que pide la actual.",
+            )
+
+        serializer = SetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user.set_password(
+            serializer.validated_data["password"],
+        )
+        user.save(update_fields=["password"])
+
+        Token.objects.filter(user=user).delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ChangeOwnPasswordView(APIView):
+    """
+    Cambio de la propia contraseña. Devuelve un token nuevo para que la
+    persona siga trabajando donde estaba, mientras cualquier otra sesión
+    abierta con el token viejo queda cerrada.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangeOwnPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+
+        if not user.check_password(
+            serializer.validated_data["current_password"],
+        ):
+            return Response(
+                {
+                    "current_password": [
+                        "La contraseña actual no es correcta.",
+                    ],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(
+            serializer.validated_data["new_password"],
+        )
+        user.save(update_fields=["password"])
+
+        Token.objects.filter(user=user).delete()
+        token = Token.objects.create(user=user)
+
+        return Response({"token": token.key})

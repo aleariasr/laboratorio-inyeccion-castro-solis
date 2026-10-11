@@ -1000,7 +1000,8 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 - [x] 24 — Botones de servicio al final (solo las transiciones; Anular, Descargar factura y
       Volver se quedan en el encabezado, como en compras)
 - [x] 1 — Filtros en cierres de caja
-- [ ] 3 — Cambio y reseteo de contraseñas
+- [x] 3 — Cambio y reseteo de contraseñas (mínimo 8 caracteres; el cambio propio devuelve token
+      nuevo y no cierra la sesión; se entra desde el bloque del usuario → /account "Mi cuenta")
 - [ ] 13 — Inventario sin costos, compras, proveedores ni conteos (permiso `view_costs`)
 - [ ] 4 — Lectura de productos para Ventas y Clientes
 - [ ] 14 — Ventas: solo precio de venta

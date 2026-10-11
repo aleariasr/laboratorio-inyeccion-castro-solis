@@ -277,6 +277,27 @@ a {
   background: var(--color-primary-soft);
 }
 
+.app-account-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  text-align: left;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.app-account-button:hover {
+  background: var(--color-surface);
+}
+
+.app-account-button:active {
+  transform: scale(0.985);
+}
+
 .app-logout-button {
   display: flex;
   min-height: 42px;

@@ -36,6 +36,13 @@ type AuthContextValue = {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  /**
+   * Reemplaza el token de la sesión abierta, sin volver a pedir usuario y
+   * contraseña. Lo usa el cambio de la propia contraseña: el backend
+   * invalida el token viejo y devuelve uno nuevo (ver
+   * ChangeOwnPasswordView).
+   */
+  replaceToken: (token: string) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -162,6 +169,20 @@ export function AuthProvider({
     }
   }
 
+  function replaceToken(token: string): void {
+    setSession((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const renewedSession: StoredSession = { ...current, token };
+
+      writeStoredSession(renewedSession);
+
+      return renewedSession;
+    });
+  }
+
   const value: AuthContextValue = {
     status,
     user: session?.user ?? null,
@@ -170,6 +191,7 @@ export function AuthProvider({
     login,
     logout,
     refreshUser,
+    replaceToken,
   };
 
   return (

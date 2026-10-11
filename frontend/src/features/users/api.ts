@@ -73,3 +73,20 @@ export function updateUser(
     token,
   });
 }
+
+/**
+ * Restablece la contraseña de otro usuario. Cierra las sesiones abiertas de
+ * esa persona (el backend borra su token). Para la contraseña propia está
+ * changeOwnPassword en features/auth/api.ts, que sí pide la actual.
+ */
+export function setUserPassword(
+  token: string,
+  userId: number,
+  password: string,
+): Promise<null> {
+  return apiPost<null>(
+    `/api/accounts/users/${userId}/set-password/`,
+    { password },
+    { token },
+  );
+}

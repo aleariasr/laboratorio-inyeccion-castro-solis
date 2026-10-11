@@ -1,17 +1,21 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
+import { FormError } from "@/components/feedback/form-error";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
+import { Field } from "@/components/forms/field";
 import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { isAdministrativeUser } from "@/features/auth/permissions";
-import { getUser } from "@/features/users/api";
+import { getUser, setUserPassword } from "@/features/users/api";
 import type { User } from "@/features/users/types";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 
 type LoadState =
@@ -37,6 +41,26 @@ const ROLE_LABELS: Record<string, string> = {
   SALES: "Ventas",
   CUSTOMERS: "Clientes y servicio",
   READ_ONLY: "Solo lectura",
+};
+
+const MINIMUM_PASSWORD_LENGTH = 8;
+
+type ResetPasswordState = {
+  isOpen: boolean;
+  password: string;
+  repeated: string;
+  isSubmitting: boolean;
+  error: string | null;
+  wasReset: boolean;
+};
+
+const EMPTY_RESET_PASSWORD_STATE: ResetPasswordState = {
+  isOpen: false,
+  password: "",
+  repeated: "",
+  isSubmitting: false,
+  error: null,
+  wasReset: false,
 };
 
 function getErrorMessage(error: unknown): string {
@@ -67,9 +91,82 @@ export default function UserDetailPage() {
     message: null,
   });
 
+  const [resetState, setResetState] = useState<ResetPasswordState>(
+    EMPTY_RESET_PASSWORD_STATE,
+  );
+
   const userId = Number(params.id);
 
   const hasAccess = user ? isAdministrativeUser(user) : false;
+
+  const isOwnUser =
+    loadState.status === "success" && user?.id === loadState.targetUser.id;
+
+  async function handleResetPassword(
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
+
+    if (!token || loadState.status !== "success" || resetState.isSubmitting) {
+      return;
+    }
+
+    if (resetState.password.length < MINIMUM_PASSWORD_LENGTH) {
+      setResetState((current) => ({
+        ...current,
+        error: `La contraseña debe tener al menos ${MINIMUM_PASSWORD_LENGTH} caracteres.`,
+      }));
+
+      return;
+    }
+
+    if (resetState.password !== resetState.repeated) {
+      setResetState((current) => ({
+        ...current,
+        error: "Las dos contraseñas no coinciden.",
+      }));
+
+      return;
+    }
+
+    if (
+      !confirmWithFocusRestore(
+        `¿Restablecer la contraseña de ${loadState.targetUser.username}? Se cerrarán sus sesiones abiertas y tendrá que entrar con la contraseña nueva.`,
+      )
+    ) {
+      return;
+    }
+
+    setResetState((current) => ({
+      ...current,
+      isSubmitting: true,
+      error: null,
+    }));
+
+    try {
+      await setUserPassword(token, loadState.targetUser.id, resetState.password);
+
+      setResetState({
+        ...EMPTY_RESET_PASSWORD_STATE,
+        wasReset: true,
+      });
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      setResetState((current) => ({
+        ...current,
+        isSubmitting: false,
+        error:
+          error instanceof ApiError
+            ? error.message
+            : "No fue posible restablecer la contraseña.",
+      }));
+    }
+  }
 
   useEffect(() => {
     if (
@@ -343,6 +440,116 @@ export default function UserDetailPage() {
                 </dd>
               </div>
             </dl>
+          </section>
+
+          <section className="app-status-card p-6">
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+              Contraseña
+            </h2>
+
+            {isOwnUser ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Para cambiar su propia contraseña use &ldquo;Cambiar mi
+                contraseña&rdquo;, abajo en el menú: ahí se pide la contraseña
+                actual y la sesión no se cierra.
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Úselo cuando la persona olvidó su contraseña. No hace falta
+                  la anterior. Al restablecerla se cierran sus sesiones
+                  abiertas.
+                </p>
+
+                {resetState.wasReset && (
+                  <p className="mt-4 text-sm font-medium text-foreground">
+                    Contraseña restablecida. Entréguele la nueva a{" "}
+                    {loadState.targetUser.username}.
+                  </p>
+                )}
+
+                {resetState.isOpen ? (
+                  <form
+                    onSubmit={handleResetPassword}
+                    noValidate
+                    className="mt-5 grid max-w-md gap-5"
+                  >
+                    {resetState.error && <FormError message={resetState.error} />}
+
+                    <Field
+                      id="reset-password"
+                      label="Contraseña nueva"
+                      required
+                      hint={`Mínimo ${MINIMUM_PASSWORD_LENGTH} caracteres.`}
+                    >
+                      <Input
+                        id="reset-password"
+                        type="password"
+                        value={resetState.password}
+                        onChange={(event) => {
+                          const password = event.target.value;
+
+                          setResetState((current) => ({ ...current, password }));
+                        }}
+                        autoComplete="new-password"
+                        disabled={resetState.isSubmitting}
+                      />
+                    </Field>
+
+                    <Field id="reset-password-repeat" label="Repita la contraseña" required>
+                      <Input
+                        id="reset-password-repeat"
+                        type="password"
+                        value={resetState.repeated}
+                        onChange={(event) => {
+                          const repeated = event.target.value;
+
+                          setResetState((current) => ({ ...current, repeated }));
+                        }}
+                        autoComplete="new-password"
+                        disabled={resetState.isSubmitting}
+                      />
+                    </Field>
+
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        type="submit"
+                        isLoading={resetState.isSubmitting}
+                        loadingText="Guardando…"
+                      >
+                        Restablecer contraseña
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={resetState.isSubmitting}
+                        onClick={() => {
+                          setResetState(EMPTY_RESET_PASSWORD_STATE);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="mt-4">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setResetState({
+                          ...EMPTY_RESET_PASSWORD_STATE,
+                          isOpen: true,
+                        });
+                      }}
+                    >
+                      Restablecer contraseña
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </section>
         </div>
       )}

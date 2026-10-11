@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   useEffect,
@@ -147,24 +148,34 @@ export function AppShell({
   function renderAccountPanel() {
     return (
       <div className="border-t border-[var(--color-border-soft)] pt-4">
-        <div className="flex items-center gap-3 px-2">
-          <div
+        {/*
+          El propio bloque del usuario es el acceso a "Mi cuenta" (cambiar
+          la contraseña): es donde uno busca lo suyo, y evita otra entrada
+          en un menú que ya es largo.
+        */}
+        <Link
+          href="/account"
+          onClick={closeMobileMenu}
+          className="app-account-button"
+          title="Mi cuenta"
+        >
+          <span
             className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-xs font-semibold text-[var(--color-brand-blue)]"
             aria-hidden="true"
           >
             {initials}
-          </div>
+          </span>
 
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-foreground">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-foreground">
               {visibleName}
-            </p>
+            </span>
 
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
               {authenticatedUser.username}
-            </p>
-          </div>
-        </div>
+            </span>
+          </span>
+        </Link>
 
         <button
           type="button"

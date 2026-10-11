@@ -919,3 +919,188 @@ class UserPermissionsApiTest(APITestCase):
 
         self.assertEqual(allowed_response.status_code, status.HTTP_200_OK)
         self.assertEqual(blocked_response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PasswordManagementApiTest(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="admin",
+            password="12345678",
+        )
+
+        self.target_user = User.objects.create_user(
+            username="operario",
+            password="12345678",
+        )
+
+    def login(self, username, password):
+        return self.client.post(
+            "/api/accounts/login/",
+            {
+                "username": username,
+                "password": password,
+            },
+            format="json",
+        )
+
+    # --- Restablecimiento por una persona administradora ---------------
+
+    def test_admin_resets_password_of_another_user(self):
+        old_token = Token.objects.create(user=self.target_user)
+
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            f"/api/accounts/users/{self.target_user.id}/set-password/",
+            {"password": "clave-nueva-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        self.target_user.refresh_from_db()
+        self.assertTrue(self.target_user.check_password("clave-nueva-123"))
+
+        # La sesión abierta de esa persona queda cerrada.
+        self.assertFalse(
+            Token.objects.filter(key=old_token.key).exists(),
+        )
+
+        self.client.force_authenticate(None)
+
+        self.assertEqual(
+            self.login("operario", "clave-nueva-123").status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(
+            self.login("operario", "12345678").status_code,
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+    def test_reset_password_rejects_short_password(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            f"/api/accounts/users/{self.target_user.id}/set-password/",
+            {"password": "corta"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.target_user.refresh_from_db()
+        self.assertTrue(self.target_user.check_password("12345678"))
+
+    def test_admin_cannot_reset_own_password_from_the_users_screen(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            f"/api/accounts/users/{self.admin.id}/set-password/",
+            {"password": "clave-nueva-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("12345678"))
+
+    def test_regular_user_cannot_reset_passwords(self):
+        self.client.force_authenticate(self.target_user)
+
+        response = self.client.post(
+            f"/api/accounts/users/{self.admin.id}/set-password/",
+            {"password": "clave-nueva-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    # --- Cambio de la propia contraseña --------------------------------
+
+    def test_user_changes_own_password_and_gets_a_new_token(self):
+        login_response = self.login("operario", "12345678")
+        old_token = login_response.data["token"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {old_token}")
+
+        response = self.client.post(
+            "/api/accounts/me/password/",
+            {
+                "current_password": "12345678",
+                "new_password": "clave-nueva-123",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        new_token = response.data["token"]
+        self.assertNotEqual(new_token, old_token)
+
+        # El token viejo ya no sirve y el nuevo sí: la persona sigue
+        # trabajando sin volver a entrar.
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {old_token}")
+        self.assertEqual(
+            self.client.get("/api/accounts/me/").status_code,
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {new_token}")
+        self.assertEqual(
+            self.client.get("/api/accounts/me/").status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.client.credentials()
+        self.assertEqual(
+            self.login("operario", "clave-nueva-123").status_code,
+            status.HTTP_200_OK,
+        )
+
+    def test_change_own_password_with_wrong_current_password(self):
+        self.client.force_authenticate(self.target_user)
+
+        response = self.client.post(
+            "/api/accounts/me/password/",
+            {
+                "current_password": "la-que-no-es",
+                "new_password": "clave-nueva-123",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("current_password", response.data)
+
+        self.target_user.refresh_from_db()
+        self.assertTrue(self.target_user.check_password("12345678"))
+
+    def test_change_own_password_rejects_short_password(self):
+        self.client.force_authenticate(self.target_user)
+
+        response = self.client.post(
+            "/api/accounts/me/password/",
+            {
+                "current_password": "12345678",
+                "new_password": "corta",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.target_user.refresh_from_db()
+        self.assertTrue(self.target_user.check_password("12345678"))
+
+    def test_change_own_password_requires_authentication(self):
+        response = self.client.post(
+            "/api/accounts/me/password/",
+            {
+                "current_password": "12345678",
+                "new_password": "clave-nueva-123",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

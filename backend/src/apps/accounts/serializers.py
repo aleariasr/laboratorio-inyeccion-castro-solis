@@ -140,3 +140,23 @@ class UserCreateSerializer(serializers.ModelSerializer):
             user.user_permissions.set(individual_permissions)
 
         return user
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    """
+    Restablecimiento hecho por una persona administradora: no pide la
+    contraseña actual, porque justamente se usa cuando el usuario la
+    olvidó. Mismo mínimo que al crear el usuario.
+    """
+
+    password = serializers.CharField(write_only=True, min_length=8)
+
+
+class ChangeOwnPasswordSerializer(serializers.Serializer):
+    """
+    Cambio de la propia contraseña: exige la actual para que nadie pueda
+    cambiarla desde una sesión que quedó abierta.
+    """
+
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
