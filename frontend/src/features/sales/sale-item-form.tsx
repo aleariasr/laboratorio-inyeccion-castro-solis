@@ -13,13 +13,10 @@ import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { formatMoney } from "../inventory/purchases/format";
 import { getProducts } from "../inventory/products/api";
 import type { Product } from "../inventory/products/types";
-import { getLatestProductCostHistory } from "./api";
 import { validateSaleItemForm } from "./sale-item-validation";
 import type {
-  ProductCostHistory,
   SaleItemFormErrors,
   SaleItemFormField,
   SaleItemFormValues,
@@ -86,7 +83,6 @@ export function SaleItemForm({
 
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  const [priceReference, setPriceReference] = useState<ProductCostHistory | null>(null);
 
   const errors = mergeErrors(localErrors, serverErrors);
 
@@ -168,34 +164,6 @@ export function SaleItemForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, query, results]);
 
-  useEffect(() => {
-    if (!selectedProduct || !canReadProducts) {
-      return;
-    }
-
-    const controller = new AbortController();
-
-    getLatestProductCostHistory(token, selectedProduct.id, controller.signal)
-      .then((history) => {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setPriceReference(history);
-      })
-      .catch(() => {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setPriceReference(null);
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [selectedProduct, canReadProducts, token]);
-
   function updateValue(field: SaleItemFormField, value: string): void {
     setValues((current) => ({
       ...current,
@@ -225,7 +193,6 @@ export function SaleItemForm({
     updateValue("productId", String(product.id));
     setSelectedLabel(formatProductLabel(product));
     setSelectedProduct(product);
-    setPriceReference(null);
     setQuery("");
     setResults([]);
     setIsListOpen(false);
@@ -235,7 +202,6 @@ export function SaleItemForm({
     updateValue("productId", "");
     setSelectedLabel(null);
     setSelectedProduct(null);
-    setPriceReference(null);
     setQuery("");
     setResults([]);
   }
@@ -263,23 +229,6 @@ export function SaleItemForm({
   const submitLabel = mode === "create" ? "Agregar línea" : "Guardar cambios";
 
   const submittingLabel = mode === "create" ? "Agregando línea…" : "Guardando cambios…";
-
-  const priceReferenceHint = (() => {
-    if (!priceReference || !priceReference.suggested_price) {
-      return undefined;
-    }
-
-    const suggestedCrc =
-      priceReference.currency === "USD"
-        ? Number(priceReference.suggested_price) * Number(priceReference.exchange_rate)
-        : Number(priceReference.suggested_price);
-
-    if (!Number.isFinite(suggestedCrc)) {
-      return undefined;
-    }
-
-    return `Referencia: último precio sugerido ₡${formatMoney(suggestedCrc)} (compra del ${priceReference.calculated_at.slice(0, 10)}).`;
-  })();
 
   return (
     <form
@@ -421,7 +370,6 @@ export function SaleItemForm({
           id="sale-item-unit-price"
           label="Precio unitario"
           required
-          hint={priceReferenceHint}
           error={errors.unitPrice}
         >
           <Input

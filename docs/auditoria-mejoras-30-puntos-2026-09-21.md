@@ -1002,9 +1002,14 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 - [x] 1 — Filtros en cierres de caja
 - [x] 3 — Cambio y reseteo de contraseñas (mínimo 8 caracteres; el cambio propio devuelve token
       nuevo y no cierra la sesión; se entra desde el bloque del usuario → /account "Mi cuenta")
-- [ ] 13 — Inventario sin costos, compras, proveedores ni conteos (permiso `view_costs`)
-- [ ] 4 — Lectura de productos para Ventas y Clientes
-- [ ] 14 — Ventas: solo precio de venta
+- [x] 13 — Inventario sin costos, compras, proveedores ni conteos (permiso `view_costs`, casilla
+  "Puede ver costos" en usuarios). Corregido después: el precio de venta solo lo cambia quien ve
+  costos, y el resumen de costos de una compra exige `view_costs` (Solo lectura ve la factura y
+  los gastos, no el costo final ni el sugerido)
+- [x] 4 — Lectura de productos para Ventas y Clientes (sin Productos en su menú). Ventas e
+  Inventario también leen clientes (cliente de la venta y de la proforma), sin Clientes en su menú.
+  Proformas con cantidades desde Ventas (`/sales/proforma`, `add_documents` para Ventas)
+- [x] 14 — Ventas: solo precio de venta
 - [ ] 25 — Solo el Administrador pone precio y entrega servicios
 - [ ] 17 + 23 — Precio de venta precargado y botón "usar precio"
 - [ ] 19 — Impuesto y descuento en ventas

@@ -1,5 +1,4 @@
 import type { Product } from "../inventory/products/types";
-import type { ProductCostHistory } from "../inventory/purchases/types";
 
 export type SaleStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
 
@@ -169,5 +168,5 @@ export function buildSaleItemWritePayload(
   };
 }
 
-// Reexportado para el combobox de producto y la referencia de precio
-export type { Product, ProductCostHistory };
+// Reexportado para el combobox de producto
+export type { Product };
