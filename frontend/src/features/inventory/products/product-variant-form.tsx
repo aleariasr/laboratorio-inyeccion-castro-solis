@@ -25,6 +25,9 @@ import { validateProductVariantForm } from "./validation";
 
 type ProductVariantFormProps = {
   parent: Product;
+  // Solo quien ve costos define precio de venta (ver
+  // ProductVariantCreateSerializer.validate_custom_sale_price).
+  canSetSalePrice?: boolean;
   initialValues: ProductVariantFormValues;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -47,6 +50,7 @@ function mergeErrors(
 
 export function ProductVariantForm({
   parent,
+  canSetSalePrice = false,
   initialValues,
   isSubmitting = false,
   submitError = null,
@@ -195,24 +199,26 @@ export function ProductVariantForm({
           />
         </Field>
 
-        <Field
-          id="variant-custom-sale-price"
-          label="Precio de venta"
-          hint="Opcional — puede definirlo después."
-          error={errors.customSalePrice}
-        >
-          <Input
+        {canSetSalePrice && (
+          <Field
             id="variant-custom-sale-price"
-            name="customSalePrice"
-            value={values.customSalePrice}
-            onChange={handleTextChange("customSalePrice")}
-            hasError={Boolean(errors.customSalePrice)}
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder="Sin precio todavía"
-            disabled={isSubmitting}
-          />
-        </Field>
+            label="Precio de venta"
+            hint="Opcional — puede definirlo después."
+            error={errors.customSalePrice}
+          >
+            <Input
+              id="variant-custom-sale-price"
+              name="customSalePrice"
+              value={values.customSalePrice}
+              onChange={handleTextChange("customSalePrice")}
+              hasError={Boolean(errors.customSalePrice)}
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="Sin precio todavía"
+              disabled={isSubmitting}
+            />
+          </Field>
+        )}
 
         <div className="sm:col-span-2">
           <Field

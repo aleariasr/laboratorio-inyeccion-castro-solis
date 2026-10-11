@@ -12,6 +12,30 @@ from apps.inventory.selectors import (
     latest_suggested_price,
 )
 
+SALE_PRICE_REQUIRES_COSTS_MESSAGE = (
+    "Solo quien puede ver costos puede definir el precio de venta."
+)
+
+
+def user_can_read_costs(request):
+    """
+    Lo mismo que CostsPermission, para usar dentro de un serializer:
+    superusuario, rol ADMIN o view_costs suelto.
+
+    Sin request no se puede decidir y se responde False, que es el lado
+    seguro: el síntoma de olvidar el contexto es un dato oculto o un
+    precio rechazado, nunca una fuga.
+    """
+
+    if request is None or not request.user or not request.user.is_authenticated:
+        return False
+
+    return (
+        request.user.is_superuser
+        or request.user.groups.filter(name=ROLE_ADMIN).exists()
+        or request.user.has_perm("core.view_costs")
+    )
+
 
 class StorageLocationSerializer(serializers.ModelSerializer):
     code = serializers.CharField(
@@ -184,6 +208,23 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return value
 
+    def validate_custom_sale_price(self, value):
+        # Fijar el precio sin ver el costo permite vender por debajo de
+        # él sin saberlo. Mandar el mismo valor que ya tiene (el
+        # formulario reenvía todos los campos) no cuenta como cambio.
+        current = (
+            self.instance.custom_sale_price
+            if self.instance is not None
+            else None
+        )
+
+        if value != current and not self._can_read_costs():
+            raise serializers.ValidationError(
+                SALE_PRICE_REQUIRES_COSTS_MESSAGE
+            )
+
+        return value
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
@@ -268,19 +309,7 @@ class ProductSerializer(serializers.ModelSerializer):
         return self._can_read_costs_cache
 
     def _resolve_can_read_costs(self):
-        request = self.context.get("request")
-
-        if request is None or not request.user or not request.user.is_authenticated:
-            # Sin request en el contexto no se puede decidir: se oculta,
-            # que es el lado seguro. Si algún serializer deja de pasar el
-            # request, el síntoma es un sugerido en null, no una fuga.
-            return False
-
-        return (
-            request.user.is_superuser
-            or request.user.groups.filter(name=ROLE_ADMIN).exists()
-            or request.user.has_perm("core.view_costs")
-        )
+        return user_can_read_costs(self.context.get("request"))
 
     def get_effective_sale_price(self, obj):
         value = effective_sale_price(obj)
@@ -336,3 +365,16 @@ class ProductVariantCreateSerializer(serializers.ModelSerializer):
             )
 
         return normalized_unit
+
+    def validate_custom_sale_price(self, value):
+        # Misma regla que ProductSerializer: una variante nueva no trae
+        # precio propio salvo que lo defina quien ve costos. Necesita el
+        # request en el contexto (ver ProductViewSet.add_variant).
+        if value is not None and not user_can_read_costs(
+            self.context.get("request"),
+        ):
+            raise serializers.ValidationError(
+                SALE_PRICE_REQUIRES_COSTS_MESSAGE
+            )
+
+        return value

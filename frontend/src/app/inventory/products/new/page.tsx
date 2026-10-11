@@ -12,7 +12,7 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWriteProducts } from "@/features/auth/permissions";
+import { canReadCosts, canWriteProducts } from "@/features/auth/permissions";
 import {
   createProduct,
   getActiveLocations,
@@ -113,6 +113,9 @@ export default function NewProductPage() {
 
   const hasWriteAccess =
     user ? canWriteProducts(user) : false;
+
+  const hasCostsAccess =
+    user ? canReadCosts(user) : false;
 
   useEffect(() => {
     if (
@@ -385,6 +388,7 @@ export default function NewProductPage() {
           <ProductForm
             mode="create"
             token={token ?? ""}
+            canReadCosts={hasCostsAccess}
             initialValues={
               EMPTY_PRODUCT_FORM_VALUES
             }

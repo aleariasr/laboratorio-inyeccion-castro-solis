@@ -1036,7 +1036,7 @@ export default function ProductDetailPage() {
                   </p>
                 </div>
 
-                {hasWriteAccess && !salePriceState.isEditing && (
+                {hasWriteAccess && hasCostsAccess && !salePriceState.isEditing && (
                   <Button
                     type="button"
                     variant="secondary"
@@ -1446,6 +1446,7 @@ export default function ProductDetailPage() {
 
                 <ProductVariantForm
                   parent={loadState.product}
+                  canSetSalePrice={hasCostsAccess}
                   initialValues={emptyProductVariantFormValues(
                     loadState.product,
                   )}

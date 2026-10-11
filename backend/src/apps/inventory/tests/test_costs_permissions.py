@@ -225,3 +225,129 @@ class CostsVisibilityApiTest(APITestCase):
                     response.status_code,
                     status.HTTP_403_FORBIDDEN,
                 )
+
+    # --- Precio de venta manual ----------------------------------------
+    # Fijar el precio sin ver el costo permite vender por debajo de él
+    # sin saberlo: custom_sale_price solo lo define quien ve costos.
+
+    def grant(self, user, codename):
+        user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="core",
+                content_type__model="modulepermissions",
+                codename=codename,
+            ),
+        )
+
+    def test_admin_can_set_sale_price(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {"custom_sale_price": "200.0000"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.product.refresh_from_db()
+        self.assertEqual(str(self.product.custom_sale_price), "200.0000")
+
+    def test_inventory_cannot_change_sale_price(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {"custom_sale_price": "200.0000"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("custom_sale_price", response.data)
+        self.product.refresh_from_db()
+        self.assertIsNone(self.product.custom_sale_price)
+
+    def test_inventory_cannot_clear_an_existing_sale_price(self):
+        # Vaciarlo también es un cambio de precio: pasaría a usarse el
+        # sugerido, que Inventario no ve.
+        self.product.custom_sale_price = "300.0000"
+        self.product.save(update_fields=["custom_sale_price"])
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {"custom_sale_price": None},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.product.refresh_from_db()
+        self.assertEqual(str(self.product.custom_sale_price), "300.0000")
+
+    def test_inventory_can_edit_product_resending_the_same_price(self):
+        # El formulario manda todos los campos: reenviar el precio que ya
+        # tiene no es un cambio y no debe bloquear la edición del resto.
+        self.product.custom_sale_price = "300.0000"
+        self.product.save(update_fields=["custom_sale_price"])
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {"name": "Nombre corregido", "custom_sale_price": "300.00"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.name, "Nombre corregido")
+
+    def test_inventory_can_create_product_without_sale_price_only(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        payload = {
+            "standard_code": "P-NEW",
+            "name": "Producto nuevo",
+            "storage_location": self.location.id,
+        }
+
+        with_price = self.client.post(
+            "/api/inventory/products/",
+            {**payload, "custom_sale_price": "500.0000"},
+            format="json",
+        )
+        without_price = self.client.post(
+            "/api/inventory/products/",
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(with_price.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(without_price.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(without_price.data["custom_sale_price"])
+
+    def test_inventory_cannot_add_variant_with_sale_price(self):
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {
+                "name": "Variante con precio",
+                "variant_kind": "GENERIC",
+                "custom_sale_price": "500.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("custom_sale_price", response.data)
+
+    def test_view_costs_permission_lets_inventory_set_sale_price(self):
+        self.grant(self.inventory_user, "view_costs")
+        self.client.force_authenticate(self.inventory_user)
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {"custom_sale_price": "200.0000"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

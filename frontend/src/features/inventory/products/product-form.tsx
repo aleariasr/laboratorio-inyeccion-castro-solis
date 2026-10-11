@@ -39,8 +39,9 @@ type ProductFormProps = {
   mode: ProductFormMode;
   productId?: number;
   token: string;
-  // Sin view_costs el histórico de costos responde 403: no se consulta
-  // y la ayuda del precio de venta no menciona el sugerido.
+  // Sin view_costs el histórico de costos responde 403: no se consulta,
+  // y el precio de venta queda de solo lectura (el backend rechaza el
+  // cambio, ver ProductSerializer.validate_custom_sale_price).
   canReadCosts?: boolean;
   initialValues: ProductFormValues;
   locations: StorageLocationSummary[];
@@ -302,12 +303,12 @@ export function ProductForm({
       : "Guardando cambios…";
 
   const priceReferenceHint = (() => {
-    if (mode !== "edit") {
-      return undefined;
+    if (!canReadCosts) {
+      return "Lo define quien puede ver costos. Si está vacío, se usa el precio sugerido de la última compra confirmada.";
     }
 
-    if (!canReadCosts) {
-      return "Si lo deja vacío, se usa el precio sugerido de la última compra confirmada.";
+    if (mode !== "edit") {
+      return undefined;
     }
 
     if (
@@ -649,7 +650,9 @@ export function ProductForm({
           </h2>
 
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Precio que se usa en la lista de productos y en la proforma. Totalmente editable: si lo deja vacío, se usa el último precio sugerido calculado a partir de una compra.
+            {canReadCosts
+              ? "Precio que se usa en la lista de productos y en la proforma. Totalmente editable: si lo deja vacío, se usa el último precio sugerido calculado a partir de una compra."
+              : "Precio que se usa en la lista de productos y en la proforma."}
           </p>
         </div>
 
@@ -681,7 +684,7 @@ export function ProductForm({
               inputMode="decimal"
               autoComplete="off"
               placeholder="Vacío = usar el precio sugerido"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !canReadCosts}
             />
           </Field>
         </div>
