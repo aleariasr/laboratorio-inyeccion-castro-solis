@@ -19,6 +19,18 @@ export function getCashClosings(
     page_size: String(filters.pageSize),
   });
 
+  if (filters.query.trim()) {
+    searchParams.set("q", filters.query.trim());
+  }
+
+  if (filters.dateFrom) {
+    searchParams.set("date_from", filters.dateFrom);
+  }
+
+  if (filters.dateTo) {
+    searchParams.set("date_to", filters.dateTo);
+  }
+
   return apiGet<PaginatedResponse<CashClosing>>(
     `/api/cash/closings/?${searchParams.toString()}`,
     {

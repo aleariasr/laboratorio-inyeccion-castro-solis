@@ -625,6 +625,108 @@ class CashClosingApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
 
+    def create_closing(self, week_start, counted_total="0.0000", notes="", reason=""):
+        """Crea un cierre directo, sin pasar por la validación de fechas."""
+
+        week_end = week_start + timedelta(days=6)
+
+        return CashClosing.objects.create(
+            week_start=week_start,
+            week_end=week_end,
+            expected_total=Decimal("0.0000"),
+            expected_cash=Decimal("0.0000"),
+            expected_card=Decimal("0.0000"),
+            expected_transfer=Decimal("0.0000"),
+            expected_other=Decimal("0.0000"),
+            counted_total=Decimal(counted_total),
+            difference=Decimal(counted_total),
+            difference_reason=reason,
+            notes=notes,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def test_filter_closings_by_date_range(self):
+        previous = self.create_closing(WEEK_START - timedelta(days=7))
+        current = self.create_closing(WEEK_START)
+
+        response = self.client.get(
+            "/api/cash/closings/",
+            {
+                "date_from": WEEK_START.isoformat(),
+                "date_to": WEEK_END.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], current.id)
+
+        # Un rango de un solo día dentro de la semana anterior la encuentra,
+        # porque la semana se superpone con el rango.
+        response = self.client.get(
+            "/api/cash/closings/",
+            {
+                "date_from": (WEEK_START - timedelta(days=5)).isoformat(),
+                "date_to": (WEEK_START - timedelta(days=5)).isoformat(),
+            },
+        )
+
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], previous.id)
+
+    def test_search_closings_by_notes_and_reason(self):
+        with_notes = self.create_closing(
+            WEEK_START,
+            notes="Semana de feriados, cerró Marvin.",
+        )
+        with_reason = self.create_closing(
+            WEEK_START - timedelta(days=7),
+            counted_total="500.0000",
+            reason="Faltante por vuelto mal dado.",
+        )
+
+        response = self.client.get("/api/cash/closings/", {"q": "feriados"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], with_notes.id)
+
+        response = self.client.get("/api/cash/closings/", {"q": "VUELTO"})
+
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], with_reason.id)
+
+    def test_filter_closings_rejects_inverted_date_range(self):
+        response = self.client.get(
+            "/api/cash/closings/",
+            {
+                "date_from": WEEK_END.isoformat(),
+                "date_to": WEEK_START.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_filter_closings_rejects_invalid_date(self):
+        response = self.client.get(
+            "/api/cash/closings/",
+            {
+                "date_from": "01-09-2026",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_closings_without_filters_returns_all(self):
+        self.create_closing(WEEK_START)
+        self.create_closing(WEEK_START - timedelta(days=7))
+
+        response = self.client.get("/api/cash/closings/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
     def test_update_and_delete_not_allowed(self):
         self.create_cash_sale(WEEK_START)
 

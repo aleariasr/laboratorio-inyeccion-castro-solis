@@ -999,7 +999,7 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
       desde la interfaz; revisar al rediseñar los roles (puntos 13 y 4).
 - [x] 24 — Botones de servicio al final (solo las transiciones; Anular, Descargar factura y
       Volver se quedan en el encabezado, como en compras)
-- [ ] 1 — Filtros en cierres de caja
+- [x] 1 — Filtros en cierres de caja
 - [ ] 3 — Cambio y reseteo de contraseñas
 - [ ] 13 — Inventario sin costos, compras, proveedores ni conteos (permiso `view_costs`)
 - [ ] 4 — Lectura de productos para Ventas y Clientes

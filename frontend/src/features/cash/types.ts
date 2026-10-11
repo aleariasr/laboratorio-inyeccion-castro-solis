@@ -41,6 +41,11 @@ export type CashClosingPreview = {
 };
 
 export type CashClosingFilters = {
+  /** Busca en las notas y en el motivo de la diferencia. */
+  query: string;
+  /** "YYYY-MM-DD"; trae las semanas que se superponen con el rango. */
+  dateFrom: string;
+  dateTo: string;
   page: number;
   pageSize: number;
 };

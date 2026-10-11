@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Pagination } from "@/components/data-display/pagination";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
+import { SearchIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadCash, canWriteCash } from "@/features/auth/permissions";
 import { getCashClosings } from "@/features/cash/api";
@@ -34,6 +36,9 @@ type LoadState =
     };
 
 const INITIAL_FILTERS: CashClosingFilters = {
+  query: "",
+  dateFrom: "",
+  dateTo: "",
   page: 1,
   pageSize: 20,
 };
@@ -61,6 +66,12 @@ export default function CashClosingsPage() {
 
   const [filters, setFilters] = useState<CashClosingFilters>(INITIAL_FILTERS);
 
+  // El buscador se escribe en draftQuery y se aplica al enviar, igual que en
+  // el listado de compras: así no se dispara una consulta por cada tecla.
+  const [draftQuery, setDraftQuery] = useState("");
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [loadState, setLoadState] = useState<LoadState>({
     status: "loading",
     data: null,
@@ -70,6 +81,41 @@ export default function CashClosingsPage() {
   const hasCashAccess = user ? canReadCash(user) : false;
 
   const hasWriteAccess = user ? canWriteCash(user) : false;
+
+  const hasActiveFilters =
+    Boolean(filters.query) || Boolean(filters.dateFrom) || Boolean(filters.dateTo);
+
+  function updateFilters(
+    updater: (current: CashClosingFilters) => CashClosingFilters,
+  ): void {
+    setLoadState({ status: "loading", data: null, message: null });
+
+    setFilters(updater);
+  }
+
+  function handleSearchSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+
+    updateFilters((current) => ({
+      ...current,
+      query: draftQuery.trim(),
+      page: 1,
+    }));
+  }
+
+  function handleClearFilters(): void {
+    setDraftQuery("");
+
+    updateFilters((current) => ({
+      ...current,
+      query: "",
+      dateFrom: "",
+      dateTo: "",
+      page: 1,
+    }));
+
+    searchInputRef.current?.focus();
+  }
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasCashAccess) {
@@ -168,6 +214,109 @@ export default function CashClosingsPage() {
         ) : undefined
       }
     >
+      <div className="app-status-card mb-6 p-5 sm:p-6">
+        <form
+          className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-end"
+          onSubmit={handleSearchSubmit}
+          role="search"
+        >
+          <div className="min-w-0">
+            <label
+              htmlFor="cash-search"
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+            >
+              Buscar
+            </label>
+
+            <div className="relative">
+              <span
+                className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-muted-foreground"
+                aria-hidden="true"
+              >
+                <SearchIcon />
+              </span>
+
+              <Input
+                id="cash-search"
+                ref={searchInputRef}
+                value={draftQuery}
+                onChange={(event) => {
+                  setDraftQuery(event.target.value);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    handleClearFilters();
+                  }
+                }}
+                className="pl-12"
+                placeholder="Notas o motivo de la diferencia"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          </div>
+
+          <div className="sm:w-48">
+            <label
+              htmlFor="cash-date-from"
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+            >
+              Desde
+            </label>
+
+            <Input
+              id="cash-date-from"
+              type="date"
+              value={filters.dateFrom}
+              onChange={(event) => {
+                const dateFrom = event.target.value;
+
+                updateFilters((current) => ({ ...current, dateFrom, page: 1 }));
+              }}
+            />
+          </div>
+
+          <div className="sm:w-48">
+            <label
+              htmlFor="cash-date-to"
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+            >
+              Hasta
+            </label>
+
+            <Input
+              id="cash-date-to"
+              type="date"
+              value={filters.dateTo}
+              onChange={(event) => {
+                const dateTo = event.target.value;
+
+                updateFilters((current) => ({ ...current, dateTo, page: 1 }));
+              }}
+            />
+          </div>
+
+          <Button type="submit" variant="secondary" className="h-12">
+            Buscar
+          </Button>
+        </form>
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          El rango trae toda semana que se superponga con esas fechas.
+        </p>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            className="mt-3 text-sm font-semibold text-primary hover:underline"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
       {loadState.status === "loading" && (
         <LoadingState message="Consultando cierres de caja…" />
       )}
@@ -194,13 +343,26 @@ export default function CashClosingsPage() {
         />
       )}
 
-      {loadState.status === "success" && loadState.data.results.length === 0 && (
-        <StatePanel
-          title="Todavía no hay cierres de caja"
-          message="Cuando cierre la primera semana, va a aparecer acá."
-          tone="neutral"
-        />
-      )}
+      {loadState.status === "success" &&
+        loadState.data.results.length === 0 &&
+        (hasActiveFilters ? (
+          <StatePanel
+            title="Ningún cierre coincide con el filtro"
+            message="Pruebe con otras fechas o otra palabra, o limpie los filtros."
+            tone="neutral"
+            action={
+              <Button type="button" variant="secondary" onClick={handleClearFilters}>
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <StatePanel
+            title="Todavía no hay cierres de caja"
+            message="Cuando cierre la primera semana, va a aparecer acá."
+            tone="neutral"
+          />
+        ))}
 
       {loadState.status === "success" && loadState.data.results.length > 0 && (
         <>

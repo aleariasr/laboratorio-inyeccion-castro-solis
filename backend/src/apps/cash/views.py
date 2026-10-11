@@ -1,8 +1,10 @@
 from datetime import timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.cash.exceptions import (
@@ -42,7 +44,43 @@ class CashClosingViewSet(
     permission_classes = [CashPermission]
 
     def get_queryset(self):
-        return cash_closings()
+        queryset = cash_closings()
+
+        query = self.request.query_params.get("q", "").strip()
+        date_from = parse_date_query_param(
+            self.request.query_params.get("date_from"),
+            name="date_from",
+        )
+        date_to = parse_date_query_param(
+            self.request.query_params.get("date_to"),
+            name="date_to",
+        )
+
+        if date_from and date_to and date_from > date_to:
+            raise ValidationError(
+                {
+                    "date_to": [
+                        "date_to no puede ser anterior a date_from."
+                    ],
+                }
+            )
+
+        if query:
+            queryset = queryset.filter(
+                Q(notes__icontains=query)
+                | Q(difference_reason__icontains=query)
+            )
+
+        # Entra toda semana que se superponga con el rango, no solo las
+        # contenidas: una semana va de sábado a viernes y puede cruzar el
+        # borde del mes que se está consultando.
+        if date_from:
+            queryset = queryset.filter(week_end__gte=date_from)
+
+        if date_to:
+            queryset = queryset.filter(week_start__lte=date_to)
+
+        return queryset
 
     def create(self, request, *args, **kwargs):
         input_serializer = CashClosingCreateSerializer(data=request.data)
