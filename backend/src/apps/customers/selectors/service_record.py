@@ -1,4 +1,17 @@
 from apps.core.money import DocumentAmounts, compute_document_amounts
+from apps.customers.models import InjectorServiceRecord, InjectorServiceStatus
+
+
+def delivered_services():
+    """
+    Los servicios que cuentan como dinero: entregados y activos. La caja y
+    los reportes usan esta misma definición (punto 20), así cuadran.
+    """
+
+    return InjectorServiceRecord.objects.filter(
+        status=InjectorServiceStatus.DELIVERED,
+        is_active=True,
+    )
 
 
 def live_service_amounts(service_record):

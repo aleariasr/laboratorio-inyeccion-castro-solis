@@ -4,11 +4,11 @@ from .reports import (
     ProductMovementsReportView,
     ProductSupplierPricesReportView,
     PurchasesBySupplierReportView,
-    SalesByDateReportView,
     StockByLocationReportView,
     TopCustomersReportView,
     TopSellingProductsReportView,
 )
+from .sales_summary import SalesSummaryReportView
 from .search import UniversalSearchView
 
 __all__ = [
@@ -17,7 +17,7 @@ __all__ = [
     "ProductMovementsReportView",
     "ProductSupplierPricesReportView",
     "PurchasesBySupplierReportView",
-    "SalesByDateReportView",
+    "SalesSummaryReportView",
     "StockByLocationReportView",
     "TopCustomersReportView",
     "TopSellingProductsReportView",

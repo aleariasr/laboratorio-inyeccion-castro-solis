@@ -1780,26 +1780,30 @@ class BusinessReportsApiTest(APITestCase):
             Decimal("400.0000"),
         )
 
-    def test_sales_by_date_report(self):
+    def test_sales_summary_report_by_day(self):
+        # Reemplaza al viejo "Ventas por fecha" (punto 20): agrupado por
+        # día da lo mismo que antes, más el desglose.
         response = self.client.get(
-            "/api/reports/sales-by-date/",
+            "/api/reports/sales-summary/",
             {
                 "date_from": "2026-07-01",
                 "date_to": "2026-07-31",
+                "group_by": "day",
             },
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(len(response.data["periods"]), 1)
 
-        item = response.data["results"][0]
+        period = response.data["periods"][0]
 
-        self.assertEqual(item["date"], date(2026, 7, 2))
-        self.assertEqual(item["sale_count"], 1)
-        self.assertEqual(
-            Decimal(item["total"]),
-            Decimal("750.0000"),
-        )
+        self.assertEqual(period["period_start"], date(2026, 7, 2))
+        self.assertEqual(period["period_end"], date(2026, 7, 2))
+        self.assertEqual(period["sales"]["count"], 1)
+        self.assertEqual(period["sales"]["total"], Decimal("750.00"))
+        self.assertEqual(period["services"]["count"], 0)
+        self.assertEqual(period["total"]["total"], Decimal("750.00"))
+        self.assertIsNone(response.data["comparison"])
 
     def test_sales_reports_use_amount_charged_but_top_products_stay_gross(self):
         # Punto 19: 750 − 50 de descuento = 700 + 10 % = 770 cobrado. Los
@@ -1815,12 +1819,12 @@ class BusinessReportsApiTest(APITestCase):
 
         params = {"date_from": "2026-07-01", "date_to": "2026-07-31"}
 
-        by_date = self.client.get("/api/reports/sales-by-date/", params)
+        by_date = self.client.get("/api/reports/sales-summary/", params)
         by_customer = self.client.get("/api/reports/top-customers/", params)
         by_product = self.client.get("/api/reports/top-selling-products/", params)
 
         self.assertEqual(
-            Decimal(by_date.data["results"][0]["total"]),
+            by_date.data["summary"]["sales"]["total"],
             Decimal("770.00"),
         )
         self.assertEqual(
@@ -1831,6 +1835,19 @@ class BusinessReportsApiTest(APITestCase):
             Decimal(by_product.data["results"][0]["total"]),
             Decimal("750.0000"),
         )
+
+    def test_sales_reports_exclude_inactive_sales_like_the_cash_closing(self):
+        # Punto 20: misma definición que la caja (confirmadas y activas).
+        self.sale.is_active = False
+        self.sale.save(update_fields=["is_active"])
+
+        params = {"date_from": "2026-07-01", "date_to": "2026-07-31"}
+
+        by_product = self.client.get("/api/reports/top-selling-products/", params)
+        by_customer = self.client.get("/api/reports/top-customers/", params)
+
+        self.assertEqual(by_product.data["count"], 0)
+        self.assertEqual(by_customer.data["count"], 0)
 
     def test_top_selling_products_report(self):
         response = self.client.get(
@@ -1858,7 +1875,7 @@ class BusinessReportsApiTest(APITestCase):
 
     def test_business_reports_reject_invalid_date(self):
         response = self.client.get(
-            "/api/reports/sales-by-date/",
+            "/api/reports/sales-summary/",
             {
                 "date_from": "fecha-mala",
             },
@@ -1868,7 +1885,7 @@ class BusinessReportsApiTest(APITestCase):
 
     def test_business_reports_reject_inverted_date_range(self):
         response = self.client.get(
-            "/api/reports/sales-by-date/",
+            "/api/reports/sales-summary/",
             {
                 "date_from": "2026-07-31",
                 "date_to": "2026-07-01",
@@ -1939,7 +1956,7 @@ class BusinessReportsApiTest(APITestCase):
             "/api/reports/purchases-by-supplier/"
         )
         sales_response = self.client.get(
-            "/api/reports/sales-by-date/"
+            "/api/reports/sales-summary/"
         )
         top_selling_response = self.client.get(
             "/api/reports/top-selling-products/"
@@ -2018,53 +2035,6 @@ class BusinessReportsApiTest(APITestCase):
 
         second_page = self.client.get(
             "/api/reports/purchases-by-supplier/",
-            {
-                "date_from": "2026-07-01",
-                "date_to": "2026-07-31",
-                "page_size": 1,
-                "page": 2,
-            },
-        )
-
-        self.assertEqual(second_page.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(second_page.data["results"]), 1)
-        self.assertIsNone(second_page.data["next"])
-
-    def test_sales_by_date_report_is_paginated(self):
-        second_sale = Sale.objects.create(
-            customer=self.customer,
-            sale_date=date(2026, 7, 3),
-            currency="CRC",
-            status=SaleStatus.CONFIRMED,
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        SaleItem.objects.create(
-            sale=second_sale,
-            product=self.product,
-            quantity=1,
-            unit_price=Decimal("100.0000"),
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        first_page = self.client.get(
-            "/api/reports/sales-by-date/",
-            {
-                "date_from": "2026-07-01",
-                "date_to": "2026-07-31",
-                "page_size": 1,
-            },
-        )
-
-        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
-        self.assertEqual(first_page.data["count"], 2)
-        self.assertEqual(len(first_page.data["results"]), 1)
-        self.assertIsNotNone(first_page.data["next"])
-
-        second_page = self.client.get(
-            "/api/reports/sales-by-date/",
             {
                 "date_from": "2026-07-01",
                 "date_to": "2026-07-31",
@@ -2606,3 +2576,217 @@ class ComputeDocumentAmountsTest(TestCase):
             with self.subTest(case=case):
                 with self.assertRaises(DocumentAmountsError):
                     compute_document_amounts(*arguments)
+
+
+from datetime import datetime, time  # noqa: E402
+
+from apps.customers.services import deliver_service  # noqa: E402
+
+
+class SalesSummaryReportApiTest(APITestCase):
+    """
+    Punto 20: resumen de ventas y servicios por período, con el mismo
+    criterio que la caja (confirmadas/entregados y activos, montos
+    cobrados) y comparación contra otro rango.
+    """
+
+    def setUp(self):
+        call_command("setup_roles")
+
+        self.user = User.objects.create_user(
+            username="summary-admin",
+            password="12345678",
+        )
+        self.user.groups.add(Group.objects.get(name=ROLE_ADMIN))
+        self.client.force_authenticate(self.user)
+
+        location = StorageLocation.objects.create(
+            code="S101",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self.product = Product.objects.create(
+            standard_code="SUM-001",
+            name="Producto resumen",
+            storage_location=location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        customer = Customer.objects.create(
+            display_name="Cliente resumen",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self.injector = Injector.objects.create(
+            customer=customer,
+            injector_number="SUM-INY",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def create_sale(
+        self,
+        sale_date,
+        amount="1000.0000",
+        payment_method="CASH",
+        tax_percentage="0",
+        **extra,
+    ):
+        sale = Sale.objects.create(
+            sale_date=sale_date,
+            currency="CRC",
+            status=extra.pop("status", SaleStatus.CONFIRMED),
+            payment_method=payment_method,
+            tax_percentage=Decimal(tax_percentage),
+            created_by=self.user,
+            updated_by=self.user,
+            **extra,
+        )
+        SaleItem.objects.create(
+            sale=sale,
+            product=self.product,
+            quantity=1,
+            unit_price=Decimal(amount),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        if sale.status == SaleStatus.CONFIRMED:
+            freeze_sale_amounts(sale)
+
+        return sale
+
+    def create_service(
+        self,
+        delivered_on,
+        price="20000.0000",
+        payment_method="CARD",
+        tax_percentage="0",
+        is_active=True,
+    ):
+        service_record = InjectorServiceRecord.objects.create(
+            injector=self.injector,
+            received_at=timezone.now(),
+            status=InjectorServiceStatus.READY,
+            payment_method=payment_method,
+            price=Decimal(price),
+            tax_percentage=Decimal(tax_percentage),
+            is_active=is_active,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        return deliver_service(
+            service_record=service_record,
+            delivered_at=timezone.make_aware(datetime.combine(delivered_on, time(10))),
+            user=self.user,
+        )
+
+    def summary(self, **params):
+        response = self.client.get(
+            "/api/reports/sales-summary/",
+            {"date_from": "2026-07-01", "date_to": "2026-07-31", **params},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        return response.data
+
+    def test_sales_services_and_business_total(self):
+        # Venta 1 000 + 13 % = 1 130 en efectivo; servicio 20 000 + 13 %
+        # = 22 600 con tarjeta.
+        self.create_sale(date(2026, 7, 2), tax_percentage="13")
+        self.create_service(date(2026, 7, 3), tax_percentage="13")
+
+        summary = self.summary()["summary"]
+
+        self.assertEqual(summary["sales"]["total"], Decimal("1130.00"))
+        self.assertEqual(summary["services"]["total"], Decimal("22600.00"))
+        self.assertEqual(summary["total"]["count"], 2)
+        self.assertEqual(summary["total"]["total"], Decimal("23730.00"))
+        self.assertEqual(summary["total"]["tax"], Decimal("2730.00"))
+        self.assertEqual(summary["total"]["business_income"], Decimal("21000.00"))
+        self.assertEqual(summary["total"]["by_method"]["CASH"], Decimal("1130.00"))
+        self.assertEqual(summary["total"]["by_method"]["CARD"], Decimal("22600.00"))
+
+    def test_weeks_run_saturday_to_friday_like_the_cash_closing(self):
+        self.create_sale(date(2026, 7, 3))  # viernes
+        self.create_sale(date(2026, 7, 4))  # sábado
+
+        periods = self.summary(group_by="week")["periods"]
+
+        self.assertEqual(
+            [(p["period_start"], p["period_end"]) for p in periods],
+            [
+                (date(2026, 6, 27), date(2026, 7, 3)),
+                (date(2026, 7, 4), date(2026, 7, 10)),
+            ],
+        )
+
+    def test_months_group_by_calendar_month(self):
+        self.create_sale(date(2026, 7, 31))
+        self.create_sale(date(2026, 8, 1))
+
+        periods = self.summary(date_to="2026-08-31", group_by="month")["periods"]
+
+        self.assertEqual(
+            [(p["period_start"], p["period_end"]) for p in periods],
+            [
+                (date(2026, 7, 1), date(2026, 7, 31)),
+                (date(2026, 8, 1), date(2026, 8, 31)),
+            ],
+        )
+
+    def test_excludes_what_the_cash_closing_excludes(self):
+        self.create_sale(date(2026, 7, 2))
+        self.create_sale(date(2026, 7, 2), status=SaleStatus.DRAFT)
+        self.create_sale(date(2026, 7, 2), status=SaleStatus.CANCELLED)
+        self.create_sale(date(2026, 7, 2), is_active=False)
+        self.create_service(date(2026, 7, 2), is_active=False)
+
+        summary = self.summary()["summary"]
+
+        self.assertEqual(summary["sales"]["count"], 1)
+        self.assertEqual(summary["services"]["count"], 0)
+        self.assertEqual(summary["total"]["total"], Decimal("1000.00"))
+
+    def test_comparison_returns_previous_summary_and_variation(self):
+        self.create_sale(date(2026, 6, 10), amount="500.0000")
+        self.create_sale(date(2026, 7, 10), amount="1000.0000")
+
+        data = self.summary(compare_from="2026-06-01", compare_to="2026-06-30")
+        comparison = data["comparison"]
+
+        self.assertEqual(comparison["summary"]["total"]["total"], Decimal("500.00"))
+        self.assertEqual(
+            comparison["variation"]["total"]["total"],
+            {"amount": Decimal("500.00"), "percentage": Decimal("100.0")},
+        )
+        # Sin servicios en ninguno de los dos: crecer desde 0 no es un %.
+        self.assertIsNone(
+            comparison["variation"]["services"]["total"]["percentage"],
+        )
+
+    def test_rejects_invalid_parameters(self):
+        cases = {
+            "sin fechas": {},
+            "group_by inválido": {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "group_by": "year",
+            },
+            "comparación incompleta": {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "compare_from": "2026-06-01",
+            },
+        }
+
+        for case, params in cases.items():
+            with self.subTest(case=case):
+                response = self.client.get("/api/reports/sales-summary/", params)
+
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_400_BAD_REQUEST,
+                )

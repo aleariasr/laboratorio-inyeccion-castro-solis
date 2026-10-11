@@ -74,15 +74,68 @@ export type PurchasesBySupplierReport = PaginatedResponse<PurchasesBySupplierEnt
   date_to: string | null;
 };
 
-export type SalesByDateEntry = {
-  date: string;
-  sale_count: number;
+// Resumen de ventas (punto 20). Mismo criterio que el cierre de caja.
+export type SalesSummaryGroupBy = "day" | "week" | "month";
+
+export type SalesSummaryBlock = {
+  count: number;
+  subtotal: string;
+  discount: string;
+  tax: string;
   total: string;
+  // total − tax: lo que es del negocio.
+  business_income: string;
+  by_method: Record<"CASH" | "CARD" | "TRANSFER" | "OTHER", string>;
 };
 
-export type SalesByDateReport = PaginatedResponse<SalesByDateEntry> & {
-  date_from: string | null;
-  date_to: string | null;
+export type SalesSummaryGroup = {
+  sales: SalesSummaryBlock;
+  services: SalesSummaryBlock;
+  total: SalesSummaryBlock;
+};
+
+export type SalesSummaryPeriod = SalesSummaryGroup & {
+  period_start: string;
+  period_end: string;
+};
+
+export type SalesSummaryComparedField =
+  | "count"
+  | "subtotal"
+  | "discount"
+  | "tax"
+  | "total"
+  | "business_income";
+
+export type SalesSummaryVariation = {
+  amount: string;
+  // null si el período comparado está en 0 (crecer desde 0 no es un %).
+  percentage: string | null;
+};
+
+export type SalesSummaryReport = {
+  date_from: string;
+  date_to: string;
+  group_by: SalesSummaryGroupBy;
+  periods: SalesSummaryPeriod[];
+  summary: SalesSummaryGroup;
+  comparison: {
+    date_from: string;
+    date_to: string;
+    summary: SalesSummaryGroup;
+    variation: Record<
+      keyof SalesSummaryGroup,
+      Record<SalesSummaryComparedField, SalesSummaryVariation>
+    >;
+  } | null;
+};
+
+export type SalesSummaryFilters = {
+  dateFrom: string;
+  dateTo: string;
+  groupBy: SalesSummaryGroupBy;
+  compareFrom: string;
+  compareTo: string;
 };
 
 export type TopSellingProduct = {

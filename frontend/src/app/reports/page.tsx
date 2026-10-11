@@ -75,10 +75,10 @@ const REPORT_CARDS: ReportCard[] = [
     surface: "#f3effb",
   },
   {
-    href: "/reports/sales-by-date",
-    title: "Ventas por fecha",
+    href: "/reports/sales-summary",
+    title: "Resumen de ventas",
     description:
-      "Cantidad de ventas y total cobrado por fecha, con descuento e impuesto.",
+      "Ventas y servicios por día, semana o mes, con impuestos y descuentos. Compara períodos.",
     icon: <CartIcon className="size-7" />,
     accent: "#248a3d",
     surface: "#edf8ef",

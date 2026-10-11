@@ -8,7 +8,7 @@ from .views import (
     StockByLocationReportView,
     UniversalSearchView,
     PurchasesBySupplierReportView,
-    SalesByDateReportView,
+    SalesSummaryReportView,
     TopCustomersReportView,
     TopSellingProductsReportView,
 )
@@ -48,9 +48,9 @@ urlpatterns = [
         name="report-purchases-by-supplier",
     ),
     path(
-        "reports/sales-by-date/",
-        SalesByDateReportView.as_view(),
-        name="report-sales-by-date",
+        "reports/sales-summary/",
+        SalesSummaryReportView.as_view(),
+        name="report-sales-summary",
     ),
     path(
         "reports/top-selling-products/",

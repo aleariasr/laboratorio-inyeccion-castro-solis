@@ -1024,7 +1024,9 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
   campos y los montos en el PDF; 13 % por defecto; cantidades ya existían desde el punto D)
 - [x] 18 — Impuestos en el cierre de caja ("De ese dinero": impuestos cobrados para Hacienda,
   ingreso del negocio = total − impuestos, y descuentos dados como dato informativo; fijados al cerrar)
-- [ ] 20 — Reporte de ventas desglosado y comparativo
+- [x] 20 — Reporte de ventas desglosado y comparativo ("Resumen de ventas" reemplaza a "Ventas por
+  fecha"; ventas, servicios y total; semana sábado a viernes; comparación con período anterior, año
+  pasado u otro rango; caja y reportes comparten la definición de venta/servicio que cuenta)
 - [ ] 21 + 22 — Caja chica
 - [ ] 2 + 27 — PDF e impresión de reportes
 - [ ] 28 — Movimientos a Excel y productos más movidos

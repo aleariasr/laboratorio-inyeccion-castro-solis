@@ -7,8 +7,9 @@ from django.utils import timezone
 
 from apps.core.models import PaymentMethod
 from apps.customers.models import InjectorServiceRecord, InjectorServiceStatus
-from apps.sales.models import Sale, SaleItem, SaleStatus
-from apps.sales.selectors import sale_amounts
+from apps.customers.selectors import delivered_services
+from apps.sales.models import SaleItem, SaleStatus
+from apps.sales.selectors import confirmed_sales, sale_amounts
 
 from .models import CashClosing
 
@@ -22,22 +23,18 @@ WEEKS_PENDING_LOOKBACK = 26
 
 
 def _week_sales(week_start, week_end):
-    """Ventas que entran en la caja de la semana: confirmadas y activas."""
+    """Ventas que entran en la caja de la semana (ver confirmed_sales)."""
 
-    return Sale.objects.filter(
-        status=SaleStatus.CONFIRMED,
-        is_active=True,
+    return confirmed_sales().filter(
         sale_date__gte=week_start,
         sale_date__lte=week_end,
     )
 
 
 def _week_services(week_start, week_end):
-    """Servicios que entran en la caja de la semana: entregados y activos."""
+    """Servicios que entran en la caja de la semana (ver delivered_services)."""
 
-    return InjectorServiceRecord.objects.filter(
-        status=InjectorServiceStatus.DELIVERED,
-        is_active=True,
+    return delivered_services().filter(
         delivered_at__date__gte=week_start,
         delivered_at__date__lte=week_end,
     )

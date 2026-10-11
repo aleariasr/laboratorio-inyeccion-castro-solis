@@ -7,7 +7,8 @@ import type {
   ProductSupplierPricesReport,
   PurchasesBySupplierReport,
   ReportDateFilters,
-  SalesByDateReport,
+  SalesSummaryFilters,
+  SalesSummaryReport,
   StockByLocationFilters,
   StockByLocationReport,
   TopCustomersFilters,
@@ -100,15 +101,24 @@ export function getPurchasesBySupplierReport(
   );
 }
 
-export function getSalesByDateReport(
+export function getSalesSummaryReport(
   token: string,
-  filters: ReportDateFilters,
+  filters: SalesSummaryFilters,
   signal?: AbortSignal,
-): Promise<SalesByDateReport> {
-  const query = buildReportDateQuery(filters);
+): Promise<SalesSummaryReport> {
+  const searchParams = new URLSearchParams({
+    date_from: filters.dateFrom,
+    date_to: filters.dateTo,
+    group_by: filters.groupBy,
+  });
 
-  return apiGet<SalesByDateReport>(
-    `/api/reports/sales-by-date/?${query}`,
+  if (filters.compareFrom && filters.compareTo) {
+    searchParams.set("compare_from", filters.compareFrom);
+    searchParams.set("compare_to", filters.compareTo);
+  }
+
+  return apiGet<SalesSummaryReport>(
+    `/api/reports/sales-summary/?${searchParams.toString()}`,
     {
       token,
       signal,

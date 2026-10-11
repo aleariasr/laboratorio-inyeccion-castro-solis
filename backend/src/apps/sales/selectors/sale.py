@@ -62,6 +62,11 @@ def sale_amounts(sale: Sale):
 
 
 def confirmed_sales():
+    """
+    Las ventas que cuentan como dinero: confirmadas y activas. La caja y
+    los reportes usan esta misma definición (punto 20), así cuadran.
+    """
+
     return Sale.objects.filter(
         status=SaleStatus.CONFIRMED,
         is_active=True,

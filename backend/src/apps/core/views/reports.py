@@ -21,8 +21,8 @@ from apps.inventory.selectors import (
     low_stock_products,
     stock_history,
 )
-from apps.sales.models import Sale, SaleItem, SaleStatus
-from apps.sales.selectors import sale_amounts
+from apps.sales.models import SaleItem
+from apps.sales.selectors import confirmed_sales, sale_amounts
 
 
 class LowStockProductsReportView(APIView):
@@ -489,63 +489,6 @@ class PurchasesBySupplierReportView(APIView):
         return response
 
 
-class SalesByDateReportView(APIView):
-    permission_classes = [ReportsPermission]
-    pagination_class = StandardResultsSetPagination
-
-    def get(self, request):
-        date_from, date_to, error_response = parse_report_dates(request)
-
-        if error_response is not None:
-            return error_response
-
-        sales = Sale.objects.filter(
-            status=SaleStatus.CONFIRMED,
-        ).prefetch_related("items")
-
-        if date_from:
-            sales = sales.filter(
-                sale_date__gte=date_from,
-            )
-
-        if date_to:
-            sales = sales.filter(
-                sale_date__lte=date_to,
-            )
-
-        results_by_date = {}
-
-        for sale in sales:
-            sale_date = sale.sale_date
-
-            if sale_date not in results_by_date:
-                results_by_date[sale_date] = {
-                    "date": sale_date,
-                    "sale_count": 0,
-                    "total": Decimal("0"),
-                }
-
-            # Lo cobrado: con descuento e impuesto (punto 19).
-            total = sale_amounts(sale).total
-
-            results_by_date[sale_date]["sale_count"] += 1
-            results_by_date[sale_date]["total"] += total
-
-        results = sorted(
-            results_by_date.values(),
-            key=lambda item: item["date"],
-        )
-
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(results, request, view=self)
-
-        response = paginator.get_paginated_response(page)
-        response.data["date_from"] = date_from
-        response.data["date_to"] = date_to
-
-        return response
-
-
 class TopSellingProductsReportView(APIView):
     permission_classes = [ReportsPermission]
     pagination_class = StandardResultsSetPagination
@@ -556,11 +499,12 @@ class TopSellingProductsReportView(APIView):
         if error_response is not None:
             return error_response
 
+        # Mismas ventas que la caja: confirmadas y activas (punto 20).
         sale_items = SaleItem.objects.select_related(
             "sale",
             "product",
         ).filter(
-            sale__status=SaleStatus.CONFIRMED,
+            sale__in=confirmed_sales(),
         )
 
         if date_from:
@@ -634,10 +578,10 @@ class TopCustomersReportView(APIView):
         if ordering_error_response is not None:
             return ordering_error_response
 
-        sales = Sale.objects.select_related(
+        # Mismas ventas que la caja: confirmadas y activas (punto 20).
+        sales = confirmed_sales().select_related(
             "customer",
         ).filter(
-            status=SaleStatus.CONFIRMED,
             customer__isnull=False,
         ).prefetch_related("items")
 
