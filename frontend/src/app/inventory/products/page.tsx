@@ -30,6 +30,7 @@ import {
   createProforma,
   generateProductLabels,
   getProducts,
+  type ProformaAmountSettings,
 } from "@/features/inventory/products/api";
 import { ProformaForm } from "@/features/inventory/products/proforma-form";
 import { VARIANT_KIND_LABELS } from "@/features/inventory/products/types";
@@ -648,6 +649,7 @@ export default function ProductsPage() {
 
   async function handleCreateProforma(
     customerId: number | null,
+    amountSettings: ProformaAmountSettings,
   ): Promise<void> {
     if (
       !token ||
@@ -669,6 +671,7 @@ export default function ProductsPage() {
           quantity: 1,
         })),
         customerId,
+        amountSettings,
       );
 
       const downloadUrl =
@@ -972,7 +975,8 @@ export default function ProductsPage() {
                 {selectedProductIds.size === 1
                   ? "producto seleccionado"
                   : "productos seleccionados"}
-                . El precio de cada producto es el que aparece en la lista.
+                . El precio de cada producto es el que aparece en la lista; el
+                subtotal, el descuento, el impuesto y el total salen en el PDF.
               </p>
             </div>
 

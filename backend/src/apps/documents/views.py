@@ -1,8 +1,15 @@
+from decimal import Decimal
+
 from django.http import FileResponse
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.money import (
+    DEFAULT_TAX_PERCENTAGE,
+    DiscountType,
+    DocumentAmountsError,
+)
 from apps.core.permissions import DocumentsPermission, ModuleAdminRequired
 from apps.customers.models import (
     Customer,
@@ -70,6 +77,32 @@ class ProductLabelsPdfView(APIView):
         )
 
 
+class ProformaAmountsSerializer(serializers.Serializer):
+    """
+    Descuento e impuesto de la proforma (punto 15). Opcionales: sin
+    descuento, y con el IVA por defecto, igual que una venta o un
+    servicio creados desde la pantalla.
+    """
+
+    discount_type = serializers.ChoiceField(
+        choices=DiscountType.choices,
+        default=DiscountType.AMOUNT,
+    )
+    discount_value = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        min_value=Decimal("0"),
+        default=Decimal("0"),
+    )
+    tax_percentage = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        default=DEFAULT_TAX_PERCENTAGE,
+    )
+
+
 class ProformaPdfView(APIView):
     """
     Genera una proforma en PDF: una lista de productos con su cantidad,
@@ -78,8 +111,10 @@ class ProformaPdfView(APIView):
     Productos (cantidad 1 por producto).
 
     Cuerpo: {"items": [{"product_id": 1, "quantity": 2}, ...],
-    "customer_id": 5 | null}. Si un producto se repite, sus cantidades
-    se suman en una sola línea.
+    "customer_id": 5 | null, "discount_type": "AMOUNT" | "PERCENT",
+    "discount_value": "1000", "tax_percentage": "13"}. Si un producto se
+    repite, sus cantidades se suman en una sola línea. Descuento e
+    impuesto son opcionales (ver ProformaAmountsSerializer).
 
     action = "create" a propósito: esta vista no es un ViewSet (no
     tiene ese atributo por defecto), y ModulePermission._codename()
@@ -180,10 +215,29 @@ class ProformaPdfView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        pdf_buffer = build_proforma_pdf(
-            items=ordered_items,
-            customer=customer,
-        )
+        amounts_serializer = ProformaAmountsSerializer(data=request.data)
+        amounts_serializer.is_valid(raise_exception=True)
+        amount_settings = amounts_serializer.validated_data
+
+        try:
+            pdf_buffer = build_proforma_pdf(
+                items=ordered_items,
+                customer=customer,
+                discount_type=amount_settings["discount_type"],
+                discount_value=amount_settings["discount_value"],
+                tax_percentage=amount_settings["tax_percentage"],
+            )
+        except DocumentAmountsError as exc:
+            field_name = (
+                "tax_percentage"
+                if "impuesto" in str(exc)
+                else "discount_value"
+            )
+
+            return Response(
+                {field_name: [str(exc)]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return FileResponse(
             pdf_buffer,

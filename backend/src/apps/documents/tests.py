@@ -338,6 +338,109 @@ class ProformaPdfApiTest(APITestCase):
             b"".join(response.streaming_content).startswith(b"%PDF")
         )
 
+    def post_and_capture_summary(self, payload):
+        """Montos que la proforma le pasa al PDF (punto 15)."""
+
+        self.client.force_authenticate(self.user)
+
+        with mock.patch.object(
+            documents_pdf,
+            "_build_itemized_document_pdf",
+            wraps=documents_pdf._build_itemized_document_pdf,
+        ) as build:
+            response = self.client.post(
+                "/api/documents/proforma/",
+                payload,
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        return build.call_args.kwargs["summary"]
+
+    def test_proforma_defaults_to_13_percent_tax(self):
+        # 2 × 15 000 = 30 000 + 13 % = 33 900; el producto sin precio
+        # no suma.
+        summary = self.post_and_capture_summary(
+            {
+                "items": [
+                    {"product_id": self.product.id, "quantity": 2},
+                    {"product_id": self.other_product.id},
+                ],
+            },
+        )
+
+        self.assertEqual(summary.amounts.subtotal, Decimal("30000.00"))
+        self.assertEqual(summary.amounts.tax_amount, Decimal("3900.00"))
+        self.assertEqual(summary.amounts.total, Decimal("33900.00"))
+
+    def test_proforma_applies_amount_and_percent_discounts(self):
+        cases = {
+            # 30 000 − 5 000 = 25 000, sin impuesto.
+            "AMOUNT": ("5000", Decimal("25000.00")),
+            # 30 000 − 10 % = 27 000, sin impuesto.
+            "PERCENT": ("10", Decimal("27000.00")),
+        }
+
+        for discount_type, (value, expected_total) in cases.items():
+            with self.subTest(discount_type=discount_type):
+                summary = self.post_and_capture_summary(
+                    {
+                        "items": [
+                            {"product_id": self.product.id, "quantity": 2},
+                        ],
+                        "discount_type": discount_type,
+                        "discount_value": value,
+                        "tax_percentage": "0",
+                    },
+                )
+
+                self.assertEqual(summary.amounts.total, expected_total)
+
+    def test_proforma_without_discount_or_tax_has_no_summary_lines(self):
+        summary = self.post_and_capture_summary(
+            {
+                "items": [{"product_id": self.product.id}],
+                "tax_percentage": "0",
+            },
+        )
+
+        self.assertEqual(summary.lines(), [])
+        self.assertEqual(summary.amounts.total, Decimal("15000.00"))
+
+    def test_proforma_rejects_invalid_discount_or_tax(self):
+        self.client.force_authenticate(self.user)
+
+        cases = {
+            "descuento mayor al subtotal": (
+                {"discount_value": "15000.01"},
+                "discount_value",
+            ),
+            "porcentaje mayor a 100": (
+                {"discount_type": "PERCENT", "discount_value": "101"},
+                "discount_value",
+            ),
+            "impuesto mayor a 100": (
+                {"tax_percentage": "101"},
+                "tax_percentage",
+            ),
+            "tipo inválido": ({"discount_type": "OTRO"}, "discount_type"),
+        }
+
+        for case, (extra, field_name) in cases.items():
+            with self.subTest(case=case):
+                response = self.client.post(
+                    "/api/documents/proforma/",
+                    {"items": [{"product_id": self.product.id}], **extra},
+                    format="json",
+                )
+
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_400_BAD_REQUEST,
+                )
+                self.assertIn(field_name, response.data)
+
     def post_items_and_capture_rows(self, items):
         """
         Devuelve las filas (código, nombre, importe) que la proforma le

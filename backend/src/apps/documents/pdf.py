@@ -8,7 +8,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 
-from apps.core.money import DiscountType
+from apps.core.money import DiscountType, compute_document_amounts
 from apps.customers.selectors import service_amounts
 from apps.inventory.selectors import effective_sale_price
 from apps.sales.selectors import sale_amounts
@@ -451,11 +451,22 @@ def _build_itemized_document_pdf(
     return buffer
 
 
-def build_proforma_pdf(*, items, customer=None):
+def build_proforma_pdf(
+    *,
+    items,
+    customer=None,
+    discount_type=DiscountType.AMOUNT,
+    discount_value=Decimal("0"),
+    tax_percentage=Decimal("0"),
+):
     """
     items: lista de (producto, cantidad). Mismo formato de línea que la
     factura de venta: "Nombre × 3" y el importe de la línea. Un producto
     sin precio sale como "Sin precio definido" y no suma al total.
+
+    Descuento e impuesto al documento (punto 15), con el mismo cálculo y
+    el mismo resumen que la factura de venta. Lanza DocumentAmountsError
+    si el descuento supera el subtotal de las líneas con precio.
     """
 
     rows = []
@@ -475,11 +486,30 @@ def build_proforma_pdf(*, items, customer=None):
             )
         )
 
+    subtotal = sum(
+        (amount for _code, _name, amount in rows if amount is not None),
+        Decimal("0"),
+    )
+
     return _build_itemized_document_pdf(
         title="PROFORMA",
         footer_note="Proforma generada automáticamente. Precios sujetos a cambio sin previo aviso.",
         rows=rows,
         customer=customer,
+        summary=DocumentAmountsSummary(
+            amounts=compute_document_amounts(
+                subtotal,
+                discount_type,
+                discount_value,
+                tax_percentage,
+            ),
+            tax_percentage=tax_percentage,
+            discount_percentage=(
+                discount_value
+                if discount_type == DiscountType.PERCENT
+                else None
+            ),
+        ),
     )
 
 

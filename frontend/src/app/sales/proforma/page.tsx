@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AmountsSummary } from "@/components/documents/amounts-summary";
+import { DiscountTaxFields } from "@/components/documents/discount-tax-fields";
 import { FormError } from "@/components/feedback/form-error";
 import { StatePanel } from "@/components/feedback/state-panel";
 import { Field } from "@/components/forms/field";
@@ -23,6 +25,10 @@ import {
   type SelectedCustomer,
 } from "@/features/sales/customer-picker";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import {
+  computeDocumentAmounts,
+  type DiscountType,
+} from "@/lib/document-amounts";
 
 // Mismo tope que el backend (MAX_PROFORMA_QUANTITY en
 // apps/documents/views.py).
@@ -81,6 +87,18 @@ export default function NewProformaPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [wasDownloaded, setWasDownloaded] = useState(false);
+
+  // Punto 15: mismo descuento e impuesto que la venta; 13 % por defecto.
+  const [discountType, setDiscountType] = useState<DiscountType>("AMOUNT");
+
+  const [discountValue, setDiscountValue] = useState("0");
+
+  const [taxPercentage, setTaxPercentage] = useState("13");
+
+  const [amountServerErrors, setAmountServerErrors] = useState<{
+    discountValue?: string;
+    taxPercentage?: string;
+  }>({});
 
   const hasProformaAccess = user ? canCreateProformas(user) : false;
 
@@ -213,6 +231,28 @@ export default function NewProformaPage() {
     (line) => line.product.effective_sale_price === null,
   ).length;
 
+  // Vista previa con el mismo cálculo que el PDF (apps/core/money.py).
+  const amountsPreview = computeDocumentAmounts(
+    referenceTotal,
+    discountType,
+    Number(discountValue || 0),
+    Number(taxPercentage || 0),
+  );
+
+  const amountErrors = {
+    ...amountServerErrors,
+    ...(!amountsPreview.ok
+      ? { [amountsPreview.field]: amountsPreview.message }
+      : {}),
+  };
+
+  function changeAmountSetting(apply: () => void): void {
+    apply();
+    setAmountServerErrors({});
+    setSubmitError(null);
+    setWasDownloaded(false);
+  }
+
   async function handleGenerate(): Promise<void> {
     if (!token || isGenerating) {
       return;
@@ -235,6 +275,11 @@ export default function NewProformaPage() {
       return;
     }
 
+    if (!amountsPreview.ok) {
+      setSubmitError("Revise el descuento o el impuesto.");
+      return;
+    }
+
     setIsGenerating(true);
     setSubmitError(null);
     setWasDownloaded(false);
@@ -247,6 +292,7 @@ export default function NewProformaPage() {
           quantity: item.quantity ?? 1,
         })),
         customer?.id ?? null,
+        { discountType, discountValue, taxPercentage },
       );
 
       const downloadUrl = URL.createObjectURL(blob);
@@ -274,6 +320,18 @@ export default function NewProformaPage() {
 
       if (error instanceof ApiError && error.status === 403) {
         setSubmitError("Este usuario no tiene permisos para generar proformas.");
+        return;
+      }
+
+      if (
+        error instanceof ApiError &&
+        error.status === 400 &&
+        (error.fieldErrors.discount_value || error.fieldErrors.tax_percentage)
+      ) {
+        setAmountServerErrors({
+          discountValue: error.fieldErrors.discount_value?.[0],
+          taxPercentage: error.fieldErrors.tax_percentage?.[0],
+        });
         return;
       }
 
@@ -561,14 +619,37 @@ export default function NewProformaPage() {
                 <dt>Unidades</dt>
                 <dd className="font-mono">{unitsCount}</dd>
               </div>
-
-              <div className="mt-2 flex items-baseline justify-between border-t border-[var(--color-border-soft)] pt-3">
-                <dt className="text-muted-foreground">Total referencial</dt>
-                <dd className="font-mono text-2xl font-semibold text-foreground">
-                  ₡{formatMoney(referenceTotal)}
-                </dd>
-              </div>
             </dl>
+
+            <div className="mt-5 grid gap-5 border-t border-[var(--color-border-soft)] pt-5">
+              <DiscountTaxFields
+                idPrefix="proforma"
+                discountType={discountType}
+                discountValue={discountValue}
+                taxPercentage={taxPercentage}
+                onDiscountTypeChange={(value) => {
+                  changeAmountSetting(() => setDiscountType(value));
+                }}
+                onDiscountValueChange={(value) => {
+                  changeAmountSetting(() => setDiscountValue(value));
+                }}
+                onTaxPercentageChange={(value) => {
+                  changeAmountSetting(() => setTaxPercentage(value));
+                }}
+                discountError={amountErrors.discountValue}
+                taxError={amountErrors.taxPercentage}
+                disabled={isGenerating}
+              />
+
+              <AmountsSummary
+                amounts={amountsPreview.ok ? amountsPreview.amounts : null}
+                fallbackSubtotal={referenceTotal}
+                discountType={discountType}
+                discountValue={discountValue || "0"}
+                taxPercentage={taxPercentage || "0"}
+                showZeroRows
+              />
+            </div>
 
             {linesWithoutPrice > 0 && (
               <p className="mt-4 rounded-[var(--radius-md)] bg-[var(--color-warning-soft)] px-4 py-3 text-xs font-medium leading-5 text-[var(--color-warning)]">

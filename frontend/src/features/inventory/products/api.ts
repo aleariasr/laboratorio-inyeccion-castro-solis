@@ -5,6 +5,7 @@ import {
   apiPostBlob,
 } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/lib/api/types";
+import type { DiscountType } from "@/lib/document-amounts";
 
 import type {
   Product,
@@ -263,11 +264,18 @@ export type ProformaItem = {
   quantity: number;
 };
 
+export type ProformaAmountSettings = {
+  discountType: DiscountType;
+  discountValue: string;
+  taxPercentage: string;
+};
+
 /** Si un producto se repite, el backend suma sus cantidades. */
 export function createProforma(
   token: string,
   items: ProformaItem[],
   customerId: number | null,
+  amountSettings: ProformaAmountSettings,
 ): Promise<Blob> {
   return apiPostBlob(
     "/api/documents/proforma/",
@@ -277,6 +285,10 @@ export function createProforma(
         quantity: item.quantity,
       })),
       customer_id: customerId,
+      // Punto 15: mismo descuento e impuesto que la venta.
+      discount_type: amountSettings.discountType,
+      discount_value: amountSettings.discountValue.trim() || "0",
+      tax_percentage: amountSettings.taxPercentage.trim() || "0",
     },
     {
       token,
