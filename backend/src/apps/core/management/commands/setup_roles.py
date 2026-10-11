@@ -27,6 +27,8 @@ from apps.core.permissions import (
 ROLE_PERMISSIONS = {
     # Bodega: qué productos hay y dónde están. Sin compras, proveedores
     # ni conteos, y por lo tanto sin ningún costo (punto 13).
+    # view_customers es para elegir el cliente de una proforma; la
+    # pantalla de Clientes no aparece en su menú (canOpenCustomersModule).
     ROLE_INVENTORY: [
         "view_products",
         "add_products",
@@ -34,17 +36,20 @@ ROLE_PERMISSIONS = {
         "view_locations",
         "add_locations",
         "change_locations",
+        "view_customers",
         "view_documents",
         "add_documents",
     ],
-    # view_products es lo que le permite buscar productos para armar una
-    # venta; sin él, el formulario de línea no funciona (punto 4).
+    # view_products y view_customers son para buscar el producto y el
+    # cliente al armar una venta; sin ellos el formulario no funciona
+    # (punto 4). Ninguna de las dos pantallas aparece en su menú.
     ROLE_SALES: [
         "view_sales",
         "add_sales",
         "change_sales",
         "cancel_sales",
         "view_products",
+        "view_customers",
         "view_documents",
     ],
     # Igual que SALES: view_products es para agregar accesorios a un

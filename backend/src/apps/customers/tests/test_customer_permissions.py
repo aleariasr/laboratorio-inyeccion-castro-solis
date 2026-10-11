@@ -6,7 +6,9 @@ from rest_framework.test import APITestCase
 
 from apps.core.permissions import (
     ROLE_CUSTOMERS,
+    ROLE_INVENTORY,
     ROLE_READ_ONLY,
+    ROLE_SALES,
 )
 from apps.customers.models import Customer
 
@@ -83,6 +85,71 @@ class CustomerPermissionApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_sales_and_inventory_roles_can_search_customers(self):
+        # Ventas elige el cliente de una venta e Inventario el de una
+        # proforma: los dos buscan con el mismo endpoint que usa la
+        # pantalla, ?q= sobre el nombre.
+        for role in (ROLE_SALES, ROLE_INVENTORY):
+            with self.subTest(role=role):
+                user = User.objects.create_user(
+                    username=f"customers-lookup-{role.lower()}",
+                    password="12345678",
+                )
+                user.groups.add(Group.objects.get(name=role))
+                self.client.force_authenticate(user)
+
+                response = self.client.get(
+                    "/api/customers/customers/",
+                    {"q": "prueba"},
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertEqual(
+                    [row["id"] for row in response.data["results"]],
+                    [self.customer.id],
+                )
+
+    def test_sales_and_inventory_roles_cannot_create_or_edit_customers(self):
+        # El modelo normaliza el nombre al guardar (mayúsculas): se
+        # compara contra lo guardado, no contra el texto del setUp.
+        self.customer.refresh_from_db()
+        original_name = self.customer.display_name
+
+        for role in (ROLE_SALES, ROLE_INVENTORY):
+            with self.subTest(role=role):
+                user = User.objects.create_user(
+                    username=f"customers-blocked-{role.lower()}",
+                    password="12345678",
+                )
+                user.groups.add(Group.objects.get(name=role))
+                self.client.force_authenticate(user)
+
+                create_response = self.client.post(
+                    "/api/customers/customers/",
+                    {
+                        "customer_type": "PERSON",
+                        "display_name": "Cliente bloqueado",
+                    },
+                    format="json",
+                )
+                update_response = self.client.patch(
+                    f"/api/customers/customers/{self.customer.id}/",
+                    {"display_name": "Cambio bloqueado"},
+                    format="json",
+                )
+
+                self.assertEqual(
+                    create_response.status_code,
+                    status.HTTP_403_FORBIDDEN,
+                )
+                self.assertEqual(
+                    update_response.status_code,
+                    status.HTTP_403_FORBIDDEN,
+                )
+
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.display_name, original_name)
 
     def test_authenticated_user_without_group_cannot_list_customers(self):
         self.client.force_authenticate(self.plain_user)

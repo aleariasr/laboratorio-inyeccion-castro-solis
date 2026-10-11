@@ -190,11 +190,19 @@ export function canCancelSales(user: AuthUser): boolean {
 
 // --- Clientes y servicio: clientes ---
 
+// Ventas busca el cliente de una venta e Inventario el de una proforma.
 export function canReadCustomers(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["CUSTOMERS", "READ_ONLY"]) ||
+    hasAnyRole(user, ["INVENTORY", "SALES", "CUSTOMERS", "READ_ONLY"]) ||
     hasModulePermission(user, "view_customers")
   );
+}
+
+// La pantalla de Clientes en el menú es para quien tiene el módulo de
+// clientes y servicio, no para quien solo busca un cliente desde una
+// venta o una proforma. Mismo criterio que canOpenProductsModule.
+export function canOpenCustomersModule(user: AuthUser): boolean {
+  return canReadCustomers(user) && canReadInjectors(user);
 }
 
 export function canWriteCustomers(user: AuthUser): boolean {

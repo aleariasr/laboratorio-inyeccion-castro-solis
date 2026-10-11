@@ -15,9 +15,9 @@ import {
   WrenchIcon,
 } from "@/components/icons/app-icons";
 import {
+  canOpenCustomersModule,
   canOpenProductsModule,
   canReadCash,
-  canReadCustomers,
   canReadInjectors,
   canReadInventoryCounts,
   canReadLocations,
@@ -131,7 +131,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Clientes",
     section: "customers",
     icon: UsersIcon,
-    permissionCheck: canReadCustomers,
+    permissionCheck: canOpenCustomersModule,
   },
   {
     href: "/injectors",

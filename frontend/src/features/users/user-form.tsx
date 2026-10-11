@@ -54,12 +54,12 @@ const ROLE_OPTIONS: Array<{
   {
     value: "INVENTORY",
     label: "Inventario",
-    description: "Productos, ubicaciones y documentos. Sin compras, proveedores, conteos ni costos.",
+    description: "Productos, ubicaciones y documentos; busca clientes para las proformas. Sin compras, proveedores, conteos ni costos.",
   },
   {
     value: "SALES",
     label: "Ventas",
-    description: "Registro y consulta de ventas. Busca productos para venderlos, sin ver costos.",
+    description: "Registro y consulta de ventas. Busca productos y clientes para armarlas, sin ver costos.",
   },
   {
     value: "CUSTOMERS",
