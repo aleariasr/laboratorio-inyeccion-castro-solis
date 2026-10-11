@@ -13,6 +13,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import {
+  canReadCosts,
   canReadLocations,
   canWriteProducts,
 } from "@/features/auth/permissions";
@@ -170,6 +171,9 @@ export default function EditProductPage() {
 
   const hasLocationsAccess =
     user ? canReadLocations(user) : false;
+
+  const hasCostsAccess =
+    user ? canReadCosts(user) : false;
 
   useEffect(() => {
     if (
@@ -589,6 +593,7 @@ export default function EditProductPage() {
           mode="edit"
           productId={loadState.product.id}
           token={token ?? ""}
+          canReadCosts={hasCostsAccess}
           initialValues={productToFormValues(
             loadState.product,
           )}

@@ -32,7 +32,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLE_DESCRIPTIONS: Record<string, string> = {
   ADMIN: "Acceso completo, incluidos usuarios y reportes.",
-  INVENTORY: "Productos, ubicaciones, proveedores, compras y conteos.",
+  INVENTORY: "Productos, ubicaciones y documentos.",
   SALES: "Registro y anulación de ventas.",
   CUSTOMERS: "Clientes, inyectores y servicios.",
   READ_ONLY: "Consulta, sin posibilidad de modificar.",

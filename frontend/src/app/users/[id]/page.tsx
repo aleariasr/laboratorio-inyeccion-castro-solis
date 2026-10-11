@@ -439,6 +439,18 @@ export default function UserDetailPage() {
                     : "Sin roles asignados"}
                 </dd>
               </div>
+
+              <div className="app-status-row">
+                <dt>Costos</dt>
+                <dd>
+                  {loadState.targetUser.is_superuser ||
+                  loadState.targetUser.groups.includes("ADMIN")
+                    ? "Sí, por el rol Administrador"
+                    : loadState.targetUser.permissions.includes("view_costs")
+                      ? "Sí, permiso asignado"
+                      : "No"}
+                </dd>
+              </div>
             </dl>
           </section>
 

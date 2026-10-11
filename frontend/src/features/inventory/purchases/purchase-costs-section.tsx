@@ -74,7 +74,7 @@ type PurchaseCostsSectionProps = {
   purchaseExchangeRate: string;
   token: string;
   hasWriteAccess: boolean;
-  canReadProducts: boolean;
+  canReadCosts: boolean;
   /** Solo en borrador el backend descarta el cálculo al cambiar algo. */
   isDraft: boolean;
   /** El detalle de la compra ya descartó el cálculo (cambió una línea). */
@@ -129,7 +129,7 @@ export function PurchaseCostsSection({
   purchaseExchangeRate,
   token,
   hasWriteAccess,
-  canReadProducts,
+  canReadCosts,
   isDraft,
   wasCalculationDiscarded,
 }: PurchaseCostsSectionProps) {
@@ -140,7 +140,7 @@ export function PurchaseCostsSection({
   });
 
   const [historyState, setHistoryState] = useState<HistoryLoadState>({
-    status: canReadProducts ? "loading" : "not-permitted",
+    status: canReadCosts ? "loading" : "not-permitted",
     history: null,
   });
 
@@ -225,7 +225,7 @@ export function PurchaseCostsSection({
   }, [purchaseId, token]);
 
   useEffect(() => {
-    if (!canReadProducts) {
+    if (!canReadCosts) {
       return;
     }
 
@@ -258,7 +258,7 @@ export function PurchaseCostsSection({
     return () => {
       controller.abort();
     };
-  }, [canReadProducts, purchaseId, token]);
+  }, [canReadCosts, purchaseId, token]);
 
   function openCreateForm(): void {
     setActionState({ isSubmitting: false, submitError: null, fieldErrors: {}, pendingToggleId: null });

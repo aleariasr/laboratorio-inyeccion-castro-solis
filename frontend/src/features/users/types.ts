@@ -89,10 +89,16 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { key: "customers", label: "Clientes", actions: ["view", "add", "change"] },
   { key: "injectors", label: "Inyectores", actions: ["view", "add", "change"] },
   { key: "services", label: "Servicios", actions: ["view", "add", "change", "cancel"] },
+  { key: "costs", label: "Costos", actions: ["view"] },
   { key: "reports", label: "Reportes", actions: ["view"] },
-  { key: "documents", label: "Documentos", actions: ["view"] },
+  { key: "documents", label: "Documentos", actions: ["view", "add"] },
   { key: "movements", label: "Movimientos de inventario", actions: ["view"] },
+  { key: "cash", label: "Caja", actions: ["view", "add"] },
 ];
+
+// Permiso que la pantalla de usuarios muestra aparte de la matriz, con
+// su propia explicación (ver CostsPermissionCard en user-form.tsx).
+export const VIEW_COSTS_PERMISSION = "view_costs";
 
 export function permissionCodename(
   moduleKey: string,

@@ -48,11 +48,21 @@ export function hasModulePermission(
 
 // --- Inventario: productos ---
 
+// Ventas y Clientes y servicio leen productos para buscarlos dentro de
+// sus formularios (líneas de venta, accesorios de un servicio).
 export function canReadProducts(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["INVENTORY", "READ_ONLY"]) ||
+    hasAnyRole(user, ["INVENTORY", "SALES", "CUSTOMERS", "READ_ONLY"]) ||
     hasModulePermission(user, "view_products")
   );
+}
+
+// La pantalla de Productos en el menú es para quien tiene el módulo de
+// inventario completo, no para quien solo busca productos desde una
+// venta o un servicio. Mismo criterio que la tarjeta de productos bajo
+// mínimo del inicio (DashboardSummaryView).
+export function canOpenProductsModule(user: AuthUser): boolean {
+  return canReadProducts(user) && canReadLocations(user);
 }
 
 export function canWriteProducts(user: AuthUser): boolean {
@@ -84,14 +94,14 @@ export function canWriteLocations(user: AuthUser): boolean {
 
 export function canReadSuppliers(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["INVENTORY", "READ_ONLY"]) ||
+    hasAnyRole(user, ["READ_ONLY"]) ||
     hasModulePermission(user, "view_suppliers")
   );
 }
 
 export function canWriteSuppliers(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["INVENTORY"]) ||
+    isModuleAdmin(user) ||
     hasModulePermission(user, "add_suppliers") ||
     hasModulePermission(user, "change_suppliers")
   );
@@ -101,14 +111,14 @@ export function canWriteSuppliers(user: AuthUser): boolean {
 
 export function canReadPurchases(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["INVENTORY", "READ_ONLY"]) ||
+    hasAnyRole(user, ["READ_ONLY"]) ||
     hasModulePermission(user, "view_purchases")
   );
 }
 
 export function canWritePurchases(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["INVENTORY"]) ||
+    isModuleAdmin(user) ||
     hasModulePermission(user, "add_purchases") ||
     hasModulePermission(user, "change_purchases")
   );
@@ -118,25 +128,39 @@ export function canWritePurchases(user: AuthUser): boolean {
 
 export function canReadInventoryCounts(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["INVENTORY", "READ_ONLY"]) ||
+    hasAnyRole(user, ["READ_ONLY"]) ||
     hasModulePermission(user, "view_inventory_counts")
   );
 }
 
 export function canWriteInventoryCounts(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["INVENTORY"]) ||
+    isModuleAdmin(user) ||
     hasModulePermission(user, "add_inventory_counts") ||
     hasModulePermission(user, "change_inventory_counts")
   );
 }
 
 // --- Inventario: movimientos (solo lectura) ---
+// Ningún rol tiene view_movements fuera de ADMIN (ver setup_roles.py):
+// se entra desde Reportes. Se puede dar suelto a un usuario.
 
 export function canReadMovements(user: AuthUser): boolean {
   return (
-    hasAnyRole(user, ["INVENTORY", "READ_ONLY"]) ||
+    isModuleAdmin(user) ||
     hasModulePermission(user, "view_movements")
+  );
+}
+
+// --- Costos ---
+// Costo de compra, histórico de costos y precio sugerido. Solo ADMIN
+// o quien tenga view_costs suelto; el precio de venta no cuenta como
+// costo y lo ve cualquiera que lea productos.
+
+export function canReadCosts(user: AuthUser): boolean {
+  return (
+    isModuleAdmin(user) ||
+    hasModulePermission(user, "view_costs")
   );
 }
 

@@ -39,6 +39,9 @@ type ProductFormProps = {
   mode: ProductFormMode;
   productId?: number;
   token: string;
+  // Sin view_costs el histórico de costos responde 403: no se consulta
+  // y la ayuda del precio de venta no menciona el sugerido.
+  canReadCosts?: boolean;
   initialValues: ProductFormValues;
   locations: StorageLocationSummary[];
   isSubmitting?: boolean;
@@ -82,6 +85,7 @@ export function ProductForm({
   mode,
   productId,
   token,
+  canReadCosts = false,
   initialValues,
   locations,
   isSubmitting = false,
@@ -115,7 +119,7 @@ export function ProductForm({
   );
 
   useEffect(() => {
-    if (mode !== "edit" || !productId) {
+    if (mode !== "edit" || !productId || !canReadCosts) {
       return;
     }
 
@@ -144,7 +148,7 @@ export function ProductForm({
     return () => {
       controller.abort();
     };
-  }, [mode, productId, token]);
+  }, [canReadCosts, mode, productId, token]);
 
   useEffect(() => {
     function handleBeforeUnload(
@@ -300,6 +304,10 @@ export function ProductForm({
   const priceReferenceHint = (() => {
     if (mode !== "edit") {
       return undefined;
+    }
+
+    if (!canReadCosts) {
+      return "Si lo deja vacío, se usa el precio sugerido de la última compra confirmada.";
     }
 
     if (

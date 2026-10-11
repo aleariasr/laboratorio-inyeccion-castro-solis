@@ -12,7 +12,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadProducts, canReadPurchases, canWritePurchases } from "@/features/auth/permissions";
+import { canReadCosts, canReadProducts, canReadPurchases, canWritePurchases } from "@/features/auth/permissions";
 import {
   cancelPurchase,
   confirmPurchase,
@@ -170,6 +170,8 @@ export default function PurchaseDetailPage() {
   const hasWriteAccess = user ? canWritePurchases(user) : false;
 
   const hasProductsAccess = user ? canReadProducts(user) : false;
+
+  const hasCostsAccess = user ? canReadCosts(user) : false;
 
   const canManageItems =
     loadState.status === "success" &&
@@ -1058,7 +1060,7 @@ export default function PurchaseDetailPage() {
 
           <PurchaseCostsSection
             key={costsReloadKey}
-            canReadProducts={hasProductsAccess}
+            canReadCosts={hasCostsAccess}
             purchaseId={loadState.purchase.id}
             currency={loadState.purchase.currency}
             purchaseExchangeRate={loadState.purchase.exchange_rate}

@@ -21,6 +21,7 @@ import {
   PERMISSION_ACTION_LABELS,
   PERMISSION_MODULES,
   permissionCodename,
+  VIEW_COSTS_PERMISSION,
   type PermissionAction,
   type UserFormErrors,
   type UserFormField,
@@ -53,24 +54,40 @@ const ROLE_OPTIONS: Array<{
   {
     value: "INVENTORY",
     label: "Inventario",
-    description: "Productos, ubicaciones, proveedores, compras y conteos.",
+    description: "Productos, ubicaciones y documentos. Sin compras, proveedores, conteos ni costos.",
   },
   {
     value: "SALES",
     label: "Ventas",
-    description: "Registro y consulta de ventas.",
+    description: "Registro y consulta de ventas. Busca productos para venderlos, sin ver costos.",
   },
   {
     value: "CUSTOMERS",
     label: "Clientes y servicio",
-    description: "Clientes, inyectores y servicios técnicos.",
+    description: "Clientes, inyectores y servicios técnicos. Busca productos para los accesorios, sin ver costos.",
   },
   {
     value: "READ_ONLY",
     label: "Solo lectura",
-    description: "Consulta inventario, ventas y reportes sin poder modificar.",
+    description: "Consulta inventario, compras, ventas, clientes y servicios sin modificar. Sin costos, movimientos ni reportes.",
   },
 ];
+
+// Los costos se muestran en el detalle de producto (módulo completo de
+// inventario) y en el detalle de compra. Si el usuario no llega a
+// ninguna de las dos pantallas, view_costs no le muestra nada.
+function reachesCostScreens(values: UserFormValues): boolean {
+  const hasProductsModule =
+    values.groups.some((role) => role === "INVENTORY" || role === "READ_ONLY") ||
+    (values.permissions.includes("view_products") &&
+      values.permissions.includes("view_locations"));
+
+  const hasPurchases =
+    values.groups.includes("READ_ONLY") ||
+    values.permissions.includes("view_purchases");
+
+  return hasProductsModule || hasPurchases;
+}
 
 function sameStringSet(left: string[], right: string[]): boolean {
   return (
@@ -259,6 +276,11 @@ export function UserForm({
 
     onCancel();
   }
+
+  const costsIncludedByRole = values.groups.includes("ADMIN");
+
+  const canSeeCosts =
+    costsIncludedByRole || values.permissions.includes(VIEW_COSTS_PERMISSION);
 
   const submitLabel = mode === "create" ? "Crear usuario" : "Guardar cambios";
 
@@ -498,6 +520,67 @@ export function UserForm({
       <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+            Costos
+          </h2>
+
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Cuánto costó cada producto. Es información sensible: ningún rol la incluye salvo Administrador.
+          </p>
+        </div>
+
+        <div className="p-5 sm:p-6">
+          <label
+            htmlFor="usuario-view-costs"
+            className={[
+              "flex items-start gap-3 rounded-[var(--radius-lg)] p-4 ring-1 transition-colors",
+              canSeeCosts
+                ? "bg-[var(--color-primary-soft)] ring-[rgb(7_81_132_/_12%)]"
+                : "bg-surface-muted ring-[var(--color-border-soft)]",
+              costsIncludedByRole ? "cursor-default" : "cursor-pointer",
+            ].join(" ")}
+          >
+            <input
+              id="usuario-view-costs"
+              name="viewCosts"
+              type="checkbox"
+              checked={canSeeCosts}
+              onChange={(event) => {
+                togglePermission(VIEW_COSTS_PERMISSION, event.target.checked);
+              }}
+              disabled={isSubmitting || costsIncludedByRole}
+              className="mt-0.5 size-5 rounded border-border accent-[var(--color-primary)]"
+            />
+
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">
+                  Puede ver costos
+                </span>
+
+                {costsIncludedByRole && (
+                  <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-[var(--color-primary)] ring-1 ring-[rgb(7_81_132_/_16%)]">
+                    Incluido en el rol Administrador
+                  </span>
+                )}
+              </span>
+
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                Ve el costo de compra, el histórico de costos y el precio de venta sugerido de cada producto. Sin este permiso solo ve el precio de venta.
+              </span>
+            </span>
+          </label>
+
+          {canSeeCosts && !costsIncludedByRole && !reachesCostScreens(values) && (
+            <p className="mt-3 rounded-[var(--radius-md)] bg-[var(--color-warning-soft)] px-4 py-3 text-xs font-medium leading-5 text-[var(--color-warning)]">
+              Con los roles y permisos marcados, este usuario no entra a Productos ni a Compras, que es donde se muestran los costos. Márquele Inventario o Solo lectura para que los vea.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
+        <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
+          <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
             Permisos por módulo
           </h2>
 
@@ -533,7 +616,9 @@ export function UserForm({
             </thead>
 
             <tbody>
-              {PERMISSION_MODULES.map((permissionModule) => (
+              {PERMISSION_MODULES.filter(
+                (permissionModule) => permissionModule.key !== "costs",
+              ).map((permissionModule) => (
                 <tr key={permissionModule.key}>
                   <th
                     scope="row"
