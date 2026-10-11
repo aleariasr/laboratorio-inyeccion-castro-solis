@@ -1010,8 +1010,10 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
   Inventario también leen clientes (cliente de la venta y de la proforma), sin Clientes en su menú.
   Proformas con cantidades desde Ventas (`/sales/proforma`, `add_documents` para Ventas)
 - [x] 14 — Ventas: solo precio de venta
-- [ ] 25 — Solo el Administrador pone precio y entrega servicios
-- [ ] 17 + 23 — Precio de venta precargado y botón "usar precio"
+- [x] 25 — Solo el Administrador pone precio y entrega servicios (regla por rol ADMIN, sin permiso
+  nuevo; el operario no ve el precio, el método de pago, el importe de los accesorios ni la factura)
+- [x] 17 + 23 — Precio de venta precargado y botón "usar precio" (el campo sigue al producto
+  mientras no se escriba un precio propio; sin unit_price el backend usa el precio de venta)
 - [ ] 19 — Impuesto y descuento en ventas
 - [ ] 26 — Impuesto y descuento en servicios y en su factura
 - [ ] 15 — Impuesto y descuento en la proforma

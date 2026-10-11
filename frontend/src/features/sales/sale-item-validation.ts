@@ -1,8 +1,15 @@
 import type { SaleItemFormErrors, SaleItemFormValues } from "./types";
 
+/**
+ * defaultUnitPrice: precio de venta del producto elegido. Si el campo de
+ * precio queda vacío y existe, la línea se crea con ese precio (el
+ * backend lo completa). undefined = no hay producto elegido en este
+ * formulario (modo edición).
+ */
 export function validateSaleItemForm(
   values: SaleItemFormValues,
   availableStock?: number,
+  defaultUnitPrice?: string | null,
 ): SaleItemFormErrors {
   const errors: SaleItemFormErrors = {};
 
@@ -26,7 +33,11 @@ export function validateSaleItemForm(
   const unitPrice = values.unitPrice.trim();
 
   if (!unitPrice) {
-    errors.unitPrice = "El precio unitario es obligatorio.";
+    if (defaultUnitPrice === null) {
+      errors.unitPrice = "Este producto no tiene precio de venta; ingrese uno.";
+    } else if (defaultUnitPrice === undefined) {
+      errors.unitPrice = "El precio unitario es obligatorio.";
+    }
   } else if (Number.isNaN(Number(unitPrice)) || Number(unitPrice) <= 0) {
     errors.unitPrice = "El precio unitario debe ser un número mayor que cero.";
   }

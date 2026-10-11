@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.customers.models import Customer
+from apps.inventory.selectors import effective_sale_price
 from apps.sales.models import Sale, SaleItem, SaleStatus
 from apps.sales.selectors import sale_total
 
@@ -41,6 +42,11 @@ class SaleItemSerializer(serializers.ModelSerializer):
             "updated_at",
             "subtotal",
         )
+        extra_kwargs = {
+            # Opcional al crear: si no viene, se usa el precio de venta
+            # del producto (ver validate). Puntos 17 + 23.
+            "unit_price": {"required": False},
+        }
 
     def validate(self, attrs):
         sale = attrs.get("sale")
@@ -52,6 +58,21 @@ class SaleItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Solo se pueden modificar líneas de ventas en borrador."
             )
+
+        if self.instance is None and attrs.get("unit_price") is None:
+            default_price = effective_sale_price(attrs["product"])
+
+            if default_price is None:
+                raise serializers.ValidationError(
+                    {
+                        "unit_price": (
+                            "Este producto no tiene precio de venta; "
+                            "ingrese uno."
+                        ),
+                    }
+                )
+
+            attrs["unit_price"] = default_price
 
         return attrs
 

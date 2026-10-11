@@ -137,7 +137,8 @@ export type SaleItemWritePayload = {
   sale: number;
   product: number;
   quantity: number;
-  unit_price: string;
+  // Sin unit_price, el backend usa el precio de venta del producto.
+  unit_price?: string;
 };
 
 export type SaleItemFormValues = {
@@ -164,7 +165,7 @@ export function buildSaleItemWritePayload(
     sale: saleId,
     product: Number(values.productId),
     quantity: Number(values.quantity),
-    unit_price: values.unitPrice.trim(),
+    ...(values.unitPrice.trim() ? { unit_price: values.unitPrice.trim() } : {}),
   };
 }
 

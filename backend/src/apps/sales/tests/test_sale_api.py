@@ -12,9 +12,13 @@ from apps.core.permissions import ROLE_SALES
 from apps.customers.models import Customer
 from apps.inventory.models import (
     Product,
+    ProductCostHistory,
+    Purchase,
+    PurchaseStatus,
     StockMovement,
     StockMovementType,
     StorageLocation,
+    Supplier,
 )
 from apps.inventory.selectors import current_stock
 from apps.inventory.services import initial_inventory
@@ -821,4 +825,130 @@ class SaleApiTest(APITestCase):
             SaleItem.objects.filter(
                 id=self.sale_item.id,
             ).exists()
+        )
+
+
+class SaleItemDefaultPriceApiTest(APITestCase):
+    """
+    Puntos 17 + 23: una línea creada sin unit_price toma el precio de
+    venta del producto (el manual si existe, si no el último sugerido de
+    una compra confirmada, en colones). Sin ninguno de los dos → 400.
+    """
+
+    def setUp(self):
+        call_command("setup_roles")
+
+        self.user = User.objects.create_user(
+            username="default-price-sales",
+            password="12345678",
+        )
+        self.user.groups.add(Group.objects.get(name=ROLE_SALES))
+        self.client.force_authenticate(self.user)
+
+        self.location = StorageLocation.objects.create(
+            code="A101",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.product = Product.objects.create(
+            standard_code="P-PRICE",
+            name="Producto con precio",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        initial_inventory(product=self.product, quantity=10, user=self.user)
+
+        self.sale = Sale.objects.create(
+            sale_date=date.today(),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def post_item(self, **extra):
+        return self.client.post(
+            "/api/sales/sale-items/",
+            {
+                "sale": self.sale.id,
+                "product": self.product.id,
+                "quantity": 1,
+                **extra,
+            },
+            format="json",
+        )
+
+    def add_confirmed_usd_cost_history(self):
+        supplier = Supplier.objects.create(
+            name="Proveedor USD",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        purchase = Purchase.objects.create(
+            supplier=supplier,
+            invoice_number="USD-001",
+            purchase_date=date.today(),
+            currency="USD",
+            exchange_rate=Decimal("500.0000"),
+            status=PurchaseStatus.CONFIRMED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        ProductCostHistory.objects.create(
+            product=self.product,
+            purchase=purchase,
+            original_unit_cost=Decimal("5.0000"),
+            cost_factor=Decimal("1.200000"),
+            final_unit_cost=Decimal("6.0000"),
+            currency="USD",
+            exchange_rate=Decimal("500.0000"),
+            margin_percentage=Decimal("30.0000"),
+            suggested_price=Decimal("10.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def test_missing_unit_price_uses_custom_sale_price(self):
+        self.product.custom_sale_price = Decimal("8500.0000")
+        self.product.save(update_fields=["custom_sale_price"])
+
+        response = self.post_item()
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            SaleItem.objects.get(id=response.data["id"]).unit_price,
+            Decimal("8500.0000"),
+        )
+
+    def test_missing_unit_price_uses_latest_suggested_price_in_crc(self):
+        # 10 USD sugeridos × 500 de tipo de cambio = ₡5.000.
+        self.add_confirmed_usd_cost_history()
+
+        response = self.post_item()
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            SaleItem.objects.get(id=response.data["id"]).unit_price,
+            Decimal("5000.0000"),
+        )
+
+    def test_missing_unit_price_without_sale_price_returns_400(self):
+        response = self.post_item()
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("unit_price", response.data)
+        self.assertFalse(SaleItem.objects.filter(sale=self.sale).exists())
+
+    def test_explicit_unit_price_is_respected(self):
+        self.product.custom_sale_price = Decimal("8500.0000")
+        self.product.save(update_fields=["custom_sale_price"])
+
+        response = self.post_item(unit_price="7000.0000")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            SaleItem.objects.get(id=response.data["id"]).unit_price,
+            Decimal("7000.0000"),
         )

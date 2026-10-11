@@ -13,6 +13,7 @@ import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { formatMoney } from "../inventory/purchases/format";
 import { getProducts } from "../inventory/products/api";
 import type { Product } from "../inventory/products/types";
 import { validateSaleItemForm } from "./sale-item-validation";
@@ -51,6 +52,11 @@ function formatProductLabel(product: Product): string {
   return `${product.standard_code} — ${product.name}`;
 }
 
+// "8500.0000" → "8500", "12.5000" → "12.5": así se ve en el campo.
+function formatPriceForInput(value: string): string {
+  return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
+}
+
 export function SaleItemForm({
   mode,
   initialValues,
@@ -83,6 +89,12 @@ export function SaleItemForm({
 
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  // Mientras la persona no escriba un precio propio, el campo sigue al
+  // producto elegido: si cambia de producto, cambia el precio. En cuanto
+  // escribe uno, no se vuelve a tocar (salvo con "Usar precio de venta").
+  const [isPriceUserEdited, setIsPriceUserEdited] = useState(false);
+
+  const salePrice = selectedProduct?.effective_sale_price ?? null;
 
   const errors = mergeErrors(localErrors, serverErrors);
 
@@ -191,6 +203,16 @@ export function SaleItemForm({
 
   function selectProduct(product: Product): void {
     updateValue("productId", String(product.id));
+
+    if (!isPriceUserEdited) {
+      updateValue(
+        "unitPrice",
+        product.effective_sale_price
+          ? formatPriceForInput(product.effective_sale_price)
+          : "",
+      );
+    }
+
     setSelectedLabel(formatProductLabel(product));
     setSelectedProduct(product);
     setQuery("");
@@ -200,6 +222,11 @@ export function SaleItemForm({
 
   function clearSelected(): void {
     updateValue("productId", "");
+
+    if (!isPriceUserEdited) {
+      updateValue("unitPrice", "");
+    }
+
     setSelectedLabel(null);
     setSelectedProduct(null);
     setQuery("");
@@ -212,6 +239,7 @@ export function SaleItemForm({
     const validationErrors = validateSaleItemForm(
       values,
       selectedProduct?.current_stock,
+      selectedProduct ? salePrice : undefined,
     );
 
     setLocalErrors(validationErrors);
@@ -370,18 +398,45 @@ export function SaleItemForm({
           id="sale-item-unit-price"
           label="Precio unitario"
           required
+          hint={
+            selectedProduct
+              ? salePrice
+                ? `Precio de venta: ₡${formatMoney(salePrice)}. Puede cambiarlo para esta venta.`
+                : "Este producto no tiene precio de venta; ingrese uno."
+              : undefined
+          }
           error={errors.unitPrice}
         >
-          <Input
-            id="sale-item-unit-price"
-            name="unitPrice"
-            value={values.unitPrice}
-            onChange={handleChange("unitPrice")}
-            hasError={Boolean(errors.unitPrice)}
-            inputMode="decimal"
-            autoComplete="off"
-            disabled={isSubmitting}
-          />
+          <div className="flex gap-2">
+            <Input
+              id="sale-item-unit-price"
+              name="unitPrice"
+              value={values.unitPrice}
+              onChange={(event) => {
+                setIsPriceUserEdited(true);
+                updateValue("unitPrice", event.target.value);
+              }}
+              hasError={Boolean(errors.unitPrice)}
+              inputMode="decimal"
+              autoComplete="off"
+              disabled={isSubmitting}
+            />
+
+            {salePrice &&
+              values.unitPrice.trim() !== formatPriceForInput(salePrice) && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsPriceUserEdited(false);
+                    updateValue("unitPrice", formatPriceForInput(salePrice));
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Usar precio de venta
+                </Button>
+              )}
+          </div>
         </Field>
       </div>
 
