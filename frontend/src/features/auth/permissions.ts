@@ -247,6 +247,13 @@ export function canWriteServices(user: AuthUser): boolean {
   );
 }
 
+// Precio, tipo de servicio, método de pago y entrega: solo el
+// Administrador (punto 25). Es regla de rol, no de permiso de módulo
+// (ModuleAdminRequired en el backend), así que no se puede dar suelto.
+export function canPriceServices(user: AuthUser): boolean {
+  return isModuleAdmin(user);
+}
+
 export function canCancelServices(user: AuthUser): boolean {
   return (
     hasAnyRole(user, ["CUSTOMERS"]) ||

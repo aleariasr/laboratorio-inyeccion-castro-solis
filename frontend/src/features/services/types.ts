@@ -29,8 +29,10 @@ export type ServiceRecord = {
   leakage: string | null;
   inductance: string | null;
   isolation: string | null;
+  // El backend manda price y payment_method en null a quien no es
+  // Administrador (punto 25).
   price: string | null;
-  payment_method: PaymentMethod;
+  payment_method: PaymentMethod | null;
   service_type: number | null;
   service_type_detail: ServiceType | null;
   notes_before: string;
@@ -165,7 +167,7 @@ export function serviceRecordToPriceFormValues(
 ): ServicePriceFormValues {
   return {
     price: serviceRecord.price ?? "",
-    paymentMethod: serviceRecord.payment_method,
+    paymentMethod: serviceRecord.payment_method ?? "CASH",
     serviceTypeId: serviceRecord.service_type ? String(serviceRecord.service_type) : "",
   };
 }

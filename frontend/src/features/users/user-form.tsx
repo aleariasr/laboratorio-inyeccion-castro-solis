@@ -64,7 +64,7 @@ const ROLE_OPTIONS: Array<{
   {
     value: "CUSTOMERS",
     label: "Clientes y servicio",
-    description: "Clientes, inyectores y servicios técnicos. Busca productos para los accesorios, sin ver costos.",
+    description: "Clientes, inyectores y servicios técnicos: recibe, trabaja y marca listo. El precio y la entrega los hace el Administrador.",
   },
   {
     value: "READ_ONLY",

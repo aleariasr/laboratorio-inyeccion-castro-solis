@@ -23,6 +23,35 @@ class AdministrationPermission(permissions.BasePermission):
         return user.groups.filter(name=ROLE_ADMIN).exists()
 
 
+def is_module_admin(user):
+    """
+    Superusuario o rol ADMIN: el mismo atajo que ModulePermission. A
+    diferencia de AdministrationPermission, is_staff no cuenta.
+    """
+
+    return bool(
+        user
+        and user.is_authenticated
+        and (
+            user.is_superuser
+            or user.groups.filter(name=ROLE_ADMIN).exists()
+        )
+    )
+
+
+class ModuleAdminRequired(permissions.BasePermission):
+    """
+    Exige superusuario o rol ADMIN, sin permiso de módulo que lo
+    reemplace. Se suma al permiso del módulo en lo que el negocio
+    reservó al Administrador: precio y entrega de servicios (punto 25).
+    """
+
+    message = "Solo el Administrador puede realizar esta acción."
+
+    def has_permission(self, request, view):
+        return is_module_admin(request.user)
+
+
 class ModulePermission(permissions.BasePermission):
     """
     Permiso basado en los permisos de módulo declarados en

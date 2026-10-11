@@ -3,11 +3,12 @@ from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from rest_framework import filters, mixins, status, viewsets
+from rest_framework import filters, mixins, permissions, status, viewsets
 
 from apps.core.permissions import (
     CustomersPermission,
     InjectorsPermission,
+    ModuleAdminRequired,
     ServicesPermission,
 )
 from apps.core.query_params import (
@@ -357,6 +358,8 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["post"],
         url_path="deliver",
+        # Entregar es cobrar: solo el Administrador (punto 25).
+        permission_classes=[ServicesPermission, ModuleAdminRequired],
     )
     def deliver(self, request, pk=None):
         service_record = self.get_object()
@@ -434,6 +437,14 @@ class ServiceTypeViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceTypeSerializer
     permission_classes = [ServicesPermission]
     filter_backends = [filters.OrderingFilter]
+
+    def get_permissions(self):
+        # Leer el catálogo sigue con view_services; crear o editar tipos
+        # es parte de fijar precios, solo del Administrador (punto 25).
+        if self.request.method in permissions.SAFE_METHODS:
+            return super().get_permissions()
+
+        return [ServicesPermission(), ModuleAdminRequired()]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
 
@@ -469,7 +480,8 @@ class ServiceTypeViewSet(viewsets.ModelViewSet):
 
 class ServiceTypePriceHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ServiceTypePriceHistorySerializer
-    permission_classes = [ServicesPermission]
+    # Son precios cobrados: solo el Administrador (punto 25).
+    permission_classes = [ServicesPermission, ModuleAdminRequired]
 
     def get_queryset(self):
         queryset = (

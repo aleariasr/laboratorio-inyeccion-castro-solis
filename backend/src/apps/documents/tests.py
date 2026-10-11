@@ -10,6 +10,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.core.permissions import (
+    ROLE_ADMIN,
     ROLE_CUSTOMERS,
     ROLE_INVENTORY,
     ROLE_READ_ONLY,
@@ -455,6 +456,16 @@ class InvoicePdfApiTest(APITestCase):
             Group.objects.get(name=ROLE_CUSTOMERS),
         )
 
+        # La factura de servicio trae el precio, que solo maneja el
+        # Administrador (punto 25).
+        self.admin_user = User.objects.create_user(
+            username="invoice-admin",
+            password="12345678",
+        )
+        self.admin_user.groups.add(
+            Group.objects.get(name=ROLE_ADMIN),
+        )
+
         self.plain_user = User.objects.create_user(
             username="invoice-plain",
             password="12345678",
@@ -592,7 +603,7 @@ class InvoicePdfApiTest(APITestCase):
     def test_service_invoice_returns_pdf_for_delivered_service(self):
         service_record = self.create_delivered_service(with_accessory=True)
 
-        self.client.force_authenticate(self.customers_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             f"/api/documents/services/{service_record.id}/invoice/"
@@ -614,7 +625,7 @@ class InvoicePdfApiTest(APITestCase):
             updated_by=self.sales_user,
         )
 
-        self.client.force_authenticate(self.customers_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get(
             f"/api/documents/services/{service_record.id}/invoice/"
@@ -623,11 +634,24 @@ class InvoicePdfApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_service_invoice_404_for_missing_service(self):
-        self.client.force_authenticate(self.customers_user)
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.get("/api/documents/services/999999/invoice/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_customers_user_cannot_get_service_invoice(self):
+        # El operario no ve el precio del servicio (punto 25), y la
+        # factura lo trae.
+        service_record = self.create_delivered_service()
+
+        self.client.force_authenticate(self.customers_user)
+
+        response = self.client.get(
+            f"/api/documents/services/{service_record.id}/invoice/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_plain_user_cannot_get_service_invoice(self):
         service_record = self.create_delivered_service()

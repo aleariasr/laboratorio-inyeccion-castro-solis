@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.core.permissions import is_module_admin
 from apps.inventory.selectors import effective_sale_price
 
 from apps.customers.models import (
@@ -18,6 +19,34 @@ from apps.customers.models import (
     ServiceType,
     ServiceTypePriceHistory,
 )
+
+
+# Precio, tipo de servicio y método de pago los define solo el
+# Administrador (punto 25); el operario recibe, inicia y marca listo.
+SERVICE_PRICING_FIELDS = ("price", "service_type", "payment_method")
+
+SERVICE_PRICING_ONLY_ADMIN_MESSAGE = (
+    "Solo el Administrador define el precio, el tipo de servicio y el "
+    "método de pago."
+)
+
+
+class ModuleAdminContextMixin:
+    """
+    Decide una sola vez por serializer si quien pide es Administrador.
+    En un listado DRF reutiliza la misma instancia hija para cada fila,
+    así que sin la caché la consulta del grupo se repetiría por fila.
+    Sin request en el contexto responde False: el lado seguro es ocultar.
+    """
+
+    def _is_module_admin(self):
+        if not hasattr(self, "_is_module_admin_cache"):
+            request = self.context.get("request")
+            self._is_module_admin_cache = is_module_admin(
+                request.user if request is not None else None,
+            )
+
+        return self._is_module_admin_cache
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -204,7 +233,10 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
         return value
 
 
-class InjectorServiceRecordSerializer(serializers.ModelSerializer):
+class InjectorServiceRecordSerializer(
+    ModuleAdminContextMixin,
+    serializers.ModelSerializer,
+):
     injector_detail = InjectorSummarySerializer(
         source="injector",
         read_only=True,
@@ -258,7 +290,39 @@ class InjectorServiceRecordSerializer(serializers.ModelSerializer):
                 "No se pueden modificar servicios entregados o anulados."
             )
 
+        if not self._is_module_admin():
+            errors = {}
+
+            for field_name in SERVICE_PRICING_FIELDS:
+                if field_name not in attrs:
+                    continue
+
+                current = (
+                    getattr(self.instance, field_name)
+                    if self.instance is not None
+                    else InjectorServiceRecord._meta.get_field(
+                        field_name,
+                    ).get_default()
+                )
+
+                # Reenviar el valor que ya tiene no es un cambio.
+                if attrs[field_name] != current:
+                    errors[field_name] = SERVICE_PRICING_ONLY_ADMIN_MESSAGE
+
+            if errors:
+                raise serializers.ValidationError(errors)
+
         return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # El operario no ve cuánto se cobra (punto 25).
+        if not self._is_module_admin():
+            data["price"] = None
+            data["payment_method"] = None
+
+        return data
 
 
 class ServiceTypePriceHistorySerializer(serializers.ModelSerializer):
@@ -282,7 +346,10 @@ class ServiceTypePriceHistorySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class InjectorServiceAccessorySerializer(serializers.ModelSerializer):
+class InjectorServiceAccessorySerializer(
+    ModuleAdminContextMixin,
+    serializers.ModelSerializer,
+):
     product_detail = serializers.SerializerMethodField()
 
     class Meta:
@@ -303,7 +370,13 @@ class InjectorServiceAccessorySerializer(serializers.ModelSerializer):
         )
 
     def get_product_detail(self, obj):
-        price = effective_sale_price(obj.product)
+        # El importe de los accesorios forma parte del cobro del
+        # servicio: solo el Administrador lo ve (punto 25).
+        price = (
+            effective_sale_price(obj.product)
+            if self._is_module_admin()
+            else None
+        )
 
         return {
             "id": obj.product_id,

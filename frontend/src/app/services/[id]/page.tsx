@@ -11,7 +11,7 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canCancelServices, canReadProducts, canReadServices, canWriteServices } from "@/features/auth/permissions";
+import { canCancelServices, canPriceServices, canReadProducts, canReadServices, canWriteServices } from "@/features/auth/permissions";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import {
   cancelServiceRecord,
@@ -188,6 +188,9 @@ export default function ServiceDetailPage() {
   const hasProductsAccess = user ? canReadProducts(user) : false;
 
   const hasCancelAccess = user ? canCancelServices(user) : false;
+
+  // Precio, entrega y factura: solo el Administrador (punto 25).
+  const hasPricingAccess = user ? canPriceServices(user) : false;
 
   const canManage =
     loadState.status === "success" &&
@@ -730,7 +733,9 @@ export default function ServiceDetailPage() {
       }
       actions={
         <div className="flex flex-wrap items-center gap-3">
-          {loadState.status === "success" && loadState.serviceRecord.status === "DELIVERED" && (
+          {loadState.status === "success" &&
+            loadState.serviceRecord.status === "DELIVERED" &&
+            hasPricingAccess && (
             <Button
               type="button"
               variant="secondary"
@@ -879,71 +884,75 @@ export default function ServiceDetailPage() {
             </dl>
           </section>
 
-          <section className="app-status-card overflow-hidden">
-            <div className="border-b border-[var(--color-border-soft)] p-6">
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
-                Precio del servicio
-              </h2>
+          {hasPricingAccess && (
+            <section className="app-status-card overflow-hidden">
+              <div className="border-b border-[var(--color-border-soft)] p-6">
+                <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+                  Precio del servicio
+                </h2>
 
-              <p className="mt-1 text-sm text-muted-foreground">
-                {canManage
-                  ? "Tipo de servicio y precio cobrado."
-                  : "Este servicio ya no admite modificaciones."}
-              </p>
-            </div>
-
-            <div className="p-6">
-              <div className="mb-6 rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] p-4 ring-1 ring-[rgb(7_81_132_/_12%)]">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-sm text-muted-foreground">
-                    Precio del servicio
-                  </p>
-
-                  <p className="font-mono text-2xl font-semibold text-foreground">
-                    {loadState.serviceRecord.price
-                      ? `₡${formatMoney(loadState.serviceRecord.price)}`
-                      : "No definido"}
-                  </p>
-                </div>
-
-                {accessoriesTotal > 0 && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Incluye ₡{formatMoney(accessoriesTotal)} en productos usados
-                    (ver tabla de accesorios abajo).
-                  </p>
-                )}
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {canManage
+                    ? "Tipo de servicio y precio cobrado."
+                    : "Este servicio ya no admite modificaciones."}
+                </p>
               </div>
 
-              {canManage ? (
-                <ServicePriceForm
-                  key={loadState.serviceRecord.id}
-                  initialValues={serviceRecordToPriceFormValues(loadState.serviceRecord)}
-                  canReadServiceTypes={hasCustomersAccess}
-                  canWriteServiceTypes={hasWriteAccess}
-                  accessoriesTotal={accessoriesTotal}
-                  token={token ?? ""}
-                  isSubmitting={priceState.isSubmitting}
-                  submitError={priceState.submitError}
-                  serverErrors={priceState.fieldErrors}
-                  onSubmit={handlePriceSubmit}
-                />
-              ) : (
-                <dl>
-                  <div className="app-status-row">
-                    <dt>Tipo de servicio</dt>
-                    <dd>{loadState.serviceRecord.service_type_detail?.name ?? "—"}</dd>
+              <div className="p-6">
+                <div className="mb-6 rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] p-4 ring-1 ring-[rgb(7_81_132_/_12%)]">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      Precio del servicio
+                    </p>
+
+                    <p className="font-mono text-2xl font-semibold text-foreground">
+                      {loadState.serviceRecord.price
+                        ? `₡${formatMoney(loadState.serviceRecord.price)}`
+                        : "No definido"}
+                    </p>
                   </div>
 
-                  <div className="app-status-row">
-                    <dt>Método de pago</dt>
-                    <dd>
-                      {PAYMENT_METHOD_LABELS[loadState.serviceRecord.payment_method]}
-                    </dd>
-                  </div>
-                </dl>
-              )}
-            </div>
-          </section>
+                  {accessoriesTotal > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Incluye ₡{formatMoney(accessoriesTotal)} en productos usados
+                      (ver tabla de accesorios abajo).
+                    </p>
+                  )}
+                </div>
+
+                {canManage ? (
+                  <ServicePriceForm
+                    key={loadState.serviceRecord.id}
+                    initialValues={serviceRecordToPriceFormValues(loadState.serviceRecord)}
+                    canReadServiceTypes={hasCustomersAccess}
+                    canWriteServiceTypes={hasPricingAccess}
+                    accessoriesTotal={accessoriesTotal}
+                    token={token ?? ""}
+                    isSubmitting={priceState.isSubmitting}
+                    submitError={priceState.submitError}
+                    serverErrors={priceState.fieldErrors}
+                    onSubmit={handlePriceSubmit}
+                  />
+                ) : (
+                  <dl>
+                    <div className="app-status-row">
+                      <dt>Tipo de servicio</dt>
+                      <dd>{loadState.serviceRecord.service_type_detail?.name ?? "—"}</dd>
+                    </div>
+
+                    <div className="app-status-row">
+                      <dt>Método de pago</dt>
+                      <dd>
+                        {loadState.serviceRecord.payment_method
+                          ? PAYMENT_METHOD_LABELS[loadState.serviceRecord.payment_method]
+                          : "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+              </div>
+            </section>
+          )}
 
           <section className="app-status-card overflow-hidden">
             <div className="border-b border-[var(--color-border-soft)] p-6">
@@ -1168,7 +1177,7 @@ export default function ServiceDetailPage() {
             </Button>
           )}
 
-          {loadState.serviceRecord.status === "READY" && hasWriteAccess && (
+          {loadState.serviceRecord.status === "READY" && hasPricingAccess && (
             <Button
               type="button"
               variant="primary"
@@ -1192,6 +1201,14 @@ export default function ServiceDetailPage() {
               Entregar
             </Button>
           )}
+
+          {loadState.serviceRecord.status === "READY" &&
+            hasWriteAccess &&
+            !hasPricingAccess && (
+              <p className="rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] px-5 py-4 text-sm font-medium text-[var(--color-primary)] ring-1 ring-[rgb(7_81_132_/_12%)]">
+                Listo para entregar. La entrega y el cobro los hace el Administrador.
+              </p>
+            )}
         </div>
       )}
     </AppShell>

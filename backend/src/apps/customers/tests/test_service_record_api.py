@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.core.permissions import ROLE_CUSTOMERS
+from apps.core.permissions import ROLE_ADMIN
 
 from apps.customers.models import (
     Customer,
@@ -28,7 +28,7 @@ class InjectorServiceRecordApiTest(APITestCase):
         call_command("setup_roles")
 
         self.user.groups.add(
-            Group.objects.get(name=ROLE_CUSTOMERS),
+            Group.objects.get(name=ROLE_ADMIN),
         )
 
         self.client.force_authenticate(self.user)

@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import DocumentsPermission
+from apps.core.permissions import DocumentsPermission, ModuleAdminRequired
 from apps.customers.models import (
     Customer,
     InjectorServiceRecord,
@@ -252,9 +252,12 @@ class ServiceInvoicePdfView(APIView):
     Comprobante interno de un servicio entregado. No es una factura
     electrónica ante el Ministerio de Hacienda — ver la nota al pie
     del propio PDF (build_service_invoice_pdf).
+
+    Trae el precio del servicio y de sus accesorios, que solo maneja el
+    Administrador (punto 25): además de view_documents, exige ADMIN.
     """
 
-    permission_classes = [DocumentsPermission]
+    permission_classes = [DocumentsPermission, ModuleAdminRequired]
 
     def get(self, request, service_record_id):
         try:
