@@ -7,6 +7,12 @@ export type CashClosing = {
   expected_card: string;
   expected_transfer: string;
   expected_other: string;
+  // Punto 18: dentro de expected_total, pero no son del negocio.
+  expected_tax: string;
+  // Informativo: ya restados de expected_total.
+  expected_discount: string;
+  // expected_total − expected_tax (lo calcula el backend).
+  expected_business_income: string;
   counted_total: string;
   difference: string;
   difference_reason: string;
@@ -38,6 +44,9 @@ export type CashClosingPreview = {
   expected_card: string;
   expected_transfer: string;
   expected_other: string;
+  expected_tax: string;
+  expected_discount: string;
+  expected_business_income: string;
 };
 
 export type CashClosingFilters = {

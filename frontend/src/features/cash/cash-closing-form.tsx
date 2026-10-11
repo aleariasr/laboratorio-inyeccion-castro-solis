@@ -11,6 +11,7 @@ import { formatMoney } from "@/features/inventory/purchases/format";
 
 import { getCashClosingPreview, getCloseableWeeks } from "./api";
 import { formatWeekdayDate, formatWeekRange } from "./format";
+import { TaxBreakdown } from "./tax-breakdown";
 import type {
   CashClosingFormErrors,
   CashClosingFormValues,
@@ -316,6 +317,14 @@ export function CashClosingForm({
             </p>
           </div>
         </div>
+      )}
+
+      {effectivePreview && (
+        <TaxBreakdown
+          tax={effectivePreview.expected_tax}
+          businessIncome={effectivePreview.expected_business_income}
+          discount={effectivePreview.expected_discount}
+        />
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">

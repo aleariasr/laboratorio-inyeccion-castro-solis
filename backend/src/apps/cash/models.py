@@ -73,6 +73,32 @@ class CashClosing(AuditModel):
         help_text="Desglose de expected_total: otros métodos de pago.",
     )
 
+    # Punto 18. Lo cobrado de impuestos está dentro de expected_total
+    # (es dinero que entró), pero no es del negocio: se le debe a
+    # Hacienda. Se fija al cerrar, igual que el resto. El ingreso del
+    # negocio es expected_total − expected_tax (no se guarda: se deriva).
+    expected_tax = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text=(
+            "Impuestos cobrados esa semana (ventas y servicios), incluidos "
+            "en expected_total. No son ingreso del negocio."
+        ),
+    )
+
+    expected_discount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text=(
+            "Descuentos dados esa semana. Informativo: ya están restados "
+            "de expected_total."
+        ),
+    )
+
     counted_total = models.DecimalField(
         max_digits=14,
         decimal_places=4,

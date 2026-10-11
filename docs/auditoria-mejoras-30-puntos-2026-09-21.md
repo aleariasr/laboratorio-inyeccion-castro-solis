@@ -1021,7 +1021,8 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
   montos congelados al entregar; la caja suma lo cobrado de ventas y servicios; montos congelados
   de solo lectura en el admin de Django)
 - [ ] 15 — Impuesto y descuento en la proforma
-- [ ] 18 — Impuestos en el cierre de caja
+- [x] 18 — Impuestos en el cierre de caja ("De ese dinero": impuestos cobrados para Hacienda,
+  ingreso del negocio = total − impuestos, y descuentos dados como dato informativo; fijados al cerrar)
 - [ ] 20 — Reporte de ventas desglosado y comparativo
 - [ ] 21 + 22 — Caja chica
 - [ ] 2 + 27 — PDF e impresión de reportes

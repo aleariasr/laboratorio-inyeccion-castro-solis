@@ -368,7 +368,7 @@ export default function CashClosingsPage() {
         <>
           <div className="app-status-card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse">
+              <table className="w-full min-w-[840px] border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
                     <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -385,6 +385,10 @@ export default function CashClosingsPage() {
 
                     <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                       Diferencia
+                    </th>
+
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Impuestos
                     </th>
 
                     <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -428,6 +432,10 @@ export default function CashClosingsPage() {
                           ].join(" ")}
                         >
                           ₡{formatMoney(closing.difference)}
+                        </td>
+
+                        <td className="px-5 py-4 text-right align-top font-mono text-sm text-[var(--color-warning)]">
+                          ₡{formatMoney(closing.expected_tax)}
                         </td>
 
                         <td className="px-5 py-4 align-top text-sm text-muted-foreground">

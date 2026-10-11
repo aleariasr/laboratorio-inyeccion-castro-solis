@@ -17,11 +17,13 @@ from apps.cash.selectors import (
     cash_closings,
     expected_totals_by_method,
     last_finished_week_start,
+    week_tax_and_discount,
     weeks_pending_closing,
 )
 from apps.cash.serializers import (
     CashClosingCreateSerializer,
     CashClosingSerializer,
+    business_income,
 )
 from apps.cash.services import SATURDAY, create_cash_closing
 from apps.core.models import PaymentMethod
@@ -167,6 +169,8 @@ class CashClosingViewSet(
         week_end = week_start + timedelta(days=6)
 
         breakdown = expected_totals_by_method(week_start, week_end)
+        expected = sum(breakdown.values())
+        tax_and_discount = week_tax_and_discount(week_start, week_end)
 
         return Response(
             {
@@ -176,10 +180,17 @@ class CashClosingViewSet(
                 # propósito (sirve para ver cómo va), pero el cierre no:
                 # ver create_cash_closing.
                 "can_close": week_end <= timezone.localdate(),
-                "expected_total": sum(breakdown.values()),
+                "expected_total": expected,
                 "expected_cash": breakdown[PaymentMethod.CASH],
                 "expected_card": breakdown[PaymentMethod.CARD],
                 "expected_transfer": breakdown[PaymentMethod.TRANSFER],
                 "expected_other": breakdown[PaymentMethod.OTHER],
+                # Punto 18: mismo bloque que el cierre ya hecho.
+                "expected_tax": tax_and_discount["tax"],
+                "expected_discount": tax_and_discount["discount"],
+                "expected_business_income": business_income(
+                    expected,
+                    tax_and_discount["tax"],
+                ),
             }
         )

@@ -352,6 +352,122 @@ class CashClosingApiTest(APITestCase):
             Decimal("0.0000"),
         )
 
+    def create_week_with_tax_and_discount(self):
+        """
+        Una venta y un servicio con descuento e impuesto en la semana:
+          venta    3 000 − 10 %    =  2 700 + 13 % (351)   =  3 051
+          servicio 20 000 − 1 000  = 19 000 + 13 % (2 470) = 21 470
+          total 24 521; impuestos 2 821; descuentos 1 300.
+        Más un servicio anterior a impuesto y descuento (sin montos
+        congelados, 5 000): suma al total pero no a impuestos.
+        """
+
+        sale = Sale.objects.create(
+            sale_date=WEEK_START + timedelta(days=1),
+            currency="CRC",
+            payment_method=PaymentMethod.CASH,
+            discount_type="PERCENT",
+            discount_value=Decimal("10"),
+            tax_percentage=Decimal("13"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        SaleItem.objects.create(
+            sale=sale,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal("1500.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        confirm_sale(sale=sale, user=self.user)
+
+        service_record = InjectorServiceRecord.objects.create(
+            injector=self.injector,
+            received_at=timezone.now(),
+            status=InjectorServiceStatus.READY,
+            payment_method=PaymentMethod.CARD,
+            price=Decimal("20000.0000"),
+            discount_value=Decimal("1000"),
+            tax_percentage=Decimal("13"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        deliver_service(
+            service_record=service_record,
+            delivered_at=timezone.make_aware(
+                datetime.combine(WEEK_START + timedelta(days=2), time.min),
+            ),
+            user=self.user,
+        )
+
+        self.create_cash_service(
+            timezone.make_aware(
+                datetime.combine(WEEK_START + timedelta(days=3), time.min),
+            ),
+            price="5000.0000",
+        )
+
+    def test_preview_separates_taxes_from_business_income(self):
+        # Punto 18: los impuestos entraron como dinero (están en el
+        # total a contar) pero no son del negocio.
+        self.create_week_with_tax_and_discount()
+
+        response = self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": WEEK_START.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            Decimal(response.data["expected_total"]),
+            Decimal("29521.0000"),
+        )
+        self.assertEqual(Decimal(response.data["expected_tax"]), Decimal("2821.00"))
+        self.assertEqual(
+            Decimal(response.data["expected_discount"]),
+            Decimal("1300.00"),
+        )
+        self.assertEqual(
+            Decimal(response.data["expected_business_income"]),
+            Decimal("26700.00"),
+        )
+
+    def test_closing_freezes_taxes_and_discounts(self):
+        self.create_week_with_tax_and_discount()
+
+        response = self.client.post(
+            "/api/cash/closings/",
+            {
+                "week_start": WEEK_START.isoformat(),
+                "counted_total": "29521.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        closing = CashClosing.objects.get(week_start=WEEK_START)
+        self.assertEqual(closing.expected_tax, Decimal("2821.00"))
+        self.assertEqual(closing.expected_discount, Decimal("1300.00"))
+        self.assertEqual(
+            Decimal(response.data["expected_business_income"]),
+            Decimal("26700.00"),
+        )
+
+    def test_week_without_taxes_reports_zero_tax(self):
+        self.create_cash_sale(WEEK_START)
+
+        response = self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": WEEK_START.isoformat()},
+        )
+
+        self.assertEqual(Decimal(response.data["expected_tax"]), Decimal("0"))
+        self.assertEqual(
+            Decimal(response.data["expected_business_income"]),
+            Decimal(response.data["expected_total"]),
+        )
+
     def test_create_cash_closing(self):
         self.create_cash_sale(WEEK_START)
 

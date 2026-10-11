@@ -13,6 +13,7 @@ import { canReadCash } from "@/features/auth/permissions";
 import { getCashClosing } from "@/features/cash/api";
 import type { CashClosing } from "@/features/cash/types";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { TaxBreakdown } from "@/features/cash/tax-breakdown";
 import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 
@@ -327,6 +328,14 @@ export default function CashClosingDetailPage() {
                 ₡{formatMoney(loadState.closing.expected_other)}
               </p>
             </div>
+          </div>
+
+          <div className="border-t border-[var(--color-border-soft)] p-6">
+            <TaxBreakdown
+              tax={loadState.closing.expected_tax}
+              businessIncome={loadState.closing.expected_business_income}
+              discount={loadState.closing.expected_discount}
+            />
           </div>
 
           <dl className="border-t border-[var(--color-border-soft)]">

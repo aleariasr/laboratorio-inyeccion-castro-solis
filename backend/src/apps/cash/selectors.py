@@ -21,24 +21,42 @@ SATURDAY = 5
 WEEKS_PENDING_LOOKBACK = 26
 
 
-def sales_total_by_method(week_start, week_end, payment_method):
-    # total_amount es lo que se cobró: líneas, menos el descuento, más
-    # el impuesto, congelado al confirmar (punto 19).
-    sales = Sale.objects.filter(
+def _week_sales(week_start, week_end):
+    """Ventas que entran en la caja de la semana: confirmadas y activas."""
+
+    return Sale.objects.filter(
         status=SaleStatus.CONFIRMED,
-        payment_method=payment_method,
         is_active=True,
         sale_date__gte=week_start,
         sale_date__lte=week_end,
     )
 
-    frozen_total = sales.aggregate(
-        total=Coalesce(
-            Sum("total_amount"),
-            0,
-            output_field=MONEY_FIELD,
-        )
+
+def _week_services(week_start, week_end):
+    """Servicios que entran en la caja de la semana: entregados y activos."""
+
+    return InjectorServiceRecord.objects.filter(
+        status=InjectorServiceStatus.DELIVERED,
+        is_active=True,
+        delivered_at__date__gte=week_start,
+        delivered_at__date__lte=week_end,
+    )
+
+
+def _sum(queryset, expression):
+    return queryset.aggregate(
+        total=Coalesce(Sum(expression), 0, output_field=MONEY_FIELD),
     )["total"]
+
+
+def sales_total_by_method(week_start, week_end, payment_method):
+    # total_amount es lo que se cobró: líneas, menos el descuento, más
+    # el impuesto, congelado al confirmar (punto 19).
+    sales = _week_sales(week_start, week_end).filter(
+        payment_method=payment_method,
+    )
+
+    frozen_total = _sum(sales, "total_amount")
 
     # Red de seguridad, mismo criterio que los servicios: una venta
     # confirmada sin montos congelados (confirmada por fuera de
@@ -59,22 +77,36 @@ def services_total_by_method(week_start, week_end, payment_method):
     # total_amount es lo cobrado (precio − descuento + impuesto),
     # congelado al entregar (punto 26). Un servicio entregado sin montos
     # congelados es anterior a ese cambio: ahí price ya era el total.
-    return (
-        InjectorServiceRecord.objects.filter(
-            status=InjectorServiceStatus.DELIVERED,
+    return _sum(
+        _week_services(week_start, week_end).filter(
             payment_method=payment_method,
-            is_active=True,
-            delivered_at__date__gte=week_start,
-            delivered_at__date__lte=week_end,
-        )
-        .aggregate(
-            total=Coalesce(
-                Sum(Coalesce("total_amount", "price")),
-                0,
-                output_field=MONEY_FIELD,
-            )
-        )["total"]
+        ),
+        Coalesce("total_amount", "price"),
     )
+
+
+def week_tax_and_discount(week_start, week_end):
+    """
+    Impuestos cobrados y descuentos dados en la semana (punto 18), sobre
+    exactamente las mismas ventas y servicios que expected_totals_by_method.
+    Los impuestos ya están dentro del total esperado (entraron como
+    dinero) pero no son del negocio; los descuentos ya están restados.
+    Lo que no tiene montos congelados es anterior a impuesto y
+    descuento: suma 0, salvo la red de seguridad de ventas.
+    """
+
+    sales = _week_sales(week_start, week_end)
+    services = _week_services(week_start, week_end)
+
+    tax = _sum(sales, "tax_amount") + _sum(services, "tax_amount")
+    discount = _sum(sales, "discount_amount") + _sum(services, "discount_amount")
+
+    for sale in sales.filter(total_amount__isnull=True):
+        amounts = sale_amounts(sale)
+        tax += amounts.tax_amount
+        discount += amounts.discount_amount
+
+    return {"tax": tax, "discount": discount}
 
 
 def expected_totals_by_method(week_start, week_end):

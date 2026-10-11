@@ -10,7 +10,7 @@ from apps.cash.exceptions import (
     InvalidWeekStartError,
 )
 from apps.cash.models import CashClosing
-from apps.cash.selectors import expected_totals_by_method
+from apps.cash.selectors import expected_totals_by_method, week_tax_and_discount
 from apps.core.models import PaymentMethod
 
 SATURDAY = 5  # Python: Monday=0 ... Saturday=5, Sunday=6
@@ -49,6 +49,7 @@ def create_cash_closing(
 
     breakdown = expected_totals_by_method(week_start, week_end)
     expected = sum(breakdown.values())
+    tax_and_discount = week_tax_and_discount(week_start, week_end)
     difference = counted_total - expected
 
     normalized_reason = (difference_reason or "").strip()
@@ -66,6 +67,8 @@ def create_cash_closing(
         expected_card=breakdown[PaymentMethod.CARD],
         expected_transfer=breakdown[PaymentMethod.TRANSFER],
         expected_other=breakdown[PaymentMethod.OTHER],
+        expected_tax=tax_and_discount["tax"],
+        expected_discount=tax_and_discount["discount"],
         counted_total=counted_total,
         difference=difference,
         difference_reason=normalized_reason,
