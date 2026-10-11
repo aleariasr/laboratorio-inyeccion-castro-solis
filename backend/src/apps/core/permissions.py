@@ -153,6 +153,18 @@ class CostsPermission(ModulePermission):
     module = "costs"
 
 
+class ViewCostsRequired(CostsPermission):
+    """
+    Exige view_costs sin importar el método HTTP. Se suma al permiso
+    del módulo en acciones de otro módulo que muestran costos derivados
+    (resumen y cálculo de costos de una compra): ver la compra no
+    alcanza para ver cuánto terminó costando cada producto.
+    """
+
+    def _codename(self, request, view):
+        return "view_costs"
+
+
 class ReportsPermission(ModulePermission):
     module = "reports"
 

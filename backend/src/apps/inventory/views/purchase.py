@@ -6,7 +6,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.permissions import PurchasesPermission
+from apps.core.permissions import PurchasesPermission, ViewCostsRequired
 from apps.core.query_params import (
     parse_boolean_query_param,
     parse_date_query_param,
@@ -236,6 +236,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["post"],
         url_path="calculate-costs",
+        permission_classes=[PurchasesPermission, ViewCostsRequired],
     )
     def calculate_costs(self, request, pk=None):
         purchase = self.get_object()
@@ -275,6 +276,9 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["get"],
         url_path="cost-summary",
+        # Ver la compra (view_purchases) no alcanza: el resumen trae el
+        # costo final y el precio sugerido de cada línea.
+        permission_classes=[PurchasesPermission, ViewCostsRequired],
     )
     def cost_summary(self, request, pk=None):
         purchase = self.get_object()

@@ -642,7 +642,9 @@ export function PurchaseCostsSection({
         )}
       </section>
 
-      {loadState.status === "success" && (
+      {/* El resumen trae costo final y precio sugerido por línea: el
+          backend lo exige con view_costs (ViewCostsRequired). */}
+      {loadState.status === "success" && canReadCosts && (
         <section className="app-status-card overflow-hidden">
           <div className="border-b border-[var(--color-border-soft)] p-6">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">

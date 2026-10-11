@@ -243,3 +243,60 @@ class PurchasesPermissionApiTest(APITestCase):
             self.client.get("/api/inventory/product-cost-history/").status_code,
             status.HTTP_403_FORBIDDEN,
         )
+
+    # --- Costos derivados de una compra --------------------------------
+    # Ver la compra (factura, líneas, gastos) no alcanza para ver cuánto
+    # terminó costando cada producto ni su precio sugerido: el resumen y
+    # el cálculo de costos exigen además view_costs (punto C).
+
+    def test_read_only_user_still_sees_the_purchase_import_costs(self):
+        self.client.force_authenticate(self.read_only_user)
+
+        response = self.client.get(
+            "/api/inventory/import-costs/",
+            {"purchase": self.purchase.id},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_read_only_user_cannot_see_cost_summary(self):
+        self.client.force_authenticate(self.read_only_user)
+
+        response = self.client.get(
+            f"/api/inventory/purchases/{self.purchase.id}/cost-summary/",
+            {"margin_percentage": "30.0000"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_view_costs_lets_a_purchases_reader_see_cost_summary(self):
+        user = self._user_with_permission(
+            "view_purchases",
+            "purchases-reader-with-costs",
+        )
+        user.user_permissions.add(_module_permission("view_costs"))
+        self.client.force_authenticate(user)
+
+        response = self.client.get(
+            f"/api/inventory/purchases/{self.purchase.id}/cost-summary/",
+            {"margin_percentage": "30.0000"},
+        )
+
+        # El contenido del resumen se prueba en test_purchase_api.py; acá
+        # solo importa que el permiso deje pasar.
+        self.assertNotEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_change_purchases_without_view_costs_cannot_calculate_costs(self):
+        user = self._user_with_permission(
+            "change_purchases",
+            "purchases-editor-without-costs",
+        )
+        self.client.force_authenticate(user)
+
+        response = self.client.post(
+            f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
+            {"margin_percentage": "30.0000"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
