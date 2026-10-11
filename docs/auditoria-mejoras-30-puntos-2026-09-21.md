@@ -1017,7 +1017,9 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 - [x] 19 — Impuesto y descuento en ventas (13 % por defecto al crear desde la API; montos
   congelados al confirmar; cálculo compartido en `apps/core/money.py` y `lib/document-amounts.ts`;
   más vendidos sigue en bruto)
-- [ ] 26 — Impuesto y descuento en servicios y en su factura
+- [x] 26 — Impuesto y descuento en servicios y en su factura (mismo cálculo y 13 % que ventas;
+  montos congelados al entregar; la caja suma lo cobrado de ventas y servicios; montos congelados
+  de solo lectura en el admin de Django)
 - [ ] 15 — Impuesto y descuento en la proforma
 - [ ] 18 — Impuestos en el cierre de caja
 - [ ] 20 — Reporte de ventas desglosado y comparativo

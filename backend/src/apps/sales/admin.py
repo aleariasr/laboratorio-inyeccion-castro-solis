@@ -11,6 +11,7 @@ class SaleAdmin(admin.ModelAdmin):
         "sale_date",
         "currency",
         "status",
+        "total_amount",
         "is_active",
     )
     search_fields = (
@@ -23,6 +24,14 @@ class SaleAdmin(admin.ModelAdmin):
         "currency",
         "sale_date",
         "is_active",
+    )
+    # Congelados al confirmar: son lo que se cobró y lo que suma la caja.
+    # Editarlos a mano descuadraría el cierre (punto 19).
+    readonly_fields = (
+        "subtotal_amount",
+        "discount_amount",
+        "tax_amount",
+        "total_amount",
     )
 
 

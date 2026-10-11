@@ -58,6 +58,7 @@ class InjectorServiceRecordAdmin(admin.ModelAdmin):
         "received_at",
         "delivered_at",
         "status",
+        "total_amount",
         "is_active",
     )
     search_fields = (
@@ -70,6 +71,14 @@ class InjectorServiceRecordAdmin(admin.ModelAdmin):
         "received_at",
         "delivered_at",
         "is_active",
+    )
+    # Congelados al entregar: son lo que se cobró y lo que suma la caja.
+    # Editarlos a mano descuadraría el cierre (punto 26).
+    readonly_fields = (
+        "subtotal_amount",
+        "discount_amount",
+        "tax_amount",
+        "total_amount",
     )
 
 

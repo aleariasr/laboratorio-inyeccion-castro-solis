@@ -153,7 +153,7 @@ export default function SalesByDateReportPage() {
   return (
     <AppShell
       title="Ventas por fecha"
-      description="Cantidad de ventas y total facturado por día, en colones."
+      description="Cantidad de ventas y total cobrado por día (con descuento e impuesto), en colones."
       actions={
         <Button type="button" variant="secondary" onClick={goBack}>
           <ArrowLeftIcon />

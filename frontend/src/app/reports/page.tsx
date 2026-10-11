@@ -78,7 +78,7 @@ const REPORT_CARDS: ReportCard[] = [
     href: "/reports/sales-by-date",
     title: "Ventas por fecha",
     description:
-      "Cantidad de ventas y total facturado por fecha, en colones.",
+      "Cantidad de ventas y total cobrado por fecha, con descuento e impuesto.",
     icon: <CartIcon className="size-7" />,
     accent: "#248a3d",
     surface: "#edf8ef",
@@ -87,7 +87,7 @@ const REPORT_CARDS: ReportCard[] = [
     href: "/reports/top-selling-products",
     title: "Productos más vendidos",
     description:
-      "Cantidad vendida y total facturado por producto, en colones.",
+      "Cantidad vendida y monto por producto, antes de descuentos.",
     icon: <BoxIcon className="size-7" />,
     accent: "#0d7377",
     surface: "#e6f5f5",

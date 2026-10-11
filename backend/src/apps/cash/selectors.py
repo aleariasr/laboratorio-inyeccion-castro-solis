@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db.models import DecimalField, Sum
 from django.db.models.functions import Coalesce, TruncDate
@@ -7,6 +8,7 @@ from django.utils import timezone
 from apps.core.models import PaymentMethod
 from apps.customers.models import InjectorServiceRecord, InjectorServiceStatus
 from apps.sales.models import Sale, SaleItem, SaleStatus
+from apps.sales.selectors import sale_amounts
 
 from .models import CashClosing
 
@@ -22,22 +24,35 @@ WEEKS_PENDING_LOOKBACK = 26
 def sales_total_by_method(week_start, week_end, payment_method):
     # total_amount es lo que se cobró: líneas, menos el descuento, más
     # el impuesto, congelado al confirmar (punto 19).
-    return (
-        Sale.objects.filter(
-            status=SaleStatus.CONFIRMED,
-            payment_method=payment_method,
-            is_active=True,
-            sale_date__gte=week_start,
-            sale_date__lte=week_end,
-        )
-        .aggregate(
-            total=Coalesce(
-                Sum("total_amount"),
-                0,
-                output_field=MONEY_FIELD,
-            )
-        )["total"]
+    sales = Sale.objects.filter(
+        status=SaleStatus.CONFIRMED,
+        payment_method=payment_method,
+        is_active=True,
+        sale_date__gte=week_start,
+        sale_date__lte=week_end,
     )
+
+    frozen_total = sales.aggregate(
+        total=Coalesce(
+            Sum("total_amount"),
+            0,
+            output_field=MONEY_FIELD,
+        )
+    )["total"]
+
+    # Red de seguridad, mismo criterio que los servicios: una venta
+    # confirmada sin montos congelados (confirmada por fuera de
+    # confirm_sale) se calcula como la factura y los reportes, en vez de
+    # contar 0 sin aviso.
+    unfrozen_total = sum(
+        (
+            sale_amounts(sale).total
+            for sale in sales.filter(total_amount__isnull=True)
+        ),
+        Decimal("0"),
+    )
+
+    return frozen_total + unfrozen_total
 
 
 def services_total_by_method(week_start, week_end, payment_method):

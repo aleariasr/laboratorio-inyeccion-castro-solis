@@ -221,6 +221,37 @@ class CashClosingApiTest(APITestCase):
             Decimal("3051.0000"),
         )
 
+    def test_preview_counts_confirmed_sale_without_frozen_amounts(self):
+        # Una venta confirmada por fuera de confirm_sale (sin montos
+        # congelados) no puede desaparecer de la caja: se calcula igual
+        # que en la factura y los reportes. 2 × 1500 = 3000.
+        sale = Sale.objects.create(
+            sale_date=WEEK_START + timedelta(days=1),
+            currency="CRC",
+            payment_method=PaymentMethod.CASH,
+            status="CONFIRMED",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        SaleItem.objects.create(
+            sale=sale,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal("1500.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": WEEK_START.isoformat()},
+        )
+
+        self.assertEqual(
+            Decimal(response.data["expected_cash"]),
+            Decimal("3000.0000"),
+        )
+
     def test_preview_counts_services_with_discount_and_tax(self):
         # Punto 26: la caja suma lo cobrado al entregar.
         # 20 000 − 1 000 = 19 000 + 13 % = 21 470.

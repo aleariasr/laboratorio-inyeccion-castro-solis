@@ -155,7 +155,7 @@ export default function TopCustomersReportPage() {
   return (
     <AppShell
       title="Clientes con más ventas"
-      description="Clientes ordenados por monto total o cantidad de ventas, en colones."
+      description="Clientes ordenados por total cobrado (con descuento e impuesto) o por cantidad de ventas, en colones."
       actions={
         <Button type="button" variant="secondary" onClick={goBack}>
           <ArrowLeftIcon />
