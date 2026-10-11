@@ -1,6 +1,7 @@
 from django.db.models import DecimalField, ExpressionWrapper, F, Sum
 from django.db.models.functions import Coalesce
 
+from apps.core.money import DocumentAmounts, compute_document_amounts
 from apps.sales.models import Sale, SaleItem, SaleStatus
 
 
@@ -25,6 +26,39 @@ def sale_total(sale: Sale):
             )
         )["total"]
     )
+
+
+def live_sale_amounts(sale: Sale):
+    """
+    Montos calculados ahora con las líneas y el descuento e impuesto de
+    la venta. Lanza DocumentAmountsError si el descuento quedó mayor que
+    el subtotal (por ejemplo, después de quitar líneas).
+    """
+
+    return compute_document_amounts(
+        sale_total(sale),
+        sale.discount_type,
+        sale.discount_value,
+        sale.tax_percentage,
+    )
+
+
+def sale_amounts(sale: Sale):
+    """
+    Confirmada o anulada: los montos congelados al confirmar (lo que se
+    cobró). Borrador: calculados en vivo (ver live_sale_amounts).
+    """
+
+    if sale.total_amount is not None:
+        return DocumentAmounts(
+            subtotal=sale.subtotal_amount,
+            discount_amount=sale.discount_amount,
+            taxable_base=sale.subtotal_amount - sale.discount_amount,
+            tax_amount=sale.tax_amount,
+            total=sale.total_amount,
+        )
+
+    return live_sale_amounts(sale)
 
 
 def confirmed_sales():

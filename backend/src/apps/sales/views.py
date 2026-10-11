@@ -13,6 +13,7 @@ from apps.sales.exceptions import (
     InsufficientStockError,
     SaleAlreadyCancelledError,
     SaleAlreadyConfirmedError,
+    SaleAmountsError,
     SaleCancelledError,
     SaleNotConfirmedError,
     SaleWithoutItemsError,
@@ -139,6 +140,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         except (
             InsufficientStockError,
             SaleAlreadyConfirmedError,
+            SaleAmountsError,
             SaleCancelledError,
             SaleWithoutItemsError,
         ) as exc:

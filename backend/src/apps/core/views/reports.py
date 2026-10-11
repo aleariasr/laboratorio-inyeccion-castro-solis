@@ -22,6 +22,7 @@ from apps.inventory.selectors import (
     stock_history,
 )
 from apps.sales.models import Sale, SaleItem, SaleStatus
+from apps.sales.selectors import sale_amounts
 
 
 class LowStockProductsReportView(APIView):
@@ -524,13 +525,8 @@ class SalesByDateReportView(APIView):
                     "total": Decimal("0"),
                 }
 
-            total = sum(
-                (
-                    item.quantity * item.unit_price
-                    for item in sale.items.all()
-                ),
-                Decimal("0"),
-            )
+            # Lo cobrado: con descuento e impuesto (punto 19).
+            total = sale_amounts(sale).total
 
             results_by_date[sale_date]["sale_count"] += 1
             results_by_date[sale_date]["total"] += total
@@ -594,6 +590,9 @@ class TopSellingProductsReportView(APIView):
                 }
 
             results_by_product[product.id]["quantity_sold"] += item.quantity
+            # Bruto: cantidad × precio de la línea, antes del descuento y
+            # el impuesto, que son del documento y no de un producto
+            # (decisión del punto 19). El frontend lo rotula así.
             results_by_product[product.id]["total"] += (
                 item.quantity * item.unit_price
             )
@@ -667,13 +666,8 @@ class TopCustomersReportView(APIView):
                     "total": Decimal("0"),
                 }
 
-            total = sum(
-                (
-                    item.quantity * item.unit_price
-                    for item in sale.items.all()
-                ),
-                Decimal("0"),
-            )
+            # Lo cobrado: con descuento e impuesto (punto 19).
+            total = sale_amounts(sale).total
 
             results_by_customer[customer.id]["sale_count"] += 1
             results_by_customer[customer.id]["total"] += total

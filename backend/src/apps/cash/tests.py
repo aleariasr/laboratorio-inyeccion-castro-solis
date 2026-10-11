@@ -186,6 +186,40 @@ class CashClosingApiTest(APITestCase):
         )
         self.assertEqual(Decimal(response.data["expected_other"]), Decimal("0.0000"))
 
+    def test_preview_counts_sales_with_discount_and_tax(self):
+        # Punto 19: la caja suma lo cobrado, no la suma de las líneas.
+        # 2 × 1500 = 3000 − 10 % = 2700 + 13 % = 3051.
+        sale = Sale.objects.create(
+            sale_date=WEEK_START + timedelta(days=1),
+            currency="CRC",
+            payment_method=PaymentMethod.CASH,
+            discount_type="PERCENT",
+            discount_value=Decimal("10"),
+            tax_percentage=Decimal("13"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        SaleItem.objects.create(
+            sale=sale,
+            product=self.product,
+            quantity=2,
+            unit_price=Decimal("1500.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        confirm_sale(sale=sale, user=self.user)
+
+        response = self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": WEEK_START.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            Decimal(response.data["expected_cash"]),
+            Decimal("3051.0000"),
+        )
+
     def test_preview_breaks_down_all_payment_methods(self):
         # El negocio concilia efectivo + vouchers de tarjeta +
         # comprobantes de transferencia contra el sistema — el

@@ -6,16 +6,49 @@ from apps.inventory.models import (
     StockMovement,
     StockMovementType,
 )
+from apps.core.money import DocumentAmountsError
 from apps.inventory.selectors import current_stock
 from apps.sales.exceptions import (
     InsufficientStockError,
     SaleAlreadyCancelledError,
     SaleAlreadyConfirmedError,
+    SaleAmountsError,
     SaleCancelledError,
     SaleNotConfirmedError,
     SaleWithoutItemsError,
 )
 from apps.sales.models import Sale, SaleStatus
+from apps.sales.selectors import live_sale_amounts
+
+FROZEN_AMOUNT_FIELDS = [
+    "subtotal_amount",
+    "discount_amount",
+    "tax_amount",
+    "total_amount",
+]
+
+
+def freeze_sale_amounts(sale: Sale):
+    """
+    Calcula y guarda los montos de la venta tal como quedan al
+    confirmarla. A partir de ahí la caja, los reportes y la factura usan
+    estos montos, no las líneas. confirm_sale lo llama; los tests que
+    arman una venta confirmada a mano también.
+    """
+
+    try:
+        amounts = live_sale_amounts(sale)
+    except DocumentAmountsError as exc:
+        raise SaleAmountsError(str(exc)) from exc
+
+    sale.subtotal_amount = amounts.subtotal
+    sale.discount_amount = amounts.discount_amount
+    sale.tax_amount = amounts.tax_amount
+    sale.total_amount = amounts.total
+
+    sale.save(update_fields=[*FROZEN_AMOUNT_FIELDS, "updated_at"])
+
+    return amounts
 
 
 @transaction.atomic
@@ -44,6 +77,10 @@ def confirm_sale(*, sale: Sale, user):
             raise InsufficientStockError(
                 "No hay inventario suficiente."
             )
+
+    # Antes de cambiar el estado: si el descuento no cuadra, la venta
+    # sigue en borrador y no se mueve inventario.
+    freeze_sale_amounts(sale)
 
     sale.status = SaleStatus.CONFIRMED
     sale.confirmed_at = timezone.now()

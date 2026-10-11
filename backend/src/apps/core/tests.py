@@ -30,7 +30,13 @@ from apps.core.management.commands.setup_roles import ROLE_PERMISSIONS
 from apps.inventory.models import PurchaseItem, PurchaseStatus, SupplierProduct
 from apps.inventory.selectors import current_stock
 from apps.inventory.services import initial_inventory
+from apps.core.money import (
+    DiscountType,
+    DocumentAmountsError,
+    compute_document_amounts,
+)
 from apps.sales.models import Sale, SaleItem, SaleStatus
+from apps.sales.services import freeze_sale_amounts
 
 
 # Tabla de todas las subclases de ModulePermission que declaran
@@ -1795,6 +1801,37 @@ class BusinessReportsApiTest(APITestCase):
             Decimal("750.0000"),
         )
 
+    def test_sales_reports_use_amount_charged_but_top_products_stay_gross(self):
+        # Punto 19: 750 − 50 de descuento = 700 + 10 % = 770 cobrado. Los
+        # reportes por documento muestran 770; productos más vendidos
+        # sigue en bruto (750), porque el descuento es del documento.
+        self.sale.discount_type = "AMOUNT"
+        self.sale.discount_value = Decimal("50")
+        self.sale.tax_percentage = Decimal("10")
+        self.sale.save(
+            update_fields=["discount_type", "discount_value", "tax_percentage"],
+        )
+        freeze_sale_amounts(self.sale)
+
+        params = {"date_from": "2026-07-01", "date_to": "2026-07-31"}
+
+        by_date = self.client.get("/api/reports/sales-by-date/", params)
+        by_customer = self.client.get("/api/reports/top-customers/", params)
+        by_product = self.client.get("/api/reports/top-selling-products/", params)
+
+        self.assertEqual(
+            Decimal(by_date.data["results"][0]["total"]),
+            Decimal("770.00"),
+        )
+        self.assertEqual(
+            Decimal(by_customer.data["results"][0]["total"]),
+            Decimal("770.00"),
+        )
+        self.assertEqual(
+            Decimal(by_product.data["results"][0]["total"]),
+            Decimal("750.0000"),
+        )
+
     def test_top_selling_products_report(self):
         response = self.client.get(
             "/api/reports/top-selling-products/",
@@ -2477,3 +2514,95 @@ class BusinessReportsApiTest(APITestCase):
         self.assertEqual(second_page.status_code, status.HTTP_200_OK)
         self.assertEqual(len(second_page.data["results"]), 1)
         self.assertIsNone(second_page.data["next"])
+
+
+class ComputeDocumentAmountsTest(TestCase):
+    """
+    Cálculo compartido de venta, servicio y proforma (puntos 15, 19 y
+    26): descuento sobre el subtotal, impuesto sobre la base con
+    descuento, redondeo a 2 decimales ROUND_HALF_UP.
+    """
+
+    def test_without_discount_or_tax_total_is_the_subtotal(self):
+        amounts = compute_document_amounts(Decimal("750.0000"))
+
+        self.assertEqual(amounts.subtotal, Decimal("750.00"))
+        self.assertEqual(amounts.discount_amount, Decimal("0.00"))
+        self.assertEqual(amounts.tax_amount, Decimal("0.00"))
+        self.assertEqual(amounts.total, Decimal("750.00"))
+
+    def test_amount_discount_then_tax_on_discounted_base(self):
+        amounts = compute_document_amounts(
+            Decimal("1000"),
+            DiscountType.AMOUNT,
+            Decimal("100"),
+            Decimal("13"),
+        )
+
+        self.assertEqual(amounts.discount_amount, Decimal("100.00"))
+        self.assertEqual(amounts.taxable_base, Decimal("900.00"))
+        self.assertEqual(amounts.tax_amount, Decimal("117.00"))
+        self.assertEqual(amounts.total, Decimal("1017.00"))
+
+    def test_percent_discount_rounds_half_up(self):
+        # 10 % de 33.35 = 3.335 → 3.34; base 30.01; 13 % = 3.9013 → 3.90.
+        amounts = compute_document_amounts(
+            Decimal("33.35"),
+            DiscountType.PERCENT,
+            Decimal("10"),
+            Decimal("13"),
+        )
+
+        self.assertEqual(amounts.discount_amount, Decimal("3.34"))
+        self.assertEqual(amounts.taxable_base, Decimal("30.01"))
+        self.assertEqual(amounts.tax_amount, Decimal("3.90"))
+        self.assertEqual(amounts.total, Decimal("33.91"))
+
+    def test_full_discount_is_allowed(self):
+        amounts = compute_document_amounts(
+            Decimal("500"),
+            DiscountType.PERCENT,
+            Decimal("100"),
+            Decimal("13"),
+        )
+
+        self.assertEqual(amounts.total, Decimal("0.00"))
+
+    def test_invalid_values_raise(self):
+        cases = {
+            "descuento mayor al subtotal": (
+                Decimal("100"),
+                DiscountType.AMOUNT,
+                Decimal("100.01"),
+                Decimal("0"),
+            ),
+            "porcentaje mayor a 100": (
+                Decimal("100"),
+                DiscountType.PERCENT,
+                Decimal("101"),
+                Decimal("0"),
+            ),
+            "descuento negativo": (
+                Decimal("100"),
+                DiscountType.AMOUNT,
+                Decimal("-1"),
+                Decimal("0"),
+            ),
+            "impuesto mayor a 100": (
+                Decimal("100"),
+                DiscountType.AMOUNT,
+                Decimal("0"),
+                Decimal("101"),
+            ),
+            "tipo inválido": (
+                Decimal("100"),
+                "OTRO",
+                Decimal("0"),
+                Decimal("0"),
+            ),
+        }
+
+        for case, arguments in cases.items():
+            with self.subTest(case=case):
+                with self.assertRaises(DocumentAmountsError):
+                    compute_document_amounts(*arguments)

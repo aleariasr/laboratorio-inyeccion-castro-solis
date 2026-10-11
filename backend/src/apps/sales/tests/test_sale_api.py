@@ -952,3 +952,172 @@ class SaleItemDefaultPriceApiTest(APITestCase):
             SaleItem.objects.get(id=response.data["id"]).unit_price,
             Decimal("7000.0000"),
         )
+
+
+class SaleAmountsApiTest(APITestCase):
+    """
+    Punto 19: descuento (monto o %) e impuesto (%) al documento. En
+    borrador se calculan en vivo; al confirmar quedan congelados.
+    Líneas: 3 × 100 = 300.
+    """
+
+    def setUp(self):
+        call_command("setup_roles")
+
+        self.user = User.objects.create_user(
+            username="amounts-sales",
+            password="12345678",
+        )
+        self.user.groups.add(Group.objects.get(name=ROLE_SALES))
+        self.client.force_authenticate(self.user)
+
+        location = StorageLocation.objects.create(
+            code="A101",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.product = Product.objects.create(
+            standard_code="P-AMOUNTS",
+            name="Producto montos",
+            storage_location=location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        initial_inventory(product=self.product, quantity=10, user=self.user)
+
+        self.sale = Sale.objects.create(
+            sale_date=date.today(),
+            currency="CRC",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        self.item = SaleItem.objects.create(
+            sale=self.sale,
+            product=self.product,
+            quantity=3,
+            unit_price=Decimal("100.0000"),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def sale_url(self, suffix=""):
+        return f"/api/sales/sales/{self.sale.id}/{suffix}"
+
+    def test_new_sale_from_api_starts_with_13_percent_tax(self):
+        response = self.client.post(
+            "/api/sales/sales/",
+            {"sale_date": str(date.today())},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Decimal(response.data["tax_percentage"]), Decimal("13"))
+
+    def test_draft_amounts_are_computed_live(self):
+        # 300 − 10 % = 270 + 13 % = 305.10
+        response = self.client.patch(
+            self.sale_url(),
+            {
+                "discount_type": "PERCENT",
+                "discount_value": "10",
+                "tax_percentage": "13",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Decimal(response.data["subtotal"]), Decimal("300.00"))
+        self.assertEqual(Decimal(response.data["discount_amount"]), Decimal("30.00"))
+        self.assertEqual(Decimal(response.data["tax_amount"]), Decimal("35.10"))
+        self.assertEqual(Decimal(response.data["total"]), Decimal("305.10"))
+        self.assertIsNone(response.data["amounts_error"])
+
+        self.sale.refresh_from_db()
+        self.assertIsNone(self.sale.total_amount)
+
+    def test_confirm_freezes_amounts(self):
+        self.client.patch(
+            self.sale_url(),
+            {"discount_value": "50", "tax_percentage": "10"},
+            format="json",
+        )
+
+        response = self.client.post(self.sale_url("confirm/"), {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.sale.refresh_from_db()
+        self.assertEqual(self.sale.subtotal_amount, Decimal("300.00"))
+        self.assertEqual(self.sale.discount_amount, Decimal("50.00"))
+        self.assertEqual(self.sale.tax_amount, Decimal("25.00"))
+        self.assertEqual(self.sale.total_amount, Decimal("275.00"))
+        self.assertEqual(Decimal(response.data["total"]), Decimal("275.00"))
+
+    def test_frozen_total_does_not_follow_line_changes(self):
+        self.client.post(self.sale_url("confirm/"), {}, format="json")
+
+        # Cambiar la línea por la base de datos (la API no lo permite en
+        # una venta confirmada): el total cobrado no se mueve.
+        SaleItem.objects.filter(pk=self.item.pk).update(
+            unit_price=Decimal("999.0000"),
+        )
+
+        response = self.client.get(self.sale_url())
+
+        self.assertEqual(Decimal(response.data["total"]), Decimal("300.00"))
+
+    def test_cannot_change_discount_of_confirmed_sale(self):
+        self.client.post(self.sale_url("confirm/"), {}, format="json")
+
+        response = self.client.patch(
+            self.sale_url(),
+            {"discount_value": "10"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_discount_greater_than_subtotal_returns_400(self):
+        response = self.client.patch(
+            self.sale_url(),
+            {"discount_value": "300.01"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("discount_value", response.data)
+
+    def test_tax_over_100_returns_400(self):
+        response = self.client.patch(
+            self.sale_url(),
+            {"tax_percentage": "101"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("tax_percentage", response.data)
+
+    def test_discount_left_too_big_after_removing_lines_blocks_confirm(self):
+        self.client.patch(
+            self.sale_url(),
+            {"discount_value": "250"},
+            format="json",
+        )
+        # Bajar la línea a 1 × 100 deja el descuento (250) por encima.
+        self.client.patch(
+            f"/api/sales/sale-items/{self.item.id}/",
+            {"quantity": 1},
+            format="json",
+        )
+
+        detail = self.client.get(self.sale_url())
+        confirm = self.client.post(self.sale_url("confirm/"), {}, format="json")
+
+        self.assertIsNone(detail.data["total"])
+        self.assertIsNotNone(detail.data["amounts_error"])
+        self.assertEqual(confirm.status_code, status.HTTP_400_BAD_REQUEST)
+        self.sale.refresh_from_db()
+        self.assertEqual(self.sale.status, SaleStatus.DRAFT)
+        self.assertEqual(current_stock(self.product), 10)

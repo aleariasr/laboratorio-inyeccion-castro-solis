@@ -24,3 +24,7 @@ class SaleNotConfirmedError(SalesError):
 
 class SaleAlreadyCancelledError(SalesError):
     """La venta ya fue anulada."""
+
+
+class SaleAmountsError(SalesError):
+    """El descuento o el impuesto no son válidos para el subtotal."""

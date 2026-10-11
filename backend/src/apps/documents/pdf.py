@@ -8,7 +8,9 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 
+from apps.core.money import DiscountType
 from apps.inventory.selectors import effective_sale_price
+from apps.sales.selectors import sale_amounts
 
 
 def build_product_labels_pdf(*, products):
@@ -292,12 +294,19 @@ def _build_itemized_document_pdf(
     rows,
     customer=None,
     price_missing_label="Sin precio definido",
+    summary=None,
 ):
     """
     Documento genérico de una tabla Código/Producto/Precio + total,
     con el mismo banner y colores de marca — lo usan tanto la
     proforma como la factura de venta. `rows` es una lista de
     (código, nombre, precio_o_None).
+
+    `summary` (opcional, punto 19): DocumentAmountsSummary con los
+    montos del documento. Si trae descuento o impuesto, se pintan
+    Subtotal / Descuento / Impuesto sobre la barra del total, omitiendo
+    los que valen cero, y el TOTAL es el del resumen. Sin summary el
+    documento queda igual que antes.
     """
     buffer = BytesIO()
 
@@ -390,6 +399,29 @@ def _build_itemized_document_pdf(
 
     y -= 3 * mm
 
+    if summary is not None:
+        total = summary.amounts.total
+        summary_lines = summary.lines()
+
+        if summary_lines:
+            summary_height = len(summary_lines) * 5 * mm + 2 * mm
+
+            if y - summary_height < PROFORMA_BOTTOM_MARGIN:
+                pdf.showPage()
+                draw_banner()
+                y = page_height - PROFORMA_BANNER_HEIGHT - 12 * mm
+
+            pdf.setFont("Helvetica", 9)
+
+            for label, amount_text in summary_lines:
+                pdf.setFillColor(PROFORMA_MUTED_TEXT)
+                pdf.drawString(column_name_x, y, label)
+                pdf.setFillColor(colors.black)
+                pdf.drawRightString(column_price_x, y, amount_text)
+                y -= 5 * mm
+
+            y -= 2 * mm
+
     total_bar_height = 10 * mm
     pdf.setFillColor(PROFORMA_BRAND_BLUE)
     pdf.rect(
@@ -450,6 +482,55 @@ def build_proforma_pdf(*, items, customer=None):
     )
 
 
+class DocumentAmountsSummary:
+    """
+    Montos de un documento para el PDF: el resultado de
+    compute_document_amounts más los porcentajes, para rotular
+    "Descuento (10 %)" e "Impuesto (13 %)".
+    """
+
+    def __init__(self, *, amounts, tax_percentage, discount_percentage=None):
+        self.amounts = amounts
+        self.tax_percentage = tax_percentage
+        self.discount_percentage = discount_percentage
+
+    def lines(self):
+        has_discount = self.amounts.discount_amount > 0
+        has_tax = self.amounts.tax_amount > 0
+
+        if not has_discount and not has_tax:
+            return []
+
+        lines = [("Subtotal", f"CRC {_format_money(self.amounts.subtotal)}")]
+
+        if has_discount:
+            label = (
+                f"Descuento ({_format_percentage(self.discount_percentage)} %)"
+                if self.discount_percentage is not None
+                else "Descuento"
+            )
+            lines.append(
+                (label, f"- CRC {_format_money(self.amounts.discount_amount)}")
+            )
+
+        if has_tax:
+            lines.append(
+                (
+                    f"Impuesto ({_format_percentage(self.tax_percentage)} %)",
+                    f"CRC {_format_money(self.amounts.tax_amount)}",
+                )
+            )
+
+        return lines
+
+
+def _format_percentage(value):
+    # 13.00 → "13", 12.50 → "12.5"
+    text = f"{Decimal(value):f}"
+
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
 def build_sale_invoice_pdf(*, sale):
     rows = []
 
@@ -477,6 +558,15 @@ def build_sale_invoice_pdf(*, sale):
         ),
         rows=rows,
         customer=customer,
+        summary=DocumentAmountsSummary(
+            amounts=sale_amounts(sale),
+            tax_percentage=sale.tax_percentage,
+            discount_percentage=(
+                sale.discount_value
+                if sale.discount_type == DiscountType.PERCENT
+                else None
+            ),
+        ),
     )
 
 

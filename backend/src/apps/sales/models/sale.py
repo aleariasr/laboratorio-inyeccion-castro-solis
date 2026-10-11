@@ -1,10 +1,17 @@
 from django.conf import settings
 from decimal import Decimal
 
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.core.models import ActivableModel, AuditModel, PaymentMethod
+from apps.core.money import DiscountType
+
+# IVA de Costa Rica: toda venta creada desde la API (la pantalla)
+# arranca con 13 % y se puede cambiar o poner en 0 mientras está en
+# borrador (punto 19). Lo aplica SaleSerializer al crear, no el modelo:
+# así las ventas existentes y las que se crean por código quedan en 0.
+DEFAULT_SALE_TAX_PERCENTAGE = Decimal("13.00")
 from apps.customers.models import Customer
 from apps.inventory.models import Product
 
@@ -81,6 +88,62 @@ class Sale(AuditModel, ActivableModel):
     )
 
     notes = models.TextField(blank=True)
+
+    # Descuento e impuesto al documento completo (punto 19), editables
+    # solo en borrador. Ver apps/core/money.py.
+    discount_type = models.CharField(
+        max_length=10,
+        choices=DiscountType.choices,
+        default=DiscountType.AMOUNT,
+    )
+
+    discount_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+
+    tax_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[
+            MinValueValidator(Decimal("0")),
+            MaxValueValidator(Decimal("100")),
+        ],
+    )
+
+    # Montos congelados al confirmar (confirm_sale). Nulos en borrador:
+    # ahí el total se calcula en vivo. La caja y los reportes suman
+    # total_amount, que es lo que realmente se cobró.
+    subtotal_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    discount_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    tax_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    total_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         db_table = "sales_sales"
