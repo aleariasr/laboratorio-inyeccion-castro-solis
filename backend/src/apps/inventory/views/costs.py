@@ -4,7 +4,7 @@ from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 
-from apps.core.permissions import ProductsPermission, PurchasesPermission
+from apps.core.permissions import CostsPermission, PurchasesPermission
 from apps.core.query_params import parse_boolean_query_param
 
 from apps.inventory.models import (
@@ -123,7 +123,7 @@ class ImportCostViewSet(viewsets.ModelViewSet):
 
 class ProductCostHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductCostHistorySerializer
-    permission_classes = [ProductsPermission]
+    permission_classes = [CostsPermission]
 
     def get_queryset(self):
         queryset = (

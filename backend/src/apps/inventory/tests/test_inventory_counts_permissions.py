@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.core.permissions import (
+    ROLE_ADMIN,
     ROLE_INVENTORY,
     ROLE_READ_ONLY,
 )
@@ -27,12 +28,12 @@ class InventoryCountsPermissionApiTest(APITestCase):
     def setUp(self):
         call_command("setup_roles")
 
-        self.inventory_user = User.objects.create_user(
-            username="counts-inventory",
+        self.admin_user = User.objects.create_user(
+            username="counts-admin",
             password="12345678",
         )
-        self.inventory_user.groups.add(
-            Group.objects.get(name=ROLE_INVENTORY),
+        self.admin_user.groups.add(
+            Group.objects.get(name=ROLE_ADMIN),
         )
 
         self.read_only_user = User.objects.create_user(
@@ -54,8 +55,8 @@ class InventoryCountsPermissionApiTest(APITestCase):
         self.inventory_count = InventoryCount.objects.create(
             reference="PERM-CNT-001",
             count_date=date.today(),
-            created_by=self.inventory_user,
-            updated_by=self.inventory_user,
+            created_by=self.admin_user,
+            updated_by=self.admin_user,
         )
 
     def _user_with_permission(self, codename, username):
@@ -66,8 +67,8 @@ class InventoryCountsPermissionApiTest(APITestCase):
         user.user_permissions.add(_module_permission(codename))
         return user
 
-    def test_inventory_user_can_create_inventory_count(self):
-        self.client.force_authenticate(self.inventory_user)
+    def test_admin_user_can_create_inventory_count(self):
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.post(
             "/api/inventory/inventory-counts/",
@@ -113,8 +114,8 @@ class InventoryCountsPermissionApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_inventory_user_can_cancel_draft_inventory_count(self):
-        self.client.force_authenticate(self.inventory_user)
+    def test_admin_user_can_cancel_draft_inventory_count(self):
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.post(
             f"/api/inventory/inventory-counts/{self.inventory_count.id}/cancel/",
@@ -172,3 +173,24 @@ class InventoryCountsPermissionApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_inventory_role_can_no_longer_see_them(self):
+        """
+        Desde el rediseño de roles (punto 13), Inventario no maneja
+        conteos.
+        """
+
+        inventory_user = User.objects.create_user(
+            username="conteos-inventory",
+            password="12345678",
+        )
+        inventory_user.groups.add(
+            Group.objects.get(name=ROLE_INVENTORY),
+        )
+
+        self.client.force_authenticate(inventory_user)
+
+        self.assertEqual(
+            self.client.get("/api/inventory/inventory-counts/").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )

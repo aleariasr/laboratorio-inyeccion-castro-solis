@@ -42,7 +42,14 @@ class DashboardSummaryView(APIView):
             "cash_pending_week_start": None,
         }
 
-        if self._can_view(request, "products"):
+        # view_products solo no alcanza: Ventas y Clientes lo tienen
+        # para buscar productos dentro de sus formularios, no para
+        # gestionar inventario. La alerta es para quien tiene el
+        # módulo completo, y view_locations es lo que los distingue.
+        if self._can_view(request, "products") and self._can_view(
+            request,
+            "locations",
+        ):
             data["low_stock_products"] = self._low_stock_products()
 
         if self._can_view(request, "services"):

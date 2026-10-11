@@ -325,7 +325,12 @@ class ProductViewSet(
         )
 
         return Response(
-            ProductSerializer(variant).data,
+            # Con el contexto, para que latest_suggested_price se resuelva
+            # según los permisos de quien pide (ver ProductSerializer).
+            ProductSerializer(
+                variant,
+                context=self.get_serializer_context(),
+            ).data,
             status=status.HTTP_201_CREATED,
         )
 

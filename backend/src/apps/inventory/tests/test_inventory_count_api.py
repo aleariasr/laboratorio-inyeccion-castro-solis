@@ -6,7 +6,7 @@ from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.core.permissions import ROLE_INVENTORY
+from apps.core.permissions import ROLE_ADMIN
 
 from apps.inventory.models import (
     InventoryCount,
@@ -29,7 +29,7 @@ class InventoryCountApiTest(APITestCase):
         call_command("setup_roles")
 
         self.user.groups.add(
-            Group.objects.get(name=ROLE_INVENTORY),
+            Group.objects.get(name=ROLE_ADMIN),
         )
 
         self.client.force_authenticate(self.user)

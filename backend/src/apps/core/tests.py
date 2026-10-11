@@ -441,10 +441,11 @@ class SetupRolesCommandTest(TestCase):
             )
         )
 
-        # 37 = cantidad de tuplas en ModulePermissions.Meta.permissions
+        # 38 = cantidad de tuplas en ModulePermissions.Meta.permissions
         # al momento de escribir este test. Un cambio en este número
         # es la señal de que hay que revisar ROLE_PERMISSIONS también.
-        self.assertEqual(len(all_module_codenames), 37)
+        # (37 → 38 con view_costs, del rediseño de roles del punto 13.)
+        self.assertEqual(len(all_module_codenames), 38)
 
         admin_group = Group.objects.get(name=ROLE_ADMIN)
         admin_codenames = set(
@@ -1300,6 +1301,34 @@ class DashboardSummaryApiTest(APITestCase):
         self.assertIsNone(response.data["services_ready"])
         self.assertIsNone(response.data["draft_purchases"])
         self.assertIsNone(response.data["cash_pending_week_start"])
+
+    def test_low_stock_card_follows_full_inventory_module(self):
+        # Ventas y Clientes tienen view_products para buscar productos
+        # en sus formularios, pero la alerta de bajo mínimo es para los
+        # roles con el módulo de inventario completo.
+        expectations = {
+            ROLE_INVENTORY: True,
+            ROLE_READ_ONLY: True,
+            ROLE_SALES: False,
+            ROLE_CUSTOMERS: False,
+        }
+
+        for role, sees_card in expectations.items():
+            with self.subTest(role=role):
+                user = User.objects.create_user(
+                    username=f"dashboard-low-stock-{role.lower()}",
+                    password="12345678",
+                )
+                user.groups.add(Group.objects.get(name=role))
+                self.client.force_authenticate(user)
+
+                response = self.client.get("/api/dashboard/summary/")
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertEqual(
+                    response.data["low_stock_products"] is not None,
+                    sees_card,
+                )
 
     def test_dashboard_summary_requires_authentication(self):
         self.client.force_authenticate(user=None)

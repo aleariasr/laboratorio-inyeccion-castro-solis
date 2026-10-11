@@ -143,6 +143,16 @@ class ServicesPermission(ModulePermission):
     cancel_actions = frozenset({"cancel"})
 
 
+class CostsPermission(ModulePermission):
+    """
+    Datos derivados del costo de una compra. Separado de
+    ProductsPermission para que los roles que solo buscan productos
+    (Ventas, Clientes y servicio, Inventario) no vean cuánto costaron.
+    """
+
+    module = "costs"
+
+
 class ReportsPermission(ModulePermission):
     module = "reports"
 

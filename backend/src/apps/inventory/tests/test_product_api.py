@@ -6,7 +6,7 @@ from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.core.permissions import ROLE_INVENTORY
+from apps.core.permissions import ROLE_ADMIN
 
 from apps.inventory.models import (
     Currency,
@@ -34,7 +34,7 @@ class ProductApiTest(APITestCase):
         call_command("setup_roles")
 
         self.user.groups.add(
-            Group.objects.get(name=ROLE_INVENTORY),
+            Group.objects.get(name=ROLE_ADMIN),
         )
 
         self.client.force_authenticate(self.user)
@@ -326,13 +326,14 @@ class ProductApiTest(APITestCase):
     def test_product_list_does_not_query_stock_per_product(self):
         self.create_additional_products(20)
 
-        # 5 queries fijas sin importar cuántos productos haya: 2 son
-        # de ModulePermission poblando la caché de permisos del
-        # usuario (grupo ADMIN + permisos directos/de grupo vía
-        # has_perm), 1 es el COUNT de paginación y 2 son el SELECT de
-        # productos con su stock. Lo que valida este test es que no
-        # crezcan con la cantidad de productos (no hay N+1).
-        with self.assertNumQueries(5):
+        # 4 queries fijas sin importar cuántos productos haya: 1 es
+        # ModulePermission comprobando el grupo ADMIN (que salta
+        # has_perm), 1 es el COUNT de paginación, 1 es el SELECT de
+        # productos con su stock y 1 es el serializer decidiendo una
+        # sola vez si el usuario ve costos (latest_suggested_price).
+        # Lo que valida este test es que no crezcan con la cantidad de
+        # productos (no hay N+1).
+        with self.assertNumQueries(4):
             response = self.client.get(
                 "/api/inventory/products/",
             )

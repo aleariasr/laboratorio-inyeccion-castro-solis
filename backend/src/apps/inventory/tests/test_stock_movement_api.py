@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.core.permissions import ROLE_INVENTORY
+from apps.core.permissions import ROLE_ADMIN
 from apps.customers.models import (
     Customer,
     CustomerType,
@@ -50,7 +50,7 @@ class StockMovementApiTest(APITestCase):
         call_command("setup_roles")
 
         self.user.groups.add(
-            Group.objects.get(name=ROLE_INVENTORY),
+            Group.objects.get(name=ROLE_ADMIN),
         )
 
         self.client.force_authenticate(
@@ -808,13 +808,13 @@ class StockMovementApiTest(APITestCase):
             format="json",
         )
 
-        # MovementsPermission no declara add_movements/change_movements
-        # (el módulo es de solo lectura): DRF evalúa permisos antes de
-        # resolver el handler, así que la falta de un permiso que
-        # habilite POST se traduce en 403, no en 405.
+        # Este usuario es ADMIN, que salta MovementsPermission, así que
+        # la respuesta la da el propio ReadOnlyModelViewSet: 405. El
+        # 403 de quien solo tiene view_movements está cubierto en
+        # test_movements_permissions.py.
         self.assertEqual(
             response.status_code,
-            status.HTTP_403_FORBIDDEN,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
         )
         self.assertFalse(
             StockMovement.objects.filter(
@@ -840,11 +840,11 @@ class StockMovementApiTest(APITestCase):
         )
 
         # Mismo motivo que en test_endpoint_does_not_allow_creation:
-        # sin change_movements declarado, el permiso deniega con 403
-        # antes de que DRF llegue a resolver el método.
+        # ADMIN pasa el permiso y el viewset de solo lectura responde
+        # 405.
         self.assertEqual(
             response.status_code,
-            status.HTTP_403_FORBIDDEN,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
         movement.refresh_from_db()

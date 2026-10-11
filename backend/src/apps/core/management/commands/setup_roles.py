@@ -17,7 +17,16 @@ from apps.core.permissions import (
 # aquí. Ver apps/core/tests.py (InventoryReportsApiTest,
 # BusinessReportsApiTest) para la verificación de que INVENTORY,
 # SALES y READ_ONLY quedan bloqueados de /api/reports/*.
+# view_costs no aparece en ningún rol: es exclusivo de ADMIN, que recibe
+# todos los permisos por código en handle(). Controla el histórico de
+# costos y el precio sugerido del producto (ver CostsPermission y
+# ProductSerializer.get_latest_suggested_price).
+#
+# view_movements tampoco: la pantalla de Movimientos se entra solo desde
+# Reportes, que es de ADMIN (decisión del 2026-10-10, punto 6).
 ROLE_PERMISSIONS = {
+    # Bodega: qué productos hay y dónde están. Sin compras, proveedores
+    # ni conteos, y por lo tanto sin ningún costo (punto 13).
     ROLE_INVENTORY: [
         "view_products",
         "add_products",
@@ -25,28 +34,21 @@ ROLE_PERMISSIONS = {
         "view_locations",
         "add_locations",
         "change_locations",
-        "view_suppliers",
-        "add_suppliers",
-        "change_suppliers",
-        "view_purchases",
-        "add_purchases",
-        "change_purchases",
-        "cancel_purchases",
-        "view_inventory_counts",
-        "add_inventory_counts",
-        "change_inventory_counts",
-        "cancel_inventory_counts",
-        "view_movements",
         "view_documents",
         "add_documents",
     ],
+    # view_products es lo que le permite buscar productos para armar una
+    # venta; sin él, el formulario de línea no funciona (punto 4).
     ROLE_SALES: [
         "view_sales",
         "add_sales",
         "change_sales",
         "cancel_sales",
+        "view_products",
         "view_documents",
     ],
+    # Igual que SALES: view_products es para agregar accesorios a un
+    # servicio (punto 4).
     ROLE_CUSTOMERS: [
         "view_customers",
         "add_customers",
@@ -58,8 +60,12 @@ ROLE_PERMISSIONS = {
         "add_services",
         "change_services",
         "cancel_services",
+        "view_products",
         "view_documents",
     ],
+    # Consulta sin modificar nada. Sin view_costs: no ve el costo en las
+    # pantallas de producto, aunque sí lo ve dentro de una compra, que es
+    # donde el costo es el dato principal del documento.
     ROLE_READ_ONLY: [
         "view_products",
         "view_locations",
@@ -71,7 +77,6 @@ ROLE_PERMISSIONS = {
         "view_injectors",
         "view_services",
         "view_documents",
-        "view_movements",
     ],
 }
 

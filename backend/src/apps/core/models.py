@@ -118,6 +118,11 @@ class ModulePermissions(models.Model):
             ("add_services", "Servicios: crear"),
             ("change_services", "Servicios: editar"),
             ("cancel_services", "Servicios: cancelar"),
+            # Todo dato derivado del costo de una compra: histórico de
+            # costos y precio sugerido del producto. Separado de
+            # view_products a propósito, para que un rol pueda buscar
+            # productos sin ver cuánto costaron.
+            ("view_costs", "Costos: ver"),
             ("view_reports", "Reportes: ver"),
             ("view_documents", "Documentos: ver"),
             ("add_documents", "Documentos: crear"),

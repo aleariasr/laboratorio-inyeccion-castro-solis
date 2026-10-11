@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.core.permissions import ROLE_ADMIN
 from apps.inventory.models import (
     Product,
     StorageLocation,
@@ -237,12 +238,49 @@ class ProductSerializer(serializers.ModelSerializer):
         return current_stock(obj)
 
     def get_latest_suggested_price(self, obj):
+        """
+        Precio sugerido: sale del costo de la última compra confirmada,
+        así que solo lo ve quien tiene view_costs (hoy, el Administrador).
+        Para los demás es null.
+
+        effective_sale_price no se oculta: es el precio al que se vende,
+        que necesita cualquiera que arme una venta o una proforma, aunque
+        salga del sugerido cuando el producto no tiene precio propio.
+        """
+
+        if not self._can_read_costs():
+            return None
+
         if hasattr(obj, "latest_suggested_price"):
             value = obj.latest_suggested_price
         else:
             value = latest_suggested_price(obj)
 
         return str(value) if value is not None else None
+
+    def _can_read_costs(self):
+        # En un listado, DRF reutiliza la misma instancia hija para cada
+        # producto: se calcula una vez y se guarda, si no la consulta del
+        # grupo ADMIN se repetiría por fila (N+1).
+        if not hasattr(self, "_can_read_costs_cache"):
+            self._can_read_costs_cache = self._resolve_can_read_costs()
+
+        return self._can_read_costs_cache
+
+    def _resolve_can_read_costs(self):
+        request = self.context.get("request")
+
+        if request is None or not request.user or not request.user.is_authenticated:
+            # Sin request en el contexto no se puede decidir: se oculta,
+            # que es el lado seguro. Si algún serializer deja de pasar el
+            # request, el síntoma es un sugerido en null, no una fuga.
+            return False
+
+        return (
+            request.user.is_superuser
+            or request.user.groups.filter(name=ROLE_ADMIN).exists()
+            or request.user.has_perm("core.view_costs")
+        )
 
     def get_effective_sale_price(self, obj):
         value = effective_sale_price(obj)

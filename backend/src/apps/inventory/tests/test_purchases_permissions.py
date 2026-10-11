@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.core.permissions import (
+    ROLE_ADMIN,
     ROLE_INVENTORY,
     ROLE_READ_ONLY,
 )
@@ -33,12 +34,12 @@ class PurchasesPermissionApiTest(APITestCase):
     def setUp(self):
         call_command("setup_roles")
 
-        self.inventory_user = User.objects.create_user(
-            username="purchases-inventory",
+        self.admin_user = User.objects.create_user(
+            username="purchases-admin",
             password="12345678",
         )
-        self.inventory_user.groups.add(
-            Group.objects.get(name=ROLE_INVENTORY),
+        self.admin_user.groups.add(
+            Group.objects.get(name=ROLE_ADMIN),
         )
 
         self.read_only_user = User.objects.create_user(
@@ -56,29 +57,29 @@ class PurchasesPermissionApiTest(APITestCase):
 
         self.supplier = Supplier.objects.create(
             name="Proveedor compras",
-            created_by=self.inventory_user,
-            updated_by=self.inventory_user,
+            created_by=self.admin_user,
+            updated_by=self.admin_user,
         )
 
         self.location = StorageLocation.objects.create(
             code="A101",
-            created_by=self.inventory_user,
-            updated_by=self.inventory_user,
+            created_by=self.admin_user,
+            updated_by=self.admin_user,
         )
 
         self.product = Product.objects.create(
             standard_code="PUR-001",
             name="Producto de compra",
             storage_location=self.location,
-            created_by=self.inventory_user,
-            updated_by=self.inventory_user,
+            created_by=self.admin_user,
+            updated_by=self.admin_user,
         )
 
         self.supplier_product = SupplierProduct.objects.create(
             supplier=self.supplier,
             product=self.product,
-            created_by=self.inventory_user,
-            updated_by=self.inventory_user,
+            created_by=self.admin_user,
+            updated_by=self.admin_user,
         )
 
         # Compra en borrador: alcanza para probar create/change/cancel
@@ -89,8 +90,8 @@ class PurchasesPermissionApiTest(APITestCase):
             invoice_number="PUR-FAC-001",
             purchase_date=date.today(),
             currency="CRC",
-            created_by=self.inventory_user,
-            updated_by=self.inventory_user,
+            created_by=self.admin_user,
+            updated_by=self.admin_user,
         )
 
     def _user_with_permission(self, codename, username):
@@ -101,8 +102,8 @@ class PurchasesPermissionApiTest(APITestCase):
         user.user_permissions.add(_module_permission(codename))
         return user
 
-    def test_inventory_user_can_create_purchase(self):
-        self.client.force_authenticate(self.inventory_user)
+    def test_admin_user_can_create_purchase(self):
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.post(
             "/api/inventory/purchases/",
@@ -152,8 +153,8 @@ class PurchasesPermissionApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_inventory_user_can_cancel_draft_purchase(self):
-        self.client.force_authenticate(self.inventory_user)
+    def test_admin_user_can_cancel_draft_purchase(self):
+        self.client.force_authenticate(self.admin_user)
 
         response = self.client.post(
             f"/api/inventory/purchases/{self.purchase.id}/cancel/",
@@ -217,3 +218,28 @@ class PurchasesPermissionApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_inventory_role_can_no_longer_see_purchases(self):
+        """
+        Desde el rediseño de roles (punto 13), Inventario es bodega:
+        productos y ubicaciones, sin compras ni costos.
+        """
+
+        inventory_user = User.objects.create_user(
+            username="purchases-inventory",
+            password="12345678",
+        )
+        inventory_user.groups.add(
+            Group.objects.get(name=ROLE_INVENTORY),
+        )
+
+        self.client.force_authenticate(inventory_user)
+
+        self.assertEqual(
+            self.client.get("/api/inventory/purchases/").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            self.client.get("/api/inventory/product-cost-history/").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
