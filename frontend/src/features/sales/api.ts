@@ -10,6 +10,7 @@ import type { PaginatedResponse } from "@/lib/api/types";
 import type {
   CustomerSummary,
   Sale,
+  SaleAmountsWritePayload,
   SaleFilters,
   SaleItemInline,
   SaleItemWritePayload,
@@ -92,6 +93,16 @@ export function updateSale(
   token: string,
   saleId: number,
   payload: SaleWritePayload,
+): Promise<Sale> {
+  return apiPatch<Sale>(`/api/sales/sales/${saleId}/`, payload, {
+    token,
+  });
+}
+
+export function updateSaleAmounts(
+  token: string,
+  saleId: number,
+  payload: SaleAmountsWritePayload,
 ): Promise<Sale> {
   return apiPatch<Sale>(`/api/sales/sales/${saleId}/`, payload, {
     token,

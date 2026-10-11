@@ -1014,7 +1014,9 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
   nuevo; el operario no ve el precio, el método de pago, el importe de los accesorios ni la factura)
 - [x] 17 + 23 — Precio de venta precargado y botón "usar precio" (el campo sigue al producto
   mientras no se escriba un precio propio; sin unit_price el backend usa el precio de venta)
-- [ ] 19 — Impuesto y descuento en ventas
+- [x] 19 — Impuesto y descuento en ventas (13 % por defecto al crear desde la API; montos
+  congelados al confirmar; cálculo compartido en `apps/core/money.py` y `lib/document-amounts.ts`;
+  más vendidos sigue en bruto)
 - [ ] 26 — Impuesto y descuento en servicios y en su factura
 - [ ] 15 — Impuesto y descuento en la proforma
 - [ ] 18 — Impuestos en el cierre de caja

@@ -23,6 +23,7 @@ import {
   getSaleInvoicePdf,
   updateSaleItem,
 } from "@/features/sales/api";
+import { SaleAmountsCard } from "@/features/sales/sale-amounts-card";
 import { mapSaleItemApiFieldErrors } from "@/features/sales/sale-item-form-errors";
 import { SaleItemForm } from "@/features/sales/sale-item-form";
 import {
@@ -325,6 +326,24 @@ export default function SaleDetailPage() {
     });
   }
 
+  // Las líneas cambian el subtotal y, con él, el descuento en %, el
+  // impuesto y el total: se vuelve a pedir la venta para que el resumen
+  // muestre lo que calcula el backend. Si falla, la lista de líneas ya
+  // quedó bien y el resumen se corrige al recargar la página.
+  function refreshSale(): void {
+    if (!token) {
+      return;
+    }
+
+    getSale(token, saleId)
+      .then((sale) => {
+        setLoadState((current) =>
+          current.status === "success" ? { ...current, sale } : current,
+        );
+      })
+      .catch(() => undefined);
+  }
+
   function removeItemFromState(itemId: number): void {
     setLoadState((current) => {
       if (current.status !== "success") {
@@ -365,6 +384,7 @@ export default function SaleDetailPage() {
             });
 
       updateItemsInState(saved);
+      refreshSale();
 
       setItemFormState({ mode: "closed", item: null });
 
@@ -432,6 +452,7 @@ export default function SaleDetailPage() {
       await deleteSaleItem(token, item.id);
 
       removeItemFromState(item.id);
+      refreshSale();
 
       setItemActionState((current) => ({
         ...current,
@@ -896,7 +917,11 @@ export default function SaleDetailPage() {
 
               <div className="app-status-row">
                 <dt>Total de la venta</dt>
-                <dd>{formatMoney(loadState.sale.total)} CRC</dd>
+                <dd>
+                  {loadState.sale.total !== null
+                    ? `${formatMoney(loadState.sale.total)} CRC`
+                    : "Revise el descuento"}
+                </dd>
               </div>
 
               <div className="app-status-row">
@@ -1097,6 +1122,23 @@ export default function SaleDetailPage() {
               </div>
             )}
           </section>
+
+          <SaleAmountsCard
+            key={`${loadState.sale.id}-${loadState.sale.status}`}
+            sale={loadState.sale}
+            canEdit={loadState.sale.status === "DRAFT" && hasWriteAccess}
+            token={token ?? ""}
+            onSaved={(sale) => {
+              setLoadState((current) =>
+                current.status === "success" ? { ...current, sale } : current,
+              );
+            }}
+            onUnauthorized={() => {
+              void logout().then(() => {
+                router.replace("/login");
+              });
+            }}
+          />
         </div>
       )}
     </AppShell>

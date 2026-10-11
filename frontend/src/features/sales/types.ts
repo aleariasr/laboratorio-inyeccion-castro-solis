@@ -1,3 +1,5 @@
+import type { DiscountType } from "@/lib/document-amounts";
+
 import type { Product } from "../inventory/products/types";
 
 export type SaleStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
@@ -59,10 +61,27 @@ export type Sale = {
   cancellation_reason: string;
   notes: string;
   items: SaleItemInline[];
-  total: string;
+  // Descuento e impuesto al documento (punto 19). Editables en borrador.
+  discount_type: DiscountType;
+  discount_value: string;
+  tax_percentage: string;
+  // Montos: congelados si está confirmada o anulada, en vivo en borrador.
+  // Vienen en null si el descuento quedó mayor que el subtotal
+  // (amounts_error dice por qué).
+  subtotal: string | null;
+  discount_amount: string | null;
+  tax_amount: string | null;
+  total: string | null;
+  amounts_error: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type SaleAmountsWritePayload = {
+  discount_type: DiscountType;
+  discount_value: string;
+  tax_percentage: string;
 };
 
 export type SaleFilters = {

@@ -154,7 +154,7 @@ export default function TopSellingProductsReportPage() {
   return (
     <AppShell
       title="Productos más vendidos"
-      description="Cantidad vendida y total facturado por producto, en colones."
+      description="Cantidad vendida y monto por producto, en colones, antes del descuento y el impuesto de cada venta."
       actions={
         <Button type="button" variant="secondary" onClick={goBack}>
           <ArrowLeftIcon />
@@ -275,7 +275,7 @@ export default function TopSellingProductsReportPage() {
                   </th>
 
                   <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    Total
+                    Vendido (antes de descuentos)
                   </th>
                 </tr>
               </thead>

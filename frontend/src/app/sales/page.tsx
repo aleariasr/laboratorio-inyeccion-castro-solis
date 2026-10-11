@@ -607,7 +607,7 @@ export default function SalesPage() {
                       </td>
 
                       <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        {formatMoney(sale.total)} CRC
+                        {sale.total !== null ? `${formatMoney(sale.total)} CRC` : "—"}
                       </td>
 
                       <td className="px-5 py-4 align-top">
