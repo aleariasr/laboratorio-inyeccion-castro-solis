@@ -33,6 +33,7 @@ class StockMovementViewSet(
                 "sale_item__sale",
                 "reverses_movement",
                 "inventory_count",
+                "service_accessory",
             )
         )
 

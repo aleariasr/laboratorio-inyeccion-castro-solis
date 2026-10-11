@@ -8,6 +8,13 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.core.permissions import ROLE_INVENTORY
+from apps.customers.models import (
+    Customer,
+    CustomerType,
+    Injector,
+    InjectorServiceRecord,
+)
+from apps.customers.services import add_service_accessory
 from apps.inventory.models import (
     InventoryCount,
     InventoryCountItem,
@@ -228,6 +235,75 @@ class StockMovementApiTest(APITestCase):
                 "standard_code": self.product.standard_code,
                 "name": self.product.name,
             },
+        )
+
+    def test_movement_without_service_has_null_service_record(self):
+        self.create_movement()
+
+        response = self.client.get(
+            "/api/inventory/stock-movements/",
+            {
+                "product": self.product.id,
+            },
+        )
+
+        result = response.data["results"][0]
+
+        self.assertIsNone(result["service_accessory"])
+        self.assertIsNone(result["service_record_id"])
+
+    def test_service_accessory_movement_exposes_its_service(self):
+        initial_inventory(
+            product=self.product,
+            quantity=5,
+            user=self.user,
+        )
+
+        customer = Customer.objects.create(
+            customer_type=CustomerType.PERSON,
+            display_name="Juan Pérez",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        injector = Injector.objects.create(
+            customer=customer,
+            injector_number="0445110183",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        service_record = InjectorServiceRecord.objects.create(
+            injector=injector,
+            received_at=timezone.now(),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        accessory = add_service_accessory(
+            service_record=service_record,
+            product=self.product,
+            quantity=2,
+            notes="",
+            user=self.user,
+        )
+
+        response = self.client.get(
+            "/api/inventory/stock-movements/",
+            {
+                "product": self.product.id,
+                "movement_type": StockMovementType.SERVICE_USE,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+
+        result = response.data["results"][0]
+
+        self.assertEqual(result["service_accessory"], accessory.id)
+        self.assertEqual(result["service_record_id"], service_record.id)
+        self.assertEqual(
+            result["movement_type_display"],
+            "Uso en servicio",
         )
 
     def test_list_only_returns_requested_product(

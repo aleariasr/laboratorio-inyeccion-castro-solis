@@ -17,6 +17,7 @@ import {
   getStockMovements,
   getStockMovementsKardex,
 } from "@/features/inventory/movements/api";
+import { getMovementOrigin } from "@/features/inventory/movements/origin";
 import {
   EMPTY_STOCK_MOVEMENT_FILTERS,
   MOVEMENT_DIRECTION_OPTIONS,
@@ -93,40 +94,6 @@ function formatSignedQuantity(movement: StockMovement): string {
   const prefix = movement.direction === "IN" ? "+" : "-";
 
   return `${prefix}${movement.quantity}`;
-}
-
-type MovementOrigin = { label: string; href: string | null };
-
-function getMovementOrigin(movement: StockMovement): MovementOrigin {
-  if (movement.purchase_id !== null) {
-    const label = movement.purchase_invoice_number
-      ? `Compra ${movement.purchase_invoice_number}`
-      : `Compra #${movement.purchase_id}`;
-
-    return { label, href: `/inventory/purchases/${movement.purchase_id}` };
-  }
-
-  if (movement.sale_id !== null) {
-    return { label: `Venta #${movement.sale_id}`, href: `/sales/${movement.sale_id}` };
-  }
-
-  if (movement.inventory_count !== null) {
-    const label = movement.inventory_count_reference
-      ? `Conteo ${movement.inventory_count_reference}`
-      : `Conteo #${movement.inventory_count}`;
-
-    return { label, href: `/inventory/counts/${movement.inventory_count}` };
-  }
-
-  if (movement.reverses_movement !== null) {
-    return { label: `Revierte #${movement.reverses_movement}`, href: null };
-  }
-
-  if (movement.movement_type === "INITIAL") {
-    return { label: "Inventario inicial", href: null };
-  }
-
-  return { label: "Sin documento asociado", href: null };
 }
 
 export default function StockMovementsPage() {
@@ -773,7 +740,7 @@ export default function StockMovementsPage() {
 
               <tbody>
                 {viewState.rows.map((movement) => {
-                  const origin = getMovementOrigin(movement);
+                  const origin = getMovementOrigin(movement, user);
 
                   return (
                     <tr
@@ -860,7 +827,7 @@ export default function StockMovementsPage() {
 
                   <tbody>
                     {viewState.data.results.map((movement) => {
-                      const origin = getMovementOrigin(movement);
+                      const origin = getMovementOrigin(movement, user);
 
                       return (
                         <tr

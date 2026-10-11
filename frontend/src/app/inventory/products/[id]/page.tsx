@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   useEffect,
@@ -38,6 +39,7 @@ import {
   type ProductVariantFormValues,
   type StockMovement,
 } from "@/features/inventory/products/types";
+import { getMovementOrigin } from "@/features/inventory/movements/origin";
 import { getLatestProductCostHistory } from "@/features/inventory/purchases/api";
 import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
 import type { ProductCostHistory } from "@/features/inventory/purchases/types";
@@ -146,30 +148,6 @@ function formatSignedQuantity(
       : "-";
 
   return `${prefix}${movement.quantity}`;
-}
-
-function getMovementReference(
-  movement: StockMovement,
-): string {
-  if (movement.purchase_invoice_number) {
-    return `Compra ${movement.purchase_invoice_number}`;
-  }
-
-  if (movement.sale_id !== null) {
-    return `Venta #${movement.sale_id}`;
-  }
-
-  if (movement.inventory_count_reference) {
-    return `Conteo ${movement.inventory_count_reference}`;
-  }
-
-  if (
-    movement.reverses_movement !== null
-  ) {
-    return `Revierte movimiento #${movement.reverses_movement}`;
-  }
-
-  return "Sin documento asociado";
 }
 
 function isLowStock(product: Product): boolean {
@@ -1277,7 +1255,10 @@ export default function ProductDetailPage() {
 
                       <tbody>
                         {movementLoadState.data.results.map(
-                          (movement) => (
+                          (movement) => {
+                            const origin = getMovementOrigin(movement, user);
+
+                            return (
                             <tr
                               key={movement.id}
                               className="border-b border-[var(--color-border-soft)] last:border-b-0"
@@ -1321,8 +1302,17 @@ export default function ProductDetailPage() {
                               </td>
 
                               <td className="px-5 py-4 text-sm text-foreground">
-                                {getMovementReference(
-                                  movement,
+                                {origin.href ? (
+                                  <Link
+                                    href={origin.href}
+                                    className="font-medium text-primary hover:underline"
+                                  >
+                                    {origin.label}
+                                  </Link>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    {origin.label}
+                                  </span>
                                 )}
                               </td>
 
@@ -1336,7 +1326,8 @@ export default function ProductDetailPage() {
                                   "Sistema"}
                               </td>
                             </tr>
-                          ),
+                            );
+                          },
                         )}
                       </tbody>
                     </table>

@@ -991,8 +991,12 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
       editar líneas, y al tocar costos de importación)
 - [x] Extra — Solo la última compra **confirmada** define el precio de venta y los costos del
       producto; al anular una compra vuelve el precio anterior (ver sección 5, "Extra")
-- [ ] 12 — Enlaces en el historial de movimientos (y SERVICE_USE)
-- [ ] 6 — Movimientos en el menú
+- [x] 12 — Enlaces en el historial de movimientos (y SERVICE_USE)
+- [x] 6 — Movimientos en el menú → **descartado el 2026-10-10 por Alejandro.** No se agrega al
+      menú: la pantalla se queda como está, accesible solo desde la tarjeta de Reportes, es decir
+      solo para quien tiene `view_reports` (hoy, el Administrador). Consecuencia conocida: los
+      roles Inventario y Solo lectura conservan `view_movements` en el backend sin forma de usarlo
+      desde la interfaz; revisar al rediseñar los roles (puntos 13 y 4).
 - [ ] 24 — Botones de servicio al final
 - [ ] 1 — Filtros en cierres de caja
 - [ ] 3 — Cambio y reseteo de contraseñas

@@ -25,6 +25,7 @@ class StockMovementSerializer(
     inventory_count_reference = (
         serializers.SerializerMethodField()
     )
+    service_record_id = serializers.SerializerMethodField()
     created_by_username = (
         serializers.SerializerMethodField()
     )
@@ -47,6 +48,8 @@ class StockMovementSerializer(
             "sale_id",
             "inventory_count",
             "inventory_count_reference",
+            "service_accessory",
+            "service_record_id",
             "reverses_movement",
             "notes",
             "created_by_username",
@@ -101,6 +104,22 @@ class StockMovementSerializer(
             return None
 
         return obj.inventory_count.reference
+
+    def get_service_record_id(
+        self,
+        obj: StockMovement,
+    ) -> int | None:
+        """
+        Servicio del que viene un movimiento SERVICE_USE (o su reversión).
+
+        Queda en null si el accesorio se borró: StockMovement.service_accessory
+        es SET_NULL, así que el movimiento sobrevive al accesorio.
+        """
+
+        if obj.service_accessory_id is None:
+            return None
+
+        return obj.service_accessory.service_record_id
 
     def get_created_by_username(
         self,
