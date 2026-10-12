@@ -17,7 +17,6 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.utils import timezone
-from django.utils.dateparse import parse_date
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,6 +24,7 @@ from rest_framework.views import APIView
 from apps.cash.selectors import week_start_for
 from apps.core.models import PaymentMethod
 from apps.core.permissions import ReportsPermission
+from apps.core.query_params import parse_date_or_none
 from apps.customers.selectors import delivered_services, service_amounts
 from apps.sales.selectors import confirmed_sales, sale_amounts
 
@@ -175,8 +175,8 @@ def _parse_range(request, from_name, to_name, *, required):
             f"Indique {from_name} y {to_name} (formato AAAA-MM-DD)."
         )
 
-    date_from = parse_date(from_value)
-    date_to = parse_date(to_value)
+    date_from = parse_date_or_none(from_value)
+    date_to = parse_date_or_none(to_value)
 
     if date_from is None or date_to is None:
         return None, None, (
@@ -191,64 +191,93 @@ def _parse_range(request, from_name, to_name, *, required):
     return date_from, date_to, None
 
 
+def parse_sales_summary_params(request):
+    """
+    Lee y valida los filtros del resumen. Devuelve (params, None) o
+    (None, respuesta 400). Lo comparten la vista JSON y el PDF.
+    """
+
+    date_from, date_to, error = _parse_range(
+        request,
+        "date_from",
+        "date_to",
+        required=True,
+    )
+
+    if error:
+        return None, Response(
+            {"detail": error},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    group_by = request.query_params.get("group_by", "day")
+
+    if group_by not in GROUP_BY_VALUES:
+        return None, Response(
+            {"detail": "group_by debe ser day, week o month."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    compare_from, compare_to, error = _parse_range(
+        request,
+        "compare_from",
+        "compare_to",
+        required=False,
+    )
+
+    if error:
+        return None, Response(
+            {"detail": error},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return {
+        "date_from": date_from,
+        "date_to": date_to,
+        "group_by": group_by,
+        "compare_from": compare_from,
+        "compare_to": compare_to,
+    }, None
+
+
+def sales_summary_data(params):
+    summary, periods = _collect(
+        params["date_from"],
+        params["date_to"],
+        params["group_by"],
+    )
+
+    comparison = None
+
+    if params["compare_from"] is not None:
+        previous, _periods = _collect(
+            params["compare_from"],
+            params["compare_to"],
+        )
+        comparison = {
+            "date_from": params["compare_from"],
+            "date_to": params["compare_to"],
+            "summary": previous,
+            "variation": _variation(summary, previous),
+        }
+
+    return {
+        "date_from": params["date_from"],
+        "date_to": params["date_to"],
+        "group_by": params["group_by"],
+        "periods": periods,
+        "summary": summary,
+        "comparison": comparison,
+    }
+
+
 class SalesSummaryReportView(APIView):
     permission_classes = [ReportsPermission]
 
     def get(self, request):
-        date_from, date_to, error = _parse_range(
-            request,
-            "date_from",
-            "date_to",
-            required=True,
-        )
+        params, error_response = parse_sales_summary_params(request)
 
-        if error:
-            return Response(
-                {"detail": error},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if error_response is not None:
+            return error_response
 
-        group_by = request.query_params.get("group_by", "day")
-
-        if group_by not in GROUP_BY_VALUES:
-            return Response(
-                {"detail": "group_by debe ser day, week o month."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        compare_from, compare_to, error = _parse_range(
-            request,
-            "compare_from",
-            "compare_to",
-            required=False,
-        )
-
-        if error:
-            return Response(
-                {"detail": error},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        summary, periods = _collect(date_from, date_to, group_by)
-
-        comparison = None
-
-        if compare_from is not None:
-            previous, _periods = _collect(compare_from, compare_to)
-            comparison = {
-                "date_from": compare_from,
-                "date_to": compare_to,
-                "summary": previous,
-                "variation": _variation(summary, previous),
-            }
-
-        return Response(
-            {
-                "date_from": date_from,
-                "date_to": date_to,
-                "group_by": group_by,
-                "periods": periods,
-                "summary": summary,
-                "comparison": comparison,
-            }
-        )
+        return Response(sales_summary_data(params))

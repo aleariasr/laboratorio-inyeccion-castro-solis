@@ -2790,3 +2790,279 @@ class SalesSummaryReportApiTest(APITestCase):
                     response.status_code,
                     status.HTTP_400_BAD_REQUEST,
                 )
+
+
+from unittest import mock  # noqa: E402
+
+from reportlab import rl_config  # noqa: E402
+
+
+def pdf_text(response):
+    """
+    Contenido del PDF como texto. Las pruebas lo generan sin comprimir
+    (rl_config.pageCompression = 0), así el texto ASCII queda legible.
+    """
+
+    return b"".join(response.streaming_content).decode("latin-1")
+
+
+@mock.patch.object(rl_config, "pageCompression", 0)
+class ReportPdfApiTest(APITestCase):
+    """Puntos 2 + 27: PDF de cada reporte, con sus filtros y su permiso."""
+
+    REPORT_PDF_URLS = {
+        "bajo mínimo": ("/api/reports/low-stock-products/pdf/", {}),
+        "stock por ubicación": ("/api/reports/stock-by-location/pdf/", {}),
+        "compras por proveedor": ("/api/reports/purchases-by-supplier/pdf/", {}),
+        "resumen de ventas": (
+            "/api/reports/sales-summary/pdf/",
+            {"date_from": "2026-07-01", "date_to": "2026-07-31"},
+        ),
+        "más vendidos": ("/api/reports/top-selling-products/pdf/", {}),
+        "clientes": ("/api/reports/top-customers/pdf/", {}),
+    }
+
+    setUp_summary = SalesSummaryReportApiTest.setUp
+    create_sale = SalesSummaryReportApiTest.create_sale
+
+    def setUp(self):
+        self.setUp_summary()
+
+        self.read_only_user = User.objects.create_user(
+            username="pdf-readonly",
+            password="12345678",
+        )
+        self.read_only_user.groups.add(Group.objects.get(name=ROLE_READ_ONLY))
+
+        self.location = StorageLocation.objects.create(
+            code="PDF-A",
+            description="Estante PDF",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self.low_product = Product.objects.create(
+            standard_code="PDF-LOW",
+            name="Producto bajo",
+            storage_location=self.location,
+            minimum_stock=5,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self.stocked_product = Product.objects.create(
+            standard_code="PDF-OK",
+            name="Producto con stock",
+            storage_location=self.location,
+            minimum_stock=1,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        initial_inventory(product=self.stocked_product, quantity=10, user=self.user)
+
+    def get_pdf(self, url, params=None):
+        response = self.client.get(url, params or {})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+
+        text = pdf_text(response)
+        self.assertTrue(text.startswith("%PDF"))
+
+        return text
+
+    def test_every_report_has_a_pdf_with_the_signature_box(self):
+        urls = dict(self.REPORT_PDF_URLS)
+        urls["precios por proveedor"] = (
+            "/api/reports/product-supplier-prices/pdf/",
+            {"product": self.stocked_product.id},
+        )
+
+        for case, (url, params) in urls.items():
+            with self.subTest(case=case):
+                text = self.get_pdf(url, params)
+
+                self.assertIn("(Revisado por:) Tj", text)
+                self.assertIn("(Fecha:) Tj", text)
+                self.assertIn("(Observaciones:) Tj", text)
+                self.assertIn("gina 1 de 1", text)
+
+    def test_report_pdfs_require_view_reports(self):
+        self.client.force_authenticate(self.read_only_user)
+
+        for case, (url, params) in self.REPORT_PDF_URLS.items():
+            with self.subTest(case=case):
+                response = self.client.get(url, params)
+
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_low_stock_pdf_has_a_column_to_write_the_quantity_to_order(self):
+        text = self.get_pdf("/api/reports/low-stock-products/pdf/")
+
+        self.assertIn("(PDF-LOW) Tj", text)
+        self.assertNotIn("(PDF-OK) Tj", text)
+        self.assertIn("(CANTIDAD A PEDIR) Tj", text)
+
+    def test_stock_by_location_pdf_respects_filters(self):
+        text = self.get_pdf(
+            "/api/reports/stock-by-location/pdf/",
+            {"location": self.location.id, "q": "PDF-OK"},
+        )
+
+        self.assertIn("(PDF-OK) Tj", text)
+        self.assertNotIn("(PDF-LOW) Tj", text)
+        self.assertIn("(CONTEO F", text)
+        self.assertIn("n: PDF-A.", text)
+
+    def test_long_table_continues_on_the_next_page_with_its_header(self):
+        for number in range(45):
+            Product.objects.create(
+                standard_code=f"PDF-{number:03d}",
+                name=f"Producto {number}",
+                storage_location=self.location,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+
+        text = self.get_pdf(
+            "/api/reports/stock-by-location/pdf/",
+            {"location": self.location.id},
+        )
+
+        self.assertIn("gina 2 de", text)
+        self.assertGreaterEqual(text.count("(CONTEO F"), 2)
+        self.assertIn("(PDF-044) Tj", text)
+
+    def test_sales_reports_pdf_list_the_sales_of_the_range(self):
+        self.create_sale(date(2026, 7, 10), amount="2500.0000")
+        self.create_sale(date(2026, 8, 10), amount="9900.0000")
+
+        july = {"date_from": "2026-07-01", "date_to": "2026-07-31"}
+
+        text = self.get_pdf("/api/reports/top-selling-products/pdf/", july)
+        self.assertIn("(SUM-001) Tj", text)
+        self.assertIn("(2 500) Tj", text)
+        self.assertNotIn("(9 900) Tj", text)
+
+        text = self.get_pdf("/api/reports/sales-summary/pdf/", july)
+        self.assertIn("(10/07/2026) Tj", text)
+        self.assertNotIn("Comparaci", text)
+
+        text = self.get_pdf(
+            "/api/reports/sales-summary/pdf/",
+            {
+                **july,
+                "compare_from": "2026-08-01",
+                "compare_to": "2026-08-31",
+            },
+        )
+        self.assertIn("Comparaci", text)
+        self.assertIn("(-7 400) Tj", text)
+
+    def test_report_pdfs_validate_their_filters(self):
+        cases = {
+            "fecha inválida": (
+                "/api/reports/purchases-by-supplier/pdf/",
+                {"date_from": "01/07/2026"},
+            ),
+            "rango invertido": (
+                "/api/reports/top-selling-products/pdf/",
+                {"date_from": "2026-08-01", "date_to": "2026-07-01"},
+            ),
+            "orden inválido": (
+                "/api/reports/top-customers/pdf/",
+                {"ordering": "name"},
+            ),
+            "resumen sin fechas": ("/api/reports/sales-summary/pdf/", {}),
+            "precios sin producto": (
+                "/api/reports/product-supplier-prices/pdf/",
+                {},
+            ),
+            "ubicación inválida": (
+                "/api/reports/stock-by-location/pdf/",
+                {"location": "abc"},
+            ),
+        }
+
+        for case, (url, params) in cases.items():
+            with self.subTest(case=case):
+                response = self.client.get(url, params)
+
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+
+class ImpossibleDateFilterTest(APITestCase):
+    """
+    Una fecha bien escrita que no existe (2026-02-30, 2026-13-01) es un
+    error del filtro: 400, no 500. parse_date de Django lanza ValueError
+    en ese caso; los parsers la tratan como formato inválido.
+    """
+
+    def setUp(self):
+        call_command("setup_roles")
+
+        user = User.objects.create_user(
+            username="impossible-dates-admin",
+            password="12345678",
+        )
+        user.groups.add(Group.objects.get(name=ROLE_ADMIN))
+        self.client.force_authenticate(user)
+
+    def test_impossible_dates_return_400(self):
+        cases = {
+            "movimientos": (
+                "/api/inventory/stock-movements/",
+                {"date_from": "2026-02-30"},
+            ),
+            "PDF de movimientos": (
+                "/api/inventory/stock-movements/pdf/",
+                {"date_to": "2026-13-01"},
+            ),
+            "cierres de caja": (
+                "/api/cash/closings/",
+                {"date_from": "2026-02-30"},
+            ),
+            "compras por proveedor": (
+                "/api/reports/purchases-by-supplier/",
+                {"date_from": "2026-13-01"},
+            ),
+            "más vendidos": (
+                "/api/reports/top-selling-products/",
+                {"date_to": "2026-02-30"},
+            ),
+            "clientes (PDF)": (
+                "/api/reports/top-customers/pdf/",
+                {"date_from": "2026-02-30"},
+            ),
+            "resumen de ventas": (
+                "/api/reports/sales-summary/",
+                {"date_from": "2026-02-30", "date_to": "2026-03-31"},
+            ),
+            "comparación del resumen": (
+                "/api/reports/sales-summary/pdf/",
+                {
+                    "date_from": "2026-03-01",
+                    "date_to": "2026-03-31",
+                    "compare_from": "2026-02-01",
+                    "compare_to": "2026-02-30",
+                },
+            ),
+        }
+
+        for case, (url, params) in cases.items():
+            with self.subTest(case=case):
+                response = self.client.get(url, params)
+
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_400_BAD_REQUEST,
+                )
+
+    def test_valid_dates_still_work(self):
+        response = self.client.get(
+            "/api/reports/top-selling-products/",
+            {"date_from": "2024-02-29", "date_to": "2024-03-31"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

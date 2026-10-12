@@ -1,14 +1,16 @@
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db.models import Q
-from django.utils.dateparse import parse_date
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.pagination import StandardResultsSetPagination
 from apps.core.permissions import ReportsPermission
-from apps.core.query_params import parse_positive_integer_query_param
+from apps.core.query_params import (
+    parse_date_or_none,
+    parse_positive_integer_query_param,
+)
 from apps.inventory.models import (
     Currency,
     Product,
@@ -25,15 +27,24 @@ from apps.sales.models import SaleItem
 from apps.sales.selectors import confirmed_sales, sale_amounts
 
 
+# Puntos 2 + 27: cada reporte arma sus datos en una función que usan la
+# respuesta JSON (paginada) y el PDF (completo, ver report_pdfs.py), para
+# que los dos muestren exactamente lo mismo.
+
+
+def low_stock_report_products():
+    return (
+        low_stock_products()
+        .select_related("storage_location")
+    )
+
+
 class LowStockProductsReportView(APIView):
     permission_classes = [ReportsPermission]
     pagination_class = StandardResultsSetPagination
 
     def get(self, request):
-        queryset = (
-            low_stock_products()
-            .select_related("storage_location")
-        )
+        queryset = low_stock_report_products()
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset, request, view=self)
@@ -56,64 +67,74 @@ class LowStockProductsReportView(APIView):
         return paginator.get_paginated_response(results)
 
 
+def stock_by_location_filters(request):
+    location_id = parse_positive_integer_query_param(
+        request.query_params.get("location"),
+        name="location",
+    )
+
+    query = request.query_params.get("q", "").strip()
+
+    return location_id, query
+
+
+def stock_by_location_results(location_id, query):
+    products = (
+        current_stock_bulk()
+        .select_related("storage_location")
+    )
+
+    if location_id is not None:
+        products = products.filter(
+            storage_location_id=location_id,
+        )
+
+    if query:
+        products = products.filter(
+            Q(standard_code__icontains=query)
+            | Q(name__icontains=query)
+            | Q(description__icontains=query)
+        )
+
+    locations = {}
+
+    for product in products:
+        location = product.storage_location
+
+        if location.id not in locations:
+            locations[location.id] = {
+                "id": location.id,
+                "code": location.code,
+                "description": location.description,
+                "total_stock": 0,
+                "products": [],
+            }
+
+        locations[location.id]["total_stock"] += product.current_stock
+        locations[location.id]["products"].append(
+            {
+                "id": product.id,
+                "standard_code": product.standard_code,
+                "name": product.name,
+                "current_stock": product.current_stock,
+                "minimum_stock": product.minimum_stock,
+            }
+        )
+
+    return sorted(
+        locations.values(),
+        key=lambda item: item["code"],
+    )
+
+
 class StockByLocationReportView(APIView):
     permission_classes = [ReportsPermission]
     pagination_class = StandardResultsSetPagination
 
     def get(self, request):
-        location_id = parse_positive_integer_query_param(
-            request.query_params.get("location"),
-            name="location",
-        )
+        location_id, query = stock_by_location_filters(request)
 
-        query = request.query_params.get("q", "").strip()
-
-        products = (
-            current_stock_bulk()
-            .select_related("storage_location")
-        )
-
-        if location_id is not None:
-            products = products.filter(
-                storage_location_id=location_id,
-            )
-
-        if query:
-            products = products.filter(
-                Q(standard_code__icontains=query)
-                | Q(name__icontains=query)
-                | Q(description__icontains=query)
-            )
-
-        locations = {}
-
-        for product in products:
-            location = product.storage_location
-
-            if location.id not in locations:
-                locations[location.id] = {
-                    "id": location.id,
-                    "code": location.code,
-                    "description": location.description,
-                    "total_stock": 0,
-                    "products": [],
-                }
-
-            locations[location.id]["total_stock"] += product.current_stock
-            locations[location.id]["products"].append(
-                {
-                    "id": product.id,
-                    "standard_code": product.standard_code,
-                    "name": product.name,
-                    "current_stock": product.current_stock,
-                    "minimum_stock": product.minimum_stock,
-                }
-            )
-
-        results = sorted(
-            locations.values(),
-            key=lambda item: item["code"],
-        )
+        results = stock_by_location_results(location_id, query)
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)
@@ -192,7 +213,7 @@ def parse_report_dates(request):
     date_to = None
 
     if date_from_value:
-        date_from = parse_date(date_from_value)
+        date_from = parse_date_or_none(date_from_value)
 
         if date_from is None:
             return None, None, Response(
@@ -203,7 +224,7 @@ def parse_report_dates(request):
             )
 
     if date_to_value:
-        date_to = parse_date(date_to_value)
+        date_to = parse_date_or_none(date_to_value)
 
         if date_to is None:
             return None, None, Response(
@@ -277,124 +298,139 @@ def _convert_purchase_amount_to_crc(amount, purchase):
     return amount
 
 
+def report_product(request):
+    product_id = request.query_params.get("product")
+
+    if not product_id:
+        return None, Response(
+            {
+                "detail": "Debe indicar el producto."
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        product = Product.objects.get(
+            id=product_id,
+        )
+    except Product.DoesNotExist:
+        return None, Response(
+            {
+                "detail": "Producto no encontrado."
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    return product, None
+
+
+def product_supplier_prices_results(product):
+    items = PurchaseItem.objects.select_related(
+        "purchase__supplier",
+    ).filter(
+        supplier_product__product=product,
+        purchase__status=PurchaseStatus.CONFIRMED,
+    )
+
+    results_by_supplier = {}
+
+    for item in items:
+        purchase = item.purchase
+        supplier = purchase.supplier
+
+        unit_cost_crc = _convert_purchase_amount_to_crc(
+            item.unit_cost,
+            purchase,
+        ).quantize(
+            Decimal("0.0001"),
+            rounding=ROUND_HALF_UP,
+        )
+
+        if supplier.id not in results_by_supplier:
+            results_by_supplier[supplier.id] = {
+                "supplier": {
+                    "id": supplier.id,
+                    "name": supplier.name,
+                },
+                "purchase_count": 0,
+                "total_unit_cost": Decimal("0"),
+                "last_purchase_date": purchase.purchase_date,
+                "last_unit_cost": unit_cost_crc,
+                "purchases": [],
+            }
+
+        entry = results_by_supplier[supplier.id]
+        entry["purchase_count"] += 1
+        entry["total_unit_cost"] += unit_cost_crc
+
+        if purchase.purchase_date >= entry["last_purchase_date"]:
+            entry["last_purchase_date"] = purchase.purchase_date
+            entry["last_unit_cost"] = unit_cost_crc
+
+        entry["purchases"].append(
+            {
+                "id": purchase.id,
+                "invoice_number": purchase.invoice_number,
+                "purchase_date": purchase.purchase_date,
+                "unit_cost": unit_cost_crc,
+                "currency": "CRC",
+            }
+        )
+
+    results = []
+
+    for entry in results_by_supplier.values():
+        average_unit_cost = (
+            entry["total_unit_cost"] / entry["purchase_count"]
+        ).quantize(
+            Decimal("0.0001"),
+            rounding=ROUND_HALF_UP,
+        )
+
+        # Historial de compras a este proveedor en orden cronológico,
+        # para poder ver si el precio cambió con el tiempo (no solo
+        # el último precio y el promedio).
+        purchases = sorted(
+            entry["purchases"],
+            key=lambda purchase_entry: (
+                purchase_entry["purchase_date"],
+                purchase_entry["id"],
+            ),
+        )
+
+        results.append(
+            {
+                "supplier": entry["supplier"],
+                "purchase_count": entry["purchase_count"],
+                "last_purchase_date": entry["last_purchase_date"],
+                "last_unit_cost": entry["last_unit_cost"],
+                "average_unit_cost": average_unit_cost,
+                "currency": "CRC",
+                "purchases": purchases,
+            }
+        )
+
+    results.sort(
+        key=lambda item: (
+            item["last_unit_cost"],
+            item["supplier"]["name"],
+        ),
+    )
+
+    return results
+
+
 class ProductSupplierPricesReportView(APIView):
     permission_classes = [ReportsPermission]
     pagination_class = StandardResultsSetPagination
 
     def get(self, request):
-        product_id = request.query_params.get("product")
+        product, error_response = report_product(request)
 
-        if not product_id:
-            return Response(
-                {
-                    "detail": "Debe indicar el producto."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if error_response is not None:
+            return error_response
 
-        try:
-            product = Product.objects.get(
-                id=product_id,
-            )
-        except Product.DoesNotExist:
-            return Response(
-                {
-                    "detail": "Producto no encontrado."
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        items = PurchaseItem.objects.select_related(
-            "purchase__supplier",
-        ).filter(
-            supplier_product__product=product,
-            purchase__status=PurchaseStatus.CONFIRMED,
-        )
-
-        results_by_supplier = {}
-
-        for item in items:
-            purchase = item.purchase
-            supplier = purchase.supplier
-
-            unit_cost_crc = _convert_purchase_amount_to_crc(
-                item.unit_cost,
-                purchase,
-            ).quantize(
-                Decimal("0.0001"),
-                rounding=ROUND_HALF_UP,
-            )
-
-            if supplier.id not in results_by_supplier:
-                results_by_supplier[supplier.id] = {
-                    "supplier": {
-                        "id": supplier.id,
-                        "name": supplier.name,
-                    },
-                    "purchase_count": 0,
-                    "total_unit_cost": Decimal("0"),
-                    "last_purchase_date": purchase.purchase_date,
-                    "last_unit_cost": unit_cost_crc,
-                    "purchases": [],
-                }
-
-            entry = results_by_supplier[supplier.id]
-            entry["purchase_count"] += 1
-            entry["total_unit_cost"] += unit_cost_crc
-
-            if purchase.purchase_date >= entry["last_purchase_date"]:
-                entry["last_purchase_date"] = purchase.purchase_date
-                entry["last_unit_cost"] = unit_cost_crc
-
-            entry["purchases"].append(
-                {
-                    "id": purchase.id,
-                    "invoice_number": purchase.invoice_number,
-                    "purchase_date": purchase.purchase_date,
-                    "unit_cost": unit_cost_crc,
-                    "currency": "CRC",
-                }
-            )
-
-        results = []
-
-        for entry in results_by_supplier.values():
-            average_unit_cost = (
-                entry["total_unit_cost"] / entry["purchase_count"]
-            ).quantize(
-                Decimal("0.0001"),
-                rounding=ROUND_HALF_UP,
-            )
-
-            # Historial de compras a este proveedor en orden cronológico,
-            # para poder ver si el precio cambió con el tiempo (no solo
-            # el último precio y el promedio).
-            purchases = sorted(
-                entry["purchases"],
-                key=lambda purchase_entry: (
-                    purchase_entry["purchase_date"],
-                    purchase_entry["id"],
-                ),
-            )
-
-            results.append(
-                {
-                    "supplier": entry["supplier"],
-                    "purchase_count": entry["purchase_count"],
-                    "last_purchase_date": entry["last_purchase_date"],
-                    "last_unit_cost": entry["last_unit_cost"],
-                    "average_unit_cost": average_unit_cost,
-                    "currency": "CRC",
-                    "purchases": purchases,
-                }
-            )
-
-        results.sort(
-            key=lambda item: (
-                item["last_unit_cost"],
-                item["supplier"]["name"],
-            ),
-        )
+        results = product_supplier_prices_results(product)
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)
@@ -409,6 +445,70 @@ class ProductSupplierPricesReportView(APIView):
         return response
 
 
+def purchases_by_supplier_results(date_from, date_to):
+    purchases = Purchase.objects.select_related(
+        "supplier",
+    ).filter(
+        status=PurchaseStatus.CONFIRMED,
+    )
+
+    if date_from:
+        purchases = purchases.filter(
+            purchase_date__gte=date_from,
+        )
+
+    if date_to:
+        purchases = purchases.filter(
+            purchase_date__lte=date_to,
+        )
+
+    results_by_supplier = {}
+
+    for purchase in purchases.prefetch_related("items"):
+        supplier = purchase.supplier
+
+        if supplier.id not in results_by_supplier:
+            results_by_supplier[supplier.id] = {
+                "supplier": {
+                    "id": supplier.id,
+                    "name": supplier.name,
+                },
+                "purchase_count": 0,
+                "invoice_subtotal": Decimal("0"),
+            }
+
+        subtotal = sum(
+            (
+                item.quantity * item.unit_cost
+                for item in purchase.items.all()
+            ),
+            Decimal("0"),
+        )
+
+        subtotal_crc = _convert_purchase_amount_to_crc(
+            subtotal,
+            purchase,
+        )
+
+        results_by_supplier[supplier.id]["purchase_count"] += 1
+        results_by_supplier[supplier.id]["invoice_subtotal"] += subtotal_crc
+
+    results = sorted(
+        (
+            {
+                "supplier": item["supplier"],
+                "purchase_count": item["purchase_count"],
+                "invoice_subtotal": item["invoice_subtotal"],
+                "currency": "CRC",
+            }
+            for item in results_by_supplier.values()
+        ),
+        key=lambda item: item["supplier"]["name"],
+    )
+
+    return results
+
+
 class PurchasesBySupplierReportView(APIView):
     permission_classes = [ReportsPermission]
     pagination_class = StandardResultsSetPagination
@@ -419,65 +519,7 @@ class PurchasesBySupplierReportView(APIView):
         if error_response is not None:
             return error_response
 
-        purchases = Purchase.objects.select_related(
-            "supplier",
-        ).filter(
-            status=PurchaseStatus.CONFIRMED,
-        )
-
-        if date_from:
-            purchases = purchases.filter(
-                purchase_date__gte=date_from,
-            )
-
-        if date_to:
-            purchases = purchases.filter(
-                purchase_date__lte=date_to,
-            )
-
-        results_by_supplier = {}
-
-        for purchase in purchases.prefetch_related("items"):
-            supplier = purchase.supplier
-
-            if supplier.id not in results_by_supplier:
-                results_by_supplier[supplier.id] = {
-                    "supplier": {
-                        "id": supplier.id,
-                        "name": supplier.name,
-                    },
-                    "purchase_count": 0,
-                    "invoice_subtotal": Decimal("0"),
-                }
-
-            subtotal = sum(
-                (
-                    item.quantity * item.unit_cost
-                    for item in purchase.items.all()
-                ),
-                Decimal("0"),
-            )
-
-            subtotal_crc = _convert_purchase_amount_to_crc(
-                subtotal,
-                purchase,
-            )
-
-            results_by_supplier[supplier.id]["purchase_count"] += 1
-            results_by_supplier[supplier.id]["invoice_subtotal"] += subtotal_crc
-
-        results = sorted(
-            (
-                {
-                    "supplier": item["supplier"],
-                    "purchase_count": item["purchase_count"],
-                    "invoice_subtotal": item["invoice_subtotal"],
-                    "currency": "CRC",
-                }
-                for item in results_by_supplier.values()
-            ),
-            key=lambda item: item["supplier"]["name"],
-        )
+        results = purchases_by_supplier_results(date_from, date_to)
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)
@@ -487,6 +529,60 @@ class PurchasesBySupplierReportView(APIView):
         response.data["date_to"] = date_to
 
         return response
+
+
+def top_selling_products_results(date_from, date_to):
+    # Mismas ventas que la caja: confirmadas y activas (punto 20).
+    sale_items = SaleItem.objects.select_related(
+        "sale",
+        "product",
+    ).filter(
+        sale__in=confirmed_sales(),
+    )
+
+    if date_from:
+        sale_items = sale_items.filter(
+            sale__sale_date__gte=date_from,
+        )
+
+    if date_to:
+        sale_items = sale_items.filter(
+            sale__sale_date__lte=date_to,
+        )
+
+    results_by_product = {}
+
+    for item in sale_items:
+        product = item.product
+
+        if product.id not in results_by_product:
+            results_by_product[product.id] = {
+                "product": {
+                    "id": product.id,
+                    "standard_code": product.standard_code,
+                    "name": product.name,
+                },
+                "quantity_sold": 0,
+                "total": Decimal("0"),
+            }
+
+        results_by_product[product.id]["quantity_sold"] += item.quantity
+        # Bruto: cantidad × precio de la línea, antes del descuento y
+        # el impuesto, que son del documento y no de un producto
+        # (decisión del punto 19). El frontend lo rotula así.
+        results_by_product[product.id]["total"] += (
+            item.quantity * item.unit_price
+        )
+
+    results = sorted(
+        results_by_product.values(),
+        key=lambda item: (
+            -item["quantity_sold"],
+            item["product"]["standard_code"],
+        ),
+    )
+
+    return results
 
 
 class TopSellingProductsReportView(APIView):
@@ -499,55 +595,7 @@ class TopSellingProductsReportView(APIView):
         if error_response is not None:
             return error_response
 
-        # Mismas ventas que la caja: confirmadas y activas (punto 20).
-        sale_items = SaleItem.objects.select_related(
-            "sale",
-            "product",
-        ).filter(
-            sale__in=confirmed_sales(),
-        )
-
-        if date_from:
-            sale_items = sale_items.filter(
-                sale__sale_date__gte=date_from,
-            )
-
-        if date_to:
-            sale_items = sale_items.filter(
-                sale__sale_date__lte=date_to,
-            )
-
-        results_by_product = {}
-
-        for item in sale_items:
-            product = item.product
-
-            if product.id not in results_by_product:
-                results_by_product[product.id] = {
-                    "product": {
-                        "id": product.id,
-                        "standard_code": product.standard_code,
-                        "name": product.name,
-                    },
-                    "quantity_sold": 0,
-                    "total": Decimal("0"),
-                }
-
-            results_by_product[product.id]["quantity_sold"] += item.quantity
-            # Bruto: cantidad × precio de la línea, antes del descuento y
-            # el impuesto, que son del documento y no de un producto
-            # (decisión del punto 19). El frontend lo rotula así.
-            results_by_product[product.id]["total"] += (
-                item.quantity * item.unit_price
-            )
-
-        results = sorted(
-            results_by_product.values(),
-            key=lambda item: (
-                -item["quantity_sold"],
-                item["product"]["standard_code"],
-            ),
-        )
+        results = top_selling_products_results(date_from, date_to)
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)
@@ -557,6 +605,72 @@ class TopSellingProductsReportView(APIView):
         response.data["date_to"] = date_to
 
         return response
+
+
+def parse_top_customers_ordering(request):
+    return parse_report_ordering(
+        request,
+        allowed_values={"total", "sale_count"},
+        default="total",
+    )
+
+
+def top_customers_results(date_from, date_to, ordering):
+    # Mismas ventas que la caja: confirmadas y activas (punto 20).
+    sales = confirmed_sales().select_related(
+        "customer",
+    ).filter(
+        customer__isnull=False,
+    ).prefetch_related("items")
+
+    if date_from:
+        sales = sales.filter(
+            sale_date__gte=date_from,
+        )
+
+    if date_to:
+        sales = sales.filter(
+            sale_date__lte=date_to,
+        )
+
+    results_by_customer = {}
+
+    for sale in sales:
+        customer = sale.customer
+
+        if customer.id not in results_by_customer:
+            results_by_customer[customer.id] = {
+                "customer": {
+                    "id": customer.id,
+                    "display_name": customer.display_name,
+                },
+                "sale_count": 0,
+                "total": Decimal("0"),
+            }
+
+        # Lo cobrado: con descuento e impuesto (punto 19).
+        total = sale_amounts(sale).total
+
+        results_by_customer[customer.id]["sale_count"] += 1
+        results_by_customer[customer.id]["total"] += total
+
+    if ordering == "sale_count":
+        sort_key = lambda item: (
+            -item["sale_count"],
+            item["customer"]["display_name"],
+        )
+    else:
+        sort_key = lambda item: (
+            -item["total"],
+            item["customer"]["display_name"],
+        )
+
+    results = sorted(
+        results_by_customer.values(),
+        key=sort_key,
+    )
+
+    return results
 
 
 class TopCustomersReportView(APIView):
@@ -569,68 +683,14 @@ class TopCustomersReportView(APIView):
         if error_response is not None:
             return error_response
 
-        ordering, ordering_error_response = parse_report_ordering(
+        ordering, ordering_error_response = parse_top_customers_ordering(
             request,
-            allowed_values={"total", "sale_count"},
-            default="total",
         )
 
         if ordering_error_response is not None:
             return ordering_error_response
 
-        # Mismas ventas que la caja: confirmadas y activas (punto 20).
-        sales = confirmed_sales().select_related(
-            "customer",
-        ).filter(
-            customer__isnull=False,
-        ).prefetch_related("items")
-
-        if date_from:
-            sales = sales.filter(
-                sale_date__gte=date_from,
-            )
-
-        if date_to:
-            sales = sales.filter(
-                sale_date__lte=date_to,
-            )
-
-        results_by_customer = {}
-
-        for sale in sales:
-            customer = sale.customer
-
-            if customer.id not in results_by_customer:
-                results_by_customer[customer.id] = {
-                    "customer": {
-                        "id": customer.id,
-                        "display_name": customer.display_name,
-                    },
-                    "sale_count": 0,
-                    "total": Decimal("0"),
-                }
-
-            # Lo cobrado: con descuento e impuesto (punto 19).
-            total = sale_amounts(sale).total
-
-            results_by_customer[customer.id]["sale_count"] += 1
-            results_by_customer[customer.id]["total"] += total
-
-        if ordering == "sale_count":
-            sort_key = lambda item: (
-                -item["sale_count"],
-                item["customer"]["display_name"],
-            )
-        else:
-            sort_key = lambda item: (
-                -item["total"],
-                item["customer"]["display_name"],
-            )
-
-        results = sorted(
-            results_by_customer.values(),
-            key=sort_key,
-        )
+        results = top_customers_results(date_from, date_to, ordering)
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)

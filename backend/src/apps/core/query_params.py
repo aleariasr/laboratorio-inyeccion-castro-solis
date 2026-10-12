@@ -60,6 +60,19 @@ def parse_positive_integer_query_param(value, *, name):
 
     return parsed_value
 
+def parse_date_or_none(value):
+    """
+    parse_date de Django, pero con None también para una fecha bien
+    escrita que no existe (2026-02-30): parse_date lanza ValueError en
+    ese caso, y sin esto el filtro respondía 500 en vez de 400.
+    """
+
+    try:
+        return parse_date(value)
+    except ValueError:
+        return None
+
+
 def parse_date_query_param(value, *, name):
     """
     Convierte un parámetro de consulta opcional a fecha (YYYY-MM-DD).
@@ -68,7 +81,7 @@ def parse_date_query_param(value, *, name):
     if value is None or value == "":
         return None
 
-    parsed_value = parse_date(value.strip())
+    parsed_value = parse_date_or_none(value.strip())
 
     if parsed_value is None:
         raise ValidationError(
