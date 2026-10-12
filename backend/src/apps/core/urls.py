@@ -4,6 +4,9 @@ from .views import (
     DashboardSummaryView,
     LowStockProductsReportPdfView,
     LowStockProductsReportView,
+    MostMovedProductsReportExcelView,
+    MostMovedProductsReportPdfView,
+    MostMovedProductsReportView,
     ProductMovementsReportView,
     ProductSupplierPricesReportPdfView,
     ProductSupplierPricesReportView,
@@ -98,6 +101,21 @@ urlpatterns = [
         "reports/top-customers/",
         TopCustomersReportView.as_view(),
         name="report-top-customers",
+    ),
+    path(
+        "reports/most-moved-products/",
+        MostMovedProductsReportView.as_view(),
+        name="report-most-moved-products",
+    ),
+    path(
+        "reports/most-moved-products/pdf/",
+        MostMovedProductsReportPdfView.as_view(),
+        name="report-most-moved-products-pdf",
+    ),
+    path(
+        "reports/most-moved-products/excel/",
+        MostMovedProductsReportExcelView.as_view(),
+        name="report-most-moved-products-excel",
     ),
     path(
         "reports/top-customers/pdf/",

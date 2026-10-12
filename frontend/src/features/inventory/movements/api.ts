@@ -115,6 +115,25 @@ export async function getStockMovementsKardex(
   return { movements, truncated: true };
 }
 
+function getStockMovementsFile(
+  token: string,
+  format: "pdf" | "excel",
+  filters: StockMovementFilters,
+): Promise<Blob> {
+  const searchParams = new URLSearchParams(buildStockMovementsQuery(filters));
+
+  searchParams.delete("page");
+  searchParams.delete("page_size");
+
+  return apiGetBlob(
+    `/api/inventory/stock-movements/${format}/?${searchParams.toString()}`,
+    {
+      token,
+      timeoutMs: 60_000,
+    },
+  );
+}
+
 /**
  * PDF de Movimientos (puntos 2 + 27) con los filtros de la pantalla. Con
  * un producto sale el kardex con su saldo, como en pantalla.
@@ -123,13 +142,13 @@ export function getStockMovementsPdf(
   token: string,
   filters: StockMovementFilters,
 ): Promise<Blob> {
-  const searchParams = new URLSearchParams(buildStockMovementsQuery(filters));
+  return getStockMovementsFile(token, "pdf", filters);
+}
 
-  searchParams.delete("page");
-  searchParams.delete("page_size");
-
-  return apiGetBlob(`/api/inventory/stock-movements/pdf/?${searchParams.toString()}`, {
-    token,
-    timeoutMs: 60_000,
-  });
+/** Excel de Movimientos (punto 28) con los filtros de la pantalla. */
+export function getStockMovementsExcel(
+  token: string,
+  filters: StockMovementFilters,
+): Promise<Blob> {
+  return getStockMovementsFile(token, "excel", filters);
 }

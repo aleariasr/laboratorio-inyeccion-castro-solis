@@ -153,6 +153,24 @@ export type TopSellingProductsReport = PaginatedResponse<TopSellingProduct> & {
   date_to: string | null;
 };
 
+export type MostMovedProduct = {
+  product: {
+    id: number;
+    standard_code: string;
+    name: string;
+  };
+  location_code: string;
+  quantity_in: number;
+  quantity_out: number;
+  total_moved: number;
+  movement_count: number;
+};
+
+export type MostMovedProductsReport = PaginatedResponse<MostMovedProduct> & {
+  date_from: string | null;
+  date_to: string | null;
+};
+
 export type ReportDateFilters = {
   dateFrom: string;
   dateTo: string;

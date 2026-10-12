@@ -1,6 +1,7 @@
 from .dashboard import DashboardSummaryView
 from .reports import (
     LowStockProductsReportView,
+    MostMovedProductsReportView,
     ProductMovementsReportView,
     ProductSupplierPricesReportView,
     PurchasesBySupplierReportView,
@@ -8,8 +9,10 @@ from .reports import (
     TopCustomersReportView,
     TopSellingProductsReportView,
 )
+from .report_excel import MostMovedProductsReportExcelView
 from .report_pdfs import (
     LowStockProductsReportPdfView,
+    MostMovedProductsReportPdfView,
     ProductSupplierPricesReportPdfView,
     PurchasesBySupplierReportPdfView,
     SalesSummaryReportPdfView,
@@ -24,6 +27,9 @@ __all__ = [
     "DashboardSummaryView",
     "LowStockProductsReportPdfView",
     "LowStockProductsReportView",
+    "MostMovedProductsReportExcelView",
+    "MostMovedProductsReportPdfView",
+    "MostMovedProductsReportView",
     "ProductMovementsReportView",
     "ProductSupplierPricesReportPdfView",
     "ProductSupplierPricesReportView",

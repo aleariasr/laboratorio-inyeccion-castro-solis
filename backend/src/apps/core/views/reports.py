@@ -1,6 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Q
+from django.db.models import Count, Q, Sum
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,10 +13,13 @@ from apps.core.query_params import (
 )
 from apps.inventory.models import (
     Currency,
+    MovementDirection,
     Product,
     Purchase,
     PurchaseItem,
     PurchaseStatus,
+    StockMovement,
+    StockMovementType,
 )
 from apps.inventory.selectors import (
     current_stock_bulk,
@@ -699,5 +702,105 @@ class TopCustomersReportView(APIView):
         response.data["date_from"] = date_from
         response.data["date_to"] = date_to
         response.data["ordering"] = ordering
+
+        return response
+
+
+def most_moved_products_results(date_from, date_to):
+    """
+    Productos que más se mueven (punto 28): entradas, salidas, total
+    movido (entradas + salidas) y cantidad de movimientos por producto,
+    de mayor a menor total.
+
+    Neto de reversiones: un movimiento revertido (una venta anulada, por
+    ejemplo) no cuenta, y la reversión tampoco. El inventario inicial
+    queda fuera: es la carga de existencias, no un movimiento del
+    negocio. Ajustes y conteos sí cuentan.
+    """
+
+    movements = StockMovement.objects.exclude(
+        movement_type__in=(
+            StockMovementType.INITIAL,
+            StockMovementType.REVERSAL,
+        ),
+    ).filter(
+        reversal_movement__isnull=True,
+    )
+
+    if date_from:
+        movements = movements.filter(created_at__date__gte=date_from)
+
+    if date_to:
+        movements = movements.filter(created_at__date__lte=date_to)
+
+    grouped = (
+        movements
+        # Sin el orden del modelo: si no, entra en el GROUP BY.
+        .order_by()
+        .values(
+            "product_id",
+            "product__standard_code",
+            "product__name",
+            "product__storage_location__code",
+        )
+        .annotate(
+            quantity_in=Sum(
+                "quantity",
+                filter=Q(direction=MovementDirection.IN),
+                default=0,
+            ),
+            quantity_out=Sum(
+                "quantity",
+                filter=Q(direction=MovementDirection.OUT),
+                default=0,
+            ),
+            movement_count=Count("id"),
+        )
+    )
+
+    results = [
+        {
+            "product": {
+                "id": row["product_id"],
+                "standard_code": row["product__standard_code"],
+                "name": row["product__name"],
+            },
+            "location_code": row["product__storage_location__code"],
+            "quantity_in": row["quantity_in"],
+            "quantity_out": row["quantity_out"],
+            "total_moved": row["quantity_in"] + row["quantity_out"],
+            "movement_count": row["movement_count"],
+        }
+        for row in grouped
+    ]
+
+    results.sort(
+        key=lambda item: (
+            -item["total_moved"],
+            item["product"]["standard_code"],
+        ),
+    )
+
+    return results
+
+
+class MostMovedProductsReportView(APIView):
+    permission_classes = [ReportsPermission]
+    pagination_class = StandardResultsSetPagination
+
+    def get(self, request):
+        date_from, date_to, error_response = parse_report_dates(request)
+
+        if error_response is not None:
+            return error_response
+
+        results = most_moved_products_results(date_from, date_to)
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(results, request, view=self)
+
+        response = paginator.get_paginated_response(page)
+        response.data["date_from"] = date_from
+        response.data["date_to"] = date_to
 
         return response

@@ -25,6 +25,7 @@ from apps.inventory.models import StorageLocation
 
 from .reports import (
     low_stock_report_products,
+    most_moved_products_results,
     parse_report_dates,
     parse_top_customers_ordering,
     product_supplier_prices_results,
@@ -644,4 +645,66 @@ class TopCustomersReportPdfView(APIView):
         return report_pdf_response(
             buffer,
             f"clientes-con-mas-ventas-{_file_date()}.pdf",
+        )
+
+
+MOST_MOVED_NOTE = (
+    "Sin inventario inicial. Los movimientos revertidos (por ejemplo, una "
+    "venta anulada) no cuentan, ni su reversión."
+)
+
+
+class MostMovedProductsReportPdfView(APIView):
+    permission_classes = [ReportsPermission]
+
+    def get(self, request):
+        date_from, date_to, error_response = parse_report_dates(request)
+
+        if error_response is not None:
+            return error_response
+
+        results = most_moved_products_results(date_from, date_to)
+
+        rows = [
+            (
+                str(position),
+                item["product"]["standard_code"],
+                item["product"]["name"],
+                item["location_code"],
+                str(item["quantity_in"]),
+                str(item["quantity_out"]),
+                str(item["total_moved"]),
+                str(item["movement_count"]),
+            )
+            for position, item in enumerate(results, start=1)
+        ]
+
+        buffer = build_report_pdf(
+            title="Productos que más se mueven",
+            subtitle_lines=[
+                f"{format_date_range(date_from, date_to)}. Total movido = "
+                "entradas + salidas, en unidades.",
+                MOST_MOVED_NOTE,
+            ],
+            blocks=[
+                Table(
+                    columns=(
+                        Column("#", 0.5, align="right"),
+                        Column("Código", 1.3),
+                        Column("Producto", 2.8),
+                        Column("Ubicación", 1),
+                        Column("Entradas", 0.95, align="right"),
+                        Column("Salidas", 0.95, align="right"),
+                        Column("Total", 0.9, align="right"),
+                        Column("Movs.", 0.75, align="right"),
+                    ),
+                    rows=rows,
+                    empty_message="No hay movimientos en el rango indicado.",
+                ),
+            ],
+        )
+
+        return report_pdf_response(
+            buffer,
+            f"productos-que-mas-se-mueven-{_file_date()}.pdf",
         )

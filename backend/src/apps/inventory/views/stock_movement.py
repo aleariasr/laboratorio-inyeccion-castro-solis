@@ -17,6 +17,14 @@ from apps.documents.report_pdf import (
     format_datetime,
     report_pdf_response,
 )
+from apps.documents.report_xlsx import (
+    DATETIME_FORMAT,
+    INTEGER_FORMAT,
+    SIGNED_INTEGER_FORMAT,
+    XlsxColumn,
+    build_report_xlsx,
+    xlsx_response,
+)
 from apps.inventory.models import (
     MovementDirection,
     Product,
@@ -141,6 +149,47 @@ class StockMovementViewSet(
 
         return queryset
 
+    def _export_movements(self, request, limit):
+        """
+        Movimientos para el PDF y el Excel (puntos 2 + 27 y 28), con los
+        filtros de la pantalla. Con un producto se calcula el saldo
+        acumulado (kardex), como en pantalla. Devuelve (movimientos,
+        saldos o None, si se cortó en `limit`).
+        """
+
+        queryset = self.filter_queryset(self.get_queryset()).select_related(
+            "product__storage_location",
+        )
+        is_kardex = bool(request.query_params.get("product"))
+        ascending = request.query_params.get("ordering") == "created_at"
+
+        if is_kardex:
+            queryset = queryset.order_by("created_at", "id")
+
+        movements = list(queryset[: limit + 1])
+        truncated = len(movements) > limit
+        movements = movements[:limit]
+
+        if not is_kardex:
+            return movements, None, truncated
+
+        balance = 0
+        balances = []
+
+        for movement in movements:
+            balance += (
+                movement.quantity
+                if movement.direction == MovementDirection.IN
+                else -movement.quantity
+            )
+            balances.append(balance)
+
+        if not ascending:
+            movements.reverse()
+            balances.reverse()
+
+        return movements, balances, truncated
+
     @action(detail=False, methods=["get"], url_path="pdf")
     def pdf(self, request):
         """
@@ -150,56 +199,19 @@ class StockMovementViewSet(
         MOVEMENTS_PDF_LIMIT movimientos, el mismo tope del kardex.
         """
 
-        queryset = self.filter_queryset(self.get_queryset())
-        product_id = request.query_params.get("product")
-        ascending = request.query_params.get("ordering") == "created_at"
+        movements, balances, truncated = self._export_movements(
+            request,
+            MOVEMENTS_PDF_LIMIT,
+        )
 
-        subtitle_lines = _movement_filter_lines(request)
+        subtitle_lines = _movement_filter_lines(
+            request,
+            limit=MOVEMENTS_PDF_LIMIT,
+            truncated=truncated,
+            is_kardex=balances is not None,
+        )
 
-        if product_id:
-            movements = list(
-                queryset.order_by("created_at", "id")[: MOVEMENTS_PDF_LIMIT + 1]
-            )
-        else:
-            movements = list(queryset[: MOVEMENTS_PDF_LIMIT + 1])
-
-        truncated = len(movements) > MOVEMENTS_PDF_LIMIT
-        movements = movements[:MOVEMENTS_PDF_LIMIT]
-
-        if truncated:
-            subtitle_lines.append(
-                f"Se muestran los primeros {MOVEMENTS_PDF_LIMIT} movimientos; "
-                "use el rango de fechas para acotar."
-            )
-
-        if product_id:
-            balance = 0
-            rows = []
-
-            for movement in movements:
-                balance += (
-                    movement.quantity
-                    if movement.direction == MovementDirection.IN
-                    else -movement.quantity
-                )
-                rows.append(
-                    (
-                        format_datetime(movement.created_at),
-                        movement.get_movement_type_display(),
-                        _signed_quantity(movement),
-                        str(balance),
-                        movement_origin_label(movement),
-                        _username(movement),
-                    )
-                )
-
-            if not ascending:
-                rows.reverse()
-
-            subtitle_lines.append(
-                "Saldo: acumulado sobre los movimientos mostrados."
-            )
-
+        if balances is not None:
             table = Table(
                 columns=(
                     Column("Fecha", 1.6),
@@ -209,7 +221,17 @@ class StockMovementViewSet(
                     Column("Origen", 1.8),
                     Column("Usuario", 1.1),
                 ),
-                rows=rows,
+                rows=[
+                    (
+                        format_datetime(movement.created_at),
+                        movement.get_movement_type_display(),
+                        _signed_quantity(movement),
+                        str(balance),
+                        movement_origin_label(movement),
+                        _username(movement),
+                    )
+                    for movement, balance in zip(movements, balances)
+                ],
                 empty_message="Este producto no tiene movimientos para el filtro indicado.",
             )
         else:
@@ -244,8 +266,84 @@ class StockMovementViewSet(
 
         return report_pdf_response(buffer, "movimientos-de-inventario.pdf")
 
+    @action(detail=False, methods=["get"], url_path="excel")
+    def excel(self, request):
+        """
+        Excel de Movimientos (punto 28) con los mismos filtros de la
+        pantalla y todas las columnas, para trabajarlo en Excel. Con un
+        producto lleva también el saldo (kardex).
+        """
+
+        movements, balances, truncated = self._export_movements(
+            request,
+            MOVEMENTS_EXCEL_LIMIT,
+        )
+        is_kardex = balances is not None
+
+        columns = [
+            XlsxColumn("Fecha", 17, DATETIME_FORMAT),
+            XlsxColumn("Código", 16),
+            XlsxColumn("Producto", 36),
+            XlsxColumn("Ubicación", 12),
+            XlsxColumn("Tipo", 18),
+            XlsxColumn("Cantidad", 10, SIGNED_INTEGER_FORMAT),
+        ]
+
+        if is_kardex:
+            columns.append(XlsxColumn("Saldo", 10, INTEGER_FORMAT))
+
+        columns += [
+            XlsxColumn("Origen", 24),
+            XlsxColumn("Usuario", 16),
+            XlsxColumn("Notas", 40),
+        ]
+
+        rows = []
+
+        for index, movement in enumerate(movements):
+            row = [
+                movement.created_at,
+                movement.product.standard_code,
+                movement.product.name,
+                movement.product.storage_location.code,
+                movement.get_movement_type_display(),
+                (
+                    movement.quantity
+                    if movement.direction == MovementDirection.IN
+                    else -movement.quantity
+                ),
+            ]
+
+            if is_kardex:
+                row.append(balances[index])
+
+            row += [
+                movement_origin_label(movement),
+                _username(movement),
+                movement.notes,
+            ]
+
+            rows.append(row)
+
+        buffer = build_report_xlsx(
+            title="Movimientos de inventario",
+            sheet_title="Movimientos",
+            subtitle_lines=_movement_filter_lines(
+                request,
+                limit=MOVEMENTS_EXCEL_LIMIT,
+                truncated=truncated,
+                is_kardex=is_kardex,
+            ),
+            columns=columns,
+            rows=rows,
+        )
+
+        return xlsx_response(buffer, "movimientos-de-inventario.xlsx")
+
 
 MOVEMENTS_PDF_LIMIT = 2000
+# Excel aguanta mucho más que un PDF que se va a imprimir.
+MOVEMENTS_EXCEL_LIMIT = 20000
 
 
 def movement_origin_label(movement):
@@ -301,7 +399,7 @@ def _username(movement):
     return movement.created_by.get_username()
 
 
-def _movement_filter_lines(request):
+def _movement_filter_lines(request, *, limit, truncated, is_kardex):
     params = request.query_params
     filters = []
 
@@ -347,5 +445,14 @@ def _movement_filter_lines(request):
 
     if filters:
         lines.append(" · ".join(filters) + ".")
+
+    if is_kardex:
+        lines.append("Saldo: acumulado sobre los movimientos mostrados.")
+
+    if truncated:
+        lines.append(
+            f"Se muestran los primeros {limit} movimientos; "
+            "use el rango de fechas para acotar."
+        )
 
     return lines

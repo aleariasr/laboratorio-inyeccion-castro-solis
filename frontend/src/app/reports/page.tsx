@@ -11,6 +11,7 @@ import {
   CartIcon,
   LayersIcon,
   LocationIcon,
+  TrendingIcon,
   TruckIcon,
   UsersIcon,
 } from "@/components/icons/app-icons";
@@ -55,6 +56,15 @@ const REPORT_CARDS: ReportCard[] = [
     icon: <ArrowsUpDownIcon className="size-7" />,
     accent: "#0066cc",
     surface: "#edf5ff",
+  },
+  {
+    href: "/reports/most-moved-products",
+    title: "Productos que más se mueven",
+    description:
+      "Entradas, salidas y total movido por producto en un rango de fechas. Con Excel.",
+    icon: <TrendingIcon className="size-7" />,
+    accent: "#3a4fc4",
+    surface: "#eef0fc",
   },
   {
     href: "/reports/purchases-by-supplier",

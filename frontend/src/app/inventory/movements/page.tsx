@@ -16,6 +16,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { canReadMovements } from "@/features/auth/permissions";
 import {
   getStockMovements,
+  getStockMovementsExcel,
   getStockMovementsKardex,
   getStockMovementsPdf,
 } from "@/features/inventory/movements/api";
@@ -400,6 +401,8 @@ export default function StockMovementsPage() {
           onBack={goBack}
           fetchPdf={() => getStockMovementsPdf(token ?? "", filters)}
           fileName="movimientos-de-inventario.pdf"
+          fetchExcel={() => getStockMovementsExcel(token ?? "", filters)}
+          excelFileName="movimientos-de-inventario.xlsx"
           onUnauthorized={handleUnauthorized}
           disabled={!token}
         />

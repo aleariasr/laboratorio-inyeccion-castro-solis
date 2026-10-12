@@ -624,3 +624,55 @@ export function DownloadIcon({
     </svg>
   );
 }
+
+export function SpreadsheetIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M5.5 4.5h13a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1Z"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M4.5 9.5h15M4.5 14.5h15M10 9.5v10"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function TrendingIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="m4 16.5 5-5 3.5 3.5L20 7.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M14.5 7.5H20V13"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

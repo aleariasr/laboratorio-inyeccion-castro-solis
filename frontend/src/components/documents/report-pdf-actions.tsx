@@ -6,6 +6,7 @@ import {
   ArrowLeftIcon,
   DownloadIcon,
   PrinterIcon,
+  SpreadsheetIcon,
 } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -14,17 +15,23 @@ type ReportPdfActionsProps = {
   /** Pide el PDF al backend con los filtros que tiene la pantalla. */
   fetchPdf: () => Promise<Blob>;
   fileName: string;
+  /**
+   * Si se pasa, agrega "Exportar a Excel" (punto 28), con los mismos
+   * filtros que el PDF.
+   */
+  fetchExcel?: () => Promise<Blob>;
+  excelFileName?: string;
   onUnauthorized: () => void;
   /** Si se pasa, agrega el botón "Volver" que ya tenían las pantallas. */
   onBack?: () => void;
   disabled?: boolean;
 };
 
-type PendingAction = "print" | "download" | null;
+type PendingAction = "print" | "download" | "excel" | null;
 
-function getPdfErrorMessage(error: unknown): string {
+function getFileErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 403) {
-    return "Este usuario no tiene permisos para generar este PDF.";
+    return "Este usuario no tiene permisos para generar este archivo.";
   }
 
   if (error instanceof ApiError) {
@@ -32,25 +39,45 @@ function getPdfErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiTimeoutError) {
-    return "El PDF tardó demasiado en generarse.";
+    return "El archivo tardó demasiado en generarse.";
   }
 
   if (error instanceof ApiNetworkError) {
     return "No fue posible comunicarse con el sistema local.";
   }
 
-  return "No fue posible generar el PDF.";
+  return "No fue posible generar el archivo.";
+}
+
+function saveBlob(blob: Blob, fileName: string): void {
+  const downloadUrl = URL.createObjectURL(blob);
+
+  const anchor = document.createElement("a");
+
+  anchor.href = downloadUrl;
+  anchor.download = fileName;
+
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  globalThis.setTimeout(() => {
+    URL.revokeObjectURL(downloadUrl);
+  }, 1_000);
 }
 
 /**
- * Botones "Imprimir" y "Descargar PDF" de los reportes (puntos 2 + 27).
- * Los dos usan el mismo PDF del servidor: "Imprimir" lo abre en una
- * ventana nueva, en el visor de PDF, que tiene su propio botón de
- * imprimir; "Descargar PDF" lo guarda.
+ * Botones "Imprimir" y "Descargar PDF" de los reportes (puntos 2 + 27),
+ * y "Exportar a Excel" donde aplica (punto 28). "Imprimir" y "Descargar
+ * PDF" usan el mismo PDF del servidor: el primero lo abre en una ventana
+ * nueva, en el visor de PDF, que tiene su propio botón de imprimir; el
+ * segundo lo guarda.
  */
 export function ReportPdfActions({
   fetchPdf,
   fileName,
+  fetchExcel,
+  excelFileName,
   onUnauthorized,
   onBack,
   disabled = false,
@@ -65,7 +92,7 @@ export function ReportPdfActions({
       return;
     }
 
-    setErrorMessage(getPdfErrorMessage(error));
+    setErrorMessage(getFileErrorMessage(error));
   }
 
   async function handlePrint(): Promise<void> {
@@ -105,26 +132,16 @@ export function ReportPdfActions({
     }
   }
 
-  async function handleDownload(): Promise<void> {
-    setPendingAction("download");
+  async function handleSave(
+    action: "download" | "excel",
+    fetchFile: () => Promise<Blob>,
+    targetFileName: string,
+  ): Promise<void> {
+    setPendingAction(action);
     setErrorMessage(null);
 
     try {
-      const blob = await fetchPdf();
-      const downloadUrl = URL.createObjectURL(blob);
-
-      const anchor = document.createElement("a");
-
-      anchor.href = downloadUrl;
-      anchor.download = fileName;
-
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-
-      globalThis.setTimeout(() => {
-        URL.revokeObjectURL(downloadUrl);
-      }, 1_000);
+      saveBlob(await fetchFile(), targetFileName);
     } catch (error: unknown) {
       handleError(error);
     } finally {
@@ -141,6 +158,22 @@ export function ReportPdfActions({
           <Button type="button" variant="secondary" onClick={onBack}>
             <ArrowLeftIcon />
             Volver
+          </Button>
+        )}
+
+        {fetchExcel && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              void handleSave("excel", fetchExcel, excelFileName ?? "reporte.xlsx");
+            }}
+            isLoading={pendingAction === "excel"}
+            loadingText="Generando…"
+            disabled={disabled || isBusy}
+          >
+            <SpreadsheetIcon />
+            Exportar a Excel
           </Button>
         )}
 
@@ -161,7 +194,7 @@ export function ReportPdfActions({
         <Button
           type="button"
           onClick={() => {
-            void handleDownload();
+            void handleSave("download", fetchPdf, fileName);
           }}
           isLoading={pendingAction === "download"}
           loadingText="Generando…"

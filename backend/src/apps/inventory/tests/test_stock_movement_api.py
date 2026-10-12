@@ -933,3 +933,106 @@ class StockMovementPdfApiTest(APITestCase):
         response = self.client.get(self.URL)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+from datetime import datetime  # noqa: E402
+from io import BytesIO  # noqa: E402
+
+from openpyxl import load_workbook  # noqa: E402
+
+
+class StockMovementExcelApiTest(APITestCase):
+    """Punto 28: Excel de Movimientos con los filtros de la pantalla."""
+
+    setUp = StockMovementApiTest.setUp
+    create_movement = StockMovementApiTest.create_movement
+
+    URL = "/api/inventory/stock-movements/excel/"
+
+    def get_rows(self, params=None):
+        response = self.client.get(self.URL, params or {})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        workbook = load_workbook(BytesIO(b"".join(response.streaming_content)))
+        rows = list(workbook.active.iter_rows(values_only=True))
+        header_index = next(
+            index for index, row in enumerate(rows) if row[0] == "Fecha"
+        )
+
+        header = rows[header_index]
+        records = [dict(zip(header, row)) for row in rows[header_index + 1:]]
+
+        return header, records
+
+    def test_general_export_lists_every_column(self):
+        self.create_movement(quantity=5, notes="Llegó mercadería")
+        self.create_movement(direction=MovementDirection.OUT, quantity=2)
+
+        header, records = self.get_rows({"ordering": "created_at"})
+
+        self.assertEqual(
+            header,
+            (
+                "Fecha",
+                "Código",
+                "Producto",
+                "Ubicación",
+                "Tipo",
+                "Cantidad",
+                "Origen",
+                "Usuario",
+                "Notas",
+            ),
+        )
+        self.assertEqual([record["Cantidad"] for record in records], [5, -2])
+
+        first = records[0]
+        self.assertEqual(first["Código"], "P-001")
+        self.assertEqual(first["Ubicación"], "A101")
+        self.assertEqual(first["Tipo"], "Ajuste")
+        self.assertEqual(first["Origen"], "Sin documento asociado")
+        self.assertEqual(first["Usuario"], "inventory-user")
+        self.assertEqual(first["Notas"], "Llegó mercadería")
+        # Fecha real de Excel, en hora local (Excel no guarda zona).
+        self.assertIsInstance(first["Fecha"], datetime)
+        self.assertIsNone(first["Fecha"].tzinfo)
+
+    def test_export_respects_filters(self):
+        self.create_movement(quantity=5)
+        self.create_movement(direction=MovementDirection.OUT, quantity=2)
+
+        _header, records = self.get_rows({"direction": "OUT"})
+
+        self.assertEqual([record["Cantidad"] for record in records], [-2])
+
+    def test_product_export_adds_the_running_balance(self):
+        self.create_movement(quantity=5)
+        self.create_movement(direction=MovementDirection.OUT, quantity=2)
+        self.create_movement(quantity=4)
+
+        header, records = self.get_rows({"product": self.product.id})
+
+        self.assertIn("Saldo", header)
+        # Más recientes primero, como la pantalla.
+        self.assertEqual([record["Saldo"] for record in records], [7, 3, 5])
+
+    def test_export_validates_filters(self):
+        response = self.client.get(self.URL, {"date_from": "2026-02-30"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_export_requires_view_movements(self):
+        plain_user = User.objects.create_user(
+            username="movements-excel-plain",
+            password="12345678",
+        )
+        self.client.force_authenticate(plain_user)
+
+        response = self.client.get(self.URL)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

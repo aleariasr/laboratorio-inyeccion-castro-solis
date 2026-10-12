@@ -1029,7 +1029,7 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
   pasado u otro rango; caja y reportes comparten la definición de venta/servicio que cuenta)
 - [x] 21 + 22 — Caja chica
 - [x] 2 + 27 — PDF e impresión de reportes
-- [ ] 28 — Movimientos a Excel y productos más movidos
+- [x] 28 — Movimientos a Excel y productos más movidos
 - [ ] 16 — Código propio del genérico y ubicación personalizable
 - [ ] 7 — Menús de Electron: progreso, confirmación y errores claros
 

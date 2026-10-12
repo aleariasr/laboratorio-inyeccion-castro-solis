@@ -3066,3 +3066,209 @@ class ImpossibleDateFilterTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+from io import BytesIO  # noqa: E402
+
+from openpyxl import load_workbook  # noqa: E402
+
+from apps.inventory.models import (  # noqa: E402
+    MovementDirection,
+    StockMovement,
+    StockMovementType,
+)
+
+
+def xlsx_rows(response):
+    """Filas de la tabla del Excel (desde el encabezado) como tuplas."""
+
+    workbook = load_workbook(BytesIO(b"".join(response.streaming_content)))
+    rows = list(workbook.active.iter_rows(values_only=True))
+    header_index = next(
+        index for index, row in enumerate(rows) if row[0] in ("#", "Fecha")
+    )
+
+    return rows[header_index], rows[header_index + 1:]
+
+
+class MostMovedProductsReportApiTest(APITestCase):
+    """
+    Punto 28: productos que más se mueven. Neto de reversiones y sin
+    inventario inicial; ajustes y conteos cuentan.
+    """
+
+    URL = "/api/reports/most-moved-products/"
+
+    def setUp(self):
+        call_command("setup_roles")
+
+        self.user = User.objects.create_user(
+            username="most-moved-admin",
+            password="12345678",
+        )
+        self.user.groups.add(Group.objects.get(name=ROLE_ADMIN))
+        self.client.force_authenticate(self.user)
+
+        location = StorageLocation.objects.create(
+            code="MOV-A",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        def product(code):
+            return Product.objects.create(
+                standard_code=code,
+                name=f"Producto {code}",
+                storage_location=location,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+
+        self.busy = product("MOV-BUSY")
+        self.reversed = product("MOV-REV")
+        self.initial_only = product("MOV-INIT")
+
+    def move(self, product, movement_type, direction, quantity, reverses=None):
+        return StockMovement.create_from_service(
+            product=product,
+            movement_type=movement_type,
+            direction=direction,
+            quantity=quantity,
+            notes="Prueba",
+            reverses_movement=reverses,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def create_movements(self):
+        IN, OUT = MovementDirection.IN, MovementDirection.OUT
+        # Ajustes: una entrada o salida "de verdad" exige su línea de
+        # compra o de venta, y al ranking solo le importa la dirección.
+        ADJUSTMENT = StockMovementType.ADJUSTMENT
+
+        # 10 de entrada y 5 de salida; el inventario inicial no cuenta.
+        self.move(self.busy, StockMovementType.INITIAL, IN, 100)
+        self.move(self.busy, ADJUSTMENT, IN, 10)
+        self.move(self.busy, ADJUSTMENT, OUT, 4)
+        self.move(self.busy, ADJUSTMENT, OUT, 1)
+
+        # Una salida de 20 que se revirtió no cuenta, ni su reversión;
+        # queda solo la salida de 2.
+        cancelled = self.move(self.reversed, ADJUSTMENT, OUT, 20)
+        self.move(
+            self.reversed,
+            StockMovementType.REVERSAL,
+            IN,
+            20,
+            reverses=cancelled,
+        )
+        self.move(self.reversed, ADJUSTMENT, OUT, 2)
+
+        self.move(self.initial_only, StockMovementType.INITIAL, IN, 50)
+
+    def test_ranking_is_net_of_reversals_and_skips_initial_inventory(self):
+        self.create_movements()
+
+        response = self.client.get(self.URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        results = response.data["results"]
+
+        self.assertEqual(
+            [item["product"]["standard_code"] for item in results],
+            ["MOV-BUSY", "MOV-REV"],
+        )
+        self.assertEqual(
+            {
+                key: results[0][key]
+                for key in (
+                    "quantity_in",
+                    "quantity_out",
+                    "total_moved",
+                    "movement_count",
+                )
+            },
+            {
+                "quantity_in": 10,
+                "quantity_out": 5,
+                "total_moved": 15,
+                "movement_count": 3,
+            },
+        )
+        self.assertEqual(results[0]["location_code"], "MOV-A")
+        self.assertEqual(results[1]["total_moved"], 2)
+        self.assertEqual(results[1]["movement_count"], 1)
+
+    def test_ranking_respects_the_date_range(self):
+        self.create_movements()
+
+        today = timezone.localdate().isoformat()
+
+        response = self.client.get(self.URL, {"date_from": today, "date_to": today})
+        self.assertEqual(len(response.data["results"]), 2)
+
+        response = self.client.get(self.URL, {"date_to": "2000-01-01"})
+        self.assertEqual(response.data["results"], [])
+
+        response = self.client.get(self.URL, {"date_from": "2026/01/01"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_excel_has_the_same_rows(self):
+        self.create_movements()
+
+        response = self.client.get(f"{self.URL}excel/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        header, rows = xlsx_rows(response)
+
+        self.assertEqual(
+            header,
+            (
+                "#",
+                "Código",
+                "Producto",
+                "Ubicación",
+                "Entradas",
+                "Salidas",
+                "Total movido",
+                "Movimientos",
+            ),
+        )
+        self.assertEqual(
+            rows,
+            [
+                (1, "MOV-BUSY", "Producto MOV-BUSY", "MOV-A", 10, 5, 15, 3),
+                (2, "MOV-REV", "Producto MOV-REV", "MOV-A", 0, 2, 2, 1),
+            ],
+        )
+
+    def test_pdf_is_generated(self):
+        self.create_movements()
+
+        response = self.client.get(f"{self.URL}pdf/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+
+    def test_requires_view_reports(self):
+        read_only_user = User.objects.create_user(
+            username="most-moved-readonly",
+            password="12345678",
+        )
+        read_only_user.groups.add(Group.objects.get(name=ROLE_READ_ONLY))
+        self.client.force_authenticate(read_only_user)
+
+        for suffix in ("", "pdf/", "excel/"):
+            with self.subTest(url=f"{self.URL}{suffix}"):
+                response = self.client.get(f"{self.URL}{suffix}")
+
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_403_FORBIDDEN,
+                )

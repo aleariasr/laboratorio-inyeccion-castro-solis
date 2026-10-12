@@ -3,6 +3,7 @@ import { apiGet, apiGetBlob } from "@/lib/api/client";
 import type {
   LowStockProductsFilters,
   LowStockProductsReport,
+  MostMovedProductsReport,
   ProductSupplierPricesFilters,
   ProductSupplierPricesReport,
   PurchasesBySupplierReport,
@@ -188,6 +189,22 @@ export function getProductSupplierPricesReport(
   );
 }
 
+export function getMostMovedProductsReport(
+  token: string,
+  filters: ReportDateFilters,
+  signal?: AbortSignal,
+): Promise<MostMovedProductsReport> {
+  const query = buildReportDateQuery(filters);
+
+  return apiGet<MostMovedProductsReport>(
+    `/api/reports/most-moved-products/?${query}`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+
 // PDF de cada reporte (puntos 2 + 27): la ruta hermana .../pdf/ con los
 // mismos filtros de la pantalla, sin paginar.
 
@@ -202,6 +219,7 @@ function withoutPagination(query: string): string {
   return searchParams.toString();
 }
 
+// Sirve igual para el PDF y para el Excel: los dos son un archivo.
 function getReportPdf(token: string, path: string, query = ""): Promise<Blob> {
   return apiGetBlob(query ? `${path}?${query}` : path, {
     token,
@@ -276,5 +294,28 @@ export function getTopCustomersReportPdf(
     token,
     "/api/reports/top-customers/pdf/",
     withoutPagination(buildTopCustomersQuery(filters)),
+  );
+}
+
+export function getMostMovedProductsReportPdf(
+  token: string,
+  filters: ReportDateFilters,
+): Promise<Blob> {
+  return getReportPdf(
+    token,
+    "/api/reports/most-moved-products/pdf/",
+    withoutPagination(buildReportDateQuery(filters)),
+  );
+}
+
+/** Excel del ranking (punto 28), con los mismos filtros. */
+export function getMostMovedProductsReportExcel(
+  token: string,
+  filters: ReportDateFilters,
+): Promise<Blob> {
+  return getReportPdf(
+    token,
+    "/api/reports/most-moved-products/excel/",
+    withoutPagination(buildReportDateQuery(filters)),
   );
 }
