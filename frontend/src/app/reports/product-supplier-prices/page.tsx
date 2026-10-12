@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useRef, useState } from "react";
 
 import { Pagination } from "@/components/data-display/pagination";
+import { ReportPdfActions } from "@/components/documents/report-pdf-actions";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { ArrowLeftIcon, TruckIcon } from "@/components/icons/app-icons";
+import { TruckIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,10 @@ import { canReadProducts, canReadReports } from "@/features/auth/permissions";
 import { getProducts } from "@/features/inventory/products/api";
 import type { Product } from "@/features/inventory/products/types";
 import { formatMoney } from "@/features/inventory/purchases/format";
-import { getProductSupplierPricesReport } from "@/features/inventory/reports/api";
+import {
+  getProductSupplierPricesReport,
+  getProductSupplierPricesReportPdf,
+} from "@/features/inventory/reports/api";
 import type { ProductSupplierPricesReport } from "@/features/inventory/reports/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 
@@ -237,6 +241,12 @@ export default function ProductSupplierPricesReportPage() {
     setRefreshKey((current) => current + 1);
   }
 
+  function handleUnauthorized(): void {
+    void logout().then(() => {
+      router.replace("/login");
+    });
+  }
+
   function goBack(): void {
     router.back();
   }
@@ -272,10 +282,13 @@ export default function ProductSupplierPricesReportPage() {
       title="Comparación de precios por proveedor"
       description="Busque un producto para comparar el precio pagado a cada proveedor, en colones."
       actions={
-        <Button type="button" variant="secondary" onClick={goBack}>
-          <ArrowLeftIcon />
-          Volver
-        </Button>
+        <ReportPdfActions
+          onBack={goBack}
+          fetchPdf={() => getProductSupplierPricesReportPdf(token ?? "", selectedProduct?.id ?? 0)}
+          fileName={`precios-por-proveedor-${selectedProduct?.standard_code ?? ""}.pdf`}
+          onUnauthorized={handleUnauthorized}
+          disabled={!token || !selectedProduct}
+        />
       }
     >
       <div className="mb-5 rounded-[var(--radius-xl)] bg-surface p-5 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)] sm:p-6">

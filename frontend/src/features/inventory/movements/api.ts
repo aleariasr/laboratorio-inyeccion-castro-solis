@@ -1,4 +1,4 @@
-import { apiGet } from "@/lib/api/client";
+import { apiGet, apiGetBlob } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/lib/api/types";
 
 import type {
@@ -113,4 +113,23 @@ export async function getStockMovementsKardex(
   }
 
   return { movements, truncated: true };
+}
+
+/**
+ * PDF de Movimientos (puntos 2 + 27) con los filtros de la pantalla. Con
+ * un producto sale el kardex con su saldo, como en pantalla.
+ */
+export function getStockMovementsPdf(
+  token: string,
+  filters: StockMovementFilters,
+): Promise<Blob> {
+  const searchParams = new URLSearchParams(buildStockMovementsQuery(filters));
+
+  searchParams.delete("page");
+  searchParams.delete("page_size");
+
+  return apiGetBlob(`/api/inventory/stock-movements/pdf/?${searchParams.toString()}`, {
+    token,
+    timeoutMs: 60_000,
+  });
 }

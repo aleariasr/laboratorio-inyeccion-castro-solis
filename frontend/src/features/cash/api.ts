@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost } from "@/lib/api/client";
+import { apiDelete, apiGet, apiGetBlob, apiPost } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/lib/api/types";
 
 import type {
@@ -118,4 +118,12 @@ export function deletePettyCashMovement(
   movementId: number,
 ): Promise<null> {
   return apiDelete(`/api/cash/petty-cash/${movementId}/`, { token });
+}
+
+/** PDF de un cierre para archivar o imprimir (puntos 2 + 27). */
+export function getCashClosingPdf(token: string, closingId: number): Promise<Blob> {
+  return apiGetBlob(`/api/cash/closings/${closingId}/pdf/`, {
+    token,
+    timeoutMs: 60_000,
+  });
 }

@@ -7,6 +7,7 @@ from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.utils import timezone
 from rest_framework import status
+from reportlab import rl_config
 from rest_framework.test import APITestCase
 
 from apps.cash.models import CashClosing, PettyCashMovement
@@ -1140,3 +1141,74 @@ class PettyCashApiTest(APITestCase):
 
         self.assertIsNone(response.data["petty_cash_opening"])
         self.assertEqual(Decimal(response.data["petty_cash_balance"]), Decimal("0"))
+
+
+@patch.object(rl_config, "pageCompression", 0)
+class CashClosingPdfApiTest(APITestCase):
+    """
+    Puntos 2 + 27: PDF de un cierre para archivar o imprimir. Se genera
+    sin comprimir para poder leer el texto.
+    """
+
+    setUp = CashClosingApiTest.setUp
+    create_sale = CashClosingApiTest.create_sale
+    create_cash_sale = CashClosingApiTest.create_cash_sale
+    create_closing = CashClosingApiTest.create_closing
+    outflow = PettyCashApiTest.outflow
+    close = PettyCashApiTest.close
+
+    def get_pdf_text(self, closing_id):
+        response = self.client.get(f"/api/cash/closings/{closing_id}/pdf/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+
+        return b"".join(response.streaming_content).decode("latin-1")
+
+    def test_closing_pdf_shows_collected_petty_cash_and_count(self):
+        self.create_cash_sale(WEEK_START + timedelta(days=1))  # 3000 en efectivo
+        self.outflow(
+            WEEK_START + timedelta(days=2),
+            amount="2500.0000",
+            reason="Papel bond",
+        )
+
+        response = self.close(
+            WEEK_START,
+            "10500.0000",
+            petty_cash_opening="10000.0000",
+            notes="Semana tranquila",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        text = self.get_pdf_text(response.data["id"])
+
+        self.assertIn("(CIERRE DE CAJA) Tj", text)
+        self.assertIn("(Papel bond) Tj", text)
+        # Debía haber: 3000 cobrado + 10000 de fondo − 2500 de salidas.
+        self.assertIn("(CRC 10 500) Tj", text)
+        self.assertIn("(CRC 3 000) Tj", text)
+        self.assertIn("(Semana tranquila) Tj", text)
+        self.assertIn("(Revisado por:) Tj", text)
+
+    def test_closing_pdf_without_outflows_has_no_outflow_table(self):
+        closing = self.create_closing(
+            WEEK_START,
+            counted_total="500.0000",
+            reason="Sobrante sin explicar",
+        )
+
+        text = self.get_pdf_text(closing.id)
+
+        self.assertNotIn("(Salidas de caja chica) Tj", text)
+        self.assertIn("(Sobrante sin explicar) Tj", text)
+        self.assertIn("(+CRC 500) Tj", text)
+
+    def test_closing_pdf_requires_view_cash(self):
+        closing = self.create_closing(WEEK_START)
+
+        self.client.force_authenticate(self.plain_user)
+
+        response = self.client.get(f"/api/cash/closings/{closing.id}/pdf/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

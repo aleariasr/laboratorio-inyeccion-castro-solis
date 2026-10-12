@@ -2,14 +2,21 @@ from django.urls import path
 
 from .views import (
     DashboardSummaryView,
+    LowStockProductsReportPdfView,
     LowStockProductsReportView,
     ProductMovementsReportView,
+    ProductSupplierPricesReportPdfView,
     ProductSupplierPricesReportView,
+    StockByLocationReportPdfView,
     StockByLocationReportView,
     UniversalSearchView,
+    PurchasesBySupplierReportPdfView,
     PurchasesBySupplierReportView,
+    SalesSummaryReportPdfView,
     SalesSummaryReportView,
+    TopCustomersReportPdfView,
     TopCustomersReportView,
+    TopSellingProductsReportPdfView,
     TopSellingProductsReportView,
 )
 
@@ -28,9 +35,19 @@ urlpatterns = [
         name="report-low-stock-products",
     ),
     path(
+        "reports/low-stock-products/pdf/",
+        LowStockProductsReportPdfView.as_view(),
+        name="report-low-stock-products-pdf",
+    ),
+    path(
         "reports/stock-by-location/",
         StockByLocationReportView.as_view(),
         name="report-stock-by-location",
+    ),
+    path(
+        "reports/stock-by-location/pdf/",
+        StockByLocationReportPdfView.as_view(),
+        name="report-stock-by-location-pdf",
     ),
     path(
         "reports/product-movements/",
@@ -43,9 +60,19 @@ urlpatterns = [
         name="report-product-supplier-prices",
     ),
     path(
+        "reports/product-supplier-prices/pdf/",
+        ProductSupplierPricesReportPdfView.as_view(),
+        name="report-product-supplier-prices-pdf",
+    ),
+    path(
         "reports/purchases-by-supplier/",
         PurchasesBySupplierReportView.as_view(),
         name="report-purchases-by-supplier",
+    ),
+    path(
+        "reports/purchases-by-supplier/pdf/",
+        PurchasesBySupplierReportPdfView.as_view(),
+        name="report-purchases-by-supplier-pdf",
     ),
     path(
         "reports/sales-summary/",
@@ -53,13 +80,28 @@ urlpatterns = [
         name="report-sales-summary",
     ),
     path(
+        "reports/sales-summary/pdf/",
+        SalesSummaryReportPdfView.as_view(),
+        name="report-sales-summary-pdf",
+    ),
+    path(
         "reports/top-selling-products/",
         TopSellingProductsReportView.as_view(),
         name="report-top-selling-products",
     ),
     path(
+        "reports/top-selling-products/pdf/",
+        TopSellingProductsReportPdfView.as_view(),
+        name="report-top-selling-products-pdf",
+    ),
+    path(
         "reports/top-customers/",
         TopCustomersReportView.as_view(),
         name="report-top-customers",
+    ),
+    path(
+        "reports/top-customers/pdf/",
+        TopCustomersReportPdfView.as_view(),
+        name="report-top-customers-pdf",
     ),
 ]

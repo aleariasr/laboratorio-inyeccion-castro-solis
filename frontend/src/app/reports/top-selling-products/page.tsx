@@ -5,16 +5,20 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Pagination } from "@/components/data-display/pagination";
+import { ReportPdfActions } from "@/components/documents/report-pdf-actions";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { ArrowLeftIcon, BoxIcon } from "@/components/icons/app-icons";
+import { BoxIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadReports } from "@/features/auth/permissions";
 import { formatMoney } from "@/features/inventory/purchases/format";
-import { getTopSellingProductsReport } from "@/features/inventory/reports/api";
+import {
+  getTopSellingProductsReport,
+  getTopSellingProductsReportPdf,
+} from "@/features/inventory/reports/api";
 import {
   EMPTY_REPORT_DATE_FILTERS,
   type ReportDateFilters,
@@ -121,6 +125,12 @@ export default function TopSellingProductsReportPage() {
     updateFilters(() => EMPTY_REPORT_DATE_FILTERS);
   }
 
+  function handleUnauthorized(): void {
+    void logout().then(() => {
+      router.replace("/login");
+    });
+  }
+
   function goBack(): void {
     router.back();
   }
@@ -156,10 +166,13 @@ export default function TopSellingProductsReportPage() {
       title="Productos más vendidos"
       description="Cantidad vendida y monto por producto, en colones, antes del descuento y el impuesto de cada venta."
       actions={
-        <Button type="button" variant="secondary" onClick={goBack}>
-          <ArrowLeftIcon />
-          Volver
-        </Button>
+        <ReportPdfActions
+          onBack={goBack}
+          fetchPdf={() => getTopSellingProductsReportPdf(token ?? "", filters)}
+          fileName={"productos-mas-vendidos.pdf"}
+          onUnauthorized={handleUnauthorized}
+          disabled={!token}
+        />
       }
     >
       <div className="mb-5 rounded-[var(--radius-xl)] bg-surface p-5 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)] sm:p-6">

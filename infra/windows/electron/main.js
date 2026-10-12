@@ -20,6 +20,10 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // Visor de PDF de Chromium: "Imprimir" en los reportes abre el PDF en
+      // una ventana nueva (que hereda estas preferencias) para imprimirlo
+      // desde ahí. Sin esto Electron no lo muestra (puntos 2 + 27).
+      plugins: true,
     },
     // Ventana normal: se puede mover, minimizar, cerrar. No es kiosco: esta
     // computadora también se usa para Word y Excel.

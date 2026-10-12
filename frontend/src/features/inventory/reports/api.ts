@@ -1,4 +1,4 @@
-import { apiGet } from "@/lib/api/client";
+import { apiGet, apiGetBlob } from "@/lib/api/client";
 
 import type {
   LowStockProductsFilters,
@@ -101,11 +101,7 @@ export function getPurchasesBySupplierReport(
   );
 }
 
-export function getSalesSummaryReport(
-  token: string,
-  filters: SalesSummaryFilters,
-  signal?: AbortSignal,
-): Promise<SalesSummaryReport> {
+function buildSalesSummaryQuery(filters: SalesSummaryFilters): string {
   const searchParams = new URLSearchParams({
     date_from: filters.dateFrom,
     date_to: filters.dateTo,
@@ -117,8 +113,16 @@ export function getSalesSummaryReport(
     searchParams.set("compare_to", filters.compareTo);
   }
 
+  return searchParams.toString();
+}
+
+export function getSalesSummaryReport(
+  token: string,
+  filters: SalesSummaryFilters,
+  signal?: AbortSignal,
+): Promise<SalesSummaryReport> {
   return apiGet<SalesSummaryReport>(
-    `/api/reports/sales-summary/?${searchParams.toString()}`,
+    `/api/reports/sales-summary/?${buildSalesSummaryQuery(filters)}`,
     {
       token,
       signal,
@@ -142,17 +146,21 @@ export function getTopSellingProductsReport(
   );
 }
 
+function buildTopCustomersQuery(filters: TopCustomersFilters): string {
+  const searchParams = new URLSearchParams(buildReportDateQuery(filters));
+
+  searchParams.set("ordering", filters.ordering);
+
+  return searchParams.toString();
+}
+
 export function getTopCustomersReport(
   token: string,
   filters: TopCustomersFilters,
   signal?: AbortSignal,
 ): Promise<TopCustomersReport> {
-  const searchParams = new URLSearchParams(buildReportDateQuery(filters));
-
-  searchParams.set("ordering", filters.ordering);
-
   return apiGet<TopCustomersReport>(
-    `/api/reports/top-customers/?${searchParams.toString()}`,
+    `/api/reports/top-customers/?${buildTopCustomersQuery(filters)}`,
     {
       token,
       signal,
@@ -177,5 +185,96 @@ export function getProductSupplierPricesReport(
       token,
       signal,
     },
+  );
+}
+
+// PDF de cada reporte (puntos 2 + 27): la ruta hermana .../pdf/ con los
+// mismos filtros de la pantalla, sin paginar.
+
+const REPORT_PDF_TIMEOUT_MS = 60_000;
+
+function withoutPagination(query: string): string {
+  const searchParams = new URLSearchParams(query);
+
+  searchParams.delete("page");
+  searchParams.delete("page_size");
+
+  return searchParams.toString();
+}
+
+function getReportPdf(token: string, path: string, query = ""): Promise<Blob> {
+  return apiGetBlob(query ? `${path}?${query}` : path, {
+    token,
+    timeoutMs: REPORT_PDF_TIMEOUT_MS,
+  });
+}
+
+export function getLowStockProductsReportPdf(token: string): Promise<Blob> {
+  return getReportPdf(token, "/api/reports/low-stock-products/pdf/");
+}
+
+export function getStockByLocationReportPdf(
+  token: string,
+  filters: StockByLocationFilters,
+): Promise<Blob> {
+  return getReportPdf(
+    token,
+    "/api/reports/stock-by-location/pdf/",
+    withoutPagination(buildStockByLocationQuery(filters)),
+  );
+}
+
+export function getPurchasesBySupplierReportPdf(
+  token: string,
+  filters: ReportDateFilters,
+): Promise<Blob> {
+  return getReportPdf(
+    token,
+    "/api/reports/purchases-by-supplier/pdf/",
+    withoutPagination(buildReportDateQuery(filters)),
+  );
+}
+
+export function getProductSupplierPricesReportPdf(
+  token: string,
+  productId: number,
+): Promise<Blob> {
+  return getReportPdf(
+    token,
+    "/api/reports/product-supplier-prices/pdf/",
+    new URLSearchParams({ product: String(productId) }).toString(),
+  );
+}
+
+export function getSalesSummaryReportPdf(
+  token: string,
+  filters: SalesSummaryFilters,
+): Promise<Blob> {
+  return getReportPdf(
+    token,
+    "/api/reports/sales-summary/pdf/",
+    buildSalesSummaryQuery(filters),
+  );
+}
+
+export function getTopSellingProductsReportPdf(
+  token: string,
+  filters: ReportDateFilters,
+): Promise<Blob> {
+  return getReportPdf(
+    token,
+    "/api/reports/top-selling-products/pdf/",
+    withoutPagination(buildReportDateQuery(filters)),
+  );
+}
+
+export function getTopCustomersReportPdf(
+  token: string,
+  filters: TopCustomersFilters,
+): Promise<Blob> {
+  return getReportPdf(
+    token,
+    "/api/reports/top-customers/pdf/",
+    withoutPagination(buildTopCustomersQuery(filters)),
   );
 }

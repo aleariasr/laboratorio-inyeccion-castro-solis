@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Pagination } from "@/components/data-display/pagination";
+import { ReportPdfActions } from "@/components/documents/report-pdf-actions";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { ArrowLeftIcon, ArrowsUpDownIcon } from "@/components/icons/app-icons";
+import { ArrowsUpDownIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { canReadMovements } from "@/features/auth/permissions";
 import {
   getStockMovements,
   getStockMovementsKardex,
+  getStockMovementsPdf,
 } from "@/features/inventory/movements/api";
 import { getMovementOrigin } from "@/features/inventory/movements/origin";
 import {
@@ -353,6 +355,12 @@ export default function StockMovementsPage() {
     setFilters(EMPTY_STOCK_MOVEMENT_FILTERS);
   }
 
+  function handleUnauthorized(): void {
+    void logout().then(() => {
+      router.replace("/login");
+    });
+  }
+
   function goBack(): void {
     router.back();
   }
@@ -388,10 +396,13 @@ export default function StockMovementsPage() {
       title="Movimientos de inventario"
       description="Consulte el historial de entradas, salidas y ajustes de existencias."
       actions={
-        <Button type="button" variant="secondary" onClick={goBack}>
-          <ArrowLeftIcon />
-          Volver
-        </Button>
+        <ReportPdfActions
+          onBack={goBack}
+          fetchPdf={() => getStockMovementsPdf(token ?? "", filters)}
+          fileName="movimientos-de-inventario.pdf"
+          onUnauthorized={handleUnauthorized}
+          disabled={!token}
+        />
       }
     >
       <section

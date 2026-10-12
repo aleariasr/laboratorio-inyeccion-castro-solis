@@ -5,14 +5,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Pagination } from "@/components/data-display/pagination";
+import { ReportPdfActions } from "@/components/documents/report-pdf-actions";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { AlertIcon, ArrowLeftIcon } from "@/components/icons/app-icons";
+import { AlertIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadReports } from "@/features/auth/permissions";
-import { getLowStockProductsReport } from "@/features/inventory/reports/api";
+import {
+  getLowStockProductsReport,
+  getLowStockProductsReportPdf,
+} from "@/features/inventory/reports/api";
 import {
   EMPTY_LOW_STOCK_PRODUCTS_FILTERS,
   type LowStockProductsFilters,
@@ -113,6 +117,12 @@ export default function LowStockProductsPage() {
     setFilters((current) => ({ ...current }));
   }
 
+  function handleUnauthorized(): void {
+    void logout().then(() => {
+      router.replace("/login");
+    });
+  }
+
   function goBack(): void {
     router.back();
   }
@@ -148,10 +158,13 @@ export default function LowStockProductsPage() {
       title="Bajo mínimo"
       description="Productos cuya existencia actual está en o por debajo del mínimo establecido."
       actions={
-        <Button type="button" variant="secondary" onClick={goBack}>
-          <ArrowLeftIcon />
-          Volver
-        </Button>
+        <ReportPdfActions
+          onBack={goBack}
+          fetchPdf={() => getLowStockProductsReportPdf(token ?? "")}
+          fileName={"bajo-minimo.pdf"}
+          onUnauthorized={handleUnauthorized}
+          disabled={!token}
+        />
       }
     >
       {loadState.status === "loading" && (

@@ -3,14 +3,14 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { ReportPdfActions } from "@/components/documents/report-pdf-actions";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadCash } from "@/features/auth/permissions";
-import { getCashClosing } from "@/features/cash/api";
+import { getCashClosing, getCashClosingPdf } from "@/features/cash/api";
 import type { CashClosing } from "@/features/cash/types";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import { PettyCashSummary } from "@/features/cash/petty-cash-summary";
@@ -148,6 +148,12 @@ export default function CashClosingDetailPage() {
     };
   }, [authStatus, hasCashAccess, closingId, logout, router, token]);
 
+  function handleUnauthorized(): void {
+    void logout().then(() => {
+      router.replace("/login");
+    });
+  }
+
   function goBack(): void {
     router.back();
   }
@@ -213,10 +219,17 @@ export default function CashClosingDetailPage() {
       }
       description="Los cierres de caja no se pueden editar ni eliminar una vez creados."
       actions={
-        <Button type="button" variant="secondary" onClick={goBack}>
-          <ArrowLeftIcon />
-          Volver
-        </Button>
+        <ReportPdfActions
+          onBack={goBack}
+          fetchPdf={() => getCashClosingPdf(token ?? "", closingId)}
+          fileName={
+            loadState.status === "success"
+              ? `cierre-de-caja-${loadState.closing.week_start}.pdf`
+              : "cierre-de-caja.pdf"
+          }
+          onUnauthorized={handleUnauthorized}
+          disabled={!token || loadState.status !== "success"}
+        />
       }
     >
       {loadState.status === "loading" && <LoadingState message="Consultando cierre…" />}

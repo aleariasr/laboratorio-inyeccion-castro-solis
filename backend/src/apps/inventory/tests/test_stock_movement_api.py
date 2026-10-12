@@ -853,3 +853,83 @@ class StockMovementApiTest(APITestCase):
             movement.quantity,
             4,
         )
+
+
+from unittest import mock  # noqa: E402
+
+from reportlab import rl_config  # noqa: E402
+
+
+@mock.patch.object(rl_config, "pageCompression", 0)
+class StockMovementPdfApiTest(APITestCase):
+    """
+    Puntos 2 + 27: PDF de Movimientos con los filtros de la pantalla. Se
+    genera sin comprimir para poder leer el texto.
+    """
+
+    setUp = StockMovementApiTest.setUp
+    create_movement = StockMovementApiTest.create_movement
+
+    URL = "/api/inventory/stock-movements/pdf/"
+
+    def get_pdf_text(self, params=None):
+        response = self.client.get(self.URL, params or {})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+
+        return b"".join(response.streaming_content).decode("latin-1")
+
+    def create_kardex(self):
+        self.create_movement(quantity=5)
+        self.create_movement(direction=MovementDirection.OUT, quantity=2)
+        self.create_movement(quantity=4)
+
+    def test_product_pdf_is_a_kardex_with_running_balance(self):
+        self.create_kardex()
+
+        text = self.get_pdf_text({"product": self.product.id})
+
+        for balance in ("(5) Tj", "(3) Tj", "(7) Tj"):
+            self.assertIn(balance, text)
+
+        self.assertIn("(SALDO) Tj", text)
+        self.assertIn("(Sin documento asociado) Tj", text)
+        self.assertIn("(Revisado por:) Tj", text)
+        # Más recientes primero, como la pantalla.
+        self.assertLess(text.index("(+4) Tj"), text.index("(+5) Tj"))
+
+    def test_kardex_order_can_be_reversed(self):
+        self.create_kardex()
+
+        text = self.get_pdf_text(
+            {"product": self.product.id, "ordering": "created_at"},
+        )
+
+        self.assertLess(text.index("(+5) Tj"), text.index("(+4) Tj"))
+
+    def test_general_pdf_lists_movements_with_their_product(self):
+        self.create_kardex()
+
+        text = self.get_pdf_text({"direction": "OUT"})
+
+        self.assertIn("(P-001 Producto de prueba) Tj", text)
+        self.assertIn("(-2) Tj", text)
+        self.assertNotIn("(+5) Tj", text)
+        self.assertNotIn("(SALDO) Tj", text)
+
+    def test_pdf_validates_filters(self):
+        response = self.client.get(self.URL, {"date_from": "15-08-2026"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_pdf_requires_view_movements(self):
+        plain_user = User.objects.create_user(
+            username="movements-pdf-plain",
+            password="12345678",
+        )
+        self.client.force_authenticate(plain_user)
+
+        response = self.client.get(self.URL)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

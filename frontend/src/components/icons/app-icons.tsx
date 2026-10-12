@@ -568,3 +568,59 @@ export function KeyIcon({
     </svg>
   );
 }
+
+export function PrinterIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M7 8.5V4h10v4.5"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M7 17H5.5A1.5 1.5 0 0 1 4 15.5V10a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 10v5.5a1.5 1.5 0 0 1-1.5 1.5H17"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M7 13.5h10V20H7z"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function DownloadIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M12 4.5v10m0 0-4-4m4 4 4-4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M5 15.5v2A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5v-2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

@@ -5,16 +5,20 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Pagination } from "@/components/data-display/pagination";
+import { ReportPdfActions } from "@/components/documents/report-pdf-actions";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { ArrowLeftIcon, UsersIcon } from "@/components/icons/app-icons";
+import { UsersIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadReports } from "@/features/auth/permissions";
 import { formatMoney } from "@/features/inventory/purchases/format";
-import { getTopCustomersReport } from "@/features/inventory/reports/api";
+import {
+  getTopCustomersReport,
+  getTopCustomersReportPdf,
+} from "@/features/inventory/reports/api";
 import {
   EMPTY_TOP_CUSTOMERS_FILTERS,
   type TopCustomersFilters,
@@ -122,6 +126,12 @@ export default function TopCustomersReportPage() {
     updateFilters(() => EMPTY_TOP_CUSTOMERS_FILTERS);
   }
 
+  function handleUnauthorized(): void {
+    void logout().then(() => {
+      router.replace("/login");
+    });
+  }
+
   function goBack(): void {
     router.back();
   }
@@ -157,10 +167,13 @@ export default function TopCustomersReportPage() {
       title="Clientes con más ventas"
       description="Clientes ordenados por total cobrado (con descuento e impuesto) o por cantidad de ventas, en colones."
       actions={
-        <Button type="button" variant="secondary" onClick={goBack}>
-          <ArrowLeftIcon />
-          Volver
-        </Button>
+        <ReportPdfActions
+          onBack={goBack}
+          fetchPdf={() => getTopCustomersReportPdf(token ?? "", filters)}
+          fileName={"clientes-con-mas-ventas.pdf"}
+          onUnauthorized={handleUnauthorized}
+          disabled={!token}
+        />
       }
     >
       <div className="mb-5 rounded-[var(--radius-xl)] bg-surface p-5 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)] sm:p-6">

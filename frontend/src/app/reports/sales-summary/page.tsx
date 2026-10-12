@@ -4,16 +4,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Field } from "@/components/forms/field";
+import { ReportPdfActions } from "@/components/documents/report-pdf-actions";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { StatePanel } from "@/components/feedback/state-panel";
-import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadReports } from "@/features/auth/permissions";
 import { formatMoney } from "@/features/inventory/purchases/format";
-import { getSalesSummaryReport } from "@/features/inventory/reports/api";
+import {
+  getSalesSummaryReport,
+  getSalesSummaryReportPdf,
+} from "@/features/inventory/reports/api";
 import type {
   SalesSummaryBlock,
   SalesSummaryComparedField,
@@ -459,16 +462,19 @@ export default function SalesSummaryReportPage() {
       title="Resumen de ventas"
       description="Ventas y servicios cobrados por período, con descuentos, impuestos y método de pago. Cuenta lo mismo que el cierre de caja."
       actions={
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => {
+        <ReportPdfActions
+          onBack={() => {
             router.back();
           }}
-        >
-          <ArrowLeftIcon />
-          Volver
-        </Button>
+          fetchPdf={() => getSalesSummaryReportPdf(token ?? "", filters)}
+          fileName={`resumen-de-ventas-${filters.dateFrom}-a-${filters.dateTo}.pdf`}
+          onUnauthorized={() => {
+            void logout().then(() => {
+              router.replace("/login");
+            });
+          }}
+          disabled={!token || !isRangeValid}
+        />
       }
     >
       <div className="grid gap-6">

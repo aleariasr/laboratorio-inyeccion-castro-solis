@@ -16,6 +16,7 @@ from apps.cash.exceptions import (
     PettyCashWeekClosedError,
 )
 from apps.cash.models import PettyCashMovement
+from apps.cash.pdf import build_cash_closing_pdf
 from apps.cash.selectors import (
     cash_closings,
     expected_totals_by_method,
@@ -43,6 +44,7 @@ from apps.cash.services import (
 from apps.core.models import PaymentMethod
 from apps.core.permissions import CashPermission
 from apps.core.query_params import parse_date_query_param
+from apps.documents.report_pdf import report_pdf_response
 
 
 class CashClosingViewSet(
@@ -227,6 +229,17 @@ class CashClosingViewSet(
                     outflows,
                 ),
             }
+        )
+
+    @action(detail=True, methods=["get"], url_path="pdf")
+    def pdf(self, request, pk=None):
+        """PDF del cierre para archivar o imprimir (puntos 2 + 27)."""
+
+        closing = self.get_object()
+
+        return report_pdf_response(
+            build_cash_closing_pdf(closing=closing),
+            f"cierre-de-caja-{closing.week_start.isoformat()}.pdf",
         )
 
 
