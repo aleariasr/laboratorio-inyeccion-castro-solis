@@ -6,6 +6,7 @@ const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 
 export function validateCashClosingForm(
   values: CashClosingFormValues,
+  // Lo que debe haber al contar: lo cobrado más el saldo de caja chica.
   expectedTotal: string | null,
   // Lo dice el backend (preview.can_close): null mientras no se sabe.
   canClose: boolean | null = null,
@@ -34,6 +35,15 @@ export function validateCashClosingForm(
     Number(countedTotal) < 0
   ) {
     errors.countedTotal = "Ingrese un monto válido, mayor o igual a cero.";
+  }
+
+  // Caja chica: opcionales, pero si se escriben deben ser montos válidos.
+  for (const field of ["pettyCashOpening", "nextPettyCashOpening"] as const) {
+    const value = values[field].trim();
+
+    if (value && !DECIMAL_PATTERN.test(value)) {
+      errors[field] = "Ingrese un monto válido, mayor o igual a cero.";
+    }
   }
 
   if (

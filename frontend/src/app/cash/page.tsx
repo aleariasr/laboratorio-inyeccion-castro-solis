@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Pagination } from "@/components/data-display/pagination";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadCash, canWriteCash } from "@/features/auth/permissions";
 import { getCashClosings } from "@/features/cash/api";
+import { PettyCashWeekCard } from "@/features/cash/petty-cash-week-card";
 import type { CashClosing, CashClosingFilters } from "@/features/cash/types";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -81,6 +82,12 @@ export default function CashClosingsPage() {
   const hasCashAccess = user ? canReadCash(user) : false;
 
   const hasWriteAccess = user ? canWriteCash(user) : false;
+
+  const handleUnauthorized = useCallback(() => {
+    void logout().then(() => {
+      router.replace("/login");
+    });
+  }, [logout, router]);
 
   const hasActiveFilters =
     Boolean(filters.query) || Boolean(filters.dateFrom) || Boolean(filters.dateTo);
@@ -214,6 +221,14 @@ export default function CashClosingsPage() {
         ) : undefined
       }
     >
+      {token && hasCashAccess && (
+        <PettyCashWeekCard
+          token={token}
+          canWrite={hasWriteAccess}
+          onUnauthorized={handleUnauthorized}
+        />
+      )}
+
       <div className="app-status-card mb-6 p-5 sm:p-6">
         <form
           className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-end"
@@ -376,7 +391,7 @@ export default function CashClosingsPage() {
                     </th>
 
                     <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                      Esperado
+                      Debía haber
                     </th>
 
                     <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -416,7 +431,7 @@ export default function CashClosingsPage() {
                         </td>
 
                         <td className="px-5 py-4 text-right align-top font-mono text-sm text-foreground">
-                          ₡{formatMoney(closing.expected_total)}
+                          ₡{formatMoney(closing.expected_physical_total)}
                         </td>
 
                         <td className="px-5 py-4 text-right align-top font-mono text-sm text-foreground">

@@ -10,22 +10,36 @@ from rest_framework.response import Response
 from apps.cash.exceptions import (
     CashClosingAlreadyExistsError,
     DifferenceReasonRequiredError,
+    FuturePettyCashOutflowError,
     FutureWeekClosingError,
     InvalidWeekStartError,
+    PettyCashWeekClosedError,
 )
+from apps.cash.models import PettyCashMovement
 from apps.cash.selectors import (
     cash_closings,
     expected_totals_by_method,
+    inherited_petty_cash_opening,
     last_finished_week_start,
+    petty_cash_outflows_total,
+    week_start_for,
     week_tax_and_discount,
     weeks_pending_closing,
 )
 from apps.cash.serializers import (
     CashClosingCreateSerializer,
     CashClosingSerializer,
+    PettyCashMovementSerializer,
     business_income,
+    expected_physical_total,
+    petty_cash_balance,
 )
-from apps.cash.services import SATURDAY, create_cash_closing
+from apps.cash.services import (
+    SATURDAY,
+    create_cash_closing,
+    delete_petty_cash_outflow,
+    register_petty_cash_outflow,
+)
 from apps.core.models import PaymentMethod
 from apps.core.permissions import CashPermission
 from apps.core.query_params import parse_date_query_param
@@ -99,6 +113,12 @@ class CashClosingViewSet(
                 ),
                 notes=input_serializer.validated_data.get("notes", ""),
                 user=request.user,
+                petty_cash_opening=input_serializer.validated_data.get(
+                    "petty_cash_opening",
+                ),
+                next_petty_cash_opening=input_serializer.validated_data.get(
+                    "next_petty_cash_opening",
+                ),
             )
         except (
             InvalidWeekStartError,
@@ -171,6 +191,11 @@ class CashClosingViewSet(
         breakdown = expected_totals_by_method(week_start, week_end)
         expected = sum(breakdown.values())
         tax_and_discount = week_tax_and_discount(week_start, week_end)
+        inherited_opening = inherited_petty_cash_opening(week_start)
+        outflows = petty_cash_outflows_total(week_start, week_end)
+        # Sin cierre anterior el fondo se escribe al cerrar: la vista
+        # previa lo calcula con 0 y avisa con petty_cash_opening en null.
+        opening = inherited_opening if inherited_opening is not None else 0
 
         return Response(
             {
@@ -192,5 +217,81 @@ class CashClosingViewSet(
                     expected,
                     tax_and_discount["tax"],
                 ),
+                # Puntos 21 + 22.
+                "petty_cash_opening": inherited_opening,
+                "petty_cash_outflows": outflows,
+                "petty_cash_balance": petty_cash_balance(opening, outflows),
+                "expected_physical_total": expected_physical_total(
+                    expected,
+                    opening,
+                    outflows,
+                ),
             }
         )
+
+
+class PettyCashMovementViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Salidas de caja chica (puntos 21 + 22). Sin edición: si una salida
+    quedó mal se borra y se registra de nuevo, mientras su semana no esté
+    cerrada. ?week_start=AAAA-MM-DD (sábado) filtra una semana; sin él,
+    la semana en curso.
+    """
+
+    serializer_class = PettyCashMovementSerializer
+    permission_classes = [CashPermission]
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = PettyCashMovement.objects.select_related("created_by")
+
+        if self.action != "list":
+            return queryset
+
+        week_start = parse_date_query_param(
+            self.request.query_params.get("week_start"),
+            name="week_start",
+        ) or week_start_for(timezone.localdate())
+
+        return queryset.filter(
+            date__gte=week_start,
+            date__lte=week_start + timedelta(days=6),
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            movement = register_petty_cash_outflow(
+                date=serializer.validated_data["date"],
+                amount=serializer.validated_data["amount"],
+                reason=serializer.validated_data["reason"],
+                user=request.user,
+            )
+        except (FuturePettyCashOutflowError, PettyCashWeekClosedError) as exc:
+            return Response(
+                {"date": [str(exc)]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            self.get_serializer(movement).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            delete_petty_cash_outflow(movement=self.get_object())
+        except PettyCashWeekClosedError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -9,9 +9,9 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.cash.models import CashClosing
+from apps.cash.models import CashClosing, PettyCashMovement
 from apps.core.models import PaymentMethod
-from apps.core.permissions import ROLE_ADMIN
+from apps.core.permissions import ROLE_ADMIN, ROLE_SALES
 from apps.customers.models import (
     Customer,
     CustomerType,
@@ -996,3 +996,147 @@ class CashClosingApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PettyCashApiTest(APITestCase):
+    """
+    Caja chica (puntos 21 + 22): salidas durante la semana, fondo que se
+    hereda de cierre en cierre, y lo contado se compara contra lo cobrado
+    más el saldo del fondo.
+    """
+
+    # Mismos datos y ayudas que CashClosingApiTest, sin heredar sus tests
+    # (correrían dos veces).
+    setUp = CashClosingApiTest.setUp
+    create_sale = CashClosingApiTest.create_sale
+    create_cash_sale = CashClosingApiTest.create_cash_sale
+
+    def outflow(self, day, amount="2500.0000", reason="Café y azúcar"):
+        return self.client.post(
+            "/api/cash/petty-cash/",
+            {"date": day.isoformat(), "amount": amount, "reason": reason},
+            format="json",
+        )
+
+    def close(self, week_start, counted_total, **extra):
+        return self.client.post(
+            "/api/cash/closings/",
+            {
+                "week_start": week_start.isoformat(),
+                "counted_total": counted_total,
+                **extra,
+            },
+            format="json",
+        )
+
+    def test_register_and_list_outflows_of_a_week(self):
+        response = self.outflow(WEEK_START + timedelta(days=1))
+        listing = self.client.get(
+            "/api/cash/petty-cash/",
+            {"week_start": WEEK_START.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["reason"], "Café y azúcar")
+        self.assertEqual(len(listing.data), 1)
+
+    def test_outflow_needs_reason_and_positive_amount(self):
+        self.assertEqual(
+            self.outflow(WEEK_START, reason="   ").status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(
+            self.outflow(WEEK_START, amount="0").status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    def test_outflow_cannot_be_in_the_future(self):
+        response = self.outflow(timezone.localdate() + timedelta(days=1))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("date", response.data)
+
+    def test_closed_week_rejects_new_and_deleted_outflows(self):
+        movement_id = self.outflow(WEEK_START).data["id"]
+        self.close(WEEK_START, "0", difference_reason="Prueba")
+
+        new_outflow = self.outflow(WEEK_START + timedelta(days=2))
+        deletion = self.client.delete(f"/api/cash/petty-cash/{movement_id}/")
+
+        self.assertEqual(new_outflow.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(deletion.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(PettyCashMovement.objects.filter(pk=movement_id).exists())
+
+    def test_outflow_of_an_open_week_can_be_deleted(self):
+        movement_id = self.outflow(WEEK_START).data["id"]
+
+        response = self.client.delete(f"/api/cash/petty-cash/{movement_id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_only_cash_users_register_outflows(self):
+        sales_user = User.objects.create_user(
+            username="petty-sales",
+            password="12345678",
+        )
+        sales_user.groups.add(Group.objects.get(name=ROLE_SALES))
+        self.client.force_authenticate(sales_user)
+
+        self.assertEqual(
+            self.outflow(WEEK_START).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_first_closing_uses_the_opening_written_and_counts_the_balance(self):
+        # Fondo 10 000 − salida 2 500 = saldo 7 500; venta en efectivo
+        # 3 000 → efectivo físico esperado 10 500.
+        self.create_cash_sale(WEEK_START)
+        self.outflow(WEEK_START + timedelta(days=1))
+
+        response = self.close(
+            WEEK_START,
+            "10500.0000",
+            petty_cash_opening="10000",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Decimal(response.data["difference"]), Decimal("0"))
+        self.assertEqual(Decimal(response.data["petty_cash_balance"]), Decimal("7500"))
+        self.assertEqual(
+            Decimal(response.data["expected_physical_total"]),
+            Decimal("10500"),
+        )
+        # Sin indicar, la semana siguiente arranca con el mismo fondo.
+        self.assertEqual(
+            Decimal(response.data["next_petty_cash_opening"]),
+            Decimal("10000"),
+        )
+
+    def test_opening_is_inherited_from_the_previous_closing(self):
+        self.close(
+            WEEK_START,
+            "10000.0000",
+            petty_cash_opening="10000",
+            next_petty_cash_opening="15000",
+        )
+        next_week = WEEK_START + timedelta(days=7)
+
+        preview = self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": next_week.isoformat()},
+        )
+        # Lo escrito se ignora: manda el fondo heredado.
+        closing = self.close(next_week, "15000.0000", petty_cash_opening="1")
+
+        self.assertEqual(Decimal(preview.data["petty_cash_opening"]), Decimal("15000"))
+        self.assertEqual(Decimal(closing.data["petty_cash_opening"]), Decimal("15000"))
+        self.assertEqual(Decimal(closing.data["difference"]), Decimal("0"))
+
+    def test_first_preview_has_no_inherited_opening(self):
+        response = self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": WEEK_START.isoformat()},
+        )
+
+        self.assertIsNone(response.data["petty_cash_opening"])
+        self.assertEqual(Decimal(response.data["petty_cash_balance"]), Decimal("0"))

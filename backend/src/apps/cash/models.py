@@ -10,6 +10,9 @@ class CashClosing(AuditModel):
     """
     Cierre de caja semanal (sábado a viernes).
 
+    Desde los puntos 21 + 22, la diferencia compara lo contado contra el
+    efectivo físico esperado: expected_total + saldo de caja chica.
+
     Cubre los 4 métodos de pago (efectivo, tarjeta, transferencia,
     otro — ver PaymentMethod en apps.core.models), no solo efectivo:
     el negocio concilia efectivo contado + vouchers del datafono +
@@ -99,6 +102,34 @@ class CashClosing(AuditModel):
         ),
     )
 
+    # Caja chica (puntos 21 + 22). El fondo de la semana se hereda del
+    # cierre anterior (next_petty_cash_opening) o, la primera vez, se
+    # escribe al cerrar. Saldo = fondo − salidas y efectivo físico
+    # esperado = expected_total + saldo se derivan (CashClosingSerializer).
+    petty_cash_opening = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Fondo de caja chica al inicio de la semana.",
+    )
+
+    petty_cash_outflows = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Suma de las salidas de caja chica de la semana.",
+    )
+
+    next_petty_cash_opening = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Fondo de caja chica con el que arranca la semana siguiente.",
+    )
+
     counted_total = models.DecimalField(
         max_digits=14,
         decimal_places=4,
@@ -131,3 +162,31 @@ class CashClosing(AuditModel):
 
     def __str__(self):
         return f"Cierre {self.week_start:%Y-%m-%d} — {self.week_end:%Y-%m-%d}"
+
+
+class PettyCashMovement(AuditModel):
+    """
+    Salida de caja chica (puntos 21 + 22): un gasto pagado con el fondo
+    de la semana. Solo salidas, sin entradas ni reposiciones: el fondo se
+    define en cada cierre. Pertenece a la semana de caja de su fecha y no
+    se puede registrar ni borrar si esa semana ya está cerrada.
+    """
+
+    date = models.DateField()
+
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+
+    reason = models.CharField(max_length=255)
+
+    class Meta:
+        db_table = "cash_petty_cash_movements"
+        verbose_name = "Salida de caja chica"
+        verbose_name_plural = "Salidas de caja chica"
+        ordering = ["-date", "-id"]
+
+    def __str__(self):
+        return f"{self.date:%Y-%m-%d} {self.reason} ({self.amount})"

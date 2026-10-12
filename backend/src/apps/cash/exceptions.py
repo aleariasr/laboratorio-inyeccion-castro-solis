@@ -16,3 +16,11 @@ class FutureWeekClosingError(CashError):
 
 class DifferenceReasonRequiredError(CashError):
     """Debe indicarse el motivo cuando hay diferencia entre lo esperado y lo contado."""
+
+
+class PettyCashWeekClosedError(CashError):
+    """La semana de la salida de caja chica ya está cerrada."""
+
+
+class FuturePettyCashOutflowError(CashError):
+    """No se registran salidas de caja chica con fecha futura."""

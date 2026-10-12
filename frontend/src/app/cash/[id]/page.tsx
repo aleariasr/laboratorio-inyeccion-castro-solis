@@ -13,6 +13,7 @@ import { canReadCash } from "@/features/auth/permissions";
 import { getCashClosing } from "@/features/cash/api";
 import type { CashClosing } from "@/features/cash/types";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { PettyCashSummary } from "@/features/cash/petty-cash-summary";
 import { TaxBreakdown } from "@/features/cash/tax-breakdown";
 import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -265,9 +266,12 @@ export default function CashClosingDetailPage() {
         <div className="app-status-card overflow-hidden">
           <div className="grid gap-6 p-6 sm:grid-cols-3">
             <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
-              <p className="text-sm text-muted-foreground">Total esperado</p>
+              <p className="text-sm text-muted-foreground">Debía haber</p>
               <p className="mt-2 font-mono text-2xl font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.expected_total)}
+                ₡{formatMoney(loadState.closing.expected_physical_total)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cobrado ₡{formatMoney(loadState.closing.expected_total)} más el saldo de caja chica.
               </p>
             </div>
 
@@ -336,6 +340,21 @@ export default function CashClosingDetailPage() {
               businessIncome={loadState.closing.expected_business_income}
               discount={loadState.closing.expected_discount}
             />
+          </div>
+
+          <div className="grid gap-4 border-t border-[var(--color-border-soft)] p-6">
+            <PettyCashSummary
+              opening={Number(loadState.closing.petty_cash_opening)}
+              outflows={Number(loadState.closing.petty_cash_outflows)}
+              expectedTotal={Number(loadState.closing.expected_total)}
+            />
+
+            <p className="text-sm text-muted-foreground">
+              Fondo de caja chica para la semana siguiente:{" "}
+              <span className="font-mono font-semibold text-foreground">
+                ₡{formatMoney(loadState.closing.next_petty_cash_opening)}
+              </span>
+            </p>
           </div>
 
           <dl className="border-t border-[var(--color-border-soft)]">

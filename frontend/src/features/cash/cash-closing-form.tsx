@@ -11,6 +11,7 @@ import { formatMoney } from "@/features/inventory/purchases/format";
 
 import { getCashClosingPreview, getCloseableWeeks } from "./api";
 import { formatWeekdayDate, formatWeekRange } from "./format";
+import { PettyCashSummary } from "./petty-cash-summary";
 import { TaxBreakdown } from "./tax-breakdown";
 import type {
   CashClosingFormErrors,
@@ -194,12 +195,30 @@ export function CashClosingForm({
 
   const effectivePreviewError = values.weekStart ? previewError : null;
 
+  // Caja chica (puntos 21 + 22): el fondo se hereda del cierre anterior;
+  // la primera vez (petty_cash_opening en null) se escribe aquí.
+  const isFirstPettyCashOpening =
+    effectivePreview !== null && effectivePreview.petty_cash_opening === null;
+
+  const pettyCashOpening = effectivePreview
+    ? isFirstPettyCashOpening
+      ? Number(values.pettyCashOpening.trim() || 0)
+      : Number(effectivePreview.petty_cash_opening)
+    : 0;
+
+  const pettyCashOutflows = Number(effectivePreview?.petty_cash_outflows ?? 0);
+
+  // Lo que debe haber al contar: lo cobrado más el saldo de caja chica.
+  const expectedPhysicalTotal = effectivePreview
+    ? Number(effectivePreview.expected_total) + pettyCashOpening - pettyCashOutflows
+    : null;
+
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
 
     const validationErrors = validateCashClosingForm(
       values,
-      effectivePreview?.expected_total ?? null,
+      expectedPhysicalTotal !== null ? String(expectedPhysicalTotal) : null,
       effectivePreview?.can_close ?? null,
     );
 
@@ -213,8 +232,8 @@ export function CashClosingForm({
   }
 
   const difference =
-    effectivePreview && values.countedTotal.trim()
-      ? Number(values.countedTotal) - Number(effectivePreview.expected_total)
+    expectedPhysicalTotal !== null && values.countedTotal.trim()
+      ? Number(values.countedTotal) - expectedPhysicalTotal
       : null;
 
   // Red de seguridad: la lista solo trae semanas cerrables, pero si el
@@ -327,12 +346,71 @@ export function CashClosingForm({
         />
       )}
 
+      {effectivePreview && (
+        <PettyCashSummary
+          opening={pettyCashOpening}
+          outflows={pettyCashOutflows}
+          expectedTotal={Number(effectivePreview.expected_total)}
+          openingNote={
+            isFirstPettyCashOpening
+              ? "Primera vez: escriba con cuánto arrancó la caja chica esta semana. Desde ahora, cada cierre define el de la siguiente."
+              : "Definido en el cierre anterior."
+          }
+          openingInput={
+            isFirstPettyCashOpening ? (
+              <div className="mt-1.5">
+                <Input
+                  id="cash-closing-petty-opening"
+                  value={values.pettyCashOpening}
+                  onChange={(event) => {
+                    updateValue("pettyCashOpening", event.target.value);
+                  }}
+                  hasError={Boolean(errors.pettyCashOpening)}
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0"
+                  aria-label="Fondo de caja chica al inicio de la semana"
+                  disabled={isSubmitting}
+                />
+                {errors.pettyCashOpening && (
+                  <p className="mt-1 text-xs text-[var(--color-danger)]">
+                    {errors.pettyCashOpening}
+                  </p>
+                )}
+              </div>
+            ) : undefined
+          }
+        />
+      )}
+
+      {effectivePreview && (
+        <Field
+          id="cash-closing-next-petty-opening"
+          label="Fondo de caja chica para la semana siguiente"
+          hint={`Vacío = el mismo fondo (₡${formatMoney(pettyCashOpening)}).`}
+          error={errors.nextPettyCashOpening}
+        >
+          <Input
+            id="cash-closing-next-petty-opening"
+            value={values.nextPettyCashOpening}
+            onChange={(event) => {
+              updateValue("nextPettyCashOpening", event.target.value);
+            }}
+            hasError={Boolean(errors.nextPettyCashOpening)}
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder={String(pettyCashOpening)}
+            disabled={isSubmitting}
+          />
+        </Field>
+      )}
+
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
           id="cash-closing-counted"
           label="Total contado"
           required
-          hint="Efectivo + vouchers de tarjeta + comprobantes de transferencia, todo junto."
+          hint="Efectivo (con la caja chica) + vouchers de tarjeta + comprobantes de transferencia, todo junto."
           error={errors.countedTotal}
         >
           <Input
@@ -371,7 +449,7 @@ export function CashClosingForm({
         label="Motivo de la diferencia"
         hint={
           difference && difference !== 0
-            ? "Obligatorio porque el efectivo contado no coincide con el esperado."
+            ? "Obligatorio porque lo contado no coincide con lo que debe haber."
             : "Solo se necesita si hay diferencia entre lo esperado y lo contado."
         }
         error={errors.differenceReason}

@@ -13,6 +13,13 @@ export type CashClosing = {
   expected_discount: string;
   // expected_total − expected_tax (lo calcula el backend).
   expected_business_income: string;
+  // Caja chica (puntos 21 + 22). Saldo y efectivo físico los calcula el
+  // backend: saldo = fondo − salidas; físico = expected_total + saldo.
+  petty_cash_opening: string;
+  petty_cash_outflows: string;
+  petty_cash_balance: string;
+  next_petty_cash_opening: string;
+  expected_physical_total: string;
   counted_total: string;
   difference: string;
   difference_reason: string;
@@ -47,6 +54,28 @@ export type CashClosingPreview = {
   expected_tax: string;
   expected_discount: string;
   expected_business_income: string;
+  // null la primera vez (sin cierre anterior): el fondo se escribe al
+  // cerrar, y saldo y físico vienen calculados con fondo 0.
+  petty_cash_opening: string | null;
+  petty_cash_outflows: string;
+  petty_cash_balance: string;
+  expected_physical_total: string;
+};
+
+export type PettyCashMovement = {
+  id: number;
+  date: string;
+  amount: string;
+  reason: string;
+  created_by: number | null;
+  created_by_name: string | null;
+  created_at: string;
+};
+
+export type PettyCashMovementWritePayload = {
+  date: string;
+  amount: string;
+  reason: string;
 };
 
 export type CashClosingFilters = {
@@ -64,6 +93,8 @@ export type CashClosingWritePayload = {
   counted_total: string;
   difference_reason: string;
   notes: string;
+  petty_cash_opening?: string;
+  next_petty_cash_opening?: string;
 };
 
 export type CashClosingFormValues = {
@@ -71,13 +102,19 @@ export type CashClosingFormValues = {
   countedTotal: string;
   differenceReason: string;
   notes: string;
+  // Solo la primera vez (sin cierre anterior); si no, se hereda.
+  pettyCashOpening: string;
+  // Vacío = la semana siguiente arranca con el mismo fondo.
+  nextPettyCashOpening: string;
 };
 
 export type CashClosingFormField =
   | "weekStart"
   | "countedTotal"
   | "differenceReason"
-  | "notes";
+  | "notes"
+  | "pettyCashOpening"
+  | "nextPettyCashOpening";
 
 export type CashClosingFormErrors = Partial<Record<CashClosingFormField, string>>;
 
@@ -86,6 +123,8 @@ export const EMPTY_CASH_CLOSING_FORM_VALUES: CashClosingFormValues = {
   countedTotal: "",
   differenceReason: "",
   notes: "",
+  pettyCashOpening: "",
+  nextPettyCashOpening: "",
 };
 
 export function buildCashClosingWritePayload(
@@ -96,5 +135,11 @@ export function buildCashClosingWritePayload(
     counted_total: values.countedTotal.trim(),
     difference_reason: values.differenceReason.trim(),
     notes: values.notes.trim(),
+    ...(values.pettyCashOpening.trim()
+      ? { petty_cash_opening: values.pettyCashOpening.trim() }
+      : {}),
+    ...(values.nextPettyCashOpening.trim()
+      ? { next_petty_cash_opening: values.nextPettyCashOpening.trim() }
+      : {}),
   };
 }

@@ -11,7 +11,7 @@ from apps.customers.selectors import delivered_services
 from apps.sales.models import SaleItem, SaleStatus
 from apps.sales.selectors import confirmed_sales, sale_amounts
 
-from .models import CashClosing
+from .models import CashClosing, PettyCashMovement
 
 MONEY_FIELD = DecimalField(max_digits=14, decimal_places=4)
 
@@ -127,6 +127,38 @@ def expected_total(week_start, week_end):
     return sum(
         expected_totals_by_method(week_start, week_end).values(),
     )
+
+
+def petty_cash_outflows_total(week_start, week_end):
+    """Suma de las salidas de caja chica de la semana (puntos 21 + 22)."""
+
+    return _sum(
+        PettyCashMovement.objects.filter(
+            date__gte=week_start,
+            date__lte=week_end,
+        ),
+        "amount",
+    )
+
+
+def inherited_petty_cash_opening(week_start):
+    """
+    Fondo de caja chica con el que arranca la semana: el que definió el
+    último cierre anterior a ella. None si no hay cierre anterior (la
+    primera vez): ahí el fondo se escribe al cerrar.
+    """
+
+    previous = (
+        CashClosing.objects.filter(week_start__lt=week_start)
+        .order_by("-week_start")
+        .first()
+    )
+
+    return previous.next_petty_cash_opening if previous else None
+
+
+def is_week_closed(day):
+    return CashClosing.objects.filter(week_start=week_start_for(day)).exists()
 
 
 def cash_closings():

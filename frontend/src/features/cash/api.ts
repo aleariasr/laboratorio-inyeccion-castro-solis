@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "@/lib/api/client";
+import { apiDelete, apiGet, apiPost } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/lib/api/types";
 
 import type {
@@ -7,6 +7,8 @@ import type {
   CashClosingPreview,
   CashClosingWritePayload,
   CloseableWeeks,
+  PettyCashMovement,
+  PettyCashMovementWritePayload,
 } from "./types";
 
 export function getCashClosings(
@@ -86,4 +88,34 @@ export function createCashClosing(
   return apiPost<CashClosing>("/api/cash/closings/", payload, {
     token,
   });
+}
+
+/** Salidas de caja chica de la semana que empieza en weekStart (sábado). */
+export function getPettyCashMovements(
+  token: string,
+  weekStart: string,
+  signal?: AbortSignal,
+): Promise<PettyCashMovement[]> {
+  const searchParams = new URLSearchParams({ week_start: weekStart });
+
+  return apiGet<PettyCashMovement[]>(
+    `/api/cash/petty-cash/?${searchParams.toString()}`,
+    { token, signal },
+  );
+}
+
+export function createPettyCashMovement(
+  token: string,
+  payload: PettyCashMovementWritePayload,
+): Promise<PettyCashMovement> {
+  return apiPost<PettyCashMovement>("/api/cash/petty-cash/", payload, {
+    token,
+  });
+}
+
+export function deletePettyCashMovement(
+  token: string,
+  movementId: number,
+): Promise<null> {
+  return apiDelete(`/api/cash/petty-cash/${movementId}/`, { token });
 }

@@ -1027,7 +1027,7 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 - [x] 20 — Reporte de ventas desglosado y comparativo ("Resumen de ventas" reemplaza a "Ventas por
   fecha"; ventas, servicios y total; semana sábado a viernes; comparación con período anterior, año
   pasado u otro rango; caja y reportes comparten la definición de venta/servicio que cuenta)
-- [ ] 21 + 22 — Caja chica
+- [x] 21 + 22 — Caja chica
 - [ ] 2 + 27 — PDF e impresión de reportes
 - [ ] 28 — Movimientos a Excel y productos más movidos
 - [ ] 16 — Código propio del genérico y ubicación personalizable
