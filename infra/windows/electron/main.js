@@ -1,12 +1,22 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const backend = require('./lib/backend');
 
 const APP_URL = 'http://127.0.0.1/';
+const LOADING_PAGE = path.join(__dirname, 'renderer', 'loading.html');
+
+// Ítems del menú que lanzan algo contra los servicios: mientras corre uno,
+// los demás quedan deshabilitados (punto 7).
+const ACTION_MENU_IDS = ['retry', 'status', 'backup', 'restart', 'update'];
+
+// Registro de una acción del menú que se guarda si falla.
+const MAX_ACTION_LOG_LINES = 5000;
 
 let mainWindow = null;
+let isBusy = false;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -29,7 +39,7 @@ function createWindow() {
     // computadora también se usa para Word y Excel.
   });
 
-  win.loadFile(path.join(__dirname, 'renderer', 'loading.html'));
+  win.loadFile(LOADING_PAGE);
 
   win.on('closed', () => {
     if (win === mainWindow) {
@@ -79,19 +89,50 @@ function createWindow() {
   return win;
 }
 
-function setStatus(text) {
+function send(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('lics:status', text);
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
+function setStatus(text) {
+  send('lics:status', text);
+}
+
+// Cada línea de salida: pasa a ser el paso actual y entra al historial
+// de la pantalla de carga.
+function reportLine(line) {
+  setStatus(line);
+  send('lics:log', line);
+}
+
+function setBusy(busy) {
+  isBusy = busy;
+
+  const menu = Menu.getApplicationMenu();
+
+  if (!menu) return;
+
+  for (const id of ACTION_MENU_IDS) {
+    const item = menu.getMenuItemById(id);
+
+    if (item) {
+      item.enabled = !busy;
+    }
   }
 }
 
 async function startupSequence() {
+  if (isBusy) return;
+
+  setBusy(true);
+
   try {
     setStatus('Verificando WSL2...');
     await backend.ensureDistroRunning();
 
     setStatus('Iniciando servicios de LICS (puede tardar un momento)...');
-    await backend.startServices((line) => setStatus(line));
+    await backend.startServices(reportLine);
 
     setStatus('Esperando a que el sistema responda...');
     await backend.waitHealthy();
@@ -106,21 +147,161 @@ async function startupSequence() {
         String(err.message || err) +
         '\n\nContacte a soporte técnico. Puede reintentar desde el menú LICS > Reintentar.'
     );
+  } finally {
+    setBusy(false);
   }
 }
 
-function withBusyMenuAction(actionLabel, action) {
-  return async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    setStatus(`${actionLabel}...`);
-    try {
-      await action((line) => setStatus(line));
-      setStatus('Listo.');
-      await mainWindow.loadURL(APP_URL);
-    } catch (err) {
-      dialog.showErrorBox('LICS', `${actionLabel} falló:\n\n${err.message || err}`);
+async function retryStartup() {
+  if (isBusy || !mainWindow || mainWindow.isDestroyed()) return;
+
+  // Se espera a que la pantalla de carga termine de cargar: si no, los
+  // primeros mensajes llegan antes de que haya quién los muestre.
+  await mainWindow.loadFile(LOADING_PAGE);
+  startupSequence();
+}
+
+async function confirmAction({ title, message, detail, confirmLabel }) {
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['Cancelar', confirmLabel],
+    defaultId: 0,
+    cancelId: 0,
+    title,
+    message,
+    detail,
+  });
+
+  return response === 1;
+}
+
+function slugify(text) {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+// Guarda la salida completa de una acción que falló, para soporte. Si no
+// se puede escribir, la acción igual informa el error (sin ruta).
+function saveActionLog(actionLabel, lines, err) {
+  try {
+    const directory = path.join(app.getPath('logs'), 'acciones');
+    fs.mkdirSync(directory, { recursive: true });
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const logPath = path.join(directory, `${stamp}-${slugify(actionLabel)}.log`);
+
+    const header = [
+      `Acción: ${actionLabel}`,
+      `Fecha: ${new Date().toLocaleString('es-CR')}`,
+      `Código de salida: ${err.exitCode ?? 'no aplica'}`,
+      `Error: ${err.message || err}`,
+      '',
+      '--- Salida completa ---',
+    ];
+
+    fs.writeFileSync(logPath, [...header, ...lines].join('\n'), 'utf8');
+
+    return logPath;
+  } catch (writeError) {
+    console.error(writeError);
+    return null;
+  }
+}
+
+// "Qué falló": las líneas [ERROR] de los scripts si las hay; si no, el
+// mensaje del error (por ejemplo, LICS no respondió a tiempo).
+function failureReasons(err) {
+  if (err.errorLines && err.errorLines.length > 0) {
+    return err.errorLines;
+  }
+
+  return [String(err.message || err)];
+}
+
+function failureDetail(err, logPath) {
+  const sections = [
+    'Qué falló:',
+    ...failureReasons(err).map((reason) => `• ${reason}`),
+  ];
+
+  if (err.exitCode !== undefined) {
+    sections.push('', `Código de salida: ${err.exitCode}`);
+  }
+
+  if (err.outputTail && err.outputTail.length > 0) {
+    sections.push('', 'Últimas líneas del proceso:', ...err.outputTail.slice(-8));
+  }
+
+  if (logPath) {
+    sections.push('', `Registro completo: ${logPath}`);
+  }
+
+  return sections.join('\n');
+}
+
+// Acción del menú (punto 7): muestra la pantalla de progreso con el
+// historial, una sola acción a la vez, y si falla dice qué falló, guarda
+// el registro y deja la opción de reintentar.
+async function runMenuAction({ label, hint, action }) {
+  if (isBusy || !mainWindow || mainWindow.isDestroyed()) return;
+
+  setBusy(true);
+
+  const lines = [];
+  const onLine = (line) => {
+    lines.push(line);
+    if (lines.length > MAX_ACTION_LOG_LINES) {
+      lines.shift();
     }
+    reportLine(line);
   };
+
+  try {
+    // Hasta que la pantalla de carga no termina de cargar, nadie escucha
+    // los mensajes (la app web no los muestra).
+    await mainWindow.loadFile(LOADING_PAGE);
+    send('lics:phase', { title: label, hint });
+    setStatus(`${label}...`);
+
+    await action(onLine);
+
+    setStatus('Esperando a que el sistema responda...');
+    await backend.waitHealthy();
+
+    setStatus('Listo.');
+    await mainWindow.loadURL(APP_URL);
+  } catch (err) {
+    console.error(err);
+
+    const logPath = saveActionLog(label, lines, err);
+
+    send('lics:failed', {
+      title: `${label}: no se completó`,
+      reasons: failureReasons(err),
+      exitCode: err.exitCode ?? null,
+      logPath,
+    });
+
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: 'LICS',
+      buttons: logPath ? ['Cerrar', 'Abrir el registro'] : ['Cerrar'],
+      defaultId: 0,
+      cancelId: 0,
+      message: `${label}: no se completó.`,
+      detail: failureDetail(err, logPath),
+    });
+
+    if (response === 1 && logPath) {
+      shell.openPath(logPath);
+    }
+  } finally {
+    setBusy(false);
+  }
 }
 
 function buildMenu() {
@@ -129,15 +310,14 @@ function buildMenu() {
       label: 'LICS',
       submenu: [
         {
+          id: 'retry',
           label: 'Reintentar / recargar',
           click: () => {
-            if (mainWindow) {
-              mainWindow.loadFile(path.join(__dirname, 'renderer', 'loading.html'));
-              startupSequence();
-            }
+            retryStartup();
           },
         },
         {
+          id: 'status',
           label: 'Ver estado',
           click: async () => {
             const lines = [];
@@ -153,18 +333,60 @@ function buildMenu() {
           },
         },
         {
-          label: 'Hacer backup ahora',
-          click: withBusyMenuAction('Creando backup', backend.backupNow),
+          id: 'backup',
+          label: 'Hacer backup ahora…',
+          click: async () => {
+            if (isBusy || !mainWindow || mainWindow.isDestroyed()) return;
+
+            const confirmed = await confirmAction({
+              title: 'Hacer backup',
+              message: 'Se crea un respaldo completo de la base de datos.',
+              detail:
+                'Mientras se crea, esta ventana muestra el progreso y la aplicación vuelve ' +
+                'sola al terminar. Suele tardar uno o dos minutos. Lo que no se haya ' +
+                'guardado en un formulario abierto se pierde.',
+              confirmLabel: 'Hacer backup',
+            });
+
+            if (!confirmed) return;
+
+            await runMenuAction({
+              label: 'Creando backup',
+              hint: 'Puede tardar unos minutos. La aplicación vuelve sola al terminar.',
+              action: backend.backupNow,
+            });
+          },
         },
         {
-          label: 'Reiniciar servicios',
-          click: withBusyMenuAction('Reiniciando servicios', backend.restartServices),
+          id: 'restart',
+          label: 'Reiniciar servicios…',
+          click: async () => {
+            if (isBusy || !mainWindow || mainWindow.isDestroyed()) return;
+
+            const confirmed = await confirmAction({
+              title: 'Reiniciar servicios',
+              message: 'Se detienen y se vuelven a iniciar los servicios de LICS.',
+              detail:
+                'Durante unos minutos LICS no está disponible. Lo que no se haya ' +
+                'guardado en un formulario abierto se pierde.',
+              confirmLabel: 'Reiniciar',
+            });
+
+            if (!confirmed) return;
+
+            await runMenuAction({
+              label: 'Reiniciando servicios',
+              hint: 'Puede tardar unos minutos. La aplicación vuelve sola al terminar.',
+              action: backend.restartServices,
+            });
+          },
         },
         { type: 'separator' },
         {
+          id: 'update',
           label: 'Actualizar aplicación (Django/Next)…',
           click: async () => {
-            if (!mainWindow || mainWindow.isDestroyed()) return;
+            if (isBusy || !mainWindow || mainWindow.isDestroyed()) return;
 
             const { response } = await dialog.showMessageBox(mainWindow, {
               type: 'question',
@@ -190,7 +412,13 @@ function buildMenu() {
 
             if (response !== 1) return;
 
-            await withBusyMenuAction('Actualizando aplicación', backend.updateApplication)();
+            await runMenuAction({
+              label: 'Actualizando la aplicación',
+              hint:
+                'Esto puede tardar varios minutos. No cierre esta ventana ni apague la ' +
+                'computadora hasta que termine.',
+              action: backend.updateApplication,
+            });
           },
         },
         { type: 'separator' },
@@ -204,6 +432,11 @@ function buildMenu() {
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
+
+// Botón "Reintentar" de la pantalla de error (renderer/loading.html).
+ipcMain.on('lics:retry', () => {
+  retryStartup();
+});
 
 app.whenReady().then(() => {
   mainWindow = createWindow();

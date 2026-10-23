@@ -16,6 +16,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
   }
   .spinner {
     width: 48px;
@@ -34,23 +36,195 @@
     letter-spacing: 0.08em;
     margin: 0 0 8px 0;
   }
+  #phase {
+    font-size: 17px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin: 4px 0 0 0;
+  }
+  #hint {
+    font-size: 13px;
+    color: #fbbf24;
+    margin: 6px 0 0 0;
+    max-width: 560px;
+    text-align: center;
+  }
   #status {
     font-size: 14px;
     color: #94a3b8;
-    max-width: 520px;
+    max-width: 560px;
     text-align: center;
     white-space: pre-wrap;
     line-height: 1.5;
+    margin-top: 12px;
+  }
+  /* Historial de lo que va pasando (punto 7): las últimas líneas, con
+     la más reciente abajo. */
+  #log {
+    width: min(720px, 100%);
+    max-height: 220px;
+    overflow-y: auto;
+    margin: 20px 0 0 0;
+    padding: 12px 14px;
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #94a3b8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    box-sizing: border-box;
+  }
+  #log .error {
+    color: #fca5a5;
+  }
+  #log .ok {
+    color: #86efac;
+  }
+  #failure {
+    width: min(720px, 100%);
+    margin-top: 20px;
+    padding: 16px 18px;
+    background: #450a0a;
+    border: 1px solid #7f1d1d;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+  #failure h2 {
+    font-size: 16px;
+    margin: 0 0 10px 0;
+    color: #fecaca;
+  }
+  #failure ul {
+    margin: 0 0 10px 0;
+    padding-left: 20px;
+    color: #fee2e2;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  #failure p {
+    margin: 6px 0 0 0;
+    font-size: 13px;
+    color: #fca5a5;
+    word-break: break-all;
+  }
+  #failure button {
+    margin-top: 14px;
+    padding: 8px 18px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    background: #e2e8f0;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #failure button:hover {
+    background: #ffffff;
+  }
+  [hidden] {
+    display: none !important;
   }
 </style>
 </head>
 <body>
-  <div class="spinner"></div>
+  <div class="spinner" id="spinner"></div>
   <h1>LICS</h1>
+  <p id="phase" hidden></p>
+  <p id="hint" hidden></p>
   <div id="status">Iniciando...</div>
+  <div id="log" hidden></div>
+
+  <div id="failure" hidden>
+    <h2 id="failure-title"></h2>
+    <ul id="failure-reasons"></ul>
+    <p id="failure-exit-code" hidden></p>
+    <p id="failure-log-path" hidden></p>
+    <button type="button" id="retry">Reintentar</button>
+  </div>
+
   <script>
+    const MAX_LOG_LINES = 200;
+
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+
     window.lics.onStatus((text) => {
-      document.getElementById('status').textContent = text;
+      statusEl.textContent = text;
+    });
+
+    window.lics.onPhase((phase) => {
+      const phaseEl = document.getElementById('phase');
+      const hintEl = document.getElementById('hint');
+
+      phaseEl.textContent = phase.title || '';
+      phaseEl.hidden = !phase.title;
+      hintEl.textContent = phase.hint || '';
+      hintEl.hidden = !phase.hint;
+    });
+
+    window.lics.onLog((line) => {
+      const isAtBottom =
+        logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 24;
+
+      const row = document.createElement('div');
+      row.textContent = line;
+
+      if (line.startsWith('[ERROR]')) {
+        row.className = 'error';
+      } else if (line.startsWith('[OK]')) {
+        row.className = 'ok';
+      }
+
+      logEl.appendChild(row);
+      logEl.hidden = false;
+
+      while (logEl.childElementCount > MAX_LOG_LINES) {
+        logEl.firstElementChild.remove();
+      }
+
+      // Sigue la salida solo si la persona no subió a leer algo.
+      if (isAtBottom) {
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    });
+
+    window.lics.onFailed((failure) => {
+      document.getElementById('spinner').hidden = true;
+      document.getElementById('hint').hidden = true;
+      document.getElementById('failure-title').textContent = failure.title;
+
+      const reasonsEl = document.getElementById('failure-reasons');
+      reasonsEl.replaceChildren(
+        ...failure.reasons.map((reason) => {
+          const item = document.createElement('li');
+          item.textContent = reason;
+          return item;
+        }),
+      );
+
+      const exitCodeEl = document.getElementById('failure-exit-code');
+      exitCodeEl.textContent =
+        failure.exitCode !== null ? `Código de salida: ${failure.exitCode}` : '';
+      exitCodeEl.hidden = failure.exitCode === null;
+
+      const logPathEl = document.getElementById('failure-log-path');
+      logPathEl.textContent = failure.logPath
+        ? `Registro completo: ${failure.logPath}`
+        : '';
+      logPathEl.hidden = !failure.logPath;
+
+      statusEl.textContent =
+        '"Reintentar" vuelve a iniciar los servicios y abre LICS.';
+      document.getElementById('failure').hidden = false;
+    });
+
+    document.getElementById('retry').addEventListener('click', () => {
+      document.getElementById('retry').disabled = true;
+      window.lics.retry();
     });
   </script>
 </body>

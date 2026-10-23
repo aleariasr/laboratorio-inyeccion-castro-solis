@@ -35,28 +35,53 @@ const RESOURCES_WINDOWS_DIR = app.isPackaged
   ? path.join(process.resourcesPath, 'windows')
   : path.join(__dirname, '..', 'resources', 'windows');
 
+// Los scripts marcan sus errores con "[ERROR] ..." (log_error en
+// scripts/lib/common.sh). Esas líneas son el motivo real de una falla;
+// el resto de la salida (docker compose, etc.) es contexto.
+const ERROR_LINE_PATTERN = /^\s*\[ERROR\]\s*/;
+const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
+const OUTPUT_TAIL_LINES = 40;
+
+function cleanLine(line) {
+  return line.replace(ANSI_PATTERN, '').trimEnd();
+}
+
 function spawnInDistro(args, { onLine, stdin } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn('wsl.exe', ['-d', DISTRO, '--', ...args], {
       windowsHide: true,
     });
 
-    let stderrTail = '';
+    // stdout y stderr juntos, en el orden en que llegan: los scripts
+    // escriben [INFO]/[OK] por stdout y [ERROR] por stderr, y para
+    // entender una falla hace falta ver los dos.
+    const outputTail = [];
+    const errorLines = [];
 
-    child.stdout.on('data', (chunk) => {
-      const text = chunk.toString('utf8');
-      if (onLine) {
-        text.split(/\r?\n/).filter(Boolean).forEach(onLine);
-      }
-    });
+    const handleChunk = (chunk) => {
+      chunk
+        .toString('utf8')
+        .split(/\r?\n/)
+        .map(cleanLine)
+        .filter(Boolean)
+        .forEach((line) => {
+          outputTail.push(line);
+          if (outputTail.length > OUTPUT_TAIL_LINES) {
+            outputTail.shift();
+          }
 
-    child.stderr.on('data', (chunk) => {
-      const text = chunk.toString('utf8');
-      stderrTail = (stderrTail + text).slice(-2000);
-      if (onLine) {
-        text.split(/\r?\n/).filter(Boolean).forEach(onLine);
-      }
-    });
+          if (ERROR_LINE_PATTERN.test(line)) {
+            errorLines.push(line.replace(ERROR_LINE_PATTERN, ''));
+          }
+
+          if (onLine) {
+            onLine(line);
+          }
+        });
+    };
+
+    child.stdout.on('data', handleChunk);
+    child.stderr.on('data', handleChunk);
 
     child.on('error', (err) => {
       reject(new Error(`No se pudo invocar wsl.exe: ${err.message}`));
@@ -65,9 +90,20 @@ function spawnInDistro(args, { onLine, stdin } = {}) {
     child.on('close', (code) => {
       if (code === 0) {
         resolve();
-      } else {
-        reject(new Error(`Falló dentro de WSL (código ${code}): ${stderrTail || 'sin detalle'}`));
+        return;
       }
+
+      // El mensaje lleva primero el motivo ([ERROR]); si el script no
+      // dejó ninguno, las últimas líneas de la salida.
+      const reason = errorLines.length
+        ? errorLines.join('\n')
+        : outputTail.slice(-15).join('\n') || 'sin detalle';
+
+      const error = new Error(`Falló dentro de WSL (código ${code}):\n${reason}`);
+      error.exitCode = code;
+      error.errorLines = errorLines;
+      error.outputTail = outputTail.slice();
+      reject(error);
     });
 
     if (stdin !== undefined) {

@@ -115,6 +115,36 @@ se vea correcto:
       que `create_initial_admin()` efectivamente creó el administrador
       (no solo que el build terminó sin errores).
 
+## Menú LICS de la aplicación de escritorio (punto 7, 2026-10)
+
+Desde el punto 7 de la auditoría de 30 mejoras, las acciones del menú
+muestran su progreso, piden confirmación y, si fallan, dicen qué
+falló. No hay tests automáticos para Electron: se prueban a mano en la
+máquina Windows con el instalador nuevo, y se anota aquí el resultado.
+
+- [ ] **Hacer backup ahora…** pide confirmación; con "Cancelar" no pasa
+      nada. Con "Hacer backup" la ventana muestra "Creando backup", el
+      paso actual y el historial de líneas, y al terminar vuelve sola a
+      LICS.
+- [ ] **Reiniciar servicios…** pide confirmación y muestra el progreso
+      igual; al terminar vuelve sola a LICS.
+- [ ] Mientras corre una acción, los demás ítems del menú (y
+      "Reintentar") aparecen deshabilitados.
+- [ ] **Error forzado**, por ejemplo con Docker detenido dentro de WSL
+      (`wsl -d lics-wsl -- systemctl stop docker`) y luego "Hacer
+      backup ahora…": el diálogo de error muestra primero la línea
+      `[ERROR]` del script ("Qué falló"), el código de salida y la ruta
+      del registro; "Abrir el registro" abre el archivo. La ventana
+      queda en la pantalla de error con "Reintentar", que vuelve a
+      levantar los servicios y abre LICS. (Volver a encender Docker
+      después: `wsl -d lics-wsl -- systemctl start docker`.)
+- [ ] Los registros de acciones fallidas quedan en
+      `%APPDATA%\LICS\logs\acciones\`.
+- [ ] "Imprimir" en un reporte abre el PDF en una ventana nueva con el
+      visor de PDF (puntos 2 + 27, `plugins: true` en `main.js`).
+
+Resultado de la prueba (fecha, máquina, quién):
+
 ## Seguridad
 
 - [ ] Contraseña de administrador inicial cambiada (no queda la
