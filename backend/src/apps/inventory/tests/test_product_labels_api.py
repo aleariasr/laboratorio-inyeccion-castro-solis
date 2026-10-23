@@ -261,3 +261,23 @@ class ProductLabelOwnCodeTest(APITestCase):
         text = b"".join(response.streaming_content).decode("latin-1")
 
         self.assertIn("digo propio: KG-77) Tj", text)
+        # El código de barras lleva el código propio (su texto debajo).
+        self.assertIn("(KG-77) Tj", text)
+
+    def test_barcode_uses_own_code_or_universal(self):
+        from apps.inventory.services.product_labels import (
+            ProductLabel,
+            label_barcode_value,
+        )
+
+        def label(own_code):
+            return ProductLabel(
+                product_id=1,
+                standard_code="INY-001",
+                product_name="Inyector",
+                location_code="A101",
+                own_code=own_code,
+            )
+
+        self.assertEqual(label_barcode_value(label("KG-77")), "KG-77")
+        self.assertEqual(label_barcode_value(label("")), "INY-001")

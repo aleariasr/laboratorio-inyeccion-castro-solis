@@ -953,6 +953,52 @@ class ProductApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["own_code"], "")
 
+    def test_edit_variant_keeping_its_shared_code(self):
+        # El formulario de edición reenvía el código estándar aunque no
+        # cambie; en una variante lo comparte con su familia y antes eso
+        # se rechazaba como duplicado.
+        variant = Product.objects.create(
+            standard_code=self.product.standard_code,
+            name="Genérico",
+            variant_kind="GENERIC",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/products/{variant.id}/",
+            {
+                "standard_code": "p-001",
+                "own_code": "KG-77",
+                "name": "Genérico",
+                "storage_location": self.location.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["own_code"], "KG-77")
+
+        # Cambiarle el código a uno que ya tiene otro producto sigue sin
+        # poderse desde aquí.
+        Product.objects.create(
+            standard_code="P-555",
+            name="Otro",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/products/{variant.id}/",
+            {"standard_code": "P-555"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("standard_code", response.data)
+
     def test_search_finds_product_by_own_code(self):
         Product.objects.create(
             standard_code="P-900",

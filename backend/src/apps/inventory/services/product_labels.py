@@ -77,6 +77,17 @@ class LocationLabel:
 LabelType = TypeVar("LabelType")
 
 
+def label_barcode_value(label: ProductLabel) -> str:
+    """
+    Lo que codifica el código de barras: el código propio si lo hay, si
+    no el universal (punto 16). Así un genérico se escanea como él mismo
+    y no como cualquier producto de su familia. Compras y ventas lo
+    reconocen igual (frontend/src/features/inventory/products/scan.ts).
+    """
+
+    return label.own_code or label.standard_code
+
+
 def build_product_labels(
     products: list[Product],
 ) -> list[ProductLabel]:
@@ -276,8 +287,8 @@ def _draw_product_label(
         product_name_text,
     )
 
-    # Entre el nombre y el código de barras (que sigue siendo el del
-    # código universal: es el que agrupa la familia).
+    # Entre el nombre y el código de barras, que lleva este mismo código
+    # (ver label_barcode_value).
     if label.own_code:
         own_code_text = _fit_text(
             text=f"Código propio: {label.own_code}",
@@ -297,8 +308,10 @@ def _draw_product_label(
             own_code_text,
         )
 
+    barcode_value = label_barcode_value(label)
+
     barcode = _build_barcode(
-        value=label.standard_code,
+        value=barcode_value,
         maximum_width=LABEL_CONTENT_WIDTH,
         bar_height=8.5 * mm,
     )
@@ -315,7 +328,7 @@ def _draw_product_label(
     )
 
     barcode_text = _fit_text(
-        text=label.standard_code,
+        text=barcode_value,
         font_name="Helvetica-Bold",
         font_size=6.5,
         maximum_width=LABEL_CONTENT_WIDTH,

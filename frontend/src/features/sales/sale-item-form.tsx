@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 
 import { formatMoney } from "../inventory/purchases/format";
 import { getProducts } from "../inventory/products/api";
+import { findScannedProduct } from "../inventory/products/scan";
 import type { Product } from "../inventory/products/types";
 import { validateSaleItemForm } from "./sale-item-validation";
 import type {
@@ -158,15 +159,8 @@ export function SaleItemForm({
       return;
     }
 
-    const trimmedQuery = query.trim().toLowerCase();
-
-    if (trimmedQuery.length === 0) {
-      return;
-    }
-
-    const exactMatch = results.find(
-      (product) => product.standard_code.trim().toLowerCase() === trimmedQuery,
-    );
+    // Código propio o universal completo (lector o escrito a mano).
+    const exactMatch = findScannedProduct(results, query);
 
     if (exactMatch) {
       selectProduct(exactMatch);
@@ -363,6 +357,12 @@ export function SaleItemForm({
                           <span className="font-mono font-semibold text-foreground">
                             {product.standard_code}
                           </span>
+
+                          {product.own_code && (
+                            <span className="ml-2 font-mono text-xs text-muted-foreground">
+                              {product.own_code}
+                            </span>
+                          )}
 
                           <span className="ml-2 text-muted-foreground">{product.name}</span>
 

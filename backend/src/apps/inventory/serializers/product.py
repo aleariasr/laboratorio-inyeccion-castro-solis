@@ -196,6 +196,16 @@ class ProductSerializer(serializers.ModelSerializer):
                 "El código estándar es obligatorio."
             )
 
+        # Una variante comparte el código con su familia (add-variant):
+        # guardarla sin cambiarle el código no es crear un duplicado. Sin
+        # esto, editar cualquier variante fallaba, porque el formulario
+        # reenvía el código aunque no se toque.
+        if (
+            self.instance is not None
+            and normalized_code == self.instance.standard_code
+        ):
+            return normalized_code
+
         queryset = Product.objects.filter(
             standard_code=normalized_code,
         )
