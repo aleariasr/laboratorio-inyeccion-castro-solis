@@ -301,6 +301,14 @@ export function CashClosingForm({
       </Field>
 
       {effectivePreview && (
+        <PhysicalTotalHero
+          label="Debe haber al contar"
+          collected={Number(effectivePreview.expected_total)}
+          pettyCashBalance={pettyCashOpening - pettyCashOutflows}
+        />
+      )}
+
+      {effectivePreview && (
         <div className="grid gap-3 rounded-[var(--radius-lg)] bg-surface-muted/50 p-4 sm:grid-cols-4">
           <div>
             <p className="text-xs text-muted-foreground">Efectivo</p>
@@ -403,14 +411,6 @@ export function CashClosingForm({
             disabled={isSubmitting}
           />
         </Field>
-      )}
-
-      {effectivePreview && (
-        <PhysicalTotalHero
-          label="Debe haber al contar"
-          collected={Number(effectivePreview.expected_total)}
-          pettyCashBalance={pettyCashOpening - pettyCashOutflows}
-        />
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">

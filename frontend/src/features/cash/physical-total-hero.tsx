@@ -15,8 +15,8 @@ function signedMoney(value: number): string {
 /**
  * El número contra el que se compara lo contado (punto 5 del plan del
  * 2026-10-22): lo cobrado más el saldo de caja chica, grande y centrado,
- * con de dónde sale. Lo usan el formulario de cierre (justo antes de
- * "Total contado") y el detalle del cierre.
+ * con de dónde sale. Lo usan el formulario de cierre y el detalle del
+ * cierre, en los dos arriba, antes del desglose por método de pago.
  */
 export function PhysicalTotalHero({
   label,
