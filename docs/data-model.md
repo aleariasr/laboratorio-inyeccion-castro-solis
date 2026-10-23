@@ -100,6 +100,8 @@ La existencia actual se obtiene desde los movimientos de inventario.
 
 > Nota de implementación: el modelo real (`Product`) **no tiene** un campo `brand`/marca. Sus campos reales son `standard_code`, `name`, `description`, `storage_location` (FK), `minimum_stock`, `unit_of_measure` y los campos de auditoría/activo estándar. La marca se maneja a nivel de `ProductReference.manufacturer` y de `SupplierProduct.manufacturer`, no en `Product`.
 
+> Nota de implementación (2.4.0): además tiene `variant_kind` (ORIGINAL / GENERIC / OTHER; varias filas pueden compartir `standard_code`, ver §3.6), `custom_sale_price` (precio de venta elegido a mano; si es nulo se usa el sugerido de la última compra **confirmada**) y `own_code` (código propio opcional, en mayúsculas, único cuando no está vacío por la restricción `inventory_product_unique_own_code`). La familia de variantes se sigue agrupando por `standard_code`; cada variante puede tener su propia ubicación.
+
 ### ProductAlias (implementado como `ProductReference`)
 
 Representa códigos equivalentes, referencias de proveedor, marcas alternativas o códigos usados para una misma pieza.
@@ -322,6 +324,8 @@ Estados iniciales:
 
 Una venta confirmada genera movimientos de salida en inventario.
 
+> Nota de implementación (2.4.0): `Sale` tiene además `payment_method` (efectivo / tarjeta / transferencia / otro), `discount_type` (monto o porcentaje), `discount_value` y `tax_percentage`, y los montos `subtotal_amount`, `discount_amount`, `tax_amount` y `total_amount`, que se congelan al confirmar (en borrador son nulos y se calculan en vivo). El cálculo es único: `apps/core/money.py` (`compute_document_amounts`, redondeo a 2 decimales), con espejo en `frontend/src/lib/document-amounts.ts`. El impuesto por defecto (13 %) se aplica al crear desde la API; el default del modelo es 0. Lo que cuenta en caja y reportes es `confirmed_sales()`: confirmadas y activas.
+
 ### SaleItem
 
 Representa cada línea de producto vendida.
@@ -373,6 +377,8 @@ Campos conceptuales:
 - fecha de recepción;
 - fecha de entrega opcional;
 - usuario responsable.
+
+> Nota de implementación (2.4.0): además tiene `price` (precio total del servicio, sugerido desde el tipo de servicio y los accesorios usados), `payment_method`, descuento e impuesto con los mismos campos y el mismo cálculo que `Sale`, congelados al entregar. Solo el Administrador pone el precio y entrega (`ModuleAdminRequired`). Lo que cuenta en caja y reportes es `delivered_services()`: entregados y activos, por la fecha de entrega.
 
 > Nota de implementación: el modelo real (`InjectorServiceRecord`) **no** tiene campos directos `cliente` ni `número de inyector`. Referencia un `injector` (FK a `Injector`), y es `Injector` quien tiene `customer` (FK a `Customer`) e `injector_number`. Es decir, cliente y número de inyector se obtienen indirectamente vía `injector.customer` e `injector.injector_number`. El campo `status` (`RECEIVED` / `IN_PROGRESS` / `READY` / `DELIVERED` / `CANCELLED`) tampoco aparece en la lista conceptual anterior y es central para el flujo de servicio (acciones `start`, `mark-ready`, `deliver`, `cancel`).
 
@@ -438,6 +444,8 @@ tornillo bloqueo cummins
 
 El sistema debe permitir seleccionar varias etiquetas y generarlas en una misma hoja PDF.
 
+> Nota de implementación (2.4.0): la etiqueta de producto que imprime la pantalla (`apps/inventory/services/product_labels.py`, `POST /api/inventory/products/labels/`) muestra la ubicación, el código universal, el nombre y, si lo hay, el código propio; el código de barras Code128 lleva el código propio cuando existe y si no el universal (`label_barcode_value`), y compras y ventas reconocen ese mismo código al escanear.
+
 ## Reportes
 
 Reportes iniciales:
@@ -453,7 +461,38 @@ Reportes iniciales:
 
 Los reportes deben calcularse desde datos normalizados, no desde tablas duplicadas.
 
-> Nota de implementación: los 8 reportes anteriores están implementados como `APIView` en `apps/core/views/reports.py` (expuestos bajo `/api/reports/...`, aunque el código vive en la app `core`, no en una app `reports` separada): `LowStockProductsReportView`, `TopSellingProductsReportView`, `ProductMovementsReportView`, `ProductSupplierPricesReportView`, `PurchasesBySupplierReportView`, `SalesByDateReportView`, `StockByLocationReportView` y `TopCustomersReportView`. El reporte de "productos sin movimiento" mencionado en versiones anteriores de este documento no existe en el código actual; se retiró de la lista hasta que se implemente.
+> Nota de implementación: los reportes están implementados como `APIView` en `apps/core/views/reports.py` y `sales_summary.py` (expuestos bajo `/api/reports/...`, aunque el código vive en la app `core`, no en una app `reports` separada): `LowStockProductsReportView`, `TopSellingProductsReportView`, `ProductMovementsReportView`, `ProductSupplierPricesReportView`, `PurchasesBySupplierReportView`, `StockByLocationReportView`, `TopCustomersReportView`, `MostMovedProductsReportView` y `SalesSummaryReportView`. Desde la 2.4.0 "Ventas por fecha" (`SalesByDateReportView`) ya no existe: lo reemplaza el resumen de ventas (ventas, servicios y total por día, semana o mes, con comparación). Cada reporte arma sus datos en una función compartida por la respuesta JSON y su PDF (`report_pdfs.py`, ruta hermana `.../pdf/`), generado con `apps/documents/report_pdf.py`; Movimientos y "Productos que más se mueven" tienen además Excel (`apps/documents/report_xlsx.py`). El reporte de "productos sin movimiento" mencionado en versiones anteriores de este documento no existe en el código actual; se retiró de la lista hasta que se implemente.
+
+## Caja
+
+### CashClosing
+
+Cierre de caja semanal, de sábado a viernes. Se crea una sola vez por semana, cuando la semana ya
+terminó, y no se edita ni se borra: es un registro histórico.
+
+Campos reales:
+
+- `week_start` / `week_end`;
+- lo cobrado, congelado al cerrar: `expected_total` y su desglose `expected_cash`,
+  `expected_card`, `expected_transfer`, `expected_other` (ventas confirmadas y servicios entregados,
+  con descuento e impuesto);
+- `expected_tax` y `expected_discount` (2.4.0): impuestos cobrados, que son de Hacienda y no del
+  ingreso, y descuentos dados, como dato informativo;
+- caja chica (2.4.0): `petty_cash_opening` (fondo al inicio, heredado del
+  `next_petty_cash_opening` del cierre anterior; en el primer cierre se escribe), `petty_cash_outflows`
+  (suma de las salidas de la semana) y `next_petty_cash_opening` (fondo para la semana siguiente);
+- `counted_total` (un solo total contado: efectivo, vouchers y comprobantes juntos), `difference`
+  y `difference_reason`, `notes`.
+
+Derivados, no guardados: saldo de caja chica = fondo − salidas; lo que debe haber al contar =
+`expected_total` + saldo; `difference` = contado − eso; ingreso del negocio = `expected_total` −
+`expected_tax`.
+
+### PettyCashMovement
+
+Salida de caja chica (2.4.0): `date`, `amount` (mayor que cero) y `reason`. Solo se registran o
+borran mientras su semana no esté cerrada y nunca con fecha futura. No hay entradas ni
+reposiciones: el fondo se define al cerrar cada semana.
 
 ## Búsqueda universal
 

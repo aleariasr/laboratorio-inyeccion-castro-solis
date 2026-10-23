@@ -1,5 +1,9 @@
 # Auditoría y plan de trabajo: 30 mejoras de LICS (2026-09-21)
 
+> **Estado: implementada y liberada en la 2.4.0 (2026-10-22).** El punto 6 se descartó a pedido
+> del cliente. La sección 6 resume cómo quedó cada punto; el detalle de lo liberado está en
+> `CHANGELOG.md`. Lo que sigue se conserva como registro del plan original y de las decisiones.
+
 > **Qué es este archivo.** Es el prompt y el material de apoyo para el chat que va a implementar las
 > 30 mejoras. Todo lo que dice aquí se verificó leyendo el código real en el commit `7ea6e6e`
 > (versión 2.3.0), en la rama `main`, el 2026-09-21. **No se cambió ningún archivo de código

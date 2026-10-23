@@ -103,7 +103,7 @@ por esas cubre lo esencial del sistema.
 | Ruta | Qué mostrar | Archivo |
 |---|---|---|
 | `/reports` | Galería de los 8 reportes disponibles. | `reportes-galeria.png` |
-| Cualquier reporte, por ejemplo `/reports/sales-by-date` | Un reporte abierto con resultados reales (no vacío). | `reporte-ejemplo.png` |
+| Cualquier reporte, por ejemplo `/reports/sales-summary` | Un reporte abierto con resultados reales (no vacío). | `reporte-ejemplo.png` |
 | Descarga de factura interna (venta o servicio) | El PDF de una factura interna abierto en el visor del navegador o del sistema. | `factura-pdf.png` |
 | Proforma generada desde el listado de productos | El PDF de una proforma abierto. | `proforma-pdf.png` |
 | Etiqueta de producto | El PDF de una etiqueta con su código de barras Code128. | `etiqueta-pdf.png` |

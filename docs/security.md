@@ -47,12 +47,28 @@ Existen 5 roles fijos, implementados como grupos de Django (ver
 `ADMIN` recibe todos los permisos de módulo existentes y además tiene bypass de código en
 `ModulePermission` (junto con los superusuarios). El resto de los roles reciben únicamente los
 permisos de módulo (`view_<módulo>` / `add_<módulo>` / `change_<módulo>` / `cancel_<módulo>`)
-listados explícitamente en `ROLE_PERMISSIONS` para cada uno (por ejemplo, `INVENTORY` cubre
-productos, ubicaciones, proveedores, compras, conteos de inventario, movimientos y documentos;
-`SALES` cubre ventas; `CUSTOMERS` cubre clientes, inyectores y servicios; `READ_ONLY` recibe solo
-permisos `view_*` de todos los módulos anteriores). `view_reports` es exclusivo de `ADMIN`: ningún
-otro rol lo incluye, por lo que `INVENTORY`, `SALES` y `READ_ONLY` quedan bloqueados de
-`/api/reports/*`.
+listados explícitamente en `ROLE_PERMISSIONS`. Desde la 2.4.0 (puntos 4, 13, 14 y 25 de la
+auditoría de 30 mejoras):
+
+| Rol | Puede | No tiene |
+|---|---|---|
+| `INVENTORY` (Inventario) | Productos y ubicaciones (ver, crear, editar), etiquetas y proformas. Lee clientes para la proforma. | Compras, proveedores, conteos, movimientos, reportes, caja. Ningún costo: ve solo el precio de venta. |
+| `SALES` (Ventas) | Ventas (crear, confirmar, anular) y proformas con cantidades. Lee productos y clientes para armar la venta, sin esos módulos en su menú. | Costos, compras, reportes, caja. |
+| `CUSTOMERS` (Clientes y servicio) | Clientes, inyectores y servicios: recibir, iniciar, marcar listo, anular. Lee productos para los accesorios. | Poner el precio o el tipo de servicio, entregar, ver el precio, el método de pago, el importe de los accesorios o la factura: eso es solo del Administrador. |
+| `READ_ONLY` (Solo lectura) | Ver productos, ubicaciones, proveedores, compras, conteos, ventas, clientes, inyectores, servicios y documentos. | Escribir en cualquier módulo. Sin `view_costs`: no ve costos en las pantallas de producto (sí dentro de una compra, donde el costo es el dato principal). |
+
+Reglas que no dependen de un permiso de módulo:
+
+- **`view_costs`** (casilla "Puede ver costos" en Usuarios) es un permiso aparte de los roles:
+  sin él no se ven costos ni el precio sugerido, no se cambia el precio de venta de un producto
+  (`validate_custom_sale_price`) y no se pide el resumen ni el cálculo de costos de una compra
+  (`ViewCostsRequired`).
+- **Precio y entrega de servicios** son solo del grupo `ADMIN` (`ModuleAdminRequired` /
+  `is_module_admin`), también la factura del servicio.
+- **`view_reports`**, **`view_movements`** y el módulo de **caja** (`view_cash` / `add_cash`)
+  son exclusivos de `ADMIN`: ningún otro rol los incluye.
+- **Contraseñas:** mínimo 8 caracteres. Cada usuario cambia la suya en "Mi cuenta" (no cierra la
+  sesión: devuelve un token nuevo) y el Administrador puede restablecer la de otros desde Usuarios.
 
 ### Dos tipos de permiso a nivel de código
 

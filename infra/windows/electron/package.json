@@ -1,6 +1,6 @@
 {
   "name": "lics-desktop",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Aplicacion de escritorio LICS (Laboratorio de Inyeccion Castro Solis)",
   "main": "main.js",
   "author": "Castro Solis",

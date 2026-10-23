@@ -14,7 +14,7 @@ El backend base ya existe, pero no debe seguir ampliándose por suposición. La 
 
 Versión actual:
 
-    2.0.0
+    2.4.0
 
 Estado resumido:
 
@@ -33,6 +33,12 @@ Estado resumido:
     Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo el punto §5 (sin contenido
     concreto todavía — pendiente de que el cliente identifique qué le molesta específicamente del
     proceso de clientes/servicios).
+    Auditoría de 30 mejoras (2026-09-21): completada en la 2.4.0 (2026-10-22) — impuesto y
+    descuento en ventas, servicios y proforma; impuestos aparte y caja chica en el cierre de caja;
+    roles nuevos con permiso para ver costos; resumen de ventas comparativo; PDF e impresión de
+    reportes y del cierre; Excel de movimientos y productos que más se mueven; código propio de
+    producto; menú de escritorio con confirmación, progreso y errores claros. Ver
+    docs/auditoria-mejoras-30-puntos-2026-09-21.md.
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
     cliente importados y conciliados contra el stock auxiliar legacy. Ver "Fase 10" abajo y

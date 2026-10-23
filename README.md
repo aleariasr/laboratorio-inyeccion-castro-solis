@@ -35,7 +35,7 @@ LICS está orientado a producción real, no a prototipo académico. Las decision
 
 Versión actual:
 
-    2.3.0
+    2.4.0
 
 Estado actual:
 
@@ -47,6 +47,10 @@ Estado actual:
     inyectores y servicios, cierre de caja semanal con desglose por método de pago, proforma y
     facturas internas en PDF, conteos físicos, movimientos de inventario, reportes).
     Backlog de la visita al cliente (2026-09, 20 puntos): completado, salvo §5 (sin definir todavía).
+    Auditoría de 30 mejoras (2026-09-21): completada en la 2.4.0 — impuesto y descuento, caja chica,
+    roles nuevos con permiso para ver costos, resumen de ventas comparativo, PDF e impresión de
+    reportes, Excel de movimientos, código propio de producto y menú de escritorio con progreso.
+    Ver docs/auditoria-mejoras-30-puntos-2026-09-21.md y CHANGELOG.md.
     Migración de datos legacy DBF del cliente (proveedores, productos y compras): completada
     (2026-09-09) — ver docs/dbf-migration-closure.md.
     Validación con flujos y datos reales: pendiente.
@@ -159,13 +163,15 @@ Documento principal de cierre:
 
 - Login, logout y usuario actual.
 - Administración básica de usuarios.
-- Roles base del sistema.
+- Roles base del sistema (Administrador, Inventario, Ventas, Clientes y servicio, Solo lectura) y permiso aparte para ver costos (`view_costs`) — ver [Seguridad](docs/security.md).
 - Permisos por módulo.
 - Usuario de solo lectura.
+- Cambio de la propia contraseña y restablecimiento por el Administrador (mínimo 8 caracteres).
 - Endpoint administrativo de estado.
 - Ubicaciones físicas.
-- Productos, con variantes (original/genérico/otro) que comparten un mismo código estándar y ubicación pero tienen precio y stock propios (§3.6) — reemplaza el antiguo modelo de "referencias" puramente descriptivas.
-- Precio de venta editable por producto, con sugerencia calculada desde el último costo de compra.
+- Productos, con variantes (original/genérico/otro) que comparten un mismo código estándar pero tienen precio, stock y ubicación propios (§3.6) — reemplaza el antiguo modelo de "referencias" puramente descriptivas.
+- Código propio opcional por producto (único cuando tiene valor), buscable y usado en el código de barras de la etiqueta.
+- Precio de venta editable por producto, con sugerencia calculada desde la última compra confirmada; solo lo cambia quien ve costos.
 - Proveedores.
 - Referencias proveedor-producto.
 - Compras.
@@ -173,19 +179,19 @@ Documento principal de cierre:
 - Costos de importación.
 - Resumen de costos por compra.
 - Historial de costos append-only.
-- Ventas, con método de pago (efectivo/tarjeta/transferencia/otro).
+- Ventas, con método de pago (efectivo/tarjeta/transferencia/otro), descuento (monto o porcentaje) e impuesto (13 % por defecto), con los montos congelados al confirmar.
 - Confirmación y anulación de ventas.
 - Validación de stock suficiente.
 - Clientes.
 - Inyectores.
-- Servicios de inyector: precio (sugerido desde tipo de servicio + accesorios reales usados, editable), método de pago, catálogo de "Tipo de Servicio" con histórico de precio.
+- Servicios de inyector: precio (sugerido desde tipo de servicio + accesorios reales usados, editable), descuento e impuesto congelados al entregar, método de pago, catálogo de "Tipo de Servicio" con histórico de precio. Solo el Administrador pone el precio y entrega.
 - Accesorios de servicio ligados al inventario real de productos, con descuento y reversión de stock.
-- Cierre de caja semanal (sábado a viernes), suma ventas y servicios por método de pago (efectivo/tarjeta/transferencia/otro), con desglose por método y total congelados al cerrar, permisos solo ADMIN por ahora.
-- Documentos PDF: etiquetas, proforma y facturas internas (no fiscales) para ventas confirmadas y servicios entregados.
+- Cierre de caja semanal (sábado a viernes), suma ventas y servicios por método de pago (efectivo/tarjeta/transferencia/otro), con desglose por método, impuestos cobrados (aparte del ingreso) y descuentos congelados al cerrar; caja chica con fondo semanal y salidas; solo ADMIN.
+- Documentos PDF: etiquetas, proforma (con cantidades, descuento e impuesto) y facturas internas (no fiscales) para ventas confirmadas y servicios entregados.
 - Conteo físico.
 - Ajustes auditables de inventario.
 - Búsqueda universal.
-- Reportes JSON.
+- Reportes JSON, cada uno con su PDF (ruta hermana `.../pdf/`); Movimientos y "Productos que más se mueven" también en Excel (`.xlsx`).
 - Etiquetas PDF con código de barras Code128 real.
 - Migración de datos legacy DBF del cliente (proveedores, productos, compras): pipeline de
   extracción, staging, validación, normalización, importación y conciliación (`apps.legacy_migration`),
@@ -198,20 +204,21 @@ Documento principal de cierre:
 - Panel de inicio accionable: servicios listos para entregar, productos bajo mínimo, borradores de venta y de compra pendientes, alerta de cierre de caja pendiente de la semana, y "vistos recientemente" con los últimos elementos abiertos en todo el sistema (productos, ubicaciones, proveedores, compras, ventas, clientes, inyectores, servicios y cierres de caja).
 - Pantalla administrativa de estado del sistema.
 - Búsqueda universal con atajo de teclado y navegación a detalle, cubriendo productos (nombre/descripción/código), ubicaciones, proveedores, clientes (nombre/identificación/teléfono), ventas y servicios de inyector.
-- Módulo de productos: listado, detalle, creación, edición, precio de venta editable con sugerencia, variantes original/genérico bajo el mismo código (creación guiada, sin afectar el formulario normal de creación), historial de movimientos e impresión de etiquetas.
+- Módulo de productos: listado, detalle, creación, edición, precio de venta editable con sugerencia, código propio, variantes original/genérico bajo el mismo código (creación guiada con ubicación propia, sin afectar el formulario normal de creación), historial de movimientos e impresión de etiquetas.
 - Módulo de ubicaciones: listado, detalle, creación y edición.
 - Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
 - Módulo de compras: listado con filtros, detalle, creación, edición de borrador, líneas de compra, confirmación y anulación con motivo.
 - Módulo de costos de importación: categorías, costos por compra con conversión de moneda mediante tipo de cambio, resumen de costos con desglose por producto, aplicación de costos e histórico append-only.
-- Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con referencia de precio sugerido y validación de stock disponible, confirmación y anulación con motivo, método de pago, descarga de factura interna para ventas confirmadas.
+- Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con el precio de venta precargado (y selección automática al escanear el código propio o universal) y validación de stock disponible, descuento e impuesto con resumen en vivo, confirmación y anulación con motivo, método de pago, descarga de factura interna para ventas confirmadas.
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
 - Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), y bandeja operativa de servicios (recepción, iniciar, marcar listo, entregar, anular — la entrega exige que el servicio tenga precio definido) con datos técnicos editables, precio con sugerencia (tipo de servicio + accesorios usados) y método de pago, gestión de accesorios reales de inventario, tarjeta resumen de precio total, y descarga de factura interna para servicios entregados.
-- Módulo de cierre de caja: listado, detalle, creación con previsualización del desglose esperado por método de pago (efectivo/tarjeta/transferencia/otro) y el total antes de confirmar, un único campo de "total contado" (así se concilia igual que en el proceso real: efectivo + vouchers de datáfono + comprobantes de transferencia contra lo registrado), semana sábado-viernes, solo visible para ADMIN por ahora.
-- Proforma: generación desde el listado de productos, cliente opcional.
+- Módulo de cierre de caja: listado con filtro por fechas y buscador, detalle con PDF, creación eligiendo de la lista de semanas por cerrar, con previsualización del desglose esperado por método de pago (efectivo/tarjeta/transferencia/otro), los impuestos y el ingreso del negocio, y la caja chica (fondo, salidas y saldo) antes de confirmar; un único campo de "total contado" que se compara contra lo cobrado más el saldo de caja chica (así se concilia igual que en el proceso real: efectivo + vouchers de datáfono + comprobantes de transferencia contra lo registrado); semana sábado-viernes, solo visible para ADMIN.
+- Proforma: desde Ventas (`/sales/proforma`, con cantidades) o desde el listado de productos, cliente opcional, descuento e impuesto.
+- Mi cuenta: cambio de la propia contraseña.
 - Módulo de conteos físicos: listado con filtros (búsqueda, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con Enter, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas en borrador, aprobación y anulación.
 - Navegación por roles y permisos.
-- Módulo de movimientos de inventario: listado general paginado con filtros (producto, ubicación, tipo, dirección, rango de fechas), modo kardex automático con saldo corriente al filtrar por un solo producto, y enlace desde cada movimiento a su origen (compra, venta o conteo físico).
-- Módulo de reportes: 8 reportes operativos (bajo mínimo, stock por ubicación, movimientos, compras por proveedor, comparación de precios por proveedor, ventas por fecha, productos más vendidos, clientes con más ventas), accesibles desde una galería en `/reports` y una única entrada "Reportes" en el menú lateral.
+- Módulo de movimientos de inventario: listado general paginado con filtros (producto, ubicación, tipo, dirección, rango de fechas), modo kardex automático con saldo corriente al filtrar por un solo producto, enlace desde cada movimiento a su origen (compra, venta, conteo físico o servicio), y exportación a PDF y Excel con los mismos filtros.
+- Módulo de reportes: 9 reportes operativos (bajo mínimo, stock por ubicación, movimientos, productos que más se mueven, compras por proveedor, comparación de precios por proveedor, resumen de ventas comparativo, productos más vendidos, clientes con más ventas), accesibles desde una galería en `/reports` y una única entrada "Reportes" en el menú lateral. Cada uno con "Descargar PDF" e "Imprimir" (con espacios para anotar a mano y recuadro de revisión).
 
 ---
 
@@ -374,10 +381,13 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     POST /api/accounts/login/
     POST /api/accounts/logout/
     GET /api/accounts/me/
+    POST /api/accounts/me/password/
+    GET /api/accounts/roles/
     GET /api/accounts/users/
     POST /api/accounts/users/
     GET /api/accounts/users/{id}/
     PATCH /api/accounts/users/{id}/
+    POST /api/accounts/users/{id}/set-password/
 
 ## Inventario y compras
 
@@ -385,6 +395,7 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/inventory/products/
     GET /api/inventory/products/?standard_code=<codigo>
     POST /api/inventory/products/{id}/add-variant/
+    POST /api/inventory/products/labels/
     GET /api/inventory/suppliers/
     GET /api/inventory/supplier-products/
     GET /api/inventory/purchases/
@@ -397,6 +408,8 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/inventory/import-costs/
     GET /api/inventory/product-cost-history/
     GET /api/inventory/stock-movements/
+    GET /api/inventory/stock-movements/pdf/
+    GET /api/inventory/stock-movements/excel/
     GET /api/inventory/inventory-counts/
     POST /api/inventory/inventory-counts/{id}/approve/
     POST /api/inventory/inventory-counts/{id}/cancel/
@@ -427,7 +440,12 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
 
     GET /api/cash/closings/
     POST /api/cash/closings/
+    GET /api/cash/closings/closeable_weeks/
     GET /api/cash/closings/preview/?week_start=YYYY-MM-DD
+    GET /api/cash/closings/{id}/pdf/
+    GET /api/cash/petty-cash/?week_start=YYYY-MM-DD
+    POST /api/cash/petty-cash/
+    DELETE /api/cash/petty-cash/{id}/
 
 ## Búsqueda, reportes y documentos
 
@@ -437,9 +455,15 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/reports/product-movements/?product=<id>
     GET /api/reports/product-supplier-prices/?product=<id>
     GET /api/reports/purchases-by-supplier/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
-    GET /api/reports/sales-by-date/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+    GET /api/reports/sales-summary/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&group_by=day&compare_from=YYYY-MM-DD&compare_to=YYYY-MM-DD
     GET /api/reports/top-selling-products/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
     GET /api/reports/top-customers/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&ordering=total
+    GET /api/reports/most-moved-products/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+    GET /api/reports/most-moved-products/excel/
+
+Cada reporte (salvo `product-movements`) tiene su PDF en la ruta hermana `.../pdf/`, con los mismos
+filtros: por ejemplo `GET /api/reports/sales-summary/pdf/?date_from=...&date_to=...`.
+
     GET /api/documents/product-labels/?product=<id>&product=<id>
     POST /api/documents/proforma/
     GET /api/documents/sales/{id}/invoice/
@@ -499,20 +523,22 @@ Validación técnica del backend base:
 
     Django check: OK
     Migraciones pendientes: no
-    Tests backend: suite completa en verde (último recuento parcial confirmado: 323 en
-    apps.inventory + apps.core, 2026-09-09 — correr `make test` para el número exacto de la
-    suite completa antes de citar un total).
+    Tests backend: suite completa en verde (último recuento parcial confirmado: 502 en
+    apps.core + apps.inventory + apps.cash + apps.documents, 2026-10-19 — correr `make test`
+    para el número exacto de la suite completa antes de citar un total).
     Build backend Docker: OK
 
 El backend base queda cerrado como `0.2.0-alpha`. Las fases posteriores (frontend operativo,
-backlog de la visita al cliente 2026-09) están descritas en [Roadmap](docs/roadmap.md).
+backlog de la visita al cliente 2026-09, auditoría de 30 mejoras de la 2.4.0) están descritas en
+[Roadmap](docs/roadmap.md).
 
 ---
 
 # Pendientes principales
 
-El frontend operativo y el backlog de la visita al cliente (2026-09) ya están completos — ver
-[Roadmap](docs/roadmap.md). Lo que queda antes de operar con datos reales del negocio:
+El frontend operativo, el backlog de la visita al cliente (2026-09) y la auditoría de 30 mejoras
+(2.4.0) ya están completos — ver [Roadmap](docs/roadmap.md). Lo que queda antes de operar con
+datos reales del negocio:
 
 1. Validación con usuarios y datos reales (Fase 8 del roadmap): revisión de flujos, campos,
    reportes, documentos y permisos reales, con el negocio operando de verdad.
@@ -524,7 +550,9 @@ El frontend operativo y el backlog de la visita al cliente (2026-09) ya están c
    endurecimiento de las tareas programadas ocultas (§10.3 de
    [windows-desktop-stage-closure.md](docs/windows-desktop-stage-closure.md)) y el flujo
    "Actualizar aplicación" nunca probado contra hardware real — ver
-   [checklist vigente](docs/windows-production-checklist.md).
-4. Documentos PDF adicionales más allá de proforma y facturas (Fase 9): catálogo interno, reportes
-   en PDF, boletas de recepción/entrega de inyector — solo si el negocio los pide de verdad.
+   [checklist vigente](docs/windows-production-checklist.md). La 2.4.0 trae además un menú de
+   escritorio nuevo que hay que probar en la máquina Windows con su instalador.
+4. Documentos PDF adicionales más allá de proforma, facturas, reportes y cierre de caja (Fase 9):
+   catálogo interno, boletas de recepción/entrega de inyector — solo si el negocio los pide de
+   verdad.
 5. Manuales de usuario y técnico, capacitación y plan de soporte formal (Fase 12).

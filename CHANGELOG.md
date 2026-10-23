@@ -20,6 +20,181 @@ Nada pendiente de registrar.
 
 ---
 
+## [2.4.0] - 2026-10-22
+
+> Implementa las 30 mejoras auditadas el 2026-09-21
+> (`docs/auditoria-mejoras-30-puntos-2026-09-21.md`; la sección 6 tiene el
+> detalle de cada punto). El punto 6 (Movimientos en el menú) se descartó a
+> pedido del cliente.
+
+### Cómo llevar esta versión a una instalación existente
+
+- **Django y Next:** con el release offline de `2.4.0` copiado en
+  `C:\lics-dev\`, usar **LICS > Actualizar aplicación (Django/Next)…**.
+  `update.sh` respalda, corre las migraciones y vuelve a correr
+  `setup_roles`, así que los roles nuevos se aplican solos.
+- **App de escritorio:** el menú nuevo (confirmación, progreso, errores) y
+  el visor de PDF para "Imprimir" viven en el `.exe`, no en las imágenes.
+  Hay que instalar el `LICS Setup 2.4.0.exe` encima del actual; no borra la
+  distro ni los datos.
+- **Migraciones, todas aditivas, ninguna borra datos:**
+  - `sales/0005` y `customers/0011`: descuento, impuesto y montos
+    congelados. Las ventas confirmadas o anuladas y los servicios
+    entregados existentes quedan con subtotal = total, sin descuento ni
+    impuesto, que es lo que fueron.
+  - `cash/0004`: impuestos y descuentos del cierre (0 en los cierres
+    existentes).
+  - `cash/0005`: caja chica. Los cierres existentes quedan con fondo y
+    salidas en 0, así que su diferencia no cambia.
+  - `inventory/0026`: código propio del producto (vacío en los
+    existentes) con índice único parcial.
+  - `core/0004`: el permiso nuevo `view_costs`.
+- **Dependencia nueva del backend:** `openpyxl==3.1.5` (Excel). Va dentro
+  de la imagen; no requiere nada en la máquina.
+- **Usuarios no administradores:** revisar en Usuarios la casilla "Puede
+  ver costos". Sin ella, nadie fuera del Administrador ve costos ni el
+  precio sugerido.
+
+### Added
+
+- **Impuesto y descuento en ventas, servicios y proforma** (puntos 15, 19
+  y 26). El descuento es un monto o un porcentaje sobre el subtotal, y el
+  impuesto un porcentaje editable (13 % por defecto) sobre el subtotal ya
+  con descuento. Los montos se congelan al confirmar la venta o entregar el
+  servicio. El cálculo vive en un solo lugar: `apps/core/money.py`, con su
+  espejo en `frontend/src/lib/document-amounts.ts`. Facturas y proforma
+  muestran Subtotal / Descuento / Impuesto cuando no son cero.
+- **Impuestos como rubro aparte en el cierre de caja** (punto 18). "De ese
+  dinero" muestra los impuestos cobrados (de Hacienda), el ingreso del
+  negocio (total − impuestos) y los descuentos dados como dato informativo.
+  Se fijan al cerrar.
+- **Caja chica** (puntos 21 y 22). Fondo semanal heredado del cierre
+  anterior (el primero se escribe a mano), salidas con monto y motivo
+  registradas durante la semana desde la pantalla de Caja, y en el cierre:
+  fondo − salidas = saldo, y lo cobrado + saldo = lo que debe haber al
+  contar. Solo el Administrador registra salidas, y no se tocan las de una
+  semana ya cerrada.
+- **Resumen de ventas** (punto 20), que reemplaza al reporte "Ventas por
+  fecha":
+  - ventas, servicios y total del negocio por día, semana (sábado a
+    viernes) o mes;
+  - subtotal, descuentos, impuestos, ingreso y método de pago;
+  - comparación contra el período anterior, el año pasado u otro rango.
+  Cuenta exactamente lo mismo que la caja.
+- **PDF e impresión de todos los reportes, de Movimientos y del cierre de
+  caja** (puntos 2 y 27).
+  - Generado en el servidor con el diseño de la proforma, con los mismos
+    filtros que la pantalla.
+  - Botones "Descargar PDF" e "Imprimir" (abre el PDF en el visor).
+  - Todos llevan al pie el recuadro "Revisado por / Fecha / Observaciones".
+  - Bajo mínimo y Stock por ubicación traen una columna vacía para anotar
+    ("Cantidad a pedir", "Conteo físico").
+- **Excel de Movimientos** (punto 28): `.xlsx` real con los filtros de la
+  pantalla, con saldo si se filtra por un producto.
+- **Reporte nuevo "Productos que más se mueven"** (punto 28):
+  - entradas, salidas y total movido por producto, con Excel y PDF;
+  - no cuenta el inventario inicial;
+  - neto de reversiones: lo revertido no cuenta, ni su reversión.
+- **Código propio del producto** (punto 16).
+  - Opcional, en mayúsculas y único cuando tiene valor.
+  - Se busca en productos, el buscador general, compras y ventas.
+  - Se muestra en la etiqueta, la proforma y las facturas.
+  - El código de barras de la etiqueta lleva el código propio si lo hay.
+- **Escanear en compras y ventas** reconoce el código propio. Si una
+  familia comparte el código universal, se elige el producto sin código
+  propio, o se deja elegir de la lista si hay duda. Antes tomaba uno de la
+  familia sin avisar.
+- **La variante puede tener su propia ubicación** al crearla (punto 16);
+  la del original es solo el valor por defecto.
+- **Cambio y restablecimiento de contraseñas** (punto 3): "Mi cuenta" para
+  la propia (mínimo 8 caracteres, no cierra la sesión) y restablecer desde
+  Usuarios para el Administrador.
+- **Filtro por fechas y buscador en cierres de caja** (punto 1).
+- **Proformas con cantidades desde Ventas** (`/sales/proforma`).
+- **La línea de venta precarga el precio de venta del producto**, con botón
+  "usar precio" (puntos 17 y 23).
+- **Enlaces al documento de origen en el historial de movimientos**
+  (compra, venta, conteo o servicio; punto 12).
+- **El cierre de caja se elige de una lista de semanas por cerrar**, en vez
+  de un calendario (punto 9).
+- **Menú LICS de la app de escritorio** (punto 7):
+  - backup y reinicio piden confirmación;
+  - las acciones muestran el progreso y el historial de líneas;
+  - una sola acción a la vez;
+  - si fallan, dicen qué falló (la línea `[ERROR]` del script), guardan el
+    registro en `%APPDATA%\LICS\logs\acciones\` y ofrecen "Reintentar".
+- `seed_demo_data`: comando de datos de demostración para desarrollo.
+
+### Changed
+
+- **Roles nuevos** (puntos 4, 13, 14 y 25):
+  - **Inventario:** solo productos y ubicaciones, con el precio de venta y
+    sin costos. Ya no ve compras, proveedores ni conteos.
+  - **Ventas:** puede buscar productos y clientes para armar una venta, sin
+    esos módulos en su menú, y ve solo el precio de venta.
+  - **Clientes y servicio:** recibe, inicia y marca listo. Solo el
+    Administrador pone el precio y el tipo de servicio y entrega. El
+    operario no ve el precio, el método de pago, el importe de los
+    accesorios ni la factura.
+  - **Permiso nuevo `view_costs`** (casilla "Puede ver costos"): los costos
+    y el precio sugerido solo los ve quien lo tiene, y el precio de venta
+    solo lo cambia quien lo tiene.
+  Detalle en `docs/security.md`.
+- **La caja y los reportes comparten la definición de qué cuenta**: ventas
+  confirmadas y activas, servicios entregados y activos. Los inactivos ya
+  no cuentan en ninguno.
+- **El precio de venta y los costos del producto salen solo de la última
+  compra confirmada**; al anular una compra vuelve el precio anterior.
+- **Los botones que avanzan un servicio van al final de la pantalla**, como
+  en compras (punto 24).
+- **"Volver" ya no regresa a la pantalla de edición**: editar es un modo
+  del detalle, y cancelar una creación no deja el formulario en el
+  historial. Aplica a toda la app.
+- El instalador de Windows toma su versión de `VERSION` (punto 10).
+- Los montos congelados de ventas y servicios son de solo lectura en el
+  admin de Django.
+- Los tests del backend corren con `--buffer` (solo muestran la salida de
+  los que fallan).
+
+### Fixed
+
+- **Editar una variante que comparte código estándar fallaba** con "Ya
+  existe un producto con este código estándar", aunque no se tocara el
+  código.
+- **Los accesorios de un servicio anulado no volvían al inventario**
+  (punto 8).
+- **El cálculo de costos quedaba viejo** al agregar, editar o borrar
+  líneas de una compra o tocar sus costos de importación; ahora se descarta
+  (punto 29).
+- **El equivalente en colones de un costo en dólares repetía el mismo
+  número** (punto 30).
+- **Se podía cerrar una semana que no había terminado** (punto 9).
+- **Fechas imposibles en los filtros (2026-02-30) daban error 500**; ahora
+  responden 400.
+- **El texto de `is_staff` decía que daba acceso a todo**; solo da acceso
+  al admin de Django (punto 5).
+- La línea de venta mostraba referencias de costo a quien no debe verlas.
+- El resumen de costos de una compra no exigía ver costos.
+
+### Removed
+
+- Reporte "Ventas por fecha" (`/api/reports/sales-by-date/`): lo reemplaza
+  "Resumen de ventas".
+- Migración vacía que estaba en el frontend (punto 11).
+
+### Pending
+
+- Probar en la máquina Windows, con el `.exe` nuevo, el menú LICS y
+  "Imprimir": lista en `docs/windows-production-checklist.md`, sección
+  "Menú LICS de la aplicación de escritorio".
+- "Actualizar aplicación" sigue sin probarse de punta a punta con hardware
+  real; esta versión es la ocasión de hacerlo.
+- El código legacy de los productos migrados sigue dentro de la descripción
+  ("Código legacy: X"); no se pasó al código propio, por decisión del
+  cliente.
+
+---
+
 ## [2.3.0] - 2026-09-12
 
 > Esta sección cierra también lo que se construyó como `2.2.0`, que nunca
