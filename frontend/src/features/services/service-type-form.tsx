@@ -26,10 +26,18 @@ type ServiceTypeFormProps = {
   serverErrors?: ServiceTypeFormErrors;
   onSubmit: (values: ServiceTypeFormValues) => void | Promise<void>;
   onCancel: () => void;
+  // Dentro de una ventana (Dialog): secciones como paneles internos.
+  embedded?: boolean;
 };
 
+// En una página, cada sección es una tarjeta (24 px, con sombra). Dentro
+// de una ventana (embedded), que ya es la tarjeta, las secciones son
+// paneles internos: 18 px y sin sombra, como el resto de la escala.
 const SECTION_CLASSES =
   "overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]";
+
+const EMBEDDED_SECTION_CLASSES =
+  "overflow-hidden rounded-[var(--radius-lg)] bg-surface ring-1 ring-[var(--color-border-soft)]";
 
 /**
  * Tipo de servicio completo (punto 1A del plan del 2026-10-22): nombre,
@@ -46,8 +54,11 @@ export function ServiceTypeForm({
   serverErrors = {},
   onSubmit,
   onCancel,
+  embedded = false,
 }: ServiceTypeFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
+
+  const sectionClasses = embedded ? EMBEDDED_SECTION_CLASSES : SECTION_CLASSES;
 
   const [values, setValues] = useState<ServiceTypeFormValues>(initialValues);
 
@@ -200,7 +211,7 @@ export function ServiceTypeForm({
     <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid gap-6">
       {submitError && <FormError message={submitError} />}
 
-      <section className={SECTION_CLASSES}>
+      <section className={sectionClasses}>
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
             Servicio
@@ -268,7 +279,7 @@ export function ServiceTypeForm({
         </div>
       </section>
 
-      <section className={SECTION_CLASSES}>
+      <section className={sectionClasses}>
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
             Accesorios que suele llevar
@@ -418,7 +429,7 @@ export function ServiceTypeForm({
       </section>
 
       {mode === "edit" && (
-        <section className={SECTION_CLASSES}>
+        <section className={sectionClasses}>
           <div className="p-5 sm:p-6">
             <label htmlFor="service-type-active" className="flex cursor-pointer items-start gap-3">
               <input

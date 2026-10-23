@@ -11,6 +11,7 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AmountsSummary } from "@/components/documents/amounts-summary";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canCancelServices, canPriceServices, canReadProducts, canReadServices, canWriteServices } from "@/features/auth/permissions";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
@@ -20,10 +21,12 @@ import {
   deleteServiceAccessory,
   deliverServiceRecord,
   getServiceAccessories,
+  getServiceChargeLines,
   getServiceInvoicePdf,
   getServiceRecord,
   markServiceRecordReady,
   startServiceRecord,
+  updateServiceAccessory,
   updateServiceRecordPrice,
   updateServiceRecordTechnicalData,
 } from "@/features/services/api";
@@ -33,6 +36,8 @@ import {
   mapServiceRecordTechnicalApiFieldErrors,
 } from "@/features/services/form-errors";
 import { ServiceAccessoryForm } from "@/features/services/service-accessory-form";
+import { ServiceChargesSection } from "@/features/services/service-charges-section";
+import { ServiceKitPicker } from "@/features/services/service-kit-picker";
 import { ServicePriceForm } from "@/features/services/service-price-form";
 import { ServiceTechnicalForm } from "@/features/services/service-technical-form";
 import {
@@ -46,6 +51,7 @@ import {
   type ServiceAccessory,
   type ServiceAccessoryFormErrors,
   type ServiceAccessoryFormValues,
+  type ServiceChargeLine,
   type ServicePriceFormErrors,
   type ServicePriceFormValues,
   type ServiceRecord,
@@ -62,22 +68,33 @@ type LoadState =
       status: "loading";
       serviceRecord: null;
       accessories: [];
+      lines: [];
       message: null;
     }
   | {
       status: "success";
       serviceRecord: ServiceRecord;
       accessories: ServiceAccessory[];
+      // Líneas de cobro (punto 3 + 1B del plan del 2026-10-22). Vacías para
+      // quien no es Administrador: no las puede ver.
+      lines: ServiceChargeLine[];
       message: null;
     }
   | {
       status: "not-found" | "forbidden" | "error";
       serviceRecord: null;
       accessories: [];
+      lines: [];
       message: string;
     };
 
-type AccessoryFormState = "closed" | "create";
+type AccessoryFormState = "closed" | "create" | "kit";
+
+type AccessoryEditDraft = {
+  quantity: string;
+  unitPrice: string;
+  notes: string;
+};
 
 type AccessoryActionState = {
   isSubmitting: boolean;
@@ -139,6 +156,7 @@ export default function ServiceDetailPage() {
     status: "loading",
     serviceRecord: null,
     accessories: [],
+    lines: [],
     message: null,
   });
 
@@ -180,6 +198,16 @@ export default function ServiceDetailPage() {
     pendingDeleteId: null,
   });
 
+  const [editingAccessoryId, setEditingAccessoryId] = useState<number | null>(null);
+
+  const [accessoryEditDraft, setAccessoryEditDraft] = useState<AccessoryEditDraft>({
+    quantity: "",
+    unitPrice: "",
+    notes: "",
+  });
+
+  const [isSavingAccessoryEdit, setIsSavingAccessoryEdit] = useState(false);
+
   const serviceRecordId = Number(params.id);
 
   const hasCustomersAccess = user ? canReadServices(user) : false;
@@ -210,17 +238,6 @@ export default function ServiceDetailPage() {
       : null,
   );
 
-  const accessoriesTotal =
-    loadState.status === "success"
-      ? loadState.accessories.reduce(
-          (total, accessory) =>
-            total +
-            Number(accessory.product_detail.effective_sale_price ?? 0) *
-              accessory.quantity,
-          0,
-        )
-      : 0;
-
   useEffect(() => {
     if (
       authStatus !== "authenticated" ||
@@ -237,13 +254,16 @@ export default function ServiceDetailPage() {
     Promise.all([
       getServiceRecord(token, serviceRecordId, controller.signal),
       getServiceAccessories(token, serviceRecordId, controller.signal),
+      hasPricingAccess
+        ? getServiceChargeLines(token, serviceRecordId, controller.signal)
+        : Promise.resolve<ServiceChargeLine[]>([]),
     ])
-      .then(([serviceRecord, accessories]) => {
+      .then(([serviceRecord, accessories, lines]) => {
         if (controller.signal.aborted) {
           return;
         }
 
-        setLoadState({ status: "success", serviceRecord, accessories, message: null });
+        setLoadState({ status: "success", serviceRecord, accessories, lines, message: null });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
@@ -267,6 +287,7 @@ export default function ServiceDetailPage() {
             status: "forbidden",
             serviceRecord: null,
             accessories: [],
+            lines: [],
             message: "Este usuario no tiene permisos para consultar servicios.",
           });
 
@@ -278,6 +299,7 @@ export default function ServiceDetailPage() {
             status: "not-found",
             serviceRecord: null,
             accessories: [],
+            lines: [],
             message: "El servicio solicitado no existe o ya no está disponible.",
           });
 
@@ -288,6 +310,7 @@ export default function ServiceDetailPage() {
           status: "error",
           serviceRecord: null,
           accessories: [],
+          lines: [],
           message: getErrorMessage(error),
         });
       });
@@ -295,7 +318,43 @@ export default function ServiceDetailPage() {
     return () => {
       controller.abort();
     };
-  }, [authStatus, hasCustomersAccess, logout, router, serviceRecordId, token]);
+  }, [authStatus, hasCustomersAccess, hasPricingAccess, logout, router, serviceRecordId, token]);
+
+  function handleUnauthorized(): void {
+    void logout().then(() => {
+      router.replace("/login");
+    });
+  }
+
+  // Después de cualquier cambio de líneas o accesorios: el precio lo
+  // recalcula el backend, así que se vuelve a pedir todo junto.
+  async function reloadServiceData(): Promise<void> {
+    if (!token) {
+      return;
+    }
+
+    try {
+      const [serviceRecord, accessories, lines] = await Promise.all([
+        getServiceRecord(token, serviceRecordId),
+        getServiceAccessories(token, serviceRecordId),
+        hasPricingAccess
+          ? getServiceChargeLines(token, serviceRecordId)
+          : Promise.resolve<ServiceChargeLine[]>([]),
+      ]);
+
+      setLoadState({ status: "success", serviceRecord, accessories, lines, message: null });
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      setAccessoryActionState((current) => ({
+        ...current,
+        submitError: getErrorMessage(error),
+      }));
+    }
+  }
 
   function goBack(): void {
     router.back();
@@ -537,29 +596,6 @@ export default function ServiceDetailPage() {
     });
   }
 
-  function addAccessoryToState(created: ServiceAccessory): void {
-    setLoadState((current) => {
-      if (current.status !== "success") {
-        return current;
-      }
-
-      return { ...current, accessories: [...current.accessories, created] };
-    });
-  }
-
-  function removeAccessoryFromState(accessoryId: number): void {
-    setLoadState((current) => {
-      if (current.status !== "success") {
-        return current;
-      }
-
-      return {
-        ...current,
-        accessories: current.accessories.filter((item) => item.id !== accessoryId),
-      };
-    });
-  }
-
   async function handleAccessorySubmit(values: ServiceAccessoryFormValues): Promise<void> {
     if (!token || loadState.status !== "success" || accessoryFormState !== "create") {
       return;
@@ -573,12 +609,12 @@ export default function ServiceDetailPage() {
     }));
 
     try {
-      const created = await createServiceAccessory(
+      await createServiceAccessory(
         token,
         buildServiceAccessoryWritePayload(loadState.serviceRecord.id, values),
       );
 
-      addAccessoryToState(created);
+      await reloadServiceData();
 
       setAccessoryFormState("closed");
 
@@ -631,7 +667,11 @@ export default function ServiceDetailPage() {
       return;
     }
 
-    if (!confirmWithFocusRestore(`¿Eliminar el accesorio ${formatAccessoryLabel(accessory)}?`)) {
+    if (
+      !confirmWithFocusRestore(
+        `¿Quitar el accesorio ${formatAccessoryLabel(accessory)}? Vuelve al inventario.`,
+      )
+    ) {
       return;
     }
 
@@ -645,7 +685,7 @@ export default function ServiceDetailPage() {
     try {
       await deleteServiceAccessory(token, accessory.id);
 
-      removeAccessoryFromState(accessory.id);
+      await reloadServiceData();
 
       setAccessoryActionState((current) => ({ ...current, pendingDeleteId: null }));
     } catch (error: unknown) {
@@ -665,6 +705,69 @@ export default function ServiceDetailPage() {
         submitError: message,
         pendingDeleteId: null,
       }));
+    }
+  }
+
+  function startEditingAccessory(accessory: ServiceAccessory): void {
+    setEditingAccessoryId(accessory.id);
+    setAccessoryEditDraft({
+      quantity: String(accessory.quantity),
+      unitPrice: accessory.unit_price !== null ? String(Number(accessory.unit_price)) : "",
+      notes: accessory.notes,
+    });
+    setAccessoryActionState((current) => ({ ...current, submitError: null }));
+  }
+
+  // Cambiar la cantidad ajusta el inventario: el backend devuelve lo que
+  // tenía el accesorio y descuenta la cantidad nueva.
+  async function handleSaveAccessoryEdit(accessory: ServiceAccessory): Promise<void> {
+    if (!token) {
+      return;
+    }
+
+    const quantity = accessoryEditDraft.quantity.trim();
+    const unitPrice = accessoryEditDraft.unitPrice.trim();
+
+    if (!/^\d+$/.test(quantity) || Number(quantity) < 1) {
+      setAccessoryActionState((current) => ({
+        ...current,
+        submitError: "La cantidad debe ser un número entero de 1 o más.",
+      }));
+      return;
+    }
+
+    if (hasPricingAccess && !/^\d+(\.\d+)?$/.test(unitPrice)) {
+      setAccessoryActionState((current) => ({
+        ...current,
+        submitError: "Ingrese el precio del accesorio (0 o más).",
+      }));
+      return;
+    }
+
+    setIsSavingAccessoryEdit(true);
+    setAccessoryActionState((current) => ({ ...current, submitError: null }));
+
+    try {
+      await updateServiceAccessory(token, accessory.id, {
+        quantity: Number(quantity),
+        notes: accessoryEditDraft.notes.trim(),
+        ...(hasPricingAccess ? { unit_price: unitPrice } : {}),
+      });
+
+      setEditingAccessoryId(null);
+      await reloadServiceData();
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      setAccessoryActionState((current) => ({
+        ...current,
+        submitError: getErrorMessage(error),
+      }));
+    } finally {
+      setIsSavingAccessoryEdit(false);
     }
   }
 
@@ -889,85 +992,91 @@ export default function ServiceDetailPage() {
             <section className="app-status-card overflow-hidden">
               <div className="border-b border-[var(--color-border-soft)] p-6">
                 <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
-                  Precio del servicio
+                  Cobro del servicio
                 </h2>
 
                 <p className="mt-1 text-sm text-muted-foreground">
                   {canManage
-                    ? "Tipo de servicio, precio, descuento e impuesto. El precio incluye la mano de obra y los productos usados."
+                    ? "Lo que se cobra: líneas de cobro (mano de obra y otros conceptos) más los accesorios usados, cada uno con su precio. El total se calcula solo."
                     : loadState.serviceRecord.status === "DELIVERED"
                       ? "Montos tal como quedaron al entregar el servicio."
                       : "Este servicio ya no admite modificaciones."}
                 </p>
               </div>
 
-              <div className="p-6">
-                {canManage && accessoriesTotal > 0 && (
-                  <p className="mb-5 text-xs text-muted-foreground">
-                    Los productos usados suman ₡{formatMoney(accessoriesTotal)}
-                    {" "}(ver tabla de accesorios abajo).
-                  </p>
-                )}
+              <div className="grid gap-6 p-6">
+                <ServiceChargesSection
+                  token={token ?? ""}
+                  serviceRecordId={loadState.serviceRecord.id}
+                  lines={loadState.lines}
+                  accessories={loadState.accessories}
+                  subtotal={
+                    loadState.serviceRecord.price !== null
+                      ? Number(loadState.serviceRecord.price)
+                      : null
+                  }
+                  canManage={canManage}
+                  onChanged={reloadServiceData}
+                  onUnauthorized={handleUnauthorized}
+                />
 
-                {canManage ? (
-                  <ServicePriceForm
-                    key={loadState.serviceRecord.id}
-                    initialValues={serviceRecordToPriceFormValues(loadState.serviceRecord)}
-                    canReadServiceTypes={hasCustomersAccess}
-                    canWriteServiceTypes={hasPricingAccess}
-                    accessoriesTotal={accessoriesTotal}
-                    token={token ?? ""}
-                    isSubmitting={priceState.isSubmitting}
-                    submitError={priceState.submitError}
-                    serverErrors={priceState.fieldErrors}
-                    onSubmit={handlePriceSubmit}
-                  />
-                ) : (
-                  <div className="grid gap-5">
-                    <div className="max-w-md">
-                      <AmountsSummary
-                        amounts={
-                          loadState.serviceRecord.total !== null
-                            ? {
-                                subtotal: Number(loadState.serviceRecord.subtotal),
-                                discountAmount: Number(
-                                  loadState.serviceRecord.discount_amount,
-                                ),
-                                taxAmount: Number(loadState.serviceRecord.tax_amount),
-                                total: Number(loadState.serviceRecord.total),
-                              }
-                            : null
-                        }
-                        fallbackSubtotal={
-                          loadState.serviceRecord.price !== null
-                            ? Number(loadState.serviceRecord.price)
-                            : null
-                        }
-                        discountType={loadState.serviceRecord.discount_type ?? "AMOUNT"}
-                        discountValue={loadState.serviceRecord.discount_value ?? "0"}
-                        taxPercentage={loadState.serviceRecord.tax_percentage ?? "0"}
-                        showZeroRows={false}
-                        subtotalLabel="Precio (subtotal)"
-                      />
+                <div className="border-t border-[var(--color-border-soft)] pt-6">
+                  {canManage ? (
+                    <ServicePriceForm
+                      key={loadState.serviceRecord.id}
+                      initialValues={serviceRecordToPriceFormValues(loadState.serviceRecord)}
+                      subtotal={
+                        loadState.serviceRecord.price !== null
+                          ? Number(loadState.serviceRecord.price)
+                          : null
+                      }
+                      isSubmitting={priceState.isSubmitting}
+                      submitError={priceState.submitError}
+                      serverErrors={priceState.fieldErrors}
+                      onSubmit={handlePriceSubmit}
+                    />
+                  ) : (
+                    <div className="grid gap-5">
+                      <div className="max-w-md">
+                        <AmountsSummary
+                          amounts={
+                            loadState.serviceRecord.total !== null
+                              ? {
+                                  subtotal: Number(loadState.serviceRecord.subtotal),
+                                  discountAmount: Number(
+                                    loadState.serviceRecord.discount_amount,
+                                  ),
+                                  taxAmount: Number(loadState.serviceRecord.tax_amount),
+                                  total: Number(loadState.serviceRecord.total),
+                                }
+                              : null
+                          }
+                          fallbackSubtotal={
+                            loadState.serviceRecord.price !== null
+                              ? Number(loadState.serviceRecord.price)
+                              : null
+                          }
+                          discountType={loadState.serviceRecord.discount_type ?? "AMOUNT"}
+                          discountValue={loadState.serviceRecord.discount_value ?? "0"}
+                          taxPercentage={loadState.serviceRecord.tax_percentage ?? "0"}
+                          showZeroRows={false}
+                          subtotalLabel="Subtotal (líneas y accesorios)"
+                        />
+                      </div>
+
+                      <dl>
+                        <div className="app-status-row">
+                          <dt>Método de pago</dt>
+                          <dd>
+                            {loadState.serviceRecord.payment_method
+                              ? PAYMENT_METHOD_LABELS[loadState.serviceRecord.payment_method]
+                              : "—"}
+                          </dd>
+                        </div>
+                      </dl>
                     </div>
-
-                    <dl>
-                      <div className="app-status-row">
-                        <dt>Tipo de servicio</dt>
-                        <dd>{loadState.serviceRecord.service_type_detail?.name ?? "—"}</dd>
-                      </div>
-
-                      <div className="app-status-row">
-                        <dt>Método de pago</dt>
-                        <dd>
-                          {loadState.serviceRecord.payment_method
-                            ? PAYMENT_METHOD_LABELS[loadState.serviceRecord.payment_method]
-                            : "—"}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </section>
           )}
@@ -1044,21 +1153,54 @@ export default function ServiceDetailPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Piezas del inventario usadas durante el servicio. Al agregarlas se descuenta el
-                  stock; al eliminarlas se revierte el movimiento.
+                  Piezas del inventario usadas durante el servicio. Agregarlas descuenta el stock;
+                  cambiar la cantidad lo ajusta y quitarlas lo devuelve.
                 </p>
               </div>
 
               {canManage && accessoryFormState === "closed" && (
-                <Button type="button" onClick={openCreateAccessoryForm}>
-                  Agregar accesorio
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setEditingAccessoryId(null);
+                      setAccessoryFormState("kit");
+                    }}
+                  >
+                    Agregar kit
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setEditingAccessoryId(null);
+                      openCreateAccessoryForm();
+                    }}
+                  >
+                    Agregar accesorio
+                  </Button>
+                </div>
               )}
             </div>
 
             {accessoryActionState.submitError && accessoryFormState === "closed" && (
               <div className="border-b border-[var(--color-border-soft)] p-6">
                 <FormError message={accessoryActionState.submitError} />
+              </div>
+            )}
+
+            {accessoryFormState === "kit" && (
+              <div className="border-b border-[var(--color-border-soft)] bg-surface-muted/40 p-6">
+                <ServiceKitPicker
+                  token={token ?? ""}
+                  serviceRecordId={loadState.serviceRecord.id}
+                  onApplied={reloadServiceData}
+                  onClose={() => {
+                    setAccessoryFormState("closed");
+                  }}
+                  onUnauthorized={handleUnauthorized}
+                />
               </div>
             )}
 
@@ -1089,69 +1231,174 @@ export default function ServiceDetailPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[560px] border-collapse">
+                <table className="w-full min-w-[640px] border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Producto
-                      </th>
-
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Cantidad
-                      </th>
-
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        Notas
-                      </th>
-
-                      {canManage && (
-                        <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                          Acciones
-                        </th>
-                      )}
+                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">Producto</th>
+                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground text-right">Cantidad</th>
+                      {hasPricingAccess && <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground text-right">Precio</th>}
+                      {hasPricingAccess && <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground text-right">Importe</th>}
+                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">Notas</th>
+                      {canManage && <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground text-right">Acciones</th>}
                     </tr>
                   </thead>
 
                   <tbody>
-                    {loadState.accessories.map((accessory) => (
-                      <tr
-                        key={accessory.id}
-                        className="border-b border-[var(--color-border-soft)] last:border-b-0"
-                      >
-                        <td className="px-5 py-4 text-sm font-semibold text-foreground">
-                          {accessory.product_detail.standard_code} — {accessory.product_detail.name}
-                        </td>
-
-                        <td className="px-5 py-4 text-sm text-foreground">{accessory.quantity}</td>
-
-                        <td className="px-5 py-4 text-sm text-muted-foreground">
-                          {accessory.notes || "—"}
-                        </td>
-
-                        {canManage && (
-                          <td className="px-5 py-4">
+                    {loadState.accessories.map((accessory) =>
+                      editingAccessoryId === accessory.id ? (
+                        <tr
+                          key={accessory.id}
+                          className="border-b border-[var(--color-border-soft)] bg-surface-muted/40 last:border-b-0"
+                        >
+                          <td className="px-5 py-3 text-sm font-semibold text-foreground">
+                            {formatAccessoryLabel(accessory)}
+                          </td>
+                          <td className="px-5 py-3">
+                            <Input
+                              value={accessoryEditDraft.quantity}
+                              onChange={(event) => {
+                                setAccessoryEditDraft((current) => ({
+                                  ...current,
+                                  quantity: event.target.value,
+                                }));
+                              }}
+                              inputMode="numeric"
+                              aria-label="Cantidad"
+                              className="ml-auto h-10 w-20 text-right"
+                              disabled={isSavingAccessoryEdit}
+                            />
+                          </td>
+                          {hasPricingAccess && (
+                            <td className="px-5 py-3">
+                              <Input
+                                value={accessoryEditDraft.unitPrice}
+                                onChange={(event) => {
+                                  setAccessoryEditDraft((current) => ({
+                                    ...current,
+                                    unitPrice: event.target.value,
+                                  }));
+                                }}
+                                inputMode="decimal"
+                                aria-label="Precio"
+                                className="ml-auto h-10 w-28 text-right"
+                                disabled={isSavingAccessoryEdit}
+                              />
+                            </td>
+                          )}
+                          {hasPricingAccess && (
+                            <td className="px-5 py-3 text-right font-mono text-sm text-muted-foreground">—</td>
+                          )}
+                          <td className="px-5 py-3">
+                            <Input
+                              value={accessoryEditDraft.notes}
+                              onChange={(event) => {
+                                setAccessoryEditDraft((current) => ({
+                                  ...current,
+                                  notes: event.target.value,
+                                }));
+                              }}
+                              aria-label="Notas"
+                              maxLength={255}
+                              className="h-10"
+                              disabled={isSavingAccessoryEdit}
+                            />
+                          </td>
+                          <td className="px-5 py-3">
                             <div className="flex justify-end gap-2">
                               <Button
                                 type="button"
-                                variant="danger"
-                                isLoading={accessoryActionState.pendingDeleteId === accessory.id}
-                                loadingText="Eliminando…"
+                                variant="ghost"
                                 onClick={() => {
-                                  void handleDeleteAccessory(accessory);
+                                  setEditingAccessoryId(null);
                                 }}
-                                disabled={
-                                  accessoryActionState.isSubmitting ||
-                                  (accessoryActionState.pendingDeleteId !== null &&
-                                    accessoryActionState.pendingDeleteId !== accessory.id)
-                                }
+                                disabled={isSavingAccessoryEdit}
                               >
-                                Eliminar
+                                Cancelar
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  void handleSaveAccessoryEdit(accessory);
+                                }}
+                                isLoading={isSavingAccessoryEdit}
+                                loadingText="Guardando…"
+                              >
+                                Guardar
                               </Button>
                             </div>
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                        </tr>
+                      ) : (
+                        <tr
+                          key={accessory.id}
+                          className="border-b border-[var(--color-border-soft)] last:border-b-0"
+                        >
+                          <td className="px-5 py-4 text-sm font-semibold text-foreground">
+                            {formatAccessoryLabel(accessory)}
+                          </td>
+
+                          <td className="px-5 py-4 text-right text-sm text-foreground">
+                            {accessory.quantity}
+                          </td>
+
+                          {hasPricingAccess && (
+                            <td className="px-5 py-4 text-right font-mono text-sm text-muted-foreground">
+                              ₡{formatMoney(accessory.unit_price ?? 0)}
+                            </td>
+                          )}
+
+                          {hasPricingAccess && (
+                            <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                              {Number(accessory.amount ?? 0) > 0
+                                ? `₡${formatMoney(accessory.amount ?? 0)}`
+                                : "Incluido"}
+                            </td>
+                          )}
+
+                          <td className="px-5 py-4 text-sm text-muted-foreground">
+                            {accessory.notes || "—"}
+                          </td>
+
+                          {canManage && (
+                            <td className="px-5 py-4">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    startEditingAccessory(accessory);
+                                  }}
+                                  disabled={
+                                    accessoryActionState.pendingDeleteId !== null ||
+                                    editingAccessoryId !== null
+                                  }
+                                >
+                                  Editar
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  variant="danger"
+                                  isLoading={accessoryActionState.pendingDeleteId === accessory.id}
+                                  loadingText="Quitando…"
+                                  onClick={() => {
+                                    void handleDeleteAccessory(accessory);
+                                  }}
+                                  disabled={
+                                    accessoryActionState.isSubmitting ||
+                                    editingAccessoryId !== null ||
+                                    (accessoryActionState.pendingDeleteId !== null &&
+                                      accessoryActionState.pendingDeleteId !== accessory.id)
+                                  }
+                                >
+                                  Quitar
+                                </Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1205,7 +1452,7 @@ export default function ServiceDetailPage() {
               disabled={loadState.serviceRecord.price === null}
               title={
                 loadState.serviceRecord.price === null
-                  ? "Defina el precio del servicio antes de entregarlo, para que se cuente en el cierre de caja."
+                  ? "Agregue una línea de cobro o un accesorio antes de entregarlo, para que se cuente en el cierre de caja."
                   : undefined
               }
               onClick={() => {

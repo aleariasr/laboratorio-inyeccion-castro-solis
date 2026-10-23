@@ -231,7 +231,7 @@ export default function ServiceTypesPage() {
 
         {loadState.status === "error" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="No se pudieron cargar los tipos de servicio"
               message={loadState.message}
               tone="error"
@@ -251,7 +251,7 @@ export default function ServiceTypesPage() {
 
         {loadState.status === "success" && loadState.data.results.length === 0 && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="Sin tipos de servicio"
               message={
                 filters.query || filters.activeState !== "active"

@@ -74,8 +74,11 @@ class InjectorServiceRecordAdmin(admin.ModelAdmin):
         "is_active",
     )
     # Congelados al entregar: son lo que se cobró y lo que suma la caja.
-    # Editarlos a mano descuadraría el cierre (punto 26).
+    # Editarlos a mano descuadraría el cierre (punto 26). price es la suma
+    # de las líneas de cobro y los accesorios (punto 3 + 1B del plan del
+    # 2026-10-22): tampoco se escribe a mano.
     readonly_fields = (
+        "price",
         "subtotal_amount",
         "discount_amount",
         "tax_amount",

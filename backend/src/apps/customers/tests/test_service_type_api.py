@@ -106,7 +106,7 @@ class ServiceTypeApiTest(APITestCase):
         self.assertEqual(self.service_type.updated_by, self.user)
 
 
-class ServiceTypePriceHistoryTest(APITestCase):
+class ServiceTypePriceHistoryNotWrittenTest(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             username="admin",
@@ -149,96 +149,21 @@ class ServiceTypePriceHistoryTest(APITestCase):
             updated_by=self.user,
         )
 
-    def test_setting_price_and_service_type_creates_history_entry(self):
+    def test_saving_a_service_no_longer_records_its_total_as_type_price(self):
+        # Punto 3 del plan del 2026-10-22: guardar el servicio anotaba su
+        # precio total (con accesorios) como precio del tipo, y el sugerido
+        # le volvía a sumar los accesorios. Ya no se anota nada.
         response = self.client.patch(
             f"/api/customers/service-records/{self.service_record.id}/",
             {
                 "service_type": self.service_type.id,
                 "price": "15000.0000",
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        history = ServiceTypePriceHistory.objects.get(
-            service_type=self.service_type,
-            service_record=self.service_record,
-        )
-
-        self.assertEqual(history.price, Decimal("15000.0000"))
-        self.assertEqual(history.created_by, self.user)
-
-    def test_editing_price_again_updates_the_same_history_entry(self):
-        self.client.patch(
-            f"/api/customers/service-records/{self.service_record.id}/",
-            {
-                "service_type": self.service_type.id,
-                "price": "15000.0000",
-            },
-            format="json",
-        )
-
-        response = self.client.patch(
-            f"/api/customers/service-records/{self.service_record.id}/",
-            {
-                "price": "18000.0000",
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(
-            ServiceTypePriceHistory.objects.filter(
-                service_type=self.service_type,
-                service_record=self.service_record,
-            ).count(),
-            1,
-        )
-
-        history = ServiceTypePriceHistory.objects.get(
-            service_type=self.service_type,
-            service_record=self.service_record,
-        )
-
-        self.assertEqual(history.price, Decimal("18000.0000"))
-
-    def test_setting_price_without_service_type_creates_no_history(self):
-        response = self.client.patch(
-            f"/api/customers/service-records/{self.service_record.id}/",
-            {
-                "price": "5000.0000",
             },
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(ServiceTypePriceHistory.objects.count(), 0)
-
-    def test_filter_price_history_by_service_type(self):
-        self.client.patch(
-            f"/api/customers/service-records/{self.service_record.id}/",
-            {
-                "service_type": self.service_type.id,
-                "price": "15000.0000",
-            },
-            format="json",
-        )
-
-        response = self.client.get(
-            "/api/customers/service-type-price-history/",
-            {
-                "service_type": self.service_type.id,
-            },
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 1)
-        self.assertEqual(
-            response.data["results"][0]["price"],
-            "15000.0000",
-        )
 
 
 from apps.core.permissions import ROLE_CUSTOMERS  # noqa: E402

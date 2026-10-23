@@ -62,22 +62,15 @@ export function validateServiceRecordTechnicalForm(
 
 export function validateServicePriceForm(
   values: ServicePriceFormValues,
+  subtotal: number | null,
 ): ServicePriceFormErrors {
   const errors: ServicePriceFormErrors = {};
 
-  const price = values.price.trim();
-
-  if (price) {
-    if (!DECIMAL_PATTERN.test(price) || Number(price) <= 0) {
-      errors.price = "Ingrese un precio válido mayor que cero.";
-    }
-  }
-
-  // Mismas reglas que el backend (apps/core/money.py). Sin precio solo
-  // se validan los rangos: el descuento se compara al poner el precio.
+  // Mismas reglas que el backend (apps/core/money.py). Sin subtotal (sin
+  // líneas ni accesorios) solo se validan los rangos.
   const discountValue = Number(values.discountValue.trim() || 0);
   const amounts = computeDocumentAmounts(
-    price && !errors.price ? Number(price) : discountValue,
+    subtotal ?? discountValue,
     values.discountType,
     discountValue,
     Number(values.taxPercentage.trim() || 0),

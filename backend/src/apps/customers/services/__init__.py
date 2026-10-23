@@ -3,8 +3,16 @@ from .customer import (
     register_injector,
 )
 from .service_accessory import (
+    add_service_accessories_bulk,
     add_service_accessory,
     remove_service_accessory,
+    update_service_accessory,
+)
+from .service_charges import (
+    add_charge_line,
+    recalculate_service_price,
+    remove_charge_line,
+    update_charge_line,
 )
 from .service_record import (
     cancel_service,
@@ -13,7 +21,6 @@ from .service_record import (
     receive_injector,
     start_service,
 )
-from .service_type import sync_service_type_price_history
 
 __all__ = [
     "register_customer",
@@ -23,7 +30,12 @@ __all__ = [
     "mark_ready",
     "deliver_service",
     "cancel_service",
-    "sync_service_type_price_history",
     "add_service_accessory",
+    "add_service_accessories_bulk",
+    "update_service_accessory",
     "remove_service_accessory",
+    "add_charge_line",
+    "update_charge_line",
+    "remove_charge_line",
+    "recalculate_service_price",
 ]

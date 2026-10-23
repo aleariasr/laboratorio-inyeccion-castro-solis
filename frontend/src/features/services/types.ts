@@ -158,29 +158,25 @@ export function buildServiceRecordTechnicalWritePayload(
   };
 }
 
-// Precio del servicio (tipo de servicio + precio + método de pago, en su propio cuadro)
+// Cobro del servicio: descuento, impuesto y método de pago. El precio ya no
+// se escribe: es la suma de las líneas de cobro y los accesorios (punto 3 +
+// 1B del plan del 2026-10-22).
 export type ServicePriceWritePayload = {
-  price: string;
   payment_method: PaymentMethod;
-  service_type: number | null;
   discount_type: DiscountType;
   discount_value: string;
   tax_percentage: string;
 };
 
 export type ServicePriceFormValues = {
-  price: string;
   paymentMethod: PaymentMethod;
-  serviceTypeId: string;
   discountType: DiscountType;
   discountValue: string;
   taxPercentage: string;
 };
 
 export type ServicePriceFormField =
-  | "price"
   | "paymentMethod"
-  | "serviceTypeId"
   | "discountType"
   | "discountValue"
   | "taxPercentage";
@@ -191,9 +187,7 @@ export function serviceRecordToPriceFormValues(
   serviceRecord: ServiceRecord,
 ): ServicePriceFormValues {
   return {
-    price: serviceRecord.price ?? "",
     paymentMethod: serviceRecord.payment_method ?? "CASH",
-    serviceTypeId: serviceRecord.service_type ? String(serviceRecord.service_type) : "",
     discountType: serviceRecord.discount_type ?? "AMOUNT",
     // "1000.0000" → "1000", "13.00" → "13": así se ve en los campos.
     discountValue: String(Number(serviceRecord.discount_value ?? 0)),
@@ -205,14 +199,35 @@ export function buildServicePriceWritePayload(
   values: ServicePriceFormValues,
 ): ServicePriceWritePayload {
   return {
-    price: values.price.trim(),
     payment_method: values.paymentMethod,
-    service_type: values.serviceTypeId ? Number(values.serviceTypeId) : null,
     discount_type: values.discountType,
     discount_value: values.discountValue.trim() || "0",
     tax_percentage: values.taxPercentage.trim() || "0",
   };
 }
+
+// Línea de cobro (ServiceChargeLine): "Mano de obra × 1", "Limpieza × 4".
+// Solo el Administrador.
+export type ServiceChargeLine = {
+  id: number;
+  service_record: number;
+  service_type: number | null;
+  service_type_detail: ServiceType | null;
+  description: string;
+  quantity: number;
+  unit_price: string;
+  amount: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ServiceChargeLineWritePayload = {
+  service_record?: number;
+  service_type?: number | null;
+  description?: string;
+  quantity?: number;
+  unit_price?: string;
+};
 
 // Tipo de servicio: catálogo global (ServiceType)
 export type ServiceType = {
@@ -335,31 +350,27 @@ export function buildServiceTypeWritePayload(
   };
 }
 
-export type ServiceTypePriceHistory = {
-  id: number;
-  service_type: number;
-  service_type_detail: ServiceType;
-  service_record: number;
-  price: string;
-  charged_at: string;
-};
-
 // Línea de accesorio utilizado en un servicio (InjectorServiceAccessory).
 // El accesorio es un producto real del inventario: al agregarlo se
 // descuenta stock, y al eliminarlo se revierte el movimiento.
 export type ServiceAccessoryProductDetail = {
   id: number;
   standard_code: string;
+  own_code: string;
   name: string;
   effective_sale_price: string | null;
 };
 
+// unit_price y amount: precio fijado al agregar el accesorio y su importe.
+// Null para quien no es Administrador (punto 25).
 export type ServiceAccessory = {
   id: number;
   service_record: number;
   product: number;
   product_detail: ServiceAccessoryProductDetail;
   quantity: number;
+  unit_price: string | null;
+  amount: string | null;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -370,6 +381,12 @@ export type ServiceAccessoryWritePayload = {
   product: number;
   quantity: number;
   notes: string;
+};
+
+export type ServiceAccessoryUpdatePayload = {
+  quantity?: number;
+  unit_price?: string;
+  notes?: string;
 };
 
 export type ServiceAccessoryFormValues = {

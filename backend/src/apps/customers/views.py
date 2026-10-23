@@ -15,6 +15,7 @@ from apps.core.permissions import (
 from apps.core.query_params import (
     parse_boolean_query_param,
     parse_date_query_param,
+    parse_positive_integer_query_param,
 )
 
 from apps.customers.exceptions import (
@@ -37,10 +38,14 @@ from apps.customers.serializers import (
     InjectorSerializer,
     InjectorServiceAccessorySerializer,
     InjectorServiceRecordSerializer,
+    ServiceAccessoryBulkSerializer,
+    ServiceChargeLineSerializer,
     ServiceTypePriceHistorySerializer,
     ServiceTypeSerializer,
 )
 from apps.customers.services import (
+    add_charge_line,
+    add_service_accessories_bulk,
     add_service_accessory,
     cancel_service,
     deliver_service,
@@ -48,9 +53,11 @@ from apps.customers.services import (
     receive_injector,
     register_customer,
     register_injector,
+    remove_charge_line,
     remove_service_accessory,
     start_service,
-    sync_service_type_price_history,
+    update_charge_line,
+    update_service_accessory,
 )
 
 from apps.customers.models import (
@@ -58,6 +65,7 @@ from apps.customers.models import (
     Injector,
     InjectorServiceAccessory,
     InjectorServiceRecord,
+    ServiceChargeLine,
     ServiceType,
     ServiceTypePriceHistory,
 )
@@ -298,13 +306,12 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        service_record = serializer.save(
+        # Ya no se anota el precio en el historial del tipo de servicio:
+        # guardaba el total con accesorios y el sugerido los volvía a
+        # sumar, así que el precio crecía (punto 3 del plan del
+        # 2026-10-22). El precio de referencia es el del tipo.
+        serializer.save(
             updated_by=self.request.user,
-        )
-
-        sync_service_type_price_history(
-            service_record=service_record,
-            user=self.request.user,
         )
 
     @action(
@@ -511,14 +518,18 @@ class InjectorServiceAccessoryViewSet(
     mixins.CreateModelMixin,
     mixins.RetrieveModelMixin,
     mixins.ListModelMixin,
+    mixins.UpdateModelMixin,
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     """
-    Sin PATCH/PUT a propósito: el producto y la cantidad no se pueden editar
-    una vez creado (ya descontó inventario) — se elimina la línea (revierte
-    el movimiento) y se crea una nueva si hace falta cambiarla.
+    Accesorios usados en un servicio. Desde el punto 3 + 1B del plan del
+    2026-10-22 se pueden editar (cantidad, precio, notas): el inventario lo
+    ajusta update_service_accessory. El producto no se cambia: eso es
+    quitar el accesorio y agregar otro.
     """
+
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     serializer_class = InjectorServiceAccessorySerializer
     permission_classes = [ServicesPermission]
@@ -552,6 +563,7 @@ class InjectorServiceAccessoryViewSet(
                 product=serializer.validated_data["product"],
                 quantity=serializer.validated_data["quantity"],
                 notes=serializer.validated_data.get("notes", ""),
+                unit_price=serializer.validated_data.get("unit_price"),
                 user=request.user,
             )
         except (
@@ -570,6 +582,68 @@ class InjectorServiceAccessoryViewSet(
             status=status.HTTP_201_CREATED,
         )
 
+    def update(self, request, *args, **kwargs):
+        service_accessory = self.get_object()
+
+        serializer = self.get_serializer(
+            service_accessory,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            service_accessory = update_service_accessory(
+                service_accessory=service_accessory,
+                quantity=serializer.validated_data.get("quantity"),
+                unit_price=serializer.validated_data.get("unit_price"),
+                notes=serializer.validated_data.get("notes"),
+                user=request.user,
+            )
+        except (
+            ServiceNotEditableError,
+            InsufficientStockForServiceError,
+        ) as exc:
+            return Response(
+                {"detail": str(exc) or exc.__class__.__name__},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(self.get_serializer(service_accessory).data)
+
+    @action(detail=False, methods=["post"], url_path="bulk")
+    def bulk(self, request):
+        """
+        Agrega el kit de un tipo de servicio: todo o nada. Si un producto
+        ya está en el servicio, se suma a su cantidad.
+        """
+
+        serializer = ServiceAccessoryBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            accessories = add_service_accessories_bulk(
+                service_record=serializer.validated_data["service_record"],
+                items=[
+                    (item["product"], item["quantity"])
+                    for item in serializer.validated_data["items"]
+                ],
+                user=request.user,
+            )
+        except (
+            ServiceNotEditableError,
+            InsufficientStockForServiceError,
+        ) as exc:
+            return Response(
+                {"detail": str(exc) or exc.__class__.__name__},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            self.get_serializer(accessories, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
     def destroy(self, request, *args, **kwargs):
         service_accessory = self.get_object()
 
@@ -581,6 +655,101 @@ class InjectorServiceAccessoryViewSet(
         except ServiceNotEditableError as exc:
             return Response(
                 {"detail": str(exc) or exc.__class__.__name__},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ServiceChargeLineViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Líneas de cobro de un servicio (punto 3 + 1B del plan del 2026-10-22).
+    Son precios: solo el Administrador, también para leerlas (punto 25).
+    ?service_record=<id> filtra las de un servicio. Cada cambio recalcula
+    el precio del servicio.
+    """
+
+    serializer_class = ServiceChargeLineSerializer
+    permission_classes = [ServicesPermission, ModuleAdminRequired]
+    pagination_class = None
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        queryset = ServiceChargeLine.objects.select_related(
+            "service_record",
+            "service_type",
+        ).order_by("id")
+
+        service_record_id = parse_positive_integer_query_param(
+            self.request.query_params.get("service_record"),
+            name="service_record",
+        )
+
+        if service_record_id is not None:
+            queryset = queryset.filter(service_record_id=service_record_id)
+
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            line = add_charge_line(
+                service_record=serializer.validated_data["service_record"],
+                service_type=serializer.validated_data.get("service_type"),
+                description=serializer.validated_data["description"],
+                quantity=serializer.validated_data.get("quantity", 1),
+                unit_price=serializer.validated_data["unit_price"],
+                user=request.user,
+            )
+        except ServiceNotEditableError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            self.get_serializer(line).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        line = self.get_object()
+
+        serializer = self.get_serializer(line, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        fields = {
+            field_name: value
+            for field_name, value in serializer.validated_data.items()
+            if field_name in ("service_type", "description", "quantity", "unit_price")
+        }
+
+        try:
+            line = update_charge_line(line=line, user=request.user, **fields)
+        except ServiceNotEditableError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(self.get_serializer(line).data)
+
+    def destroy(self, request, *args, **kwargs):
+        line = self.get_object()
+
+        try:
+            remove_charge_line(line=line, user=request.user)
+        except ServiceNotEditableError as exc:
+            return Response(
+                {"detail": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

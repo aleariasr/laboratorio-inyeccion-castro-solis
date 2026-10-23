@@ -134,7 +134,6 @@ class InjectorServiceRecordApiTest(APITestCase):
                 "leakage": "0.100",
                 "inductance": "2.500",
                 "isolation": "3.750",
-                "price": "15000.0000",
                 "notes_before": "Notas antes",
                 "notes_after": "Notas después",
                 "observations": "Observaciones internas",
@@ -150,7 +149,6 @@ class InjectorServiceRecordApiTest(APITestCase):
         self.assertEqual(str(self.service_record.leakage), "0.100")
         self.assertEqual(str(self.service_record.inductance), "2.500")
         self.assertEqual(str(self.service_record.isolation), "3.750")
-        self.assertEqual(str(self.service_record.price), "15000.0000")
         self.assertEqual(self.service_record.notes_before, "Notas antes")
         self.assertEqual(self.service_record.notes_after, "Notas después")
         self.assertEqual(
@@ -159,20 +157,18 @@ class InjectorServiceRecordApiTest(APITestCase):
         )
         self.assertEqual(self.service_record.updated_by, self.user)
 
-    def test_update_service_record_rejects_zero_price(self):
+    def test_price_is_not_written_by_hand(self):
+        # El precio es la suma de las líneas de cobro y los accesorios
+        # (punto 3 + 1B del plan del 2026-10-22): mandarlo no lo cambia.
         response = self.client.patch(
             f"/api/customers/service-records/{self.service_record.id}/",
             {
-                "price": "0.0000",
+                "price": "15000.0000",
             },
             format="json",
         )
 
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST,
-        )
-        self.assertIn("price", response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.service_record.refresh_from_db()
 

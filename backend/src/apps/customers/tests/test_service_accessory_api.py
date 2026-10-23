@@ -515,7 +515,9 @@ class InjectorServiceAccessoryApiTest(APITestCase):
         )
         self.assertEqual(current_stock(self.product), 5)
 
-    def test_update_service_accessory_is_not_allowed(self):
+    def test_update_service_accessory_quantity_adjusts_stock(self):
+        # Punto 3 + 1B del plan del 2026-10-22: el accesorio se edita y el
+        # inventario se ajusta (detalle en test_service_charges.py).
         create_response = self.client.post(
             "/api/customers/service-accessories/",
             {
@@ -535,7 +537,22 @@ class InjectorServiceAccessoryApiTest(APITestCase):
             format="json",
         )
 
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["quantity"], 3)
+        self.assertEqual(current_stock(self.product), 2)
+
+        # PUT (reemplazo completo) sigue sin existir.
+        put_response = self.client.put(
+            f"/api/customers/service-accessories/{service_accessory_id}/",
+            {
+                "service_record": self.service_record.id,
+                "product": self.product.id,
+                "quantity": 1,
+            },
+            format="json",
+        )
+
         self.assertEqual(
-            response.status_code,
+            put_response.status_code,
             status.HTTP_405_METHOD_NOT_ALLOWED,
         )

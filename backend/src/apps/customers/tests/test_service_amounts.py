@@ -14,6 +14,7 @@ from apps.customers.models import (
     Injector,
     InjectorServiceRecord,
     InjectorServiceStatus,
+    ServiceChargeLine,
 )
 from apps.customers.services import receive_injector
 
@@ -60,6 +61,16 @@ class ServiceAmountsApiTest(APITestCase):
             injector=self.injector,
             received_at=timezone.now(),
             price=Decimal("20000.0000"),
+            created_by=self.admin,
+            updated_by=self.admin,
+        )
+        # price = líneas de cobro + accesorios (punto 3 + 1B del plan del
+        # 2026-10-22).
+        self.line = ServiceChargeLine.objects.create(
+            service_record=self.service_record,
+            description="Mano de obra",
+            quantity=1,
+            unit_price=Decimal("20000.0000"),
             created_by=self.admin,
             updated_by=self.admin,
         )
@@ -149,21 +160,28 @@ class ServiceAmountsApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("discount_value", response.data)
 
-    def test_lowering_price_below_discount_returns_400(self):
+    def test_price_below_discount_blocks_delivery(self):
+        # El precio baja al editar una línea de cobro; el descuento que ya
+        # no cabe se detecta al entregar, y el servicio sigue listo.
         self.client.patch(
             self.service_url(),
             {"discount_value": "5000"},
             format="json",
         )
 
-        response = self.client.patch(
-            self.service_url(),
-            {"price": "4000"},
+        line = self.client.patch(
+            f"/api/customers/service-charge-lines/{self.line.id}/",
+            {"unit_price": "4000"},
             format="json",
         )
+        self.assertEqual(line.status_code, status.HTTP_200_OK)
+
+        self.move_to_ready()
+        response = self.client.post(self.service_url("deliver/"), {}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("discount_value", response.data)
+        self.service_record.refresh_from_db()
+        self.assertEqual(self.service_record.status, InjectorServiceStatus.READY)
 
     def test_tax_over_100_returns_400(self):
         response = self.client.patch(

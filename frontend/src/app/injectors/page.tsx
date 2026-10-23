@@ -436,7 +436,7 @@ export default function InjectorsPage() {
 
         {loadState.status === "forbidden" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="Acceso restringido"
               message={loadState.message}
               tone="warning"
@@ -446,7 +446,7 @@ export default function InjectorsPage() {
 
         {loadState.status === "error" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="No se pudieron cargar los inyectores"
               message={loadState.message}
               tone="error"
@@ -466,7 +466,7 @@ export default function InjectorsPage() {
 
         {loadState.status === "success" && loadState.data.results.length === 0 && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title={filters.query ? "No se encontraron inyectores" : "No hay inyectores registrados"}
               message={
                 filters.query

@@ -541,7 +541,7 @@ export default function CustomerDetailPage() {
 
             {!hasInjectorsAccess && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudieron cargar los inyectores"
                   message="Este usuario no tiene permisos para consultar inyectores."
                   tone="warning"
@@ -559,7 +559,7 @@ export default function CustomerDetailPage() {
               (injectorsLoadState.status === "forbidden" ||
               injectorsLoadState.status === "error") && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudieron cargar los inyectores"
                   message={injectorsLoadState.message}
                   tone={injectorsLoadState.status === "forbidden" ? "warning" : "error"}
@@ -640,7 +640,7 @@ export default function CustomerDetailPage() {
 
             {!hasSalesAccess && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudieron cargar las ventas"
                   message="Este usuario no tiene permisos para consultar ventas."
                   tone="warning"
@@ -657,7 +657,7 @@ export default function CustomerDetailPage() {
             {hasSalesAccess &&
               (salesLoadState.status === "forbidden" || salesLoadState.status === "error") && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudieron cargar las ventas"
                   message={salesLoadState.message}
                   tone={salesLoadState.status === "forbidden" ? "warning" : "error"}

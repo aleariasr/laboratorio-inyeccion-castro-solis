@@ -673,9 +673,99 @@ def build_service_invoice_pdf(*, service_record, accessories):
 
     y -= 10 * mm
 
+    # Detalle del cobro (punto 3 + 1B del plan del 2026-10-22): las líneas
+    # de cobro y los accesorios, cada uno con su importe. Un accesorio en
+    # 0 sale como "Incluido" (así quedaron los de servicios anteriores al
+    # cobro por líneas, cuyo precio ya los incluía).
+    detail_rows = [
+        (
+            line.description
+            if line.quantity == 1
+            else f"{line.description} × {line.quantity}",
+            f"CRC {_format_money(line.unit_price * line.quantity)}",
+        )
+        for line in service_record.charge_lines.all()
+    ]
+
+    for accessory in accessories:
+        own_code = (
+            f" (cód. {accessory.product.own_code})"
+            if accessory.product.own_code
+            else ""
+        )
+        quantity = f" × {accessory.quantity}" if accessory.quantity != 1 else ""
+        amount = accessory.unit_price * accessory.quantity
+
+        detail_rows.append(
+            (
+                f"{accessory.product.standard_code} — "
+                f"{accessory.product.name}{own_code}{quantity}",
+                f"CRC {_format_money(amount)}" if amount > 0 else "Incluido",
+            )
+        )
+
+    if detail_rows:
+        header_height = 8 * mm
+        pdf.setFillColor(PROFORMA_BRAND_BLUE)
+        pdf.rect(
+            PROFORMA_PAGE_MARGIN,
+            y - header_height,
+            content_width,
+            header_height,
+            stroke=0,
+            fill=1,
+        )
+
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawString(
+            PROFORMA_PAGE_MARGIN + 3 * mm,
+            y - header_height + 2.6 * mm,
+            "DETALLE",
+        )
+        pdf.drawRightString(column_price_x, y - header_height + 2.6 * mm, "IMPORTE")
+        pdf.setFillColor(colors.black)
+
+        y -= header_height + 5 * mm
+
+        for index, (label, amount_text) in enumerate(detail_rows):
+            if y < PROFORMA_BOTTOM_MARGIN:
+                pdf.showPage()
+                _draw_document_banner(
+                    pdf,
+                    page_width,
+                    page_height,
+                    title="FACTURA",
+                    generated_at=generated_at,
+                )
+                y = page_height - PROFORMA_BANNER_HEIGHT - 12 * mm
+
+            if index % 2 == 1:
+                pdf.setFillColor(PROFORMA_ROW_ALT)
+                pdf.rect(
+                    PROFORMA_PAGE_MARGIN,
+                    y - 2 * mm,
+                    content_width,
+                    PROFORMA_ROW_HEIGHT,
+                    stroke=0,
+                    fill=1,
+                )
+                pdf.setFillColor(colors.black)
+
+            pdf.setFont("Helvetica", 9)
+            pdf.drawString(
+                PROFORMA_PAGE_MARGIN + 3 * mm,
+                y,
+                _fit_width(label, DOCUMENT_LINE_NAME_WIDTH + 20 * mm),
+            )
+            pdf.drawRightString(column_price_x, y, amount_text)
+
+            y -= PROFORMA_ROW_HEIGHT
+
+        y -= 3 * mm
+
     # Punto 26: con descuento o impuesto, Subtotal / Descuento /
-    # Impuesto van arriba de la barra y la barra muestra lo cobrado. Sin
-    # ellos, el documento queda igual que antes (la barra con el precio).
+    # Impuesto van arriba de la barra y la barra muestra lo cobrado.
     amounts = service_amounts(service_record)
     summary_lines = []
 
@@ -735,30 +825,6 @@ def build_service_invoice_pdf(*, service_record, accessories):
     )
 
     pdf.setFillColor(colors.black)
-
-    y -= total_bar_height + 8 * mm
-
-    if accessories:
-        pdf.setFont("Helvetica-Bold", 9)
-        pdf.drawString(PROFORMA_PAGE_MARGIN, y, "Incluye los siguientes productos:")
-        y -= 6 * mm
-
-        pdf.setFont("Helvetica", 9)
-
-        for accessory in accessories:
-            own_code = (
-                f" (cód. {accessory.product.own_code})"
-                if accessory.product.own_code
-                else ""
-            )
-            label = (
-                f"• {accessory.product.standard_code} — "
-                f"{accessory.product.name}{own_code} (x{accessory.quantity})"
-            )
-            pdf.drawString(PROFORMA_PAGE_MARGIN + 3 * mm, y, _truncate(label, 90))
-            y -= 5.5 * mm
-
-        y -= 3 * mm
 
     _draw_document_footer(
         pdf,

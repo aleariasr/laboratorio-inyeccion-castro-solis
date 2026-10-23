@@ -506,7 +506,7 @@ export default function ServicesPage() {
 
         {loadState.status === "forbidden" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="Acceso restringido"
               message={loadState.message}
               tone="warning"
@@ -516,7 +516,7 @@ export default function ServicesPage() {
 
         {loadState.status === "error" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="No se pudieron cargar los servicios"
               message={loadState.message}
               tone="error"
@@ -536,7 +536,7 @@ export default function ServicesPage() {
 
         {loadState.status === "success" && loadState.data.results.length === 0 && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title={filters.query ? "No se encontraron servicios" : "No hay servicios registrados"}
               message={
                 filters.query

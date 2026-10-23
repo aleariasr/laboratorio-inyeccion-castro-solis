@@ -100,8 +100,9 @@ def deliver_service(
 ):
     if service_record.price is None:
         raise ServiceMissingPriceError(
-            "Debe definir el precio del servicio antes de entregarlo "
-            "(así se cuenta correctamente en el cierre de caja)."
+            "El servicio no tiene nada que cobrar todavía: agregue una línea "
+            "de cobro o un accesorio antes de entregarlo (así se cuenta "
+            "correctamente en el cierre de caja)."
         )
 
     # Antes de cambiar el estado: si el descuento no cuadra, el servicio

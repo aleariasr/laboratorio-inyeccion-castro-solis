@@ -444,7 +444,7 @@ export default function InjectorDetailPage() {
 
             {!hasServicesAccess && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudo cargar el historial de servicios"
                   message="Este usuario no tiene permisos para consultar servicios."
                   tone="warning"
@@ -462,7 +462,7 @@ export default function InjectorDetailPage() {
               (serviceRecordsLoadState.status === "forbidden" ||
               serviceRecordsLoadState.status === "error") && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudo cargar el historial de servicios"
                   message={serviceRecordsLoadState.message}
                   tone={serviceRecordsLoadState.status === "forbidden" ? "warning" : "error"}

@@ -15,6 +15,7 @@ from apps.customers.models import (
     Injector,
     InjectorServiceRecord,
     InjectorServiceStatus,
+    ServiceChargeLine,
     ServiceType,
 )
 from apps.inventory.models import (
@@ -76,6 +77,17 @@ class ServicePricingPermissionApiTest(APITestCase):
             received_at=timezone.now(),
             price=Decimal("20000.0000"),
             service_type=self.service_type,
+            created_by=self.admin,
+            updated_by=self.admin,
+        )
+        # El precio es la suma de las líneas de cobro y los accesorios
+        # (punto 3 + 1B del plan del 2026-10-22).
+        ServiceChargeLine.objects.create(
+            service_record=self.service_record,
+            service_type=self.service_type,
+            description="Mano de obra",
+            quantity=1,
+            unit_price=Decimal("20000.0000"),
             created_by=self.admin,
             updated_by=self.admin,
         )
@@ -178,7 +190,6 @@ class ServicePricingPermissionApiTest(APITestCase):
         self.client.force_authenticate(self.operator)
 
         changes = {
-            "price": "1.0000",
             "service_type": other_type.id,
             "payment_method": PaymentMethod.CARD,
         }
@@ -196,6 +207,21 @@ class ServicePricingPermissionApiTest(APITestCase):
                     status.HTTP_400_BAD_REQUEST,
                 )
                 self.assertIn(field_name, response.data)
+
+        # El precio ya no se escribe: se ignora aunque se mande.
+        self.client.patch(self.service_url(), {"price": "1.0000"}, format="json")
+
+        # Y las líneas de cobro son solo del Administrador.
+        lines = self.client.post(
+            "/api/customers/service-charge-lines/",
+            {
+                "service_record": self.service_record.id,
+                "description": "Extra",
+                "unit_price": "1000",
+            },
+            format="json",
+        )
+        self.assertEqual(lines.status_code, status.HTTP_403_FORBIDDEN)
 
         self.service_record.refresh_from_db()
         self.assertEqual(self.service_record.price, Decimal("20000.0000"))
@@ -236,6 +262,17 @@ class ServicePricingPermissionApiTest(APITestCase):
         )
 
         self.assertIsNone(created.data["product_detail"]["effective_sale_price"])
+        self.assertIsNone(created.data["unit_price"])
+        self.assertIsNone(created.data["amount"])
+
+        # Y no puede fijar el precio del accesorio.
+        updated = self.client.patch(
+            f"/api/customers/service-accessories/{created.data['id']}/",
+            {"unit_price": "1"},
+            format="json",
+        )
+        self.assertEqual(updated.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("unit_price", updated.data)
 
     def test_operator_can_read_service_types_but_not_change_them(self):
         self.client.force_authenticate(self.operator)
@@ -286,18 +323,29 @@ class ServicePricingPermissionApiTest(APITestCase):
             "3500.0000",
         )
 
-    def test_admin_can_change_price_and_deliver(self):
+    def test_admin_can_charge_and_deliver(self):
         self.client.force_authenticate(self.admin)
 
-        price = self.client.patch(
+        line = self.client.post(
+            "/api/customers/service-charge-lines/",
+            {
+                "service_record": self.service_record.id,
+                "description": "Prueba en banco",
+                "unit_price": "5000",
+            },
+            format="json",
+        )
+        payment = self.client.patch(
             self.service_url(),
-            {"price": "25000.0000", "payment_method": PaymentMethod.CARD},
+            {"payment_method": PaymentMethod.CARD},
             format="json",
         )
         self.move_to_ready()
         delivery = self.client.post(self.service_url("deliver/"), {}, format="json")
 
-        self.assertEqual(price.status_code, status.HTTP_200_OK)
+        self.assertEqual(line.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(payment.status_code, status.HTTP_200_OK)
         self.assertEqual(delivery.status_code, status.HTTP_200_OK)
         self.service_record.refresh_from_db()
         self.assertEqual(self.service_record.status, InjectorServiceStatus.DELIVERED)
+        self.assertEqual(self.service_record.total_amount, Decimal("25000.0000"))

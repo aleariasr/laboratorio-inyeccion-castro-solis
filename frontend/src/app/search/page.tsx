@@ -572,14 +572,14 @@ export default function SearchPage() {
                     placeholder="Ej. 1-423, A124, FAC-001, Bosch, Cliente Diesel…"
                     aria-label="Buscar en todo el sistema"
                     autoComplete="off"
-                    className="min-h-14 w-full rounded-2xl border border-[var(--color-border)] bg-background py-3.5 pl-12 pr-32 text-[15px] text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-[var(--color-brand-blue)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+                    className="min-h-14 w-full rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-background py-3.5 pl-12 pr-32 text-[15px] text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-[var(--color-brand-blue)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
                   />
 
                   {query.length > 0 && (
                     <button
                       type="button"
                       onClick={handleClear}
-                      className="absolute inset-y-0 right-3 my-auto h-9 rounded-lg px-3 text-xs font-semibold text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+                      className="absolute inset-y-0 right-3 my-auto h-9 rounded-[var(--radius-sm)] px-3 text-xs font-semibold text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
                     >
                       Limpiar
                     </button>

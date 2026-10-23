@@ -227,7 +227,7 @@ a {
   min-height: 48px;
   align-items: center;
   gap: 12px;
-  border-radius: 13px;
+  border-radius: var(--radius-md);
   padding: 0 12px;
   font-size: 14px;
   font-weight: 600;
@@ -262,7 +262,7 @@ a {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: rgb(0 0 0 / 3%);
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -282,7 +282,7 @@ a {
   width: 100%;
   align-items: center;
   gap: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   text-align: left;
   transition:
@@ -305,7 +305,7 @@ a {
   align-items: center;
   gap: 12px;
   margin-top: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 0 10px;
   color: var(--color-text-muted);
   font-size: 14px;
@@ -366,7 +366,7 @@ a {
 .app-module-card {
   min-height: 218px;
   border: 1px solid rgb(255 255 255 / 80%);
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   padding: 26px;
   box-shadow: var(--shadow-sm);
@@ -394,7 +394,7 @@ a {
   height: 58px;
   align-items: center;
   justify-content: center;
-  border-radius: 17px;
+  border-radius: var(--radius-lg);
   transition:
     transform var(--motion-normal) var(--ease-emphasized),
     box-shadow var(--motion-normal) var(--ease-standard);
@@ -407,7 +407,7 @@ a {
 
 .app-status-card {
   border: 1px solid var(--color-border-soft);
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   animation: panel-enter 380ms

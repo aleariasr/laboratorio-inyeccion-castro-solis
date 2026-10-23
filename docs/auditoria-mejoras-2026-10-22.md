@@ -409,7 +409,12 @@ Versión: todo esto va en la **2.5.0**.
 
 - [x] 5 — "Debe haber al contar" grande y centrado, arriba, antes del desglose por método de pago (y arriba en el detalle, sin repetirse); "Total cobrado" centrado y con ese nombre en el formulario y el detalle
 - [x] 1A — Tipo de servicio completo (precio de mano de obra solo visible para el Administrador, descripción larga, kit que se reemplaza entero al guardar, pantalla /services/types con acceso desde Servicios)
-- [ ] 3 + 1B — Cobro por líneas; el precio ya no se acumula
+- [x] 3 + 1B — Cobro por líneas; el precio ya no se acumula. Incluye, además: accesorios
+      editables (cantidad, precio, notas) con el inventario ajustado (se revierte la salida vigente
+      y se registra una nueva), quitar y anular devuelven solo la salida vigente, kit en bloque
+      (todo o nada) desde el cobro y desde Accesorios, "Nuevo" tipo de servicio en ventana con el
+      formulario completo (primer uso del `Dialog` del punto 7) y factura con el detalle.
+      `ServiceTypePriceHistory` dejó de escribirse y leerse; el modelo sigue (ver sección 7).
 - [ ] 2 + 4 — Orden de productos; orden y copias de etiquetas
 - [ ] 6 — Traslados a la otra sede
 - [ ] 7 — Crear desde el formulario (ventana)
@@ -422,6 +427,7 @@ Versión: todo esto va en la **2.5.0**.
 Consultar cada una al empezar su punto:
 
 1. (5) ¿Unificar "Total esperado" del formulario y "Cobrado" del detalle como "Total cobrado"?
-2. (3 + 1B) ¿Borrar `ServiceTypePriceHistory`? Sus datos son totales con accesorios, no precios de
-   mano de obra; el precio de referencia pasa a ser el del tipo. Es la única parte destructiva.
+2. (3 + 1B) ¿Borrar `ServiceTypePriceHistory`? Desde el 3 + 1B ya no se escribe ni se lee (sus
+   datos eran totales con accesorios); el modelo, su tabla y su endpoint de solo lectura siguen.
+   Borrarlo es una migración destructiva aparte: decidir antes de liberar la 2.5.0.
 3. (7) ¿Ventas puede crear un cliente desde la venta o la proforma? Hoy solo los busca.

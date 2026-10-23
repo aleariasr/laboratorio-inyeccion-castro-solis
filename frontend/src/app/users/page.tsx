@@ -442,7 +442,7 @@ export default function UsersPage() {
 
         {loadState.status === "forbidden" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="Acceso restringido"
               message={loadState.message}
               tone="warning"
@@ -452,7 +452,7 @@ export default function UsersPage() {
 
         {loadState.status === "error" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="No se pudieron cargar los usuarios"
               message={loadState.message}
               tone="error"
@@ -472,7 +472,7 @@ export default function UsersPage() {
 
         {loadState.status === "success" && loadState.data.results.length === 0 && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title={filters.query ? "No se encontraron usuarios" : "No hay usuarios registrados"}
               message={
                 filters.query

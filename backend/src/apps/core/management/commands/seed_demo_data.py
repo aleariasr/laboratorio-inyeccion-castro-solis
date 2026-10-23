@@ -59,9 +59,7 @@ from apps.customers.services.service_record import (
     receive_injector,
     start_service,
 )
-from apps.customers.services.service_type import (
-    sync_service_type_price_history,
-)
+from apps.customers.services.service_charges import add_charge_line
 from apps.inventory.models import (
     Currency,
     ImportCost,
@@ -649,6 +647,7 @@ class Command(BaseCommand):
             service_type = ServiceType.objects.create(
                 name=name,
                 description=description,
+                default_labor_price=_round_to(sum(price_range) // 2, 500),
                 created_by=user,
                 updated_by=user,
             )
@@ -1102,11 +1101,22 @@ class Command(BaseCommand):
 
             if final_status != "IN_PROGRESS":
                 record.notes_after = self.rng.choice(NOTES_AFTER)
-                record.price = _round_to(
-                    self.rng.randint(price_low, price_high), 500
-                )
 
             record.save()
+
+            # El precio es la suma de las líneas de cobro y los accesorios
+            # (punto 3 + 1B del plan del 2026-10-22).
+            if final_status != "IN_PROGRESS":
+                add_charge_line(
+                    service_record=record,
+                    service_type=service_type,
+                    description="Mano de obra",
+                    quantity=1,
+                    unit_price=_round_to(
+                        self.rng.randint(price_low, price_high), 500
+                    ),
+                    user=self.users[ROLE_ADMIN],
+                )
 
             self._add_accessories(record, user)
 
@@ -1125,21 +1135,6 @@ class Command(BaseCommand):
                 deliver_service(
                     service_record=record, delivered_at=delivered_at, user=user
                 )
-                history = sync_service_type_price_history(
-                    service_record=record, user=user
-                )
-                if history is not None:
-                    ServiceTypePriceHistory.objects.filter(pk=history.pk).update(
-                        charged_at=delivered_at, created_at=delivered_at
-                    )
-            elif record.price is not None:
-                history = sync_service_type_price_history(
-                    service_record=record, user=user
-                )
-                if history is not None:
-                    ServiceTypePriceHistory.objects.filter(pk=history.pk).update(
-                        charged_at=when, created_at=when
-                    )
 
             self._stamp(
                 InjectorServiceRecord.objects.filter(pk=record.pk),

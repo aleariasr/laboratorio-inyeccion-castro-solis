@@ -383,11 +383,21 @@ La interfaz debe sentirse moderna sin parecer redondeada en exceso.
 ## Radios
 
 ```text
-8 px   controles pequeños (--radius-sm)
-12 px  botones y campos (--radius-md)
-18 px  tarjetas y diálogos (--radius-lg)
-24 px  tarjetas destacadas / módulos (--radius-xl)
+8 px   controles pequeños, chips de icono (--radius-sm)
+12 px  botones, campos, listas desplegables, ítems del menú (--radius-md)
+18 px  paneles dentro de una tarjeta o de una ventana (--radius-lg)
+24 px  tarjetas de página y ventanas (Dialog) (--radius-xl)
 ```
+
+Regla de anidado: lo que va dentro de una tarjeta o ventana usa un radio
+menor que ella (24 → 18 → 12). Nunca una tarjeta de 24 px con sombra dentro
+de otra: dentro de una ventana, las secciones de un formulario son paneles
+de 18 px sin sombra (ver la prop `embedded` de `ServiceTypeForm`).
+
+Usar siempre las variables (`var(--radius-*)`), no píxeles sueltos ni las
+clases por defecto de Tailwind (`rounded-lg`, `rounded-2xl`, etc.), que no
+siguen esta escala. Excepciones: `rounded-full` para pastillas de estado y
+avatares, y las casillas de verificación nativas.
 
 No utilizar:
 

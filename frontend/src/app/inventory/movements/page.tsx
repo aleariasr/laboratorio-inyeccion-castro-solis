@@ -665,13 +665,13 @@ export default function StockMovementsPage() {
 
         {viewState.status === "forbidden" && (
           <div className="p-6">
-            <StatePanel title="Acceso restringido" message={viewState.message} tone="warning" />
+            <StatePanel nested title="Acceso restringido" message={viewState.message} tone="warning" />
           </div>
         )}
 
         {viewState.status === "error" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="No se pudieron cargar los movimientos"
               message={viewState.message}
               tone="error"
@@ -694,7 +694,7 @@ export default function StockMovementsPage() {
           viewState.mode === "kardex" &&
           viewState.rows.length === 0 && (
             <div className="p-6">
-              <StatePanel
+              <StatePanel nested
                 title="Sin movimientos"
                 message="Este producto todavía no tiene movimientos registrados para el filtro seleccionado."
                 icon={<ArrowsUpDownIcon />}
@@ -706,7 +706,7 @@ export default function StockMovementsPage() {
           viewState.mode === "list" &&
           viewState.data.results.length === 0 && (
             <div className="p-6">
-              <StatePanel
+              <StatePanel nested
                 title="No hay movimientos"
                 message="No se encontraron movimientos para los filtros seleccionados."
                 icon={<ArrowsUpDownIcon />}

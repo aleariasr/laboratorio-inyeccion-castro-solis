@@ -522,7 +522,7 @@ export default function PurchasesPage() {
 
         {loadState.status === "forbidden" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="Acceso restringido"
               message={loadState.message}
               tone="warning"
@@ -532,7 +532,7 @@ export default function PurchasesPage() {
 
         {loadState.status === "error" && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title="No se pudieron cargar las compras"
               message={loadState.message}
               tone="error"
@@ -552,7 +552,7 @@ export default function PurchasesPage() {
 
         {loadState.status === "success" && loadState.data.results.length === 0 && (
           <div className="p-6">
-            <StatePanel
+            <StatePanel nested
               title={filters.query ? "No se encontraron compras" : "No hay compras registradas"}
               message={
                 filters.query

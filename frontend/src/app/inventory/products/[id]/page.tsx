@@ -1205,7 +1205,7 @@ export default function ProductDetailPage() {
               {movementLoadState.status ===
                 "forbidden" && (
                 <div className="p-6">
-                  <StatePanel
+                  <StatePanel nested
                     title="Movimientos restringidos"
                     message={movementLoadState.message}
                     tone="warning"
@@ -1216,7 +1216,7 @@ export default function ProductDetailPage() {
               {movementLoadState.status ===
                 "error" && (
                 <div className="p-6">
-                  <StatePanel
+                  <StatePanel nested
                     title="No se pudo cargar el historial"
                     message={movementLoadState.message}
                     tone="error"

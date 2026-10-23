@@ -11,6 +11,7 @@ from apps.customers.views import (
     InjectorServiceAccessoryViewSet,
     InjectorServiceRecordViewSet,
     InjectorViewSet,
+    ServiceChargeLineViewSet,
     ServiceTypePriceHistoryViewSet,
     ServiceTypeViewSet,
 )
@@ -41,6 +42,12 @@ router.register(
     "service-types",
     ServiceTypeViewSet,
     basename="service-type",
+)
+
+router.register(
+    "service-charge-lines",
+    ServiceChargeLineViewSet,
+    basename="service-charge-line",
 )
 
 router.register(

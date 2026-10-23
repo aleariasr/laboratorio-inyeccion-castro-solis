@@ -26,7 +26,7 @@ export function PhysicalTotalHero({
   const physicalTotal = collected + pettyCashBalance;
 
   return (
-    <div className="rounded-[var(--radius-xl)] bg-[var(--color-primary-soft)] px-6 py-7 text-center ring-1 ring-[rgb(7_81_132_/_14%)]">
+    <div className="rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] px-6 py-7 text-center ring-1 ring-[rgb(7_81_132_/_14%)]">
       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-primary">
         {label}
       </p>

@@ -19,6 +19,7 @@ from apps.customers.models import (
     InjectorServiceAccessory,
     InjectorServiceRecord,
     InjectorServiceStatus,
+    ServiceChargeLine,
     ServiceType,
     ServiceTypeAccessory,
     ServiceTypePriceHistory,
@@ -34,8 +35,9 @@ SERVICE_AMOUNT_SETTINGS_FIELDS = (
     "discount_value",
     "tax_percentage",
 )
+# price ya no está: es de solo lectura, la suma de líneas de cobro y
+# accesorios (punto 3 + 1B del plan del 2026-10-22).
 SERVICE_PRICING_FIELDS = (
-    "price",
     "service_type",
     "payment_method",
     *SERVICE_AMOUNT_SETTINGS_FIELDS,
@@ -453,6 +455,7 @@ class InjectorServiceRecordSerializer(
         )
         read_only_fields = (
             "delivered_at",
+            "price",
             "status",
             "created_at",
             "updated_at",
@@ -495,7 +498,7 @@ class InjectorServiceRecordSerializer(
 
         if any(
             field_name in attrs
-            for field_name in ("price", *SERVICE_AMOUNT_SETTINGS_FIELDS)
+            for field_name in SERVICE_AMOUNT_SETTINGS_FIELDS
         ):
             self._validate_amounts(attrs)
 
@@ -606,11 +609,29 @@ class ServiceTypePriceHistorySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+ACCESSORY_PRICE_ONLY_ADMIN_MESSAGE = (
+    "Solo el Administrador define el precio de los accesorios."
+)
+
+_LOCKED_SERVICE_STATUSES = {
+    InjectorServiceStatus.DELIVERED,
+    InjectorServiceStatus.CANCELLED,
+}
+
+
 class InjectorServiceAccessorySerializer(
     ModuleAdminContextMixin,
     serializers.ModelSerializer,
 ):
+    """
+    Accesorio usado en un servicio. Desde el punto 3 + 1B del plan del
+    2026-10-22 se puede editar (cantidad, precio, notas; el producto no) y
+    tiene precio fijo por unidad (unit_price), que solo ve y define el
+    Administrador. Si no lo manda, se usa el precio de venta del producto.
+    """
+
     product_detail = serializers.SerializerMethodField()
+    amount = serializers.SerializerMethodField()
 
     class Meta:
         model = InjectorServiceAccessory
@@ -620,6 +641,8 @@ class InjectorServiceAccessorySerializer(
             "product",
             "product_detail",
             "quantity",
+            "unit_price",
+            "amount",
             "notes",
             "created_at",
             "updated_at",
@@ -628,6 +651,9 @@ class InjectorServiceAccessorySerializer(
             "created_at",
             "updated_at",
         )
+        extra_kwargs = {
+            "unit_price": {"required": False},
+        }
 
     def get_product_detail(self, obj):
         # El importe de los accesorios forma parte del cobro del
@@ -641,28 +667,198 @@ class InjectorServiceAccessorySerializer(
         return {
             "id": obj.product_id,
             "standard_code": obj.product.standard_code,
+            "own_code": obj.product.own_code,
             "name": obj.product.name,
             "effective_sale_price": str(price) if price is not None else None,
         }
 
-    def validate(self, attrs):
-        service_record = attrs.get("service_record")
-        product = attrs.get("product")
+    def get_amount(self, obj):
+        return str(obj.unit_price * obj.quantity)
 
-        if service_record.status in {
-            InjectorServiceStatus.DELIVERED,
-            InjectorServiceStatus.CANCELLED,
-        }:
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        if not self._is_module_admin():
+            data["unit_price"] = None
+            data["amount"] = None
+
+        return data
+
+    def validate(self, attrs):
+        if "unit_price" in attrs and not self._is_module_admin():
+            raise serializers.ValidationError(
+                {"unit_price": ACCESSORY_PRICE_ONLY_ADMIN_MESSAGE}
+            )
+
+        if self.instance is not None:
+            # Al editar no se cambia de producto ni de servicio: eso es
+            # quitar el accesorio y agregar otro.
+            for field_name in ("service_record", "product"):
+                if (
+                    field_name in attrs
+                    and attrs[field_name] != getattr(self.instance, field_name)
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            field_name: (
+                                "No se puede cambiar; quite el accesorio y "
+                                "agregue otro."
+                            )
+                        }
+                    )
+
+            service_record = self.instance.service_record
+        else:
+            service_record = attrs.get("service_record")
+
+        if service_record.status in _LOCKED_SERVICE_STATUSES:
             raise serializers.ValidationError(
                 "No se pueden modificar accesorios de servicios entregados o anulados."
             )
 
-        if InjectorServiceAccessory.objects.filter(
-            service_record=service_record,
-            product=product,
-        ).exists():
+        if (
+            self.instance is None
+            and InjectorServiceAccessory.objects.filter(
+                service_record=service_record,
+                product=attrs.get("product"),
+            ).exists()
+        ):
             raise serializers.ValidationError(
-                "Este producto ya fue registrado como accesorio en el servicio."
+                "Este producto ya fue registrado como accesorio en el servicio; "
+                "cambie su cantidad."
             )
+
+        return attrs
+
+
+class ServiceAccessoryBulkItemSerializer(serializers.Serializer):
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        error_messages={
+            "does_not_exist": "El producto no existe o está inactivo.",
+        },
+    )
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class ServiceAccessoryBulkSerializer(serializers.Serializer):
+    """Agregar el kit de un tipo de servicio de una vez (todo o nada)."""
+
+    service_record = serializers.PrimaryKeyRelatedField(
+        queryset=InjectorServiceRecord.objects.all(),
+    )
+    items = ServiceAccessoryBulkItemSerializer(many=True)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("No hay accesorios para agregar.")
+
+        if len(value) > MAX_SERVICE_TYPE_KIT_ITEMS:
+            raise serializers.ValidationError(
+                f"No se pueden agregar más de {MAX_SERVICE_TYPE_KIT_ITEMS} "
+                "accesorios de una vez."
+            )
+
+        return value
+
+    def validate_service_record(self, value):
+        if value.status in _LOCKED_SERVICE_STATUSES:
+            raise serializers.ValidationError(
+                "No se pueden modificar accesorios de servicios entregados o anulados."
+            )
+
+        return value
+
+
+class ServiceChargeLineSerializer(serializers.ModelSerializer):
+    """
+    Línea de cobro de un servicio (punto 3 + 1B del plan del 2026-10-22):
+    "Mano de obra × 1", "Limpieza × 4"... Solo el Administrador las usa.
+    Sin descripción, toma el nombre del tipo de servicio.
+    """
+
+    service_type_detail = ServiceTypeSummarySerializer(
+        source="service_type",
+        read_only=True,
+    )
+    amount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceChargeLine
+        fields = (
+            "id",
+            "service_record",
+            "service_type",
+            "service_type_detail",
+            "description",
+            "quantity",
+            "unit_price",
+            "amount",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "created_at",
+            "updated_at",
+        )
+        extra_kwargs = {
+            "description": {"required": False, "allow_blank": True},
+        }
+
+    def get_amount(self, obj):
+        return str(obj.amount)
+
+    def validate_description(self, value):
+        return value.strip()
+
+    def validate(self, attrs):
+        if self.instance is not None:
+            if (
+                "service_record" in attrs
+                and attrs["service_record"] != self.instance.service_record
+            ):
+                raise serializers.ValidationError(
+                    {"service_record": "Una línea no se cambia de servicio."}
+                )
+
+            service_record = self.instance.service_record
+        else:
+            service_record = attrs.get("service_record")
+
+        if service_record.status in _LOCKED_SERVICE_STATUSES:
+            raise serializers.ValidationError(
+                "No se puede modificar el cobro de servicios entregados o anulados."
+            )
+
+        service_type = attrs.get(
+            "service_type",
+            self.instance.service_type if self.instance is not None else None,
+        )
+
+        if (
+            "service_type" in attrs
+            and service_type is not None
+            and not service_type.is_active
+        ):
+            raise serializers.ValidationError(
+                {"service_type": "El tipo de servicio está inactivo."}
+            )
+
+        description = attrs.get(
+            "description",
+            self.instance.description if self.instance is not None else "",
+        )
+
+        if not description:
+            if service_type is None:
+                raise serializers.ValidationError(
+                    {
+                        "description": (
+                            "Indique qué se cobra, o elija un tipo de servicio."
+                        )
+                    }
+                )
+
+            attrs["description"] = service_type.name
 
         return attrs

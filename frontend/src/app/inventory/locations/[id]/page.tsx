@@ -631,7 +631,7 @@ export default function StorageLocationDetailPage() {
 
             {!hasProductsAccess && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudieron cargar los productos"
                   message="Este usuario no tiene permisos para consultar productos."
                   tone="warning"
@@ -650,7 +650,7 @@ export default function StorageLocationDetailPage() {
               (productsLoadState.status === "forbidden" ||
               productsLoadState.status === "error") && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudieron cargar los productos"
                   message={productsLoadState.message}
                   tone={
@@ -666,7 +666,7 @@ export default function StorageLocationDetailPage() {
             {hasProductsAccess && productsLoadState.status === "success" &&
               (productsLoadState.products.results.length === 0 ? (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No hay productos asignados"
                   message="Esta ubicación todavía no tiene productos asociados."
                   icon={<BoxIcon />}

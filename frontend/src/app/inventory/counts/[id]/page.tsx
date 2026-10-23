@@ -1254,7 +1254,7 @@ export default function InventoryCountDetailPage() {
 
             {itemsState.status === "error" && (
               <div className="p-6">
-                <StatePanel
+                <StatePanel nested
                   title="No se pudieron cargar las líneas"
                   message={itemsState.message}
                   tone="error"

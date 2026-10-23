@@ -11,6 +11,10 @@ type StatePanelProps = Readonly<{
   tone?: StatePanelTone;
   icon?: ReactNode;
   action?: ReactNode;
+  // Dentro de una tarjeta: panel interno (18 px, sin sombra). Suelto en la
+  // página es una tarjeta (24 px, con sombra). Ver "Bordes y radios" en
+  // docs/frontend-design-system.md.
+  nested?: boolean;
 }>;
 
 const toneClasses: Record<
@@ -31,11 +35,14 @@ export function StatePanel({
   tone = "neutral",
   icon,
   action,
+  nested = false,
 }: StatePanelProps) {
   return (
     <section
       className={[
-        "motion-fade rounded-[var(--radius-xl)] p-7 shadow-[var(--shadow-sm)] ring-1",
+        nested
+          ? "motion-fade rounded-[var(--radius-lg)] p-6 ring-1"
+          : "motion-fade rounded-[var(--radius-xl)] p-7 shadow-[var(--shadow-sm)] ring-1",
         toneClasses[tone],
       ].join(" ")}
       role={

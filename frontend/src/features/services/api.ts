@@ -3,16 +3,17 @@ import type { PaginatedResponse } from "@/lib/api/types";
 
 import type {
   ServiceAccessory,
+  ServiceAccessoryUpdatePayload,
   ServiceAccessoryWritePayload,
+  ServiceChargeLine,
+  ServiceChargeLineWritePayload,
   ServicePriceWritePayload,
   ServiceRecord,
   ServiceRecordCreatePayload,
   ServiceRecordFilters,
   ServiceRecordTechnicalWritePayload,
-  ServiceType,
   ServiceTypeDetail,
   ServiceTypeFilters,
-  ServiceTypePriceHistory,
   ServiceTypeWritePayload,
 } from "./types";
 
@@ -210,6 +211,79 @@ export function createServiceAccessory(
   });
 }
 
+export function updateServiceAccessory(
+  token: string,
+  serviceAccessoryId: number,
+  payload: ServiceAccessoryUpdatePayload,
+): Promise<ServiceAccessory> {
+  return apiPatch<ServiceAccessory>(
+    `/api/customers/service-accessories/${serviceAccessoryId}/`,
+    payload,
+    {
+      token,
+    },
+  );
+}
+
+// Kit de un tipo de servicio: todo o nada; si el producto ya está, se
+// suma a su cantidad.
+export function addServiceAccessoriesBulk(
+  token: string,
+  serviceRecordId: number,
+  items: Array<{ product: number; quantity: number }>,
+): Promise<ServiceAccessory[]> {
+  return apiPost<ServiceAccessory[]>(
+    "/api/customers/service-accessories/bulk/",
+    { service_record: serviceRecordId, items },
+    {
+      token,
+    },
+  );
+}
+
+export function getServiceChargeLines(
+  token: string,
+  serviceRecordId: number,
+  signal?: AbortSignal,
+): Promise<ServiceChargeLine[]> {
+  return apiGet<ServiceChargeLine[]>(
+    `/api/customers/service-charge-lines/?service_record=${serviceRecordId}`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+
+export function createServiceChargeLine(
+  token: string,
+  payload: ServiceChargeLineWritePayload,
+): Promise<ServiceChargeLine> {
+  return apiPost<ServiceChargeLine>("/api/customers/service-charge-lines/", payload, {
+    token,
+  });
+}
+
+export function updateServiceChargeLine(
+  token: string,
+  lineId: number,
+  payload: ServiceChargeLineWritePayload,
+): Promise<ServiceChargeLine> {
+  return apiPatch<ServiceChargeLine>(
+    `/api/customers/service-charge-lines/${lineId}/`,
+    payload,
+    {
+      token,
+    },
+  );
+}
+
+export function deleteServiceChargeLine(token: string, lineId: number): Promise<null> {
+  return apiDelete(`/api/customers/service-charge-lines/${lineId}/`, {
+    token,
+  });
+}
+
 export function deleteServiceAccessory(
   token: string,
   serviceAccessoryId: number,
@@ -225,7 +299,7 @@ export function getServiceTypes(
   token: string,
   query: string,
   signal?: AbortSignal,
-): Promise<ServiceType[]> {
+): Promise<ServiceTypeDetail[]> {
   const searchParams = new URLSearchParams({
     q: query,
     is_active: "true",
@@ -233,7 +307,7 @@ export function getServiceTypes(
     page_size: "100",
   });
 
-  return apiGet<PaginatedResponse<ServiceType>>(
+  return apiGet<PaginatedResponse<ServiceTypeDetail>>(
     `/api/customers/service-types/?${searchParams.toString()}`,
     {
       token,
@@ -302,26 +376,6 @@ export function updateServiceType(
       token,
     },
   );
-}
-
-export function getLatestServiceTypePriceHistory(
-  token: string,
-  serviceTypeId: number,
-  signal?: AbortSignal,
-): Promise<ServiceTypePriceHistory | null> {
-  const searchParams = new URLSearchParams({
-    service_type: String(serviceTypeId),
-    page: "1",
-    page_size: "1",
-  });
-
-  return apiGet<PaginatedResponse<ServiceTypePriceHistory>>(
-    `/api/customers/service-type-price-history/?${searchParams.toString()}`,
-    {
-      token,
-      signal,
-    },
-  ).then((response) => response.results[0] ?? null);
 }
 
 export function getServiceInvoicePdf(
