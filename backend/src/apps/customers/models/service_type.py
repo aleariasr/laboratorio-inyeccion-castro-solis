@@ -13,9 +13,10 @@ class ServiceType(AuditModel, ActivableModel):
     Catálogo persistente de tipos de servicio (ej. "arreglar carro").
 
     Desde el punto 1A del plan del 2026-10-22 tiene precio de mano de obra
-    (se precarga al cobrar; editable en cada servicio), una descripción de
-    lo que incluye y un kit de accesorios que se proponen al elegirlo
-    (ServiceTypeAccessory; nunca se descuentan solos).
+    (se precarga al cobrar; editable en cada servicio) y una descripción de
+    lo que incluye. El kit de accesorios se quitó: descontaba inventario por
+    suposición; los accesorios se agregan a mano con lo que de verdad se
+    usó.
     """
 
     name = models.CharField(max_length=150, unique=True)
@@ -83,43 +84,3 @@ class ServiceTypePriceHistory(AuditModel):
 
     def __str__(self):
         return f"{self.service_type} - {self.service_record}"
-
-
-class ServiceTypeAccessory(AuditModel):
-    """
-    Kit de un tipo de servicio: productos (con cantidad) que suele llevar.
-    Es solo una propuesta: al usarse, los accesorios se confirman y recién
-    entonces descuentan inventario.
-    """
-
-    service_type = models.ForeignKey(
-        ServiceType,
-        on_delete=models.CASCADE,
-        related_name="kit_items",
-    )
-
-    product = models.ForeignKey(
-        "inventory.Product",
-        on_delete=models.PROTECT,
-        related_name="service_type_kit_items",
-    )
-
-    quantity = models.PositiveIntegerField(
-        default=1,
-        validators=[MinValueValidator(1)],
-    )
-
-    class Meta:
-        db_table = "customers_service_type_accessories"
-        verbose_name = "Accesorio del tipo de servicio"
-        verbose_name_plural = "Accesorios del tipo de servicio"
-        ordering = ["id"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["service_type", "product"],
-                name="uq_service_type_accessory",
-            )
-        ]
-
-    def __str__(self):
-        return f"{self.service_type} - {self.product} x{self.quantity}"

@@ -51,7 +51,7 @@ function getLoadErrorMessage(error: unknown): string {
 
 /**
  * Catálogo de tipos de servicio (punto 1A del plan del 2026-10-22): con su
- * precio de mano de obra y su kit. Solo el Administrador, que es quien
+ * precio de mano de obra. Solo el Administrador, que es quien
  * define precios de servicios (punto 25).
  */
 export default function ServiceTypesPage() {
@@ -146,7 +146,7 @@ export default function ServiceTypesPage() {
   return (
     <AppShell
       title="Tipos de servicio"
-      description="Lo que se cobra en un servicio: precio de mano de obra, qué incluye y los accesorios que suele llevar."
+      description="Lo que se cobra en un servicio: precio de mano de obra y qué incluye."
       actions={
         <div className="flex flex-wrap gap-2">
           <Button
@@ -256,7 +256,7 @@ export default function ServiceTypesPage() {
               message={
                 filters.query || filters.activeState !== "active"
                   ? "No hay tipos de servicio para los filtros seleccionados."
-                  : "Todavía no hay tipos de servicio. Cada uno puede tener su precio de mano de obra y su kit de accesorios."
+                  : "Todavía no hay tipos de servicio. Cada uno puede tener su precio de mano de obra."
               }
               icon={<WrenchIcon />}
             />
@@ -266,12 +266,11 @@ export default function ServiceTypesPage() {
         {loadState.status === "success" && loadState.data.results.length > 0 && (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse">
+              <table className="w-full min-w-[560px] border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
                     <th className={HEADER_CLASSES}>Tipo de servicio</th>
                     <th className={`${HEADER_CLASSES} text-right`}>Mano de obra</th>
-                    <th className={HEADER_CLASSES}>Accesorios que suele llevar</th>
                     <th className={HEADER_CLASSES}>Estado</th>
                   </tr>
                 </thead>
@@ -306,14 +305,6 @@ export default function ServiceTypesPage() {
                         {serviceType.default_labor_price
                           ? `₡${formatMoney(serviceType.default_labor_price)}`
                           : <span className="font-sans font-normal text-muted-foreground">Sin precio</span>}
-                      </td>
-
-                      <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        {serviceType.kit_items.length === 0
-                          ? "—"
-                          : serviceType.kit_items
-                              .map((item) => `${item.product_detail.name} × ${item.quantity}`)
-                              .join(", ")}
                       </td>
 
                       <td className="px-5 py-4 align-top">

@@ -19,7 +19,6 @@ import {
   updateServiceChargeLine,
 } from "./api";
 import { mapServiceTypeApiFieldErrors } from "./form-errors";
-import { ServiceKitPanel } from "./service-kit-panel";
 import { ServiceTypeForm } from "./service-type-form";
 import {
   EMPTY_SERVICE_TYPE_FORM_VALUES,
@@ -86,8 +85,8 @@ function errorMessage(error: unknown, fallback: string): string {
  * Cobro por líneas de un servicio (punto 3 + 1B del plan del 2026-10-22):
  * "Mano de obra", "Limpieza × 4"… más los accesorios. El precio del
  * servicio es esa suma y lo calcula el backend; aquí solo se muestran las
- * partes. Elegir un tipo precarga su precio de mano de obra y propone su
- * kit. Solo el Administrador.
+ * partes. Elegir un tipo precarga su precio de mano de obra. Solo el
+ * Administrador.
  */
 export function ServiceChargesSection({
   token,
@@ -112,8 +111,6 @@ export function ServiceChargesSection({
   const [editDraft, setEditDraft] = useState<LineDraft>(EMPTY_DRAFT);
 
   const [pendingLineId, setPendingLineId] = useState<number | null>(null);
-
-  const [kitProposal, setKitProposal] = useState<ServiceTypeDetail | null>(null);
 
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
 
@@ -204,10 +201,6 @@ export function ServiceChargesSection({
       });
 
       setDraft(EMPTY_DRAFT);
-
-      if (serviceType && serviceType.kit_items.length > 0) {
-        setKitProposal(serviceType);
-      }
 
       await onChanged();
     } catch (caught: unknown) {
@@ -415,10 +408,10 @@ export function ServiceChargesSection({
                   <tr key={line.id} className="border-b border-[var(--color-border-soft)] last:border-b-0">
                     <td className="px-4 py-3 text-sm font-semibold text-foreground">{line.description}</td>
                     <td className="px-4 py-3 text-right text-sm text-foreground">{line.quantity}</td>
-                    <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm text-muted-foreground">
                       ₡{formatMoney(line.unit_price)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-foreground">
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm font-semibold text-foreground">
                       ₡{formatMoney(line.amount)}
                     </td>
                     {canManage && (
@@ -436,7 +429,7 @@ export function ServiceChargesSection({
                           </Button>
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="danger"
                             onClick={() => {
                               void handleDeleteLine(line);
                             }}
@@ -467,7 +460,7 @@ export function ServiceChargesSection({
         >
           <p className="text-sm font-semibold text-foreground">Agregar línea de cobro</p>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_6rem_10rem]">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_6rem_9rem]">
             <Field id="charge-line-type" label="Tipo de servicio">
               <div className="flex gap-2">
                 <select
@@ -552,23 +545,6 @@ export function ServiceChargesSection({
         </form>
       )}
 
-      {kitProposal && canManage && (
-        <ServiceKitPanel
-          key={kitProposal.id}
-          token={token}
-          serviceRecordId={serviceRecordId}
-          serviceType={kitProposal}
-          onApplied={async () => {
-            setKitProposal(null);
-            await onChanged();
-          }}
-          onDismiss={() => {
-            setKitProposal(null);
-          }}
-          onUnauthorized={onUnauthorized}
-        />
-      )}
-
       {hasCharges && (
         <dl className="ml-auto grid w-full max-w-sm gap-2 text-sm">
           <div className="flex justify-between gap-4">
@@ -599,7 +575,6 @@ export function ServiceChargesSection({
         <ServiceTypeForm
           mode="create"
           embedded
-          token={token}
           initialValues={EMPTY_SERVICE_TYPE_FORM_VALUES}
           isSubmitting={typeSubmitting}
           submitError={typeSubmitError}

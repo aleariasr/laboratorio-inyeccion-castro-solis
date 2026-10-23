@@ -217,6 +217,7 @@ export function ServiceAccessoryForm({
               hasError={Boolean(errors.productId)}
               placeholder="Código o nombre del producto"
               autoComplete="off"
+              autoFocus
               disabled={isSubmitting}
             />
 

@@ -178,7 +178,7 @@ export default function EditServiceTypePage() {
           ? loadState.serviceType.name
           : "Editar tipo de servicio"
       }
-      description="Precio de mano de obra, qué incluye y los accesorios que suele llevar."
+      description="Precio de mano de obra y qué incluye."
     >
       {isValidId && loadState.status === "loading" && (
         <LoadingState message="Consultando tipo de servicio…" />
@@ -204,7 +204,6 @@ export default function EditServiceTypePage() {
       {loadState.status === "success" && (
         <ServiceTypeForm
           mode="edit"
-          token={token ?? ""}
           initialValues={serviceTypeToFormValues(loadState.serviceType)}
           isSubmitting={isSubmitting}
           submitError={submitError}

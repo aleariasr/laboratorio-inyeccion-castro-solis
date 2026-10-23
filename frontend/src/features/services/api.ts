@@ -225,22 +225,6 @@ export function updateServiceAccessory(
   );
 }
 
-// Kit de un tipo de servicio: todo o nada; si el producto ya está, se
-// suma a su cantidad.
-export function addServiceAccessoriesBulk(
-  token: string,
-  serviceRecordId: number,
-  items: Array<{ product: number; quantity: number }>,
-): Promise<ServiceAccessory[]> {
-  return apiPost<ServiceAccessory[]>(
-    "/api/customers/service-accessories/bulk/",
-    { service_record: serviceRecordId, items },
-    {
-      token,
-    },
-  );
-}
-
 export function getServiceChargeLines(
   token: string,
   serviceRecordId: number,

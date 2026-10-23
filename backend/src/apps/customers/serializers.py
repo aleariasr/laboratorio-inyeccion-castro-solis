@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework import serializers
 
 from apps.core.money import DocumentAmountsError, compute_document_amounts
@@ -21,10 +20,8 @@ from apps.customers.models import (
     InjectorServiceStatus,
     ServiceChargeLine,
     ServiceType,
-    ServiceTypeAccessory,
     ServiceTypePriceHistory,
 )
-from apps.inventory.models import Product
 
 
 # Precio, tipo de servicio, método de pago, descuento e impuesto los
@@ -228,9 +225,6 @@ class InjectorSummarySerializer(serializers.ModelSerializer):
         )
 
 
-MAX_SERVICE_TYPE_KIT_ITEMS = 50
-
-
 def validate_service_type_name(value, instance=None):
     value = value.strip().upper()
 
@@ -254,7 +248,7 @@ def validate_service_type_name(value, instance=None):
 
 class ServiceTypeSummarySerializer(serializers.ModelSerializer):
     """
-    Lo que se muestra del tipo dentro de un servicio: sin precio ni kit
+    Lo que se muestra del tipo dentro de un servicio: sin precio
     (y sin consultas extra por fila en el listado de servicios).
     """
 
@@ -269,50 +263,15 @@ class ServiceTypeSummarySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class ServiceTypeKitItemSerializer(serializers.ModelSerializer):
-    product = serializers.PrimaryKeyRelatedField(
-        queryset=Product.objects.filter(is_active=True),
-        error_messages={
-            "does_not_exist": "El producto no existe o está inactivo.",
-        },
-    )
-    product_detail = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ServiceTypeAccessory
-        fields = (
-            "id",
-            "product",
-            "product_detail",
-            "quantity",
-        )
-        read_only_fields = ("id",)
-
-    def get_product_detail(self, obj):
-        product = obj.product
-
-        return {
-            "id": product.id,
-            "standard_code": product.standard_code,
-            "own_code": product.own_code,
-            "name": product.name,
-        }
-
-
 class ServiceTypeSerializer(
     ModuleAdminContextMixin,
     serializers.ModelSerializer,
 ):
     """
     Tipo de servicio completo (punto 1A del plan del 2026-10-22): nombre,
-    descripción, precio de mano de obra y kit de accesorios.
-
-    El precio de mano de obra solo lo ve el Administrador (punto 25): para
-    los demás sale en null. El kit se escribe entero: la lista enviada
-    reemplaza a la anterior.
+    descripción y precio de mano de obra, que solo ve el Administrador
+    (punto 25): para los demás sale en null.
     """
-
-    kit_items = ServiceTypeKitItemSerializer(many=True, required=False)
 
     class Meta:
         model = ServiceType
@@ -321,7 +280,6 @@ class ServiceTypeSerializer(
             "name",
             "description",
             "default_labor_price",
-            "kit_items",
             "is_active",
             "created_at",
             "updated_at",
@@ -337,23 +295,6 @@ class ServiceTypeSerializer(
     def validate_description(self, value):
         return value.strip()
 
-    def validate_kit_items(self, value):
-        if len(value) > MAX_SERVICE_TYPE_KIT_ITEMS:
-            raise serializers.ValidationError(
-                "El kit no puede tener más de "
-                f"{MAX_SERVICE_TYPE_KIT_ITEMS} productos."
-            )
-
-        product_ids = [item["product"].id for item in value]
-
-        if len(product_ids) != len(set(product_ids)):
-            raise serializers.ValidationError(
-                "Cada producto puede estar una sola vez en el kit; "
-                "para más unidades, aumente su cantidad."
-            )
-
-        return value
-
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
@@ -361,44 +302,6 @@ class ServiceTypeSerializer(
             data["default_labor_price"] = None
 
         return data
-
-    def _replace_kit(self, service_type, kit_items):
-        user = getattr(self.context.get("request"), "user", None)
-
-        service_type.kit_items.all().delete()
-
-        ServiceTypeAccessory.objects.bulk_create(
-            [
-                ServiceTypeAccessory(
-                    service_type=service_type,
-                    product=item["product"],
-                    quantity=item["quantity"],
-                    created_by=user,
-                    updated_by=user,
-                )
-                for item in kit_items
-            ]
-        )
-
-    @transaction.atomic
-    def create(self, validated_data):
-        kit_items = validated_data.pop("kit_items", [])
-        service_type = super().create(validated_data)
-        self._replace_kit(service_type, kit_items)
-
-        return service_type
-
-    @transaction.atomic
-    def update(self, instance, validated_data):
-        kit_items = validated_data.pop("kit_items", None)
-        service_type = super().update(instance, validated_data)
-
-        # Sin kit_items en la solicitud (por ejemplo, solo cambiar el
-        # nombre), el kit queda como estaba.
-        if kit_items is not None:
-            self._replace_kit(service_type, kit_items)
-
-        return service_type
 
 
 class InjectorServiceRecordSerializer(
@@ -729,45 +632,6 @@ class InjectorServiceAccessorySerializer(
             )
 
         return attrs
-
-
-class ServiceAccessoryBulkItemSerializer(serializers.Serializer):
-    product = serializers.PrimaryKeyRelatedField(
-        queryset=Product.objects.filter(is_active=True),
-        error_messages={
-            "does_not_exist": "El producto no existe o está inactivo.",
-        },
-    )
-    quantity = serializers.IntegerField(min_value=1)
-
-
-class ServiceAccessoryBulkSerializer(serializers.Serializer):
-    """Agregar el kit de un tipo de servicio de una vez (todo o nada)."""
-
-    service_record = serializers.PrimaryKeyRelatedField(
-        queryset=InjectorServiceRecord.objects.all(),
-    )
-    items = ServiceAccessoryBulkItemSerializer(many=True)
-
-    def validate_items(self, value):
-        if not value:
-            raise serializers.ValidationError("No hay accesorios para agregar.")
-
-        if len(value) > MAX_SERVICE_TYPE_KIT_ITEMS:
-            raise serializers.ValidationError(
-                f"No se pueden agregar más de {MAX_SERVICE_TYPE_KIT_ITEMS} "
-                "accesorios de una vez."
-            )
-
-        return value
-
-    def validate_service_record(self, value):
-        if value.status in _LOCKED_SERVICE_STATUSES:
-            raise serializers.ValidationError(
-                "No se pueden modificar accesorios de servicios entregados o anulados."
-            )
-
-        return value
 
 
 class ServiceChargeLineSerializer(serializers.ModelSerializer):

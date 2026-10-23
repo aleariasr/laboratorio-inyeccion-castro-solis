@@ -16,7 +16,6 @@ from apps.customers.models import (
     InjectorServiceRecord,
     InjectorServiceStatus,
     ServiceType,
-    ServiceTypeAccessory,
     ServiceTypePriceHistory,
 )
 from apps.inventory.models import (
@@ -39,7 +38,8 @@ class ServiceChargesApiTest(APITestCase):
     Punto 3 + 1B del plan del 2026-10-22: el precio del servicio es la
     suma de las líneas de cobro y los accesorios (cada uno con su precio
     fijado al agregarlo), ya no se acumula, y los accesorios se editan sin
-    descuadrar el inventario.
+    descuadrar el inventario. Los accesorios se agregan uno por uno, con
+    lo que de verdad se usó (el kit se quitó).
     """
 
     def setUp(self):
@@ -107,16 +107,6 @@ class ServiceChargesApiTest(APITestCase):
             default_labor_price=Decimal("15000"),
             created_by=self.admin,
             updated_by=self.admin,
-        )
-        ServiceTypeAccessory.objects.create(
-            service_type=self.service_type,
-            product=self.filter,
-            quantity=1,
-        )
-        ServiceTypeAccessory.objects.create(
-            service_type=self.service_type,
-            product=self.oring,
-            quantity=2,
         )
 
         self.client.force_authenticate(self.admin)
@@ -341,54 +331,6 @@ class ServiceChargesApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("product", response.data)
 
-    # -- Kit del tipo de servicio ----------------------------------------
-
-    def test_kit_is_added_at_once_and_merges(self):
-        self.add_accessory(self.filter, 1)
-
-        response = self.client.post(
-            f"{ACCESSORIES_URL}bulk/",
-            {
-                "service_record": self.service_record.id,
-                "items": [
-                    {"product": self.filter.id, "quantity": 1},
-                    {"product": self.oring.id, "quantity": 2},
-                ],
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        quantities = {
-            item["product"]: item["quantity"] for item in response.data
-        }
-        self.assertEqual(quantities, {self.filter.id: 2, self.oring.id: 2})
-        self.assertEqual(current_stock(self.filter), 8)
-        self.assertEqual(current_stock(self.oring), 1)
-
-    def test_kit_without_enough_stock_adds_nothing(self):
-        movements_before = StockMovement.objects.count()
-
-        response = self.client.post(
-            f"{ACCESSORIES_URL}bulk/",
-            {
-                "service_record": self.service_record.id,
-                "items": [
-                    {"product": self.filter.id, "quantity": 1},
-                    {"product": self.oring.id, "quantity": 9},
-                ],
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(StockMovement.objects.count(), movements_before)
-        self.assertFalse(
-            InjectorServiceAccessory.objects.filter(
-                service_record=self.service_record,
-            ).exists()
-        )
-
     # -- Operario ---------------------------------------------------------
 
     def test_operator_adds_and_edits_accessories_but_not_prices(self):
@@ -402,15 +344,7 @@ class ServiceChargesApiTest(APITestCase):
         self.assertEqual(edited.status_code, status.HTTP_200_OK)
         self.assertEqual(current_stock(self.filter), 8)
 
-        kit = self.client.post(
-            f"{ACCESSORIES_URL}bulk/",
-            {
-                "service_record": self.service_record.id,
-                "items": [{"product": self.oring.id, "quantity": 1}],
-            },
-            format="json",
-        )
-        self.assertEqual(kit.status_code, status.HTTP_201_CREATED)
+        self.add_accessory(self.oring, 1)
 
         self.assertEqual(self.add_line(description="X", unit_price="1").status_code, 403)
         self.assertEqual(self.client.get(LINES_URL).status_code, 403)

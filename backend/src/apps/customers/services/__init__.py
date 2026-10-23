@@ -3,7 +3,6 @@ from .customer import (
     register_injector,
 )
 from .service_accessory import (
-    add_service_accessories_bulk,
     add_service_accessory,
     remove_service_accessory,
     update_service_accessory,
@@ -31,7 +30,6 @@ __all__ = [
     "deliver_service",
     "cancel_service",
     "add_service_accessory",
-    "add_service_accessories_bulk",
     "update_service_accessory",
     "remove_service_accessory",
     "add_charge_line",

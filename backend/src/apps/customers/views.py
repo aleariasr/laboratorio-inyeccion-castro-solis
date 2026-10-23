@@ -38,14 +38,12 @@ from apps.customers.serializers import (
     InjectorSerializer,
     InjectorServiceAccessorySerializer,
     InjectorServiceRecordSerializer,
-    ServiceAccessoryBulkSerializer,
     ServiceChargeLineSerializer,
     ServiceTypePriceHistorySerializer,
     ServiceTypeSerializer,
 )
 from apps.customers.services import (
     add_charge_line,
-    add_service_accessories_bulk,
     add_service_accessory,
     cancel_service,
     deliver_service,
@@ -462,10 +460,7 @@ class ServiceTypeViewSet(viewsets.ModelViewSet):
     ordering = ["name"]
 
     def get_queryset(self):
-        # El kit va en la respuesta (punto 1A): se trae de una vez.
-        queryset = ServiceType.objects.prefetch_related(
-            "kit_items__product",
-        )
+        queryset = ServiceType.objects.all()
 
         query = self.request.query_params.get("q", "").strip()
         is_active = parse_boolean_query_param(
@@ -610,39 +605,6 @@ class InjectorServiceAccessoryViewSet(
             )
 
         return Response(self.get_serializer(service_accessory).data)
-
-    @action(detail=False, methods=["post"], url_path="bulk")
-    def bulk(self, request):
-        """
-        Agrega el kit de un tipo de servicio: todo o nada. Si un producto
-        ya está en el servicio, se suma a su cantidad.
-        """
-
-        serializer = ServiceAccessoryBulkSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        try:
-            accessories = add_service_accessories_bulk(
-                service_record=serializer.validated_data["service_record"],
-                items=[
-                    (item["product"], item["quantity"])
-                    for item in serializer.validated_data["items"]
-                ],
-                user=request.user,
-            )
-        except (
-            ServiceNotEditableError,
-            InsufficientStockForServiceError,
-        ) as exc:
-            return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        return Response(
-            self.get_serializer(accessories, many=True).data,
-            status=status.HTTP_201_CREATED,
-        )
 
     def destroy(self, request, *args, **kwargs):
         service_accessory = self.get_object()

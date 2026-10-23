@@ -121,13 +121,5 @@ export function validateServiceTypeForm(
     errors.defaultLaborPrice = "Ingrese un precio mayor que cero, o déjelo vacío.";
   }
 
-  const hasInvalidQuantity = values.kitItems.some(
-    (item) => !/^\d+$/.test(item.quantity.trim()) || Number(item.quantity) < 1,
-  );
-
-  if (hasInvalidQuantity) {
-    errors.kitItems = "Cada producto del kit necesita una cantidad entera de 1 o más.";
-  }
-
   return errors;
 }

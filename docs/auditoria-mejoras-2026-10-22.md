@@ -117,7 +117,7 @@ tomada y hay que consultarla antes de implementar.
 | Varios inyectores por servicio (punto 1) | **No.** Un servicio sigue siendo un inyector. Se descartó después de revisarlo: nadie lo pidió y complica todo. |
 | Cantidades en servicios (punto 1) | **Cobro por líneas:** "Mano de obra" (u otros conceptos) con cantidad y precio, más los accesorios, cada uno con su precio. El total se calcula solo. |
 | Precio que se acumula (punto 3) | **Separar mano de obra y accesorios** (va junto con el cobro por líneas). El precio de cada accesorio queda fijo al agregarlo. |
-| Tipo de servicio (punto 1) | Formulario completo: **precio de mano de obra**, **descripción / qué incluye**, **accesorios que suele llevar (kit)** y **pantalla para administrarlos**. El kit se propone y se confirma; nunca descuenta inventario solo. |
+| Tipo de servicio (punto 1) | Formulario completo: **precio de mano de obra**, **descripción / qué incluye** y **pantalla para administrarlos**. El kit de accesorios se hizo y se **quitó** (2026-10-23): proponía descontar inventario por suposición y era fácil descuadrar el stock; los accesorios se agregan a mano con lo que de verdad se usó. |
 | Recepción del servicio (punto 1) | **Todo en un formulario** al recibir, con **crear cliente e inyector desde ahí**. |
 | Crear desde el formulario (punto 7) | **Ventana encima** que reutiliza el formulario que ya existe; al guardar queda elegido y no se pierde lo escrito. Un solo nivel de ventana. Se replica en otras partes (producto → ubicación, compra → producto, etc.). |
 | Orden de productos (punto 2) | La lista se puede ordenar (código, nombre, descripción, ubicación, existencia, fecha de registro, fecha de modificación; ascendente o descendente) y **recuerda el último orden**. Al imprimir etiquetas **se elige el orden**, propuesto con el de la lista. |
@@ -146,7 +146,7 @@ tomada y hay que consultarla antes de implementar.
 | Paso | Punto | Por qué en este orden |
 |---|---|---|
 | 1 | 5 — Totales del cierre de caja | Solo pantalla, rápido, sin riesgo. |
-| 2 | 1A — Tipo de servicio completo | Base de lo que sigue: el precio de mano de obra y el kit salen de aquí. |
+| 2 | 1A — Tipo de servicio completo | Base de lo que sigue: el precio de mano de obra sale de aquí. |
 | 3 | 3 + 1B — Cobro por líneas | Arregla el error del precio que se acumula, que hoy da cobros equivocados. Usa el precio del tipo (1A). |
 | 4 | 4 + 2 — Copias y orden de productos y etiquetas | Comparten el endpoint de etiquetas. |
 | 5 | 6 — Traslados a la otra sede | Independiente de los anteriores; módulo nuevo. |
@@ -182,6 +182,9 @@ Versión: todo esto va en la **2.5.0**.
 - **Usos a revisar:** `PettyCashSummary` (formulario y detalle), `cash/[id]/page.tsx`.
 - **Tests:** solo frontend (lint y build).
 - **Migración:** no.
+
+> **Nota (2026-10-23):** lo del kit que sigue en los puntos 1A, 1B y 1C se descartó; ver la
+> sección 3.
 
 ### Punto 1A. Tipo de servicio completo
 
@@ -408,13 +411,16 @@ Versión: todo esto va en la **2.5.0**.
 ## 6. Checklist de avance (marcar al hacer commit)
 
 - [x] 5 — "Debe haber al contar" grande y centrado, arriba, antes del desglose por método de pago (y arriba en el detalle, sin repetirse); "Total cobrado" centrado y con ese nombre en el formulario y el detalle
-- [x] 1A — Tipo de servicio completo (precio de mano de obra solo visible para el Administrador, descripción larga, kit que se reemplaza entero al guardar, pantalla /services/types con acceso desde Servicios)
-- [x] 3 + 1B — Cobro por líneas; el precio ya no se acumula. Incluye, además: accesorios
-      editables (cantidad, precio, notas) con el inventario ajustado (se revierte la salida vigente
-      y se registra una nueva), quitar y anular devuelven solo la salida vigente, kit en bloque
-      (todo o nada) desde el cobro y desde Accesorios, "Nuevo" tipo de servicio en ventana con el
-      formulario completo (primer uso del `Dialog` del punto 7) y factura con el detalle.
-      `ServiceTypePriceHistory` dejó de escribirse y leerse; el modelo sigue (ver sección 7).
+- [x] 1A — Tipo de servicio completo (precio de mano de obra solo visible para el Administrador,
+      descripción larga, pantalla /services/types con acceso desde Servicios). El kit de accesorios
+      se implementó y se **quitó** el 2026-10-23 a pedido de Alejandro: descontaba inventario por
+      suposición (migración `customers/0014`).
+- [x] 3 + 1B — Cobro por líneas; el precio ya no se acumula. Incluye: accesorios editables
+      (cantidad, precio, notas) con el inventario ajustado (se revierte la salida vigente y se registra
+      una nueva); quitar y anular devuelven solo la salida vigente; "Nuevo" tipo de servicio en
+      ventana con el formulario completo (primer uso del `Dialog` del punto 7); factura con el
+      detalle; aviso al entregar con total ₡0. `ServiceTypePriceHistory` dejó de escribirse y
+      leerse; el modelo sigue (ver sección 7).
 - [ ] 2 + 4 — Orden de productos; orden y copias de etiquetas
 - [ ] 6 — Traslados a la otra sede
 - [ ] 7 — Crear desde el formulario (ventana)

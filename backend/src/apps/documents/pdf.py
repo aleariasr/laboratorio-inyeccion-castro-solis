@@ -808,7 +808,7 @@ def build_service_invoice_pdf(*, service_record, accessories):
     pdf.drawString(
         PROFORMA_PAGE_MARGIN + 3 * mm,
         y - total_bar_height + 7 * mm,
-        "SERVICIO DE INYECTOR",
+        "TOTAL",
     )
 
     price_text = (

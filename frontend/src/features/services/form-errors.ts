@@ -113,7 +113,6 @@ const SERVICE_TYPE_FIELD_MAP: Record<string, ServiceTypeFormField> = {
   name: "name",
   description: "description",
   default_labor_price: "defaultLaborPrice",
-  kit_items: "kitItems",
   is_active: "isActive",
 };
 

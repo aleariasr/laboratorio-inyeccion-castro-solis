@@ -37,7 +37,6 @@ import {
 } from "@/features/services/form-errors";
 import { ServiceAccessoryForm } from "@/features/services/service-accessory-form";
 import { ServiceChargesSection } from "@/features/services/service-charges-section";
-import { ServiceKitPicker } from "@/features/services/service-kit-picker";
 import { ServicePriceForm } from "@/features/services/service-price-form";
 import { ServiceTechnicalForm } from "@/features/services/service-technical-form";
 import {
@@ -88,7 +87,7 @@ type LoadState =
       message: string;
     };
 
-type AccessoryFormState = "closed" | "create" | "kit";
+type AccessoryFormState = "closed" | "create";
 
 type AccessoryEditDraft = {
   quantity: string;
@@ -1159,48 +1158,22 @@ export default function ServiceDetailPage() {
               </div>
 
               {canManage && accessoryFormState === "closed" && (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      setEditingAccessoryId(null);
-                      setAccessoryFormState("kit");
-                    }}
-                  >
-                    Agregar kit
-                  </Button>
-
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setEditingAccessoryId(null);
-                      openCreateAccessoryForm();
-                    }}
-                  >
-                    Agregar accesorio
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  className="shrink-0"
+                  onClick={() => {
+                    setEditingAccessoryId(null);
+                    openCreateAccessoryForm();
+                  }}
+                >
+                  Agregar accesorio
+                </Button>
               )}
             </div>
 
             {accessoryActionState.submitError && accessoryFormState === "closed" && (
               <div className="border-b border-[var(--color-border-soft)] p-6">
                 <FormError message={accessoryActionState.submitError} />
-              </div>
-            )}
-
-            {accessoryFormState === "kit" && (
-              <div className="border-b border-[var(--color-border-soft)] bg-surface-muted/40 p-6">
-                <ServiceKitPicker
-                  token={token ?? ""}
-                  serviceRecordId={loadState.serviceRecord.id}
-                  onApplied={reloadServiceData}
-                  onClose={() => {
-                    setAccessoryFormState("closed");
-                  }}
-                  onUnauthorized={handleUnauthorized}
-                />
               </div>
             )}
 
@@ -1342,13 +1315,13 @@ export default function ServiceDetailPage() {
                           </td>
 
                           {hasPricingAccess && (
-                            <td className="px-5 py-4 text-right font-mono text-sm text-muted-foreground">
+                            <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
                               ₡{formatMoney(accessory.unit_price ?? 0)}
                             </td>
                           )}
 
                           {hasPricingAccess && (
-                            <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                            <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
                               {Number(accessory.amount ?? 0) > 0
                                 ? `₡${formatMoney(accessory.amount ?? 0)}`
                                 : "Incluido"}
@@ -1450,15 +1423,18 @@ export default function ServiceDetailPage() {
               isLoading={transitionState.pendingAction === "deliver"}
               loadingText="Entregando…"
               disabled={loadState.serviceRecord.price === null}
-              title={
-                loadState.serviceRecord.price === null
-                  ? "Agregue una línea de cobro o un accesorio antes de entregarlo, para que se cuente en el cierre de caja."
-                  : undefined
-              }
               onClick={() => {
+                // Un total en ₡0 puede ser una garantía, pero suele ser un
+                // olvido (líneas o accesorios sin precio): se avisa.
+                const totalIsZero =
+                  loadState.serviceRecord.total !== null &&
+                  Number(loadState.serviceRecord.total) === 0;
+
                 void runTransition(
                   "deliver",
-                  "¿Confirmar la entrega de este inyector al cliente?",
+                  totalIsZero
+                    ? "El total de este servicio es ₡0. ¿Entregarlo así (por ejemplo, una garantía)?"
+                    : "¿Confirmar la entrega de este inyector al cliente?",
                   deliverServiceRecord,
                 );
               }}
@@ -1466,6 +1442,15 @@ export default function ServiceDetailPage() {
               Entregar
             </Button>
           )}
+
+          {loadState.serviceRecord.status === "READY" &&
+            hasPricingAccess &&
+            loadState.serviceRecord.price === null && (
+              <p className="rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] px-5 py-4 text-sm font-medium text-[var(--color-primary)] ring-1 ring-[rgb(7_81_132_/_12%)]">
+                Sin líneas de cobro ni accesorios. La entrega se habilita al registrar lo que se
+                cobra, para que cuente en el cierre de caja.
+              </p>
+            )}
 
           {loadState.serviceRecord.status === "READY" &&
             hasWriteAccess &&

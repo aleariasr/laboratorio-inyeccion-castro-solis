@@ -111,11 +111,10 @@ export default function NewServiceTypePage() {
   return (
     <AppShell
       title="Nuevo tipo de servicio"
-      description="Precio de mano de obra, qué incluye y los accesorios que suele llevar."
+      description="Precio de mano de obra y qué incluye."
     >
       <ServiceTypeForm
         mode="create"
-        token={token ?? ""}
         initialValues={EMPTY_SERVICE_TYPE_FORM_VALUES}
         isSubmitting={isSubmitting}
         submitError={submitError}

@@ -238,22 +238,9 @@ export type ServiceType = {
 };
 
 // Tipo de servicio completo (punto 1A del plan del 2026-10-22): precio de
-// mano de obra (null para quien no es Administrador) y kit de accesorios.
-export type ServiceTypeKitItem = {
-  id: number;
-  product: number;
-  product_detail: {
-    id: number;
-    standard_code: string;
-    own_code: string;
-    name: string;
-  };
-  quantity: number;
-};
-
+// mano de obra (null para quien no es Administrador) y descripción.
 export type ServiceTypeDetail = ServiceType & {
   default_labor_price: string | null;
-  kit_items: ServiceTypeKitItem[];
   created_at: string;
   updated_at: string;
 };
@@ -276,25 +263,13 @@ export type ServiceTypeWritePayload = {
   name: string;
   description: string;
   default_labor_price?: string | null;
-  kit_items?: Array<{ product: number; quantity: number }>;
   is_active?: boolean;
-};
-
-// Una fila del kit en el formulario: el producto elegido y la cantidad
-// como texto (lo que se escribe).
-export type ServiceTypeKitFormItem = {
-  productId: number;
-  standardCode: string;
-  ownCode: string;
-  name: string;
-  quantity: string;
 };
 
 export type ServiceTypeFormValues = {
   name: string;
   description: string;
   defaultLaborPrice: string;
-  kitItems: ServiceTypeKitFormItem[];
   isActive: boolean;
 };
 
@@ -302,7 +277,6 @@ export type ServiceTypeFormField =
   | "name"
   | "description"
   | "defaultLaborPrice"
-  | "kitItems"
   | "isActive";
 
 export type ServiceTypeFormErrors = Partial<Record<ServiceTypeFormField, string>>;
@@ -311,7 +285,6 @@ export const EMPTY_SERVICE_TYPE_FORM_VALUES: ServiceTypeFormValues = {
   name: "",
   description: "",
   defaultLaborPrice: "",
-  kitItems: [],
   isActive: true,
 };
 
@@ -322,13 +295,6 @@ export function serviceTypeToFormValues(
     name: serviceType.name,
     description: serviceType.description,
     defaultLaborPrice: serviceType.default_labor_price ?? "",
-    kitItems: serviceType.kit_items.map((item) => ({
-      productId: item.product,
-      standardCode: item.product_detail.standard_code,
-      ownCode: item.product_detail.own_code,
-      name: item.product_detail.name,
-      quantity: String(item.quantity),
-    })),
     isActive: serviceType.is_active,
   };
 }
@@ -342,10 +308,6 @@ export function buildServiceTypeWritePayload(
     name: values.name.trim(),
     description: values.description.trim(),
     default_labor_price: laborPrice ? laborPrice : null,
-    kit_items: values.kitItems.map((item) => ({
-      product: item.productId,
-      quantity: Number(item.quantity),
-    })),
     is_active: values.isActive,
   };
 }

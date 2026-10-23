@@ -32,8 +32,8 @@ def _ensure_service_is_editable(service_record):
 def _ensure_stock(product, needed, available):
     if needed > available:
         raise InsufficientStockForServiceError(
-            f"No hay inventario suficiente de {product.standard_code} "
-            f"(disponible: {available})."
+            f"No hay inventario suficiente de {product.standard_code} — "
+            f"{product.name}: se pueden usar hasta {available}."
         )
 
 
@@ -206,44 +206,6 @@ def update_service_accessory(
     recalculate_service_price(service_record)
 
     return service_accessory
-
-
-@transaction.atomic
-def add_service_accessories_bulk(*, service_record, items, user):
-    """
-    Agrega varios accesorios de una vez (el kit de un tipo de servicio).
-    Todo o nada: si a uno le falta inventario, no se agrega ninguno. Si el
-    producto ya está en el servicio, se suma a su cantidad.
-
-    items: lista de (producto, cantidad).
-    """
-
-    _ensure_service_is_editable(service_record)
-
-    existing = {
-        accessory.product_id: accessory
-        for accessory in service_record.accessories.select_related("product")
-    }
-
-    for product, quantity in items:
-        accessory = existing.get(product.id)
-
-        if accessory is None:
-            existing[product.id] = add_service_accessory(
-                service_record=service_record,
-                product=product,
-                quantity=quantity,
-                notes="",
-                user=user,
-            )
-        else:
-            update_service_accessory(
-                service_accessory=accessory,
-                quantity=accessory.quantity + quantity,
-                user=user,
-            )
-
-    return list(service_record.accessories.select_related("product"))
 
 
 @transaction.atomic
