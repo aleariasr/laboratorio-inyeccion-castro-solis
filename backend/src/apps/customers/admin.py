@@ -6,6 +6,7 @@ from .models import (
     InjectorServiceAccessory,
     InjectorServiceRecord,
     ServiceType,
+    ServiceTypeAccessory,
     ServiceTypePriceHistory,
 )
 
@@ -98,13 +99,21 @@ class InjectorServiceAccessoryAdmin(admin.ModelAdmin):
     )
 
 
+class ServiceTypeAccessoryInline(admin.TabularInline):
+    model = ServiceTypeAccessory
+    extra = 0
+    autocomplete_fields = ("product",)
+    fields = ("product", "quantity")
+
+
 @admin.register(ServiceType)
 class ServiceTypeAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "description",
+        "default_labor_price",
         "is_active",
     )
+    inlines = (ServiceTypeAccessoryInline,)
     search_fields = (
         "name",
         "description",

@@ -9,6 +9,8 @@ import type {
   ServiceRecordCreateFormField,
   ServiceRecordTechnicalFormErrors,
   ServiceRecordTechnicalFormField,
+  ServiceTypeFormErrors,
+  ServiceTypeFormField,
 } from "./types";
 
 const CREATE_FIELD_MAP: Record<string, ServiceRecordCreateFormField> = {
@@ -99,6 +101,31 @@ export function mapServiceAccessoryApiFieldErrors(
 
   for (const [apiField, messages] of Object.entries(fieldErrors)) {
     const formField = SERVICE_ACCESSORY_FIELD_MAP[apiField];
+    const firstMessage = messages[0];
+
+    if (formField && firstMessage) {
+      mappedErrors[formField] = firstMessage;
+    }
+  }
+
+  return mappedErrors;
+}
+
+const SERVICE_TYPE_FIELD_MAP: Record<string, ServiceTypeFormField> = {
+  name: "name",
+  description: "description",
+  default_labor_price: "defaultLaborPrice",
+  kit_items: "kitItems",
+  is_active: "isActive",
+};
+
+export function mapServiceTypeApiFieldErrors(
+  fieldErrors: ApiFieldErrors,
+): ServiceTypeFormErrors {
+  const mappedErrors: ServiceTypeFormErrors = {};
+
+  for (const [apiField, messages] of Object.entries(fieldErrors)) {
+    const formField = SERVICE_TYPE_FIELD_MAP[apiField];
     const firstMessage = messages[0];
 
     if (formField && firstMessage) {

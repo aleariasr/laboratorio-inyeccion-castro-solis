@@ -10,6 +10,8 @@ import type {
   ServiceRecordFilters,
   ServiceRecordTechnicalWritePayload,
   ServiceType,
+  ServiceTypeDetail,
+  ServiceTypeFilters,
   ServiceTypePriceHistory,
   ServiceTypeWritePayload,
 } from "./types";
@@ -243,10 +245,63 @@ export function getServiceTypes(
 export function createServiceType(
   token: string,
   payload: ServiceTypeWritePayload,
-): Promise<ServiceType> {
-  return apiPost<ServiceType>("/api/customers/service-types/", payload, {
+): Promise<ServiceTypeDetail> {
+  return apiPost<ServiceTypeDetail>("/api/customers/service-types/", payload, {
     token,
   });
+}
+
+// Pantalla de tipos de servicio (punto 1A del plan del 2026-10-22).
+export function getServiceTypesPage(
+  token: string,
+  filters: ServiceTypeFilters,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<ServiceTypeDetail>> {
+  const searchParams = new URLSearchParams({
+    page: String(filters.page),
+    page_size: String(filters.pageSize),
+  });
+
+  if (filters.query.trim()) {
+    searchParams.set("q", filters.query.trim());
+  }
+
+  if (filters.activeState !== "all") {
+    searchParams.set("is_active", filters.activeState === "active" ? "true" : "false");
+  }
+
+  return apiGet<PaginatedResponse<ServiceTypeDetail>>(
+    `/api/customers/service-types/?${searchParams.toString()}`,
+    {
+      token,
+      signal,
+    },
+  );
+}
+
+export function getServiceType(
+  token: string,
+  serviceTypeId: number,
+  signal?: AbortSignal,
+): Promise<ServiceTypeDetail> {
+  return apiGet<ServiceTypeDetail>(`/api/customers/service-types/${serviceTypeId}/`, {
+    token,
+    signal,
+  });
+}
+
+export function updateServiceType(
+  token: string,
+  serviceTypeId: number,
+  payload: ServiceTypeWritePayload,
+): Promise<ServiceTypeDetail> {
+  return apiPatch<ServiceTypeDetail>(
+    `/api/customers/service-types/${serviceTypeId}/`,
+    payload,
+    {
+      token,
+    },
+  );
 }
 
 export function getLatestServiceTypePriceHistory(

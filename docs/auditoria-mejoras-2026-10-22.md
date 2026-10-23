@@ -408,7 +408,7 @@ Versión: todo esto va en la **2.5.0**.
 ## 6. Checklist de avance (marcar al hacer commit)
 
 - [x] 5 — "Debe haber al contar" grande y centrado, arriba, antes del desglose por método de pago (y arriba en el detalle, sin repetirse); "Total cobrado" centrado y con ese nombre en el formulario y el detalle
-- [ ] 1A — Tipo de servicio completo (precio, descripción, kit, pantalla)
+- [x] 1A — Tipo de servicio completo (precio de mano de obra solo visible para el Administrador, descripción larga, kit que se reemplaza entero al guardar, pantalla /services/types con acceso desde Servicios)
 - [ ] 3 + 1B — Cobro por líneas; el precio ya no se acumula
 - [ ] 2 + 4 — Orden de productos; orden y copias de etiquetas
 - [ ] 6 — Traslados a la otra sede

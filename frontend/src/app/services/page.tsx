@@ -17,7 +17,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadServices, canWriteServices } from "@/features/auth/permissions";
+import { canPriceServices, canReadServices, canWriteServices } from "@/features/auth/permissions";
 import { formatDate } from "@/features/inventory/purchases/format";
 import { getServiceRecords } from "@/features/services/api";
 import type { ServiceRecord, ServiceRecordFilters, ServiceStatus } from "@/features/services/types";
@@ -105,6 +105,8 @@ export default function ServicesPage() {
   const hasCustomersAccess = user ? canReadServices(user) : false;
 
   const hasWriteAccess = user ? canWriteServices(user) : false;
+
+  const hasPricingAccess = user ? canPriceServices(user) : false;
 
   useEffect(() => {
     if (authStatus !== "authenticated" || !token || !hasCustomersAccess) {
@@ -342,15 +344,31 @@ export default function ServicesPage() {
       title="Servicios"
       description="Bandeja operativa de servicios de inyectores."
       actions={
-        hasWriteAccess ? (
-          <Button
-            type="button"
-            onClick={() => {
-              router.push("/services/new");
-            }}
-          >
-            Recibir inyector
-          </Button>
+        hasWriteAccess || hasPricingAccess ? (
+          <div className="flex flex-wrap gap-2">
+            {hasPricingAccess && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  router.push("/services/types");
+                }}
+              >
+                Tipos de servicio
+              </Button>
+            )}
+
+            {hasWriteAccess && (
+              <Button
+                type="button"
+                onClick={() => {
+                  router.push("/services/new");
+                }}
+              >
+                Recibir inyector
+              </Button>
+            )}
+          </div>
         ) : undefined
       }
     >

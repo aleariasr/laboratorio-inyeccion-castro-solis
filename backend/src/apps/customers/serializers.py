@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from apps.core.money import DocumentAmountsError, compute_document_amounts
@@ -19,8 +20,10 @@ from apps.customers.models import (
     InjectorServiceRecord,
     InjectorServiceStatus,
     ServiceType,
+    ServiceTypeAccessory,
     ServiceTypePriceHistory,
 )
+from apps.inventory.models import Product
 
 
 # Precio, tipo de servicio, método de pago, descuento e impuesto los
@@ -223,13 +226,100 @@ class InjectorSummarySerializer(serializers.ModelSerializer):
         )
 
 
-class ServiceTypeSerializer(serializers.ModelSerializer):
+MAX_SERVICE_TYPE_KIT_ITEMS = 50
+
+
+def validate_service_type_name(value, instance=None):
+    value = value.strip().upper()
+
+    if not value:
+        raise serializers.ValidationError(
+            "El nombre del tipo de servicio es obligatorio."
+        )
+
+    queryset = ServiceType.objects.filter(name=value)
+
+    if instance is not None:
+        queryset = queryset.exclude(pk=instance.pk)
+
+    if queryset.exists():
+        raise serializers.ValidationError(
+            "Ya existe un tipo de servicio con este nombre."
+        )
+
+    return value
+
+
+class ServiceTypeSummarySerializer(serializers.ModelSerializer):
+    """
+    Lo que se muestra del tipo dentro de un servicio: sin precio ni kit
+    (y sin consultas extra por fila en el listado de servicios).
+    """
+
     class Meta:
         model = ServiceType
         fields = (
             "id",
             "name",
             "description",
+            "is_active",
+        )
+        read_only_fields = fields
+
+
+class ServiceTypeKitItemSerializer(serializers.ModelSerializer):
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        error_messages={
+            "does_not_exist": "El producto no existe o está inactivo.",
+        },
+    )
+    product_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceTypeAccessory
+        fields = (
+            "id",
+            "product",
+            "product_detail",
+            "quantity",
+        )
+        read_only_fields = ("id",)
+
+    def get_product_detail(self, obj):
+        product = obj.product
+
+        return {
+            "id": product.id,
+            "standard_code": product.standard_code,
+            "own_code": product.own_code,
+            "name": product.name,
+        }
+
+
+class ServiceTypeSerializer(
+    ModuleAdminContextMixin,
+    serializers.ModelSerializer,
+):
+    """
+    Tipo de servicio completo (punto 1A del plan del 2026-10-22): nombre,
+    descripción, precio de mano de obra y kit de accesorios.
+
+    El precio de mano de obra solo lo ve el Administrador (punto 25): para
+    los demás sale en null. El kit se escribe entero: la lista enviada
+    reemplaza a la anterior.
+    """
+
+    kit_items = ServiceTypeKitItemSerializer(many=True, required=False)
+
+    class Meta:
+        model = ServiceType
+        fields = (
+            "id",
+            "name",
+            "description",
+            "default_labor_price",
+            "kit_items",
             "is_active",
             "created_at",
             "updated_at",
@@ -240,24 +330,73 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
         )
 
     def validate_name(self, value):
-        value = value.strip().upper()
+        return validate_service_type_name(value, self.instance)
 
-        if not value:
+    def validate_description(self, value):
+        return value.strip()
+
+    def validate_kit_items(self, value):
+        if len(value) > MAX_SERVICE_TYPE_KIT_ITEMS:
             raise serializers.ValidationError(
-                "El nombre del tipo de servicio es obligatorio."
+                "El kit no puede tener más de "
+                f"{MAX_SERVICE_TYPE_KIT_ITEMS} productos."
             )
 
-        queryset = ServiceType.objects.filter(name=value)
+        product_ids = [item["product"].id for item in value]
 
-        if self.instance is not None:
-            queryset = queryset.exclude(pk=self.instance.pk)
-
-        if queryset.exists():
+        if len(product_ids) != len(set(product_ids)):
             raise serializers.ValidationError(
-                "Ya existe un tipo de servicio con este nombre."
+                "Cada producto puede estar una sola vez en el kit; "
+                "para más unidades, aumente su cantidad."
             )
 
         return value
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        if not self._is_module_admin():
+            data["default_labor_price"] = None
+
+        return data
+
+    def _replace_kit(self, service_type, kit_items):
+        user = getattr(self.context.get("request"), "user", None)
+
+        service_type.kit_items.all().delete()
+
+        ServiceTypeAccessory.objects.bulk_create(
+            [
+                ServiceTypeAccessory(
+                    service_type=service_type,
+                    product=item["product"],
+                    quantity=item["quantity"],
+                    created_by=user,
+                    updated_by=user,
+                )
+                for item in kit_items
+            ]
+        )
+
+    @transaction.atomic
+    def create(self, validated_data):
+        kit_items = validated_data.pop("kit_items", [])
+        service_type = super().create(validated_data)
+        self._replace_kit(service_type, kit_items)
+
+        return service_type
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        kit_items = validated_data.pop("kit_items", None)
+        service_type = super().update(instance, validated_data)
+
+        # Sin kit_items en la solicitud (por ejemplo, solo cambiar el
+        # nombre), el kit queda como estaba.
+        if kit_items is not None:
+            self._replace_kit(service_type, kit_items)
+
+        return service_type
 
 
 class InjectorServiceRecordSerializer(
@@ -268,7 +407,7 @@ class InjectorServiceRecordSerializer(
         source="injector",
         read_only=True,
     )
-    service_type_detail = ServiceTypeSerializer(
+    service_type_detail = ServiceTypeSummarySerializer(
         source="service_type",
         read_only=True,
     )
@@ -447,7 +586,7 @@ class InjectorServiceRecordSerializer(
 
 
 class ServiceTypePriceHistorySerializer(serializers.ModelSerializer):
-    service_type_detail = ServiceTypeSerializer(
+    service_type_detail = ServiceTypeSummarySerializer(
         source="service_type",
         read_only=True,
     )

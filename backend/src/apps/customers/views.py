@@ -455,7 +455,10 @@ class ServiceTypeViewSet(viewsets.ModelViewSet):
     ordering = ["name"]
 
     def get_queryset(self):
-        queryset = ServiceType.objects.all()
+        # El kit va en la respuesta (punto 1A): se trae de una vez.
+        queryset = ServiceType.objects.prefetch_related(
+            "kit_items__product",
+        )
 
         query = self.request.query_params.get("q", "").strip()
         is_active = parse_boolean_query_param(

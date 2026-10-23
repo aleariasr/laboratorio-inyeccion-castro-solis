@@ -9,6 +9,8 @@ import type {
   ServiceRecordCreateFormValues,
   ServiceRecordTechnicalFormErrors,
   ServiceRecordTechnicalFormValues,
+  ServiceTypeFormErrors,
+  ServiceTypeFormValues,
 } from "./types";
 
 const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
@@ -103,6 +105,35 @@ export function validateServiceAccessoryForm(
     errors.quantity = "La cantidad es obligatoria.";
   } else if (!Number.isInteger(quantity) || quantity <= 0) {
     errors.quantity = "La cantidad debe ser un número entero positivo.";
+  }
+
+  return errors;
+}
+
+export function validateServiceTypeForm(
+  values: ServiceTypeFormValues,
+): ServiceTypeFormErrors {
+  const errors: ServiceTypeFormErrors = {};
+
+  const name = values.name.trim();
+  const laborPrice = values.defaultLaborPrice.trim();
+
+  if (!name) {
+    errors.name = "El nombre del tipo de servicio es obligatorio.";
+  } else if (name.length > 150) {
+    errors.name = "El nombre no puede superar 150 caracteres.";
+  }
+
+  if (laborPrice && (!DECIMAL_PATTERN.test(laborPrice) || Number(laborPrice) <= 0)) {
+    errors.defaultLaborPrice = "Ingrese un precio mayor que cero, o déjelo vacío.";
+  }
+
+  const hasInvalidQuantity = values.kitItems.some(
+    (item) => !/^\d+$/.test(item.quantity.trim()) || Number(item.quantity) < 1,
+  );
+
+  if (hasInvalidQuantity) {
+    errors.kitItems = "Cada producto del kit necesita una cantidad entera de 1 o más.";
   }
 
   return errors;
