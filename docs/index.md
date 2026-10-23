@@ -451,6 +451,7 @@ Estos documentos no describen el estado actual del sistema; son insumos y trabaj
 
 - [Backlog de la visita al cliente (2026-09, 20 puntos)](backlog-cliente-2026-09.md) — ya implementado salvo §5; se conserva como registro de la decisión original.
 - [Auditoría y plan de 30 mejoras (2026-09-21)](auditoria-mejoras-30-puntos-2026-09-21.md) — implementada en la 2.4.0 (el punto 6 se descartó); la sección 6 resume cada punto y la sección 3 las decisiones del cliente.
+- [Auditoría y plan: servicios, etiquetas, caja y traslados (2026-10-22)](auditoria-mejoras-2026-10-22.md) — plan para la 2.5.0, en curso; la sección 3 tiene las decisiones y la 6 el avance.
 
 ---
 
