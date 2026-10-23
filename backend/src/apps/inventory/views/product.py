@@ -259,13 +259,15 @@ class ProductViewSet(
         if query:
             queryset = queryset.filter(
                 Q(standard_code__icontains=query)
+                | Q(own_code__icontains=query)
                 | Q(name__icontains=query)
                 | Q(description__icontains=query)
                 | Q(storage_location__code__icontains=query)
             ).annotate(
                 is_exact_code_match=Case(
                     When(
-                        standard_code__iexact=query,
+                        Q(standard_code__iexact=query)
+                        | Q(own_code__iexact=query),
                         then=Value(0),
                     ),
                     default=Value(1),
@@ -316,10 +318,14 @@ class ProductViewSet(
             "unit_of_measure",
             parent.unit_of_measure,
         )
+        # Punto 16: la ubicación del padre es solo el valor por defecto.
+        validated_data.setdefault(
+            "storage_location",
+            parent.storage_location,
+        )
 
         variant = Product.objects.create(
             standard_code=parent.standard_code,
-            storage_location=parent.storage_location,
             created_by=request.user,
             updated_by=request.user,
             **validated_data,

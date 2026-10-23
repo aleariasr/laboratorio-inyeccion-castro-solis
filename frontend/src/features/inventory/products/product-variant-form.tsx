@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -14,16 +15,19 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+import { getActiveLocations } from "./api";
 import {
   VARIANT_KIND_OPTIONS,
   type Product,
   type ProductVariantFormErrors,
   type ProductVariantFormField,
   type ProductVariantFormValues,
+  type StorageLocationSummary,
 } from "./types";
 import { validateProductVariantForm } from "./validation";
 
 type ProductVariantFormProps = {
+  token: string;
   parent: Product;
   // Solo quien ve costos define precio de venta (ver
   // ProductVariantCreateSerializer.validate_custom_sale_price).
@@ -49,6 +53,7 @@ function mergeErrors(
 }
 
 export function ProductVariantForm({
+  token,
   parent,
   canSetSalePrice = false,
   initialValues,
@@ -66,7 +71,47 @@ export function ProductVariantForm({
   const [localErrors, setLocalErrors] =
     useState<ProductVariantFormErrors>({});
 
+  // Arranca con la ubicación del padre, que es la que queda si no se
+  // cambia; las demás activas llegan después.
+  const [locations, setLocations] = useState<StorageLocationSummary[]>([
+    parent.storage_location_detail,
+  ]);
+
   const errors = mergeErrors(localErrors, serverErrors);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    getActiveLocations(token, controller.signal)
+      .then((activeLocations) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        // La del padre se mantiene aunque esté inactiva: es la que
+        // hereda la variante si no se elige otra.
+        const hasParentLocation = activeLocations.some(
+          (location) => location.id === parent.storage_location,
+        );
+
+        setLocations(
+          hasParentLocation
+            ? activeLocations
+            : [parent.storage_location_detail, ...activeLocations],
+        );
+      })
+      .catch(() => {
+        // Sin la lista, queda solo la ubicación del padre.
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [parent.storage_location, parent.storage_location_detail, token]);
 
   function updateValue(
     field: ProductVariantFormField,
@@ -128,15 +173,12 @@ export function ProductVariantForm({
       {submitError && <FormError message={submitError} />}
 
       <p className="text-sm leading-6 text-muted-foreground">
-        Esta variante hereda el código estándar (
-        <strong className="text-foreground">
+        Comparte el código universal{" "}
+        <strong className="font-mono text-foreground">
           {parent.standard_code}
-        </strong>
-        ) y la ubicación (
-        <strong className="text-foreground">
-          {parent.storage_location_detail.code}
-        </strong>
-        ) del producto original — no se pueden cambiar aquí.
+        </strong>{" "}
+        con el producto original, que es el que agrupa la familia. Puede
+        tener además su propio código y otra ubicación.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -176,6 +218,50 @@ export function ProductVariantForm({
             {VARIANT_KIND_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field
+          id="variant-own-code"
+          label="Código propio"
+          hint="Opcional, por ejemplo el del fabricante. No puede repetirse."
+          error={errors.ownCode}
+        >
+          <Input
+            id="variant-own-code"
+            name="ownCode"
+            value={values.ownCode}
+            onChange={handleTextChange("ownCode")}
+            hasError={Boolean(errors.ownCode)}
+            maxLength={50}
+            autoComplete="off"
+            spellCheck={false}
+            className="font-mono uppercase"
+            disabled={isSubmitting}
+          />
+        </Field>
+
+        <Field
+          id="variant-storage-location"
+          label="Ubicación"
+          required
+          hint={`Por defecto, la del original (${parent.storage_location_detail.code}).`}
+          error={errors.storageLocationId}
+        >
+          <Select
+            id="variant-storage-location"
+            name="storageLocationId"
+            value={values.storageLocationId}
+            onChange={handleTextChange("storageLocationId")}
+            hasError={Boolean(errors.storageLocationId)}
+            disabled={isSubmitting}
+          >
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.code}
+                {location.description ? ` — ${location.description}` : ""}
               </option>
             ))}
           </Select>

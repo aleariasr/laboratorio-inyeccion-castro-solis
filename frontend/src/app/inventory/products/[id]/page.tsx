@@ -536,7 +536,10 @@ export default function ProductDetailPage() {
     }));
 
     try {
-      const payload = buildProductVariantWritePayload(values);
+      const payload = buildProductVariantWritePayload(
+        values,
+        loadState.product,
+      );
 
       const newVariant = await addProductVariant(
         token,
@@ -862,8 +865,19 @@ export default function ProductDetailPage() {
           <section className="app-status-card overflow-hidden">
             <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="font-mono text-sm font-semibold text-primary">
-                  {loadState.product.standard_code}
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="font-mono text-sm font-semibold text-primary">
+                    {loadState.product.standard_code}
+                  </span>
+
+                  {loadState.product.own_code && (
+                    <span className="inline-flex items-center rounded-[var(--radius-sm)] bg-surface-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      Código propio
+                      <span className="ml-1.5 font-mono font-semibold text-foreground">
+                        {loadState.product.own_code}
+                      </span>
+                    </span>
+                  )}
                 </p>
 
                 <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em] text-foreground">
@@ -1406,8 +1420,8 @@ export default function ProductDetailPage() {
 
                 <p className="mt-1 text-sm text-muted-foreground">
                   Otros productos (original/genérico) que comparten el
-                  código estándar {loadState.product.standard_code} y su
-                  ubicación.
+                  código estándar {loadState.product.standard_code}. Cada
+                  uno puede tener su propio código y su ubicación.
                 </p>
               </div>
 
@@ -1445,6 +1459,7 @@ export default function ProductDetailPage() {
                 </div>
 
                 <ProductVariantForm
+                  token={token ?? ""}
                   parent={loadState.product}
                   canSetSalePrice={hasCostsAccess}
                   initialValues={emptyProductVariantFormValues(
@@ -1503,8 +1518,25 @@ export default function ProductDetailPage() {
                         }}
                         className="cursor-pointer border-b border-[var(--color-border-soft)] last:border-b-0 hover:bg-surface-muted/50"
                       >
-                        <td className="px-5 py-4 text-sm font-semibold text-foreground">
-                          {variant.name}
+                        <td className="px-5 py-4 text-sm">
+                          <p className="font-semibold text-foreground">
+                            {variant.name}
+                          </p>
+
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {variant.own_code && (
+                              <>
+                                <span className="font-mono">
+                                  {variant.own_code}
+                                </span>
+                                {" · "}
+                              </>
+                            )}
+                            Ubicación{" "}
+                            <span className="font-mono">
+                              {variant.storage_location_detail.code}
+                            </span>
+                          </p>
                         </td>
 
                         <td className="px-5 py-4 text-sm text-foreground">

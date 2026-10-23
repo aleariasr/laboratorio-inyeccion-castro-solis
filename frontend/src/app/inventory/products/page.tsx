@@ -1181,6 +1181,15 @@ export default function ProductsPage() {
                                   {VARIANT_KIND_LABELS[product.variant_kind]}
                                 </span>
                               )}
+
+                              {product.own_code && (
+                                <p
+                                  className="mt-1 font-mono text-xs text-muted-foreground"
+                                  title="Código propio"
+                                >
+                                  Propio: {product.own_code}
+                                </p>
+                              )}
                             </td>
 
                             <td className="px-5 py-4 align-top">

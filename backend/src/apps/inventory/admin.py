@@ -36,6 +36,7 @@ class StorageLocationAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
         "standard_code",
+        "own_code",
         "name",
         "variant_kind",
         "storage_location",
@@ -45,6 +46,7 @@ class ProductAdmin(admin.ModelAdmin):
     )
     search_fields = (
         "standard_code",
+        "own_code",
         "name",
         "description",
     )

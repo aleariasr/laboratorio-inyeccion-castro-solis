@@ -64,6 +64,8 @@ class ProductLabel:
     standard_code: str
     product_name: str
     location_code: str
+    # Punto 16: vacío si el producto no tiene código propio.
+    own_code: str = ""
 
 
 @dataclass(frozen=True)
@@ -82,6 +84,7 @@ def build_product_labels(
         ProductLabel(
             product_id=product.id,
             standard_code=product.standard_code,
+            own_code=product.own_code,
             product_name=(
                 product.name
                 or product.description
@@ -272,6 +275,27 @@ def _draw_product_label(
         y + LABEL_HEIGHT - 15.5 * mm,
         product_name_text,
     )
+
+    # Entre el nombre y el código de barras (que sigue siendo el del
+    # código universal: es el que agrupa la familia).
+    if label.own_code:
+        own_code_text = _fit_text(
+            text=f"Código propio: {label.own_code}",
+            font_name="Helvetica-Bold",
+            font_size=7,
+            maximum_width=LABEL_CONTENT_WIDTH,
+        )
+
+        pdf.setFont(
+            "Helvetica-Bold",
+            7,
+        )
+
+        pdf.drawCentredString(
+            center_x,
+            y + LABEL_HEIGHT - 19 * mm,
+            own_code_text,
+        )
 
     barcode = _build_barcode(
         value=label.standard_code,

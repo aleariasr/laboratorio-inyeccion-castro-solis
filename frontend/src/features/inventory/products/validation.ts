@@ -7,6 +7,11 @@ import type {
 
 const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 
+const OWN_CODE_MAX_LENGTH = 50;
+
+const OWN_CODE_TOO_LONG_MESSAGE =
+  "El código propio no puede superar 50 caracteres.";
+
 export function validateProductForm(
   values: ProductFormValues,
 ): ProductFormErrors {
@@ -37,6 +42,10 @@ export function validateProductForm(
   } else if (standardCode.length > 50) {
     errors.standardCode =
       "El código estándar no puede superar 50 caracteres.";
+  }
+
+  if (values.ownCode.trim().length > OWN_CODE_MAX_LENGTH) {
+    errors.ownCode = OWN_CODE_TOO_LONG_MESSAGE;
   }
 
   if (!name) {
@@ -91,6 +100,14 @@ export function validateProductVariantForm(
   const name = values.name.trim();
   const unitOfMeasure = values.unitOfMeasure.trim();
   const customSalePrice = values.customSalePrice.trim();
+
+  if (values.ownCode.trim().length > OWN_CODE_MAX_LENGTH) {
+    errors.ownCode = OWN_CODE_TOO_LONG_MESSAGE;
+  }
+
+  if (!values.storageLocationId) {
+    errors.storageLocationId = "Seleccione una ubicación.";
+  }
 
   if (!name) {
     errors.name = "El nombre del producto es obligatorio.";

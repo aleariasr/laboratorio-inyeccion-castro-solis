@@ -12,6 +12,7 @@ const FIELD_MAP: Record<
   ProductFormField
 > = {
   standard_code: "standardCode",
+  own_code: "ownCode",
   name: "name",
   description: "description",
   storage_location: "storageLocationId",
@@ -45,6 +46,8 @@ const VARIANT_FIELD_MAP: Record<
   string,
   ProductVariantFormField
 > = {
+  own_code: "ownCode",
+  storage_location: "storageLocationId",
   name: "name",
   description: "description",
   variant_kind: "variantKind",

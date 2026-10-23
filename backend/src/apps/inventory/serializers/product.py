@@ -111,6 +111,40 @@ class StorageLocationSerializer(serializers.ModelSerializer):
         return attrs
 
 
+def normalize_own_code(value, *, instance=None):
+    """
+    Código propio (punto 16): en mayúsculas como el universal y, si tiene
+    valor, sin repetirse entre productos (la base lo garantiza con
+    inventory_product_unique_own_code; esto da el mensaje claro).
+    """
+
+    normalized_code = value.strip().upper()
+
+    if not normalized_code:
+        return ""
+
+    queryset = Product.objects.filter(own_code=normalized_code)
+
+    if instance is not None:
+        queryset = queryset.exclude(pk=instance.pk)
+
+    if queryset.exists():
+        raise serializers.ValidationError(
+            "Ya existe un producto con este código propio."
+        )
+
+    return normalized_code
+
+
+def validate_active_location(value):
+    if not value.is_active:
+        raise serializers.ValidationError(
+            "No puede asignar el producto a una ubicación inactiva."
+        )
+
+    return value
+
+
 class ProductSerializer(serializers.ModelSerializer):
     current_stock = serializers.SerializerMethodField()
     latest_suggested_price = serializers.SerializerMethodField()
@@ -125,6 +159,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "standard_code",
+            "own_code",
             "name",
             "description",
             "storage_location",
@@ -200,13 +235,11 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return normalized_unit
 
-    def validate_storage_location(self, value):
-        if not value.is_active:
-            raise serializers.ValidationError(
-                "No puede asignar el producto a una ubicación inactiva."
-            )
+    def validate_own_code(self, value):
+        return normalize_own_code(value, instance=self.instance)
 
-        return value
+    def validate_storage_location(self, value):
+        return validate_active_location(value)
 
     def validate_custom_sale_price(self, value):
         # Fijar el precio sin ver el costo permite vender por debajo de
@@ -320,11 +353,18 @@ class ProductSerializer(serializers.ModelSerializer):
 class ProductVariantCreateSerializer(serializers.ModelSerializer):
     """
     Crea una nueva variante (original/genérico/otro) de un producto
-    existente. standard_code y storage_location NO son campos de
-    este serializer: siempre se heredan del producto padre en la
-    vista (ProductViewSet.add_variant), así es imposible crear una
-    variante con código o ubicación distintos de su familia.
+    existente. standard_code NO es campo de este serializer: siempre se
+    hereda del producto padre en la vista (ProductViewSet.add_variant),
+    porque la familia se agrupa por él (ver variant_family).
+
+    Desde el punto 16 la variante puede traer su código propio y su
+    propia ubicación; sin ubicación, usa la del padre.
     """
+
+    storage_location = serializers.PrimaryKeyRelatedField(
+        queryset=StorageLocation.objects.all(),
+        required=False,
+    )
 
     # Declarado explícito (sin usar el default="unidad" del modelo):
     # si no se manda, la vista lo completa con el unit_of_measure del
@@ -335,13 +375,21 @@ class ProductVariantCreateSerializer(serializers.ModelSerializer):
         model = Product
         fields = (
             "id",
+            "own_code",
             "name",
             "description",
+            "storage_location",
             "variant_kind",
             "unit_of_measure",
             "minimum_stock",
             "custom_sale_price",
         )
+
+    def validate_own_code(self, value):
+        return normalize_own_code(value)
+
+    def validate_storage_location(self, value):
+        return validate_active_location(value)
 
     def validate_name(self, value):
         normalized_name = value.strip()

@@ -231,3 +231,33 @@ class ProductLabelsApiTest(APITestCase):
             response.status_code,
             status.HTTP_401_UNAUTHORIZED,
         )
+
+
+class ProductLabelOwnCodeTest(APITestCase):
+    """Punto 16: la etiqueta muestra el código propio cuando lo hay."""
+
+    # Mismos datos, sin heredar los tests (correrían dos veces).
+    endpoint = ProductLabelsApiTest.endpoint
+    setUp = ProductLabelsApiTest.setUp
+
+    def test_label_shows_own_code(self):
+        from unittest import mock
+
+        from reportlab import rl_config
+
+        self.product.own_code = "KG-77"
+        self.product.save(update_fields=["own_code"])
+
+        # Sin comprimir, para leer el texto del PDF.
+        with mock.patch.object(rl_config, "pageCompression", 0):
+            response = self.client.post(
+                self.endpoint,
+                {"product_ids": [self.product.id]},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        text = b"".join(response.streaming_content).decode("latin-1")
+
+        self.assertIn("digo propio: KG-77) Tj", text)

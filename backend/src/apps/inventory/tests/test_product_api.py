@@ -841,7 +841,9 @@ class ProductApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["unit_of_measure"], "juego")
 
-    def test_add_variant_ignores_submitted_code_and_location(self):
+    def test_add_variant_ignores_code_but_takes_its_own_location(self):
+        # Punto 16: el código universal se hereda siempre (agrupa la
+        # familia); la ubicación del padre es solo el valor por defecto.
         other_location = StorageLocation.objects.create(
             code="B202",
             created_by=self.user,
@@ -851,7 +853,7 @@ class ProductApiTest(APITestCase):
         response = self.client.post(
             f"/api/inventory/products/{self.product.id}/add-variant/",
             {
-                "name": "Variante con intento de override",
+                "name": "Variante en otro estante",
                 "standard_code": "OTRO-CODIGO",
                 "storage_location": other_location.id,
             },
@@ -865,7 +867,116 @@ class ProductApiTest(APITestCase):
         )
         self.assertEqual(
             response.data["storage_location"],
-            self.location.id,
+            other_location.id,
+        )
+
+    def test_add_variant_with_own_code(self):
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {
+                "name": "Producto (genérico)",
+                "variant_kind": "GENERIC",
+                "own_code": "  kg-77 ",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["own_code"], "KG-77")
+        self.assertEqual(response.data["standard_code"], "P-001")
+
+    def test_add_variant_rejects_inactive_location(self):
+        inactive_location = StorageLocation.objects.create(
+            code="Z999",
+            is_active=False,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {
+                "name": "Variante en estante inactivo",
+                "storage_location": inactive_location.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("storage_location", response.data)
+
+    def test_own_code_is_unique_when_set(self):
+        self.product.own_code = "KG-77"
+        self.product.save(update_fields=["own_code"])
+
+        response = self.client.post(
+            f"/api/inventory/products/{self.product.id}/add-variant/",
+            {"name": "Repite código propio", "own_code": "kg-77"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["own_code"],
+            ["Ya existe un producto con este código propio."],
+        )
+
+        # Vacío no cuenta como repetido.
+        for name in ("Sin código propio 1", "Sin código propio 2"):
+            response = self.client.post(
+                f"/api/inventory/products/{self.product.id}/add-variant/",
+                {"name": name, "own_code": ""},
+                format="json",
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_edit_own_code_keeps_its_own_value(self):
+        self.product.own_code = "KG-77"
+        self.product.save(update_fields=["own_code"])
+
+        # Guardar el mismo producto con su mismo código no es un repetido.
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {"own_code": "KG-77", "name": "Producto renombrado"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response = self.client.patch(
+            f"/api/inventory/products/{self.product.id}/",
+            {"own_code": ""},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["own_code"], "")
+
+    def test_search_finds_product_by_own_code(self):
+        Product.objects.create(
+            standard_code="P-900",
+            own_code="ZX-500",
+            name="Genérico con código propio",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get("/api/inventory/products/", {"q": "zx-5"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["standard_code"] for item in response.data["results"]],
+            ["P-900"],
+        )
+
+        response = self.client.get("/api/search/", {"q": "ZX-500"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["own_code"] for item in response.data["results"]["products"]],
+            ["ZX-500"],
         )
 
     def test_products_can_share_standard_code(self):

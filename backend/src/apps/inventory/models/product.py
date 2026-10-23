@@ -51,7 +51,8 @@ class VariantKind(models.TextChoices):
     uno con su propio precio y stock, pero comparten standard_code.
 
     Lo habitual es que compartan también storage_location, y por eso
-    `add-variant` copia la del producto padre, pero NO es una
+    `add-variant` usa la del producto padre si no se elige otra (punto
+    16), pero NO es una
     restricción: en los datos reales del cliente hay 152 familias de
     equivalentes repartidas en estantes distintos, y forzarlo impedía
     reubicar una familia.
@@ -75,6 +76,17 @@ class Product(AuditModel, ActivableModel):
             "Varias filas Product pueden compartir el mismo código "
             "para representar distintas variantes (original, "
             "genérico, etc.) de la misma pieza."
+        ),
+    )
+
+    own_code = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text=(
+            "Código propio de la pieza, además del código universal "
+            "(por ejemplo, el del fabricante de un genérico). Opcional; "
+            "si tiene valor, no se repite entre productos."
         ),
     )
 
@@ -126,6 +138,14 @@ class Product(AuditModel, ActivableModel):
         verbose_name = "Producto"
         verbose_name_plural = "Productos"
         ordering = ["standard_code"]
+        constraints = [
+            # Punto 16: único cuando tiene valor; vacío se repite.
+            models.UniqueConstraint(
+                fields=["own_code"],
+                condition=~models.Q(own_code=""),
+                name="inventory_product_unique_own_code",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.standard_code} - {self.name}"

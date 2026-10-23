@@ -60,6 +60,7 @@ function areValuesEqual(
 ): boolean {
   return (
     left.standardCode === right.standardCode &&
+    left.ownCode === right.ownCode &&
     left.name === right.name &&
     left.description === right.description &&
     left.storageLocationId ===
@@ -452,6 +453,36 @@ export function ProductForm({
                 </option>
               ))}
             </Select>
+          </Field>
+
+          <Field
+            id="product-own-code"
+            label="Código propio"
+            hint="Opcional: un código adicional, por ejemplo el del fabricante de un genérico. No puede repetirse."
+            error={errors.ownCode}
+          >
+            <Input
+              id="product-own-code"
+              name="ownCode"
+              value={values.ownCode}
+              onChange={handleTextChange(
+                "ownCode",
+              )}
+              hasError={Boolean(errors.ownCode)}
+              aria-describedby={[
+                "product-own-code-hint",
+                errors.ownCode
+                  ? "product-own-code-error"
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              maxLength={50}
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono uppercase"
+              disabled={isSubmitting}
+            />
           </Field>
 
           <div className="lg:col-span-2">

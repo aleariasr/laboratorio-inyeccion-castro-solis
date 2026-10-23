@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -474,6 +475,26 @@ class ProformaPdfApiTest(APITestCase):
             rows,
             [("PROF-001", "Producto proforma × 3", Decimal("45000.0000"))],
         )
+
+    def test_proforma_line_shows_own_code_before_quantity(self):
+        # Punto 16: el código propio va junto al nombre de la línea.
+        self.product.own_code = "KG-77"
+        self.product.save(update_fields=["own_code"])
+
+        rows = self.post_items_and_capture_rows(
+            [{"product_id": self.product.id, "quantity": 3}],
+        )
+
+        self.assertEqual(rows[0][0], "PROF-001")
+        self.assertEqual(rows[0][1], "Producto proforma (cód. KG-77) × 3")
+
+    def test_long_line_name_keeps_own_code_and_quantity(self):
+        line = documents_pdf._document_line_name(
+            SimpleNamespace(name="X" * 200, own_code="KG-77"),
+            quantity=12,
+        )
+
+        self.assertTrue(line.endswith("... (cód. KG-77) × 12"))
 
     def test_proforma_quantity_defaults_to_one(self):
         rows = self.post_items_and_capture_rows(

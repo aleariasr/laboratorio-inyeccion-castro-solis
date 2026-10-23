@@ -19,6 +19,8 @@ export const VARIANT_KIND_OPTIONS: Array<{ value: VariantKind; label: string }> 
 export type Product = {
   id: number;
   standard_code: string;
+  /** Punto 16: código propio, además del universal. "" si no tiene. */
+  own_code: string;
   name: string;
   description: string;
   storage_location: number;
@@ -53,6 +55,7 @@ export type { StockMovement } from "../movements/types";
 
 export type ProductWritePayload = {
   standard_code: string;
+  own_code: string;
   name: string;
   description: string;
   storage_location: number;
@@ -65,6 +68,7 @@ export type ProductWritePayload = {
 
 export type ProductFormValues = {
   standardCode: string;
+  ownCode: string;
   name: string;
   description: string;
   storageLocationId: string;
@@ -77,6 +81,7 @@ export type ProductFormValues = {
 
 export type ProductFormField =
   | "standardCode"
+  | "ownCode"
   | "name"
   | "description"
   | "storageLocationId"
@@ -91,6 +96,7 @@ export type ProductFormErrors =
 
 export const EMPTY_PRODUCT_FORM_VALUES: ProductFormValues = {
   standardCode: "",
+  ownCode: "",
   name: "",
   description: "",
   storageLocationId: "",
@@ -106,6 +112,7 @@ export function productToFormValues(
 ): ProductFormValues {
   return {
     standardCode: product.standard_code,
+    ownCode: product.own_code,
     name: product.name,
     description: product.description,
     storageLocationId: String(
@@ -128,6 +135,7 @@ export function buildProductWritePayload(
 
   return {
     standard_code: values.standardCode.trim(),
+    own_code: values.ownCode.trim(),
     name: values.name.trim(),
     description: values.description.trim(),
     storage_location: Number(
@@ -145,9 +153,12 @@ export function buildProductWritePayload(
   };
 }
 
-// Crear variante: código y ubicación se heredan del producto padre,
-// no son campos de este formulario — ver ProductViewSet.add_variant.
+// Crear variante: el código universal se hereda siempre del producto
+// padre. La ubicación también, salvo que se elija otra (punto 16) — ver
+// ProductViewSet.add_variant.
 export type ProductVariantWritePayload = {
+  own_code: string;
+  storage_location?: number;
   name: string;
   description: string;
   variant_kind: VariantKind;
@@ -156,6 +167,8 @@ export type ProductVariantWritePayload = {
 };
 
 export type ProductVariantFormValues = {
+  ownCode: string;
+  storageLocationId: string;
   name: string;
   description: string;
   variantKind: VariantKind;
@@ -164,6 +177,8 @@ export type ProductVariantFormValues = {
 };
 
 export type ProductVariantFormField =
+  | "ownCode"
+  | "storageLocationId"
   | "name"
   | "description"
   | "variantKind"
@@ -177,6 +192,8 @@ export function emptyProductVariantFormValues(
   parent: Product,
 ): ProductVariantFormValues {
   return {
+    ownCode: "",
+    storageLocationId: String(parent.storage_location),
     name: "",
     description: "",
     variantKind: "GENERIC",
@@ -187,11 +204,19 @@ export function emptyProductVariantFormValues(
 
 export function buildProductVariantWritePayload(
   values: ProductVariantFormValues,
+  parent: Product,
 ): ProductVariantWritePayload {
   const trimmedCustomSalePrice = values.customSalePrice.trim();
   const trimmedUnitOfMeasure = values.unitOfMeasure.trim();
+  const storageLocation = Number(values.storageLocationId);
 
   return {
+    own_code: values.ownCode.trim(),
+    // Solo si cambia: con la del padre, el backend la hereda (aunque esa
+    // ubicación ya esté inactiva, como hasta ahora).
+    ...(storageLocation && storageLocation !== parent.storage_location
+      ? { storage_location: storageLocation }
+      : {}),
     name: values.name.trim(),
     description: values.description.trim(),
     variant_kind: values.variantKind,

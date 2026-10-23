@@ -5,6 +5,7 @@ from django.utils import timezone
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import mm
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 
@@ -148,6 +149,46 @@ def draw_product_label(
             current_y,
             _truncate(product.description, 55),
         )
+
+
+# Ancho para el nombre de una línea de proforma o factura: desde la
+# columna del nombre hasta antes del precio más largo que cabe.
+DOCUMENT_LINE_NAME_WIDTH = 105 * mm
+DOCUMENT_LINE_FONT_SIZE = 9
+
+
+def _fit_width(text, max_width, font="Helvetica", size=DOCUMENT_LINE_FONT_SIZE):
+    if stringWidth(text, font, size) <= max_width:
+        return text
+
+    while text and stringWidth(f"{text}...", font, size) > max_width:
+        text = text[:-1]
+
+    return f"{text.rstrip()}..."
+
+
+def _document_line_name(product, quantity=1):
+    """
+    Texto de una línea de proforma o factura: "Nombre (cód. X) × 3". El
+    código propio (punto 16) y la cantidad siempre se ven completos; si
+    no cabe, se recorta solo el nombre.
+    """
+
+    suffix = ""
+
+    if product.own_code:
+        suffix += f" (cód. {product.own_code})"
+
+    if quantity != 1:
+        suffix += f" × {quantity}"
+
+    name_width = DOCUMENT_LINE_NAME_WIDTH - stringWidth(
+        suffix,
+        "Helvetica",
+        DOCUMENT_LINE_FONT_SIZE,
+    )
+
+    return f"{_fit_width(product.name, name_width)}{suffix}"
 
 
 def _truncate(value, max_length):
@@ -386,7 +427,7 @@ def _build_itemized_document_pdf(
         pdf.drawString(column_code_x, y, code)
 
         pdf.setFont("Helvetica", 9)
-        pdf.drawString(column_name_x, y, _truncate(name, 42))
+        pdf.drawString(column_name_x, y, _fit_width(name, DOCUMENT_LINE_NAME_WIDTH))
 
         if price is not None:
             pdf.drawRightString(column_price_x, y, f"CRC {_format_money(price)}")
@@ -472,16 +513,12 @@ def build_proforma_pdf(
     rows = []
 
     for product, quantity in items:
-        name = product.name
         unit_price = effective_sale_price(product)
-
-        if quantity != 1:
-            name = f"{name} × {quantity}"
 
         rows.append(
             (
                 product.standard_code,
-                name,
+                _document_line_name(product, quantity),
                 unit_price * quantity if unit_price is not None else None,
             )
         )
@@ -566,15 +603,10 @@ def build_sale_invoice_pdf(*, sale):
     rows = []
 
     for item in sale.items.select_related("product").all():
-        name = item.product.name
-
-        if item.quantity != 1:
-            name = f"{name} × {item.quantity}"
-
         rows.append(
             (
                 item.product.standard_code,
-                name,
+                _document_line_name(item.product, item.quantity),
                 item.unit_price * item.quantity,
             )
         )
@@ -714,7 +746,15 @@ def build_service_invoice_pdf(*, service_record, accessories):
         pdf.setFont("Helvetica", 9)
 
         for accessory in accessories:
-            label = f"• {accessory.product.standard_code} — {accessory.product.name} (x{accessory.quantity})"
+            own_code = (
+                f" (cód. {accessory.product.own_code})"
+                if accessory.product.own_code
+                else ""
+            )
+            label = (
+                f"• {accessory.product.standard_code} — "
+                f"{accessory.product.name}{own_code} (x{accessory.quantity})"
+            )
             pdf.drawString(PROFORMA_PAGE_MARGIN + 3 * mm, y, _truncate(label, 90))
             y -= 5.5 * mm
 

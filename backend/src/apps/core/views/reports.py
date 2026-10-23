@@ -95,6 +95,7 @@ def stock_by_location_results(location_id, query):
     if query:
         products = products.filter(
             Q(standard_code__icontains=query)
+            | Q(own_code__icontains=query)
             | Q(name__icontains=query)
             | Q(description__icontains=query)
         )

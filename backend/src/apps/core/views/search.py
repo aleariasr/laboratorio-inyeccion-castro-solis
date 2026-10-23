@@ -74,6 +74,7 @@ class UniversalSearchView(APIView):
             .select_related("storage_location")
             .filter(
                 Q(standard_code__icontains=query)
+                | Q(own_code__icontains=query)
                 | Q(name__icontains=query)
                 | Q(description__icontains=query)
             )[:10]
@@ -83,6 +84,7 @@ class UniversalSearchView(APIView):
             {
                 "id": product.id,
                 "standard_code": product.standard_code,
+                "own_code": product.own_code,
                 "name": product.name,
                 "description": product.description,
                 "variant_kind": product.variant_kind,

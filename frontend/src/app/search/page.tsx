@@ -721,11 +721,17 @@ export default function SearchPage() {
                     (product) => (
                       <ResultRow
                         key={product.id}
-                        eyebrow={
+                        eyebrow={[
+                          product.standard_code,
                           product.variant_kind === "ORIGINAL"
-                            ? product.standard_code
-                            : `${product.standard_code} · ${VARIANT_KIND_LABELS[product.variant_kind]}`
-                        }
+                            ? null
+                            : VARIANT_KIND_LABELS[product.variant_kind],
+                          product.own_code
+                            ? `propio ${product.own_code}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                         title={product.name}
                         description={
                           product.description ||

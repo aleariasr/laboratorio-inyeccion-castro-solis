@@ -1030,7 +1030,7 @@ quiere decir que la decisión no está tomada y hay que consultarla antes de imp
 - [x] 21 + 22 — Caja chica
 - [x] 2 + 27 — PDF e impresión de reportes
 - [x] 28 — Movimientos a Excel y productos más movidos
-- [ ] 16 — Código propio del genérico y ubicación personalizable
+- [x] 16 — Código propio del genérico y ubicación personalizable
 - [ ] 7 — Menús de Electron: progreso, confirmación y errores claros
 
 ## 7. Resumen de dudas pendientes ("PREGUNTAR")

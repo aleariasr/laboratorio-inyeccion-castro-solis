@@ -1,6 +1,7 @@
 export type UniversalSearchProduct = {
   id: number;
   standard_code: string;
+  own_code: string;
   name: string;
   description: string;
   variant_kind: "ORIGINAL" | "GENERIC" | "OTHER";

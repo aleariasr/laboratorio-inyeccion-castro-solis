@@ -52,6 +52,7 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
                 Q(manufacturer__icontains=query)
                 | Q(supplier__name__icontains=query)
                 | Q(product__standard_code__icontains=query)
+                | Q(product__own_code__icontains=query)
                 | Q(product__name__icontains=query)
             ).annotate(
                 is_exact_code_match=Case(
