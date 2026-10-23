@@ -407,7 +407,7 @@ Versión: todo esto va en la **2.5.0**.
 
 ## 6. Checklist de avance (marcar al hacer commit)
 
-- [ ] 5 — "Debe haber al contar" grande y centrado; "Total cobrado" centrado
+- [x] 5 — "Debe haber al contar" grande y centrado, justo antes de "Total contado" (y arriba en el detalle, sin repetirse); "Total cobrado" centrado y con ese nombre en el formulario y el detalle
 - [ ] 1A — Tipo de servicio completo (precio, descripción, kit, pantalla)
 - [ ] 3 + 1B — Cobro por líneas; el precio ya no se acumula
 - [ ] 2 + 4 — Orden de productos; orden y copias de etiquetas

@@ -132,7 +132,7 @@ export default function NewCashClosingPage() {
   return (
     <AppShell
       title="Nuevo cierre de caja"
-      description="El total esperado se calcula y queda fijo al crear el cierre."
+      description="Lo cobrado en la semana se calcula y queda fijo al crear el cierre."
     >
       <CashClosingForm
         initialValues={EMPTY_CASH_CLOSING_FORM_VALUES}

@@ -12,6 +12,7 @@ import { formatMoney } from "@/features/inventory/purchases/format";
 import { getCashClosingPreview, getCloseableWeeks } from "./api";
 import { formatWeekdayDate, formatWeekRange } from "./format";
 import { PettyCashSummary } from "./petty-cash-summary";
+import { PhysicalTotalHero } from "./physical-total-hero";
 import { TaxBreakdown } from "./tax-breakdown";
 import type {
   CashClosingFormErrors,
@@ -247,7 +248,7 @@ export function CashClosingForm({
   const hasCloseableWeeks = (closeableWeeks?.weeks.length ?? 0) > 0;
 
   const weekStartHint = isLoadingPreview
-    ? "Calculando total esperado…"
+    ? "Calculando lo cobrado en la semana…"
     : closeableWeeks && !hasCloseableWeeks
       ? `No hay semanas pendientes de cerrar. La siguiente se podrá cerrar a partir del ${formatWeekdayDate(closeableWeeks.next_week_end)}.`
       : "Cada semana de caja va de sábado a viernes y se cierra a partir de su viernes.";
@@ -329,8 +330,8 @@ export function CashClosingForm({
             </p>
           </div>
 
-          <div className="col-span-2 border-t border-[var(--color-border-soft)] pt-3 sm:col-span-4">
-            <p className="text-xs text-muted-foreground">Total esperado</p>
+          <div className="col-span-2 border-t border-[var(--color-border-soft)] pt-3 text-center sm:col-span-4">
+            <p className="text-xs text-muted-foreground">Total cobrado</p>
             <p className="font-mono text-base font-semibold text-foreground">
               ₡{formatMoney(effectivePreview.expected_total)}
             </p>
@@ -350,7 +351,6 @@ export function CashClosingForm({
         <PettyCashSummary
           opening={pettyCashOpening}
           outflows={pettyCashOutflows}
-          expectedTotal={Number(effectivePreview.expected_total)}
           openingNote={
             isFirstPettyCashOpening
               ? "Primera vez: escriba con cuánto arrancó la caja chica esta semana. Desde ahora, cada cierre define el de la siguiente."
@@ -403,6 +403,14 @@ export function CashClosingForm({
             disabled={isSubmitting}
           />
         </Field>
+      )}
+
+      {effectivePreview && (
+        <PhysicalTotalHero
+          label="Debe haber al contar"
+          collected={Number(effectivePreview.expected_total)}
+          pettyCashBalance={pettyCashOpening - pettyCashOutflows}
+        />
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">

@@ -14,6 +14,7 @@ import { getCashClosing, getCashClosingPdf } from "@/features/cash/api";
 import type { CashClosing } from "@/features/cash/types";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import { PettyCashSummary } from "@/features/cash/petty-cash-summary";
+import { PhysicalTotalHero } from "@/features/cash/physical-total-hero";
 import { TaxBreakdown } from "@/features/cash/tax-breakdown";
 import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -277,18 +278,16 @@ export default function CashClosingDetailPage() {
 
       {loadState.status === "success" && (
         <div className="app-status-card overflow-hidden">
-          <div className="grid gap-6 p-6 sm:grid-cols-3">
-            <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
-              <p className="text-sm text-muted-foreground">Debía haber</p>
-              <p className="mt-2 font-mono text-2xl font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.expected_physical_total)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Cobrado ₡{formatMoney(loadState.closing.expected_total)} más el saldo de caja chica.
-              </p>
+          <div className="grid gap-4 p-6 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <PhysicalTotalHero
+                label="Debía haber"
+                collected={Number(loadState.closing.expected_total)}
+                pettyCashBalance={Number(loadState.closing.petty_cash_balance)}
+              />
             </div>
 
-            <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
+            <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4 text-center">
               <p className="text-sm text-muted-foreground">Total contado</p>
               <p className="mt-2 font-mono text-2xl font-semibold text-foreground">
                 ₡{formatMoney(loadState.closing.counted_total)}
@@ -297,7 +296,7 @@ export default function CashClosingDetailPage() {
 
             <div
               className={[
-                "rounded-[var(--radius-lg)] p-4",
+                "rounded-[var(--radius-lg)] p-4 text-center",
                 Number(loadState.closing.difference) === 0
                   ? "bg-[var(--color-success-soft)]"
                   : "bg-[var(--color-danger-soft)]",
@@ -345,6 +344,13 @@ export default function CashClosingDetailPage() {
                 ₡{formatMoney(loadState.closing.expected_other)}
               </p>
             </div>
+
+            <div className="col-span-2 border-t border-[var(--color-border-soft)] pt-3 text-center sm:col-span-4">
+              <p className="text-xs text-muted-foreground">Total cobrado</p>
+              <p className="font-mono text-base font-semibold text-foreground">
+                ₡{formatMoney(loadState.closing.expected_total)}
+              </p>
+            </div>
           </div>
 
           <div className="border-t border-[var(--color-border-soft)] p-6">
@@ -359,7 +365,6 @@ export default function CashClosingDetailPage() {
             <PettyCashSummary
               opening={Number(loadState.closing.petty_cash_opening)}
               outflows={Number(loadState.closing.petty_cash_outflows)}
-              expectedTotal={Number(loadState.closing.expected_total)}
             />
 
             <p className="text-sm text-muted-foreground">

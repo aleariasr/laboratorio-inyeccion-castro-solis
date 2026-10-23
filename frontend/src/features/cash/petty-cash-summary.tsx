@@ -5,7 +5,6 @@ import { formatMoney } from "@/features/inventory/purchases/format";
 type PettyCashSummaryProps = {
   opening: number;
   outflows: number;
-  expectedTotal: number;
   // En el formulario, la primera vez, el fondo se escribe: aquí va el
   // campo en vez del monto.
   openingInput?: ReactNode;
@@ -13,19 +12,18 @@ type PettyCashSummaryProps = {
 };
 
 /**
- * Caja chica en el cierre (puntos 21 + 22): fondo − salidas = saldo, y
- * lo cobrado + saldo = efectivo físico esperado, que es contra lo que se
- * compara lo contado. Lo usan el formulario de cierre y su detalle.
+ * Caja chica en el cierre (puntos 21 + 22): fondo − salidas = saldo. Lo
+ * cobrado + saldo, que es contra lo que se compara lo contado, va aparte
+ * y destacado en PhysicalTotalHero. Lo usan el formulario de cierre y su
+ * detalle.
  */
 export function PettyCashSummary({
   opening,
   outflows,
-  expectedTotal,
   openingInput,
   openingNote,
 }: PettyCashSummaryProps) {
   const balance = opening - outflows;
-  const physicalTotal = expectedTotal + balance;
 
   return (
     <div className="grid gap-3">
@@ -88,21 +86,6 @@ export function PettyCashSummary({
             </p>
           )}
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-baseline justify-between gap-3 rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] px-5 py-4 ring-1 ring-[rgb(7_81_132_/_12%)]">
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            Debe haber al contar
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Lo cobrado (₡{formatMoney(expectedTotal)}) más el saldo de caja chica.
-          </p>
-        </div>
-
-        <p className="font-mono text-2xl font-semibold text-foreground">
-          ₡{formatMoney(physicalTotal)}
-        </p>
       </div>
     </div>
   );
