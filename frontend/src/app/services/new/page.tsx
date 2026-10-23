@@ -17,6 +17,7 @@ import {
   type ServiceRecordCreateFormValues,
 } from "@/features/services/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { goBackOr } from "@/lib/navigation/go-back";
 
 function nowAsDateTimeLocal(): string {
   const now = new Date();
@@ -108,7 +109,7 @@ export default function NewServiceRecordPage() {
   }
 
   function handleCancel(): void {
-    router.push("/services");
+    goBackOr(router, "/services");
   }
 
   if (authStatus === "authenticated" && user && !hasWriteAccess) {

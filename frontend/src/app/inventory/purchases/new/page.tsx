@@ -18,6 +18,7 @@ import {
   type PurchaseFormValues,
 } from "@/features/inventory/purchases/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { goBackOr } from "@/lib/navigation/go-back";
 
 function getSubmitErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
@@ -92,7 +93,7 @@ export default function NewPurchasePage() {
   }
 
   function handleCancel(): void {
-    router.push("/inventory/purchases");
+    goBackOr(router, "/inventory/purchases");
   }
 
   if (authStatus === "authenticated" && user && !hasWriteAccess) {

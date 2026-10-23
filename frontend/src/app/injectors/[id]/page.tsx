@@ -308,7 +308,7 @@ export default function InjectorDetailPage() {
             <Button
               type="button"
               onClick={() => {
-                router.push(`/injectors/${loadState.injector.id}/edit`);
+                router.replace(`/injectors/${loadState.injector.id}/edit`);
               }}
             >
               Editar inyector

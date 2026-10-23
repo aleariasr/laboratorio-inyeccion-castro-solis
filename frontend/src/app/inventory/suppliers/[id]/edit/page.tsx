@@ -211,7 +211,7 @@ export default function EditSupplierPage() {
   }
 
   function returnToSupplierDetail(): void {
-    router.push(`/inventory/suppliers/${supplierId}`);
+    router.replace(`/inventory/suppliers/${supplierId}`);
   }
 
   if (!Number.isInteger(supplierId) || supplierId <= 0) {

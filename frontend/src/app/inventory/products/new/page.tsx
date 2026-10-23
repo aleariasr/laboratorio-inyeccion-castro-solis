@@ -31,6 +31,7 @@ import {
   ApiNetworkError,
   ApiTimeoutError,
 } from "@/lib/api/errors";
+import { goBackOr } from "@/lib/navigation/go-back";
 
 type LocationsState =
   | {
@@ -267,7 +268,7 @@ export default function NewProductPage() {
   }
 
   function handleCancel(): void {
-    router.push("/inventory/products");
+    goBackOr(router, "/inventory/products");
   }
 
   if (

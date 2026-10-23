@@ -18,6 +18,7 @@ import {
   type InventoryCountFormValues,
 } from "@/features/inventory/counts/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { goBackOr } from "@/lib/navigation/go-back";
 
 function getSubmitErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
@@ -95,7 +96,7 @@ export default function NewInventoryCountPage() {
   }
 
   function handleCancel(): void {
-    router.push("/inventory/counts");
+    goBackOr(router, "/inventory/counts");
   }
 
   if (authStatus === "authenticated" && user && !hasWriteAccess) {

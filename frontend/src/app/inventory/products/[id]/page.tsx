@@ -789,7 +789,7 @@ export default function ProductDetailPage() {
               <Button
                 type="button"
                 onClick={() => {
-                  router.push(
+                  router.replace(
                     `/inventory/products/${loadState.product.id}/edit`,
                   );
                 }}

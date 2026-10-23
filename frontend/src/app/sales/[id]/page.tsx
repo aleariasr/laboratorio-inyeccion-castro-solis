@@ -707,7 +707,7 @@ export default function SaleDetailPage() {
               <Button
                 type="button"
                 onClick={() => {
-                  router.push(`/sales/${loadState.sale.id}/edit`);
+                  router.replace(`/sales/${loadState.sale.id}/edit`);
                 }}
               >
                 Editar venta

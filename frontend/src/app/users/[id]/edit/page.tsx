@@ -220,7 +220,7 @@ export default function EditUserPage() {
   }
 
   function returnToUserDetail(): void {
-    router.push(`/users/${userId}`);
+    router.replace(`/users/${userId}`);
   }
 
   if (!Number.isInteger(userId) || userId <= 0) {

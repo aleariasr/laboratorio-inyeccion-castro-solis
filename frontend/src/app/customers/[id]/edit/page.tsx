@@ -211,7 +211,7 @@ export default function EditCustomerPage() {
   }
 
   function returnToCustomerDetail(): void {
-    router.push(`/customers/${customerId}`);
+    router.replace(`/customers/${customerId}`);
   }
 
   if (!Number.isInteger(customerId) || customerId <= 0) {

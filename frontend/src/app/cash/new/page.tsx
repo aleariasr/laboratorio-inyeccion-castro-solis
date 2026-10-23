@@ -18,6 +18,7 @@ import {
   type CashClosingFormValues,
 } from "@/features/cash/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { goBackOr } from "@/lib/navigation/go-back";
 
 function getSubmitErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
@@ -95,7 +96,7 @@ export default function NewCashClosingPage() {
   }
 
   function handleCancel(): void {
-    router.push("/cash");
+    goBackOr(router, "/cash");
   }
 
   if (authStatus === "authenticated" && user && !hasWriteAccess) {

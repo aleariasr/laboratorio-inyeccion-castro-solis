@@ -312,7 +312,7 @@ export default function UserDetailPage() {
             <Button
               type="button"
               onClick={() => {
-                router.push(`/users/${loadState.targetUser.id}/edit`);
+                router.replace(`/users/${loadState.targetUser.id}/edit`);
               }}
             >
               Editar usuario

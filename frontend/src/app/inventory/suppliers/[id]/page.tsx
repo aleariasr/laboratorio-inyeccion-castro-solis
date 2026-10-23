@@ -490,7 +490,7 @@ export default function SupplierDetailPage() {
             <Button
               type="button"
               onClick={() => {
-                router.push(`/inventory/suppliers/${loadState.supplier.id}/edit`);
+                router.replace(`/inventory/suppliers/${loadState.supplier.id}/edit`);
               }}
             >
               Editar proveedor

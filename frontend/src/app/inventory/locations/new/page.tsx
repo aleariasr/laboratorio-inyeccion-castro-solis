@@ -24,6 +24,7 @@ import {
   ApiNetworkError,
   ApiTimeoutError,
 } from "@/lib/api/errors";
+import { goBackOr } from "@/lib/navigation/go-back";
 
 function getSubmitErrorMessage(
   error: unknown,
@@ -138,9 +139,7 @@ export default function NewStorageLocationPage() {
   }
 
   function handleCancel(): void {
-    router.push(
-      "/inventory/locations",
-    );
+    goBackOr(router, "/inventory/locations");
   }
 
   if (

@@ -220,7 +220,7 @@ export default function EditInjectorPage() {
   }
 
   function returnToInjectorDetail(): void {
-    router.push(`/injectors/${injectorId}`);
+    router.replace(`/injectors/${injectorId}`);
   }
 
   if (!Number.isInteger(injectorId) || injectorId <= 0) {

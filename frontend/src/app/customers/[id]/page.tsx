@@ -399,7 +399,7 @@ export default function CustomerDetailPage() {
             <Button
               type="button"
               onClick={() => {
-                router.push(`/customers/${loadState.customer.id}/edit`);
+                router.replace(`/customers/${loadState.customer.id}/edit`);
               }}
             >
               Editar cliente

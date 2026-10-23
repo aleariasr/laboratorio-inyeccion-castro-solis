@@ -665,7 +665,7 @@ export default function PurchaseDetailPage() {
               <Button
                 type="button"
                 onClick={() => {
-                  router.push(`/inventory/purchases/${loadState.purchase.id}/edit`);
+                  router.replace(`/inventory/purchases/${loadState.purchase.id}/edit`);
                 }}
               >
                 Editar compra

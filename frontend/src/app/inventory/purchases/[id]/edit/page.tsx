@@ -211,7 +211,7 @@ export default function EditPurchasePage() {
   }
 
   function returnToPurchaseDetail(): void {
-    router.push(`/inventory/purchases/${purchaseId}`);
+    router.replace(`/inventory/purchases/${purchaseId}`);
   }
 
   if (!Number.isInteger(purchaseId) || purchaseId <= 0) {

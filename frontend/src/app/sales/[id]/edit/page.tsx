@@ -213,7 +213,7 @@ export default function EditSalePage() {
   }
 
   function returnToSaleDetail(): void {
-    router.push(`/sales/${saleId}`);
+    router.replace(`/sales/${saleId}`);
   }
 
   if (!Number.isInteger(saleId) || saleId <= 0) {

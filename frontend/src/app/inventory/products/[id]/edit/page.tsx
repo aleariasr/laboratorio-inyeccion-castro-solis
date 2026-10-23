@@ -439,7 +439,7 @@ export default function EditProductPage() {
       : [];
 
   function goToProduct(): void {
-    router.push(
+    router.replace(
       `/inventory/products/${productId}`,
     );
   }

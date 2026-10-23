@@ -302,7 +302,7 @@ export default function EditStorageLocationPage() {
   }
 
   function returnToLocationDetail(): void {
-    router.push(
+    router.replace(
       `/inventory/locations/${locationId}`,
     );
   }

@@ -18,6 +18,7 @@ import {
 } from "@/features/users/types";
 import { UserForm } from "@/features/users/user-form";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { goBackOr } from "@/lib/navigation/go-back";
 
 function getSubmitErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
@@ -92,7 +93,7 @@ export default function NewUserPage() {
   }
 
   function handleCancel(): void {
-    router.push("/users");
+    goBackOr(router, "/users");
   }
 
   if (authStatus === "authenticated" && user && !hasAccess) {

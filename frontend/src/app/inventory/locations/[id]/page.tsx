@@ -382,7 +382,7 @@ export default function StorageLocationDetailPage() {
   }
 
   function openEditPage(): void {
-    router.push(
+    router.replace(
       `/inventory/locations/${locationId}/edit`,
     );
   }

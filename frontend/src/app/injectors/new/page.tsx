@@ -18,6 +18,7 @@ import {
   type InjectorFormValues,
 } from "@/features/injectors/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
+import { goBackOr } from "@/lib/navigation/go-back";
 
 function getSubmitErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
@@ -94,7 +95,7 @@ export default function NewInjectorPage() {
   }
 
   function handleCancel(): void {
-    router.push("/injectors");
+    goBackOr(router, "/injectors");
   }
 
   if (authStatus === "authenticated" && user && !hasWriteAccess) {
