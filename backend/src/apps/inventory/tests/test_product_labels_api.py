@@ -281,3 +281,125 @@ class ProductLabelOwnCodeTest(APITestCase):
 
         self.assertEqual(label_barcode_value(label("KG-77")), "KG-77")
         self.assertEqual(label_barcode_value(label("")), "INY-001")
+
+
+class ProductLabelCopiesTest(APITestCase):
+    """
+    Punto 4 del plan del 2026-10-22: `items` con copias por producto, en el
+    orden recibido; el tope cuenta etiquetas, no productos.
+    """
+
+    # Mismos datos, sin heredar los tests (correrían dos veces).
+    endpoint = ProductLabelsApiTest.endpoint
+    _base_set_up = ProductLabelsApiTest.setUp
+
+    def setUp(self):
+        self._base_set_up()
+
+        self.other_product = Product.objects.create(
+            standard_code="INY-002",
+            name="Otro inyector",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def _labelled_ids(self, items):
+        """Ids de producto de cada etiqueta, en el orden del PDF."""
+
+        from unittest import mock
+
+        from apps.inventory.services import product_labels
+
+        with mock.patch(
+            "apps.inventory.views.product.build_product_labels",
+            wraps=product_labels.build_product_labels,
+        ) as build_labels:
+            response = self.client.post(
+                self.endpoint,
+                {"items": items},
+                format="json",
+            )
+
+        # Un error trae .data; el PDF (FileResponse) no.
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+            getattr(response, "data", None),
+        )
+        self.assertTrue(b"".join(response.streaming_content).startswith(b"%PDF"))
+
+        return [product.id for product in build_labels.call_args.args[0]]
+
+    def test_copies_generate_that_many_labels_in_the_given_order(self):
+        self.assertEqual(
+            self._labelled_ids(
+                [
+                    {"product_id": self.other_product.id, "copies": 2},
+                    {"product_id": self.product.id, "copies": 3},
+                ],
+            ),
+            [self.other_product.id] * 2 + [self.product.id] * 3,
+        )
+
+    def test_repeated_product_adds_its_copies_at_its_first_position(self):
+        self.assertEqual(
+            self._labelled_ids(
+                [
+                    {"product_id": self.product.id, "copies": 1},
+                    {"product_id": self.other_product.id, "copies": 1},
+                    {"product_id": self.product.id, "copies": 2},
+                ],
+            ),
+            [self.product.id] * 3 + [self.other_product.id],
+        )
+
+    def test_limit_counts_copies(self):
+        response = self.client.post(
+            self.endpoint,
+            {
+                "items": [
+                    {"product_id": self.product.id, "copies": MAX_LABELS_PER_DOCUMENT},
+                    {"product_id": self.other_product.id, "copies": 1},
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(str(MAX_LABELS_PER_DOCUMENT), response.data["items"][0])
+        self.assertIn(str(MAX_LABELS_PER_DOCUMENT + 1), response.data["items"][0])
+
+    def test_limit_allows_exactly_the_maximum(self):
+        self.assertEqual(
+            len(
+                self._labelled_ids(
+                    [{"product_id": self.product.id, "copies": MAX_LABELS_PER_DOCUMENT}],
+                ),
+            ),
+            MAX_LABELS_PER_DOCUMENT,
+        )
+
+    def test_invalid_items_return_400(self):
+        invalid_items = [
+            None,
+            [],
+            [self.product.id],
+            [{"product_id": self.product.id}],
+            [{"product_id": self.product.id, "copies": 0}],
+            [{"product_id": self.product.id, "copies": "2"}],
+            [{"product_id": self.product.id, "copies": True}],
+            [{"product_id": True, "copies": 1}],
+            [{"product_id": 999999, "copies": 1}],
+        ]
+
+        for items in invalid_items:
+            with self.subTest(items=items):
+                response = self.client.post(
+                    self.endpoint,
+                    {"items": items},
+                    format="json",
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("items", response.data)

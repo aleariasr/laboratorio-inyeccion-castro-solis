@@ -15,6 +15,8 @@ import type {
   StockMovement,
 } from "./types";
 
+import { productOrderingParam } from "./ordering";
+
 import type { StorageLocationSummary } from "../locations/types";
 
 function buildProductsQuery(
@@ -42,6 +44,13 @@ function buildProductsQuery(
     searchParams.set(
       "storage_location",
       String(filters.storageLocationId),
+    );
+  }
+
+  if (filters.ordering) {
+    searchParams.set(
+      "ordering",
+      productOrderingParam(filters.ordering),
     );
   }
 
@@ -243,14 +252,26 @@ export function updateProductSalePrice(
   );
 }
 
+export type ProductLabelItem = {
+  productId: number;
+  copies: number;
+};
+
+/**
+ * Punto 4: las etiquetas salen en el orden de `items`, con las copias de
+ * cada producto seguidas.
+ */
 export function generateProductLabels(
   token: string,
-  productIds: number[],
+  items: ProductLabelItem[],
 ): Promise<Blob> {
   return apiPostBlob(
     "/api/inventory/products/labels/",
     {
-      product_ids: productIds,
+      items: items.map((item) => ({
+        product_id: item.productId,
+        copies: item.copies,
+      })),
     },
     {
       token,

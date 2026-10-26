@@ -2,7 +2,7 @@ from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import FileResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.exceptions import MethodNotAllowed, ValidationError
 from rest_framework.response import Response
 
 from apps.core.permissions import LocationsPermission, ProductsPermission
@@ -14,7 +14,12 @@ from apps.inventory.models import (
     Product,
     StorageLocation,
 )
-from apps.inventory.selectors import current_stock_bulk, with_latest_suggested_price
+from apps.inventory.selectors import (
+    current_stock_bulk,
+    product_ordering_expressions,
+    with_latest_suggested_price,
+)
+from apps.inventory.selectors.products import PRODUCT_ORDERINGS
 from apps.inventory.serializers import (
     ProductSerializer,
     ProductVariantCreateSerializer,
@@ -27,6 +32,65 @@ from apps.inventory.services.product_labels import (
     generate_location_labels_pdf,
     generate_product_labels_pdf,
 )
+
+
+def _is_positive_integer(value) -> bool:
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and value > 0
+    )
+
+
+def _parse_label_product_ids(product_ids):
+    """
+    `product_ids` de ProductViewSet.labels: una copia de cada producto.
+    Devuelve ([(product_id, copias)], None) o ([], mensaje de error).
+    """
+
+    if not isinstance(product_ids, list):
+        return [], "Debe enviar una lista de identificadores."
+
+    if not product_ids:
+        return [], "Seleccione al menos un producto."
+
+    if not all(_is_positive_integer(product_id) for product_id in product_ids):
+        return [], (
+            "Todos los identificadores deben "
+            "ser números enteros positivos."
+        )
+
+    return [(product_id, 1) for product_id in product_ids], None
+
+
+def _parse_label_items(items):
+    """
+    `items` de ProductViewSet.labels (punto 4): [{product_id, copies}].
+    Devuelve ([(product_id, copias)], None) o ([], mensaje de error).
+    """
+
+    if not isinstance(items, list):
+        return [], "Debe enviar una lista de productos."
+
+    if not items:
+        return [], "Seleccione al menos un producto."
+
+    requested = []
+
+    for item in items:
+        if (
+            not isinstance(item, dict)
+            or not _is_positive_integer(item.get("product_id"))
+            or not _is_positive_integer(item.get("copies"))
+        ):
+            return [], (
+                "Cada producto debe indicar su identificador y la "
+                "cantidad de copias, como números enteros positivos."
+            )
+
+        requested.append((item["product_id"], item["copies"]))
+
+    return requested, None
 
 
 class NonDestructiveDeleteMixin:
@@ -250,6 +314,7 @@ class ProductViewSet(
             self.request.query_params.get("is_active"),
             name="is_active",
         )
+        ordering_expressions = self._ordering_expressions()
 
         if standard_code:
             queryset = queryset.filter(
@@ -275,8 +340,10 @@ class ProductViewSet(
                 ),
             ).order_by(
                 "is_exact_code_match",
-                "standard_code",
+                *(ordering_expressions or ["standard_code"]),
             )
+        elif ordering_expressions:
+            queryset = queryset.order_by(*ordering_expressions)
 
         if storage_location_id is not None:
             queryset = queryset.filter(
@@ -287,6 +354,34 @@ class ProductViewSet(
             queryset = queryset.filter(is_active=is_active)
 
         return queryset
+
+    def _ordering_expressions(self):
+        """
+        Punto 2: `?ordering=` de la lista (ver PRODUCT_ORDERINGS). Sin el
+        parámetro, None: queda el orden de siempre, que es el que usan los
+        buscadores de venta, compra y servicio. Con búsqueda, la
+        coincidencia exacta de código sigue primero.
+        """
+
+        ordering = self.request.query_params.get("ordering", "").strip()
+
+        if not ordering:
+            return None
+
+        expressions = product_ordering_expressions(ordering)
+
+        if expressions is None:
+            raise ValidationError(
+                {
+                    "ordering": [
+                        "Orden no válido. Opciones: "
+                        + ", ".join(PRODUCT_ORDERINGS)
+                        + " (con - delante para descendente)."
+                    ],
+                }
+            )
+
+        return expressions
 
     def perform_create(self, serializer):
         serializer.save(
@@ -347,86 +442,76 @@ class ProductViewSet(
         url_path="labels",
     )
     def labels(self, request):
-        product_ids = request.data.get("product_ids")
+        """
+        Etiquetas de productos en PDF, en el orden en que llegan.
 
-        if not isinstance(product_ids, list):
+        Punto 4 del plan del 2026-10-22: `items` = [{product_id, copies}],
+        y las copias de un producto salen seguidas. `product_ids` (una
+        copia de cada uno) se sigue aceptando. Un producto repetido suma
+        sus copias en su primera posición. El tope cuenta etiquetas
+        (copias), no productos.
+        """
+
+        if "items" in request.data:
+            field = "items"
+            requested, error = _parse_label_items(
+                request.data.get("items"),
+            )
+        else:
+            field = "product_ids"
+            requested, error = _parse_label_product_ids(
+                request.data.get("product_ids"),
+            )
+
+        if error:
             return Response(
-                {
-                    "product_ids": [
-                        "Debe enviar una lista de identificadores."
-                    ],
-                },
+                {field: [error]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not product_ids:
-            return Response(
-                {
-                    "product_ids": [
-                        "Seleccione al menos un producto."
-                    ],
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+        copies_by_id: dict[int, int] = {}
+
+        for product_id, copies in requested:
+            copies_by_id[product_id] = (
+                copies_by_id.get(product_id, 0) + copies
             )
 
-        if len(product_ids) > MAX_LABELS_PER_DOCUMENT:
+        total_labels = sum(copies_by_id.values())
+
+        if total_labels > MAX_LABELS_PER_DOCUMENT:
             return Response(
                 {
-                    "product_ids": [
+                    field: [
                         (
                             "No puede generar más de "
                             f"{MAX_LABELS_PER_DOCUMENT} etiquetas "
-                            "en un mismo documento."
+                            "en un mismo documento "
+                            f"(se pidieron {total_labels})."
                         ),
                     ],
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        normalized_ids: list[int] = []
-        seen_ids: set[int] = set()
-
-        for product_id in product_ids:
-            if (
-                isinstance(product_id, bool)
-                or not isinstance(product_id, int)
-                or product_id <= 0
-            ):
-                return Response(
-                    {
-                        "product_ids": [
-                            (
-                                "Todos los identificadores deben "
-                                "ser números enteros positivos."
-                            ),
-                        ],
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if product_id not in seen_ids:
-                seen_ids.add(product_id)
-                normalized_ids.append(product_id)
-
         products_by_id = {
             product.id: product
             for product in (
                 Product.objects
                 .select_related("storage_location")
-                .filter(id__in=normalized_ids)
+                .filter(id__in=list(copies_by_id))
             )
         }
 
         missing_ids = [
             product_id
-            for product_id in normalized_ids
+            for product_id in copies_by_id
             if product_id not in products_by_id
         ]
 
         if missing_ids:
             return Response(
                 {
-                    "product_ids": [
+                    field: [
                         (
                             "No existen productos con los "
                             "siguientes identificadores: "
@@ -443,7 +528,8 @@ class ProductViewSet(
 
         ordered_products = [
             products_by_id[product_id]
-            for product_id in normalized_ids
+            for product_id, copies in copies_by_id.items()
+            for _ in range(copies)
         ]
 
         labels = build_product_labels(

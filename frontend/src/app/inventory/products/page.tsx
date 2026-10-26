@@ -18,6 +18,7 @@ import {
 } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import {
@@ -30,13 +31,25 @@ import {
   createProforma,
   generateProductLabels,
   getProducts,
+  type ProductLabelItem,
   type ProformaAmountSettings,
 } from "@/features/inventory/products/api";
+import {
+  readStoredProductOrdering,
+  storeProductOrdering,
+} from "@/features/inventory/products/ordering";
+import { ProductLabelsForm } from "@/features/inventory/products/product-labels-form";
+import { ProductOrderingSelect } from "@/features/inventory/products/product-ordering-select";
 import { ProformaForm } from "@/features/inventory/products/proforma-form";
-import { VARIANT_KIND_LABELS } from "@/features/inventory/products/types";
+import {
+  DEFAULT_PRODUCT_ORDERING,
+  VARIANT_KIND_LABELS,
+} from "@/features/inventory/products/types";
 import type {
   Product,
   ProductFilters,
+  ProductOrdering,
+  ProductOrderingField,
 } from "@/features/inventory/products/types";
 import {
   ApiError,
@@ -93,9 +106,13 @@ type ProformaState =
 const INITIAL_FILTERS: ProductFilters = {
   query: "",
   activeState: "active",
+  ordering: DEFAULT_PRODUCT_ORDERING,
   page: 1,
   pageSize: 50,
 };
+
+const HEADER_CLASSES =
+  "px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground";
 
 function getLoadErrorMessage(
   error: unknown,
@@ -127,6 +144,62 @@ function formatStock(
   unitOfMeasure: string,
 ): string {
   return `${value} ${unitOfMeasure}`;
+}
+
+/**
+ * Encabezado que ordena la lista por su columna (punto 2). Muestra la
+ * flecha cuando la lista está ordenada por esa columna.
+ */
+function SortableHeader({
+  field,
+  ordering,
+  onToggle,
+  alignRight = false,
+  children,
+}: {
+  field: ProductOrderingField;
+  ordering: ProductOrdering | undefined;
+  onToggle: (field: ProductOrderingField) => void;
+  alignRight?: boolean;
+  children: string;
+}) {
+  const direction =
+    ordering?.field === field
+      ? ordering.direction
+      : null;
+
+  return (
+    <th
+      className={`${HEADER_CLASSES} ${alignRight ? "text-right" : ""}`}
+      aria-sort={
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button
+        type="button"
+        onClick={() => {
+          onToggle(field);
+        }}
+        className={[
+          "inline-flex items-center gap-1 rounded-[var(--radius-sm)] uppercase tracking-[0.06em] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(7_81_132_/_24%)]",
+          direction ? "text-foreground" : "",
+        ].join(" ")}
+      >
+        {children}
+
+        <span
+          aria-hidden="true"
+          className={direction ? "" : "opacity-0"}
+        >
+          {direction === "desc" ? "↓" : "↑"}
+        </span>
+      </button>
+    </th>
+  );
 }
 
 export default function ProductsPage() {
@@ -162,11 +235,18 @@ export default function ProductsPage() {
       message: null,
     });
 
+  // Hasta leer el orden guardado (punto 2) no se consulta, para no pedir
+  // la lista dos veces.
+  const [isOrderingReady, setIsOrderingReady] =
+    useState(false);
+
+  // Con el producto completo, no solo el id: la ventana de etiquetas
+  // muestra los seleccionados aunque estén en otras páginas.
   const [
-    selectedProductIds,
-    setSelectedProductIds,
-  ] = useState<Set<number>>(
-    () => new Set<number>(),
+    selectedProducts,
+    setSelectedProducts,
+  ] = useState<Map<number, Product>>(
+    () => new Map<number, Product>(),
   );
 
   const [
@@ -176,6 +256,11 @@ export default function ProductsPage() {
     status: "idle",
     message: null,
   });
+
+  const [
+    isLabelsDialogOpen,
+    setIsLabelsDialogOpen,
+  ] = useState(false);
 
   const [
     isProformaFormOpen,
@@ -209,19 +294,38 @@ export default function ProductsPage() {
   const areAllVisibleProductsSelected =
     visibleProductIds.length > 0 &&
     visibleProductIds.every((productId) =>
-      selectedProductIds.has(productId),
+      selectedProducts.has(productId),
     );
 
   const areSomeVisibleProductsSelected =
     visibleProductIds.some((productId) =>
-      selectedProductIds.has(productId),
+      selectedProducts.has(productId),
     );
+
+  // Punto 2: la lista recuerda el último orden elegido. Diferido: setState
+  // en un efecto de montaje (regla react-hooks/set-state-in-effect).
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const ordering = readStoredProductOrdering();
+
+      setFilters((current) => ({
+        ...current,
+        ordering,
+      }));
+      setIsOrderingReady(true);
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     if (
       authStatus !== "authenticated" ||
       !token ||
-      !hasInventoryAccess
+      !hasInventoryAccess ||
+      !isOrderingReady
     ) {
       return;
     }
@@ -295,6 +399,7 @@ export default function ProductsPage() {
     authStatus,
     filters,
     hasInventoryAccess,
+    isOrderingReady,
     logout,
     router,
     token,
@@ -437,6 +542,38 @@ export default function ProductsPage() {
     searchInputRef.current?.focus();
   }
 
+  function changeOrdering(
+    ordering: ProductOrdering,
+  ): void {
+    storeProductOrdering(ordering);
+
+    updateFilters((current) => ({
+      ...current,
+      ordering,
+      page: 1,
+    }));
+  }
+
+  /**
+   * Clic en el encabezado de una columna: ordena por ella; si ya era el
+   * orden, invierte la dirección.
+   */
+  function toggleColumnOrdering(
+    field: ProductOrderingField,
+  ): void {
+    const current =
+      filters.ordering ?? DEFAULT_PRODUCT_ORDERING;
+
+    changeOrdering({
+      field,
+      direction:
+        current.field === field &&
+        current.direction === "asc"
+          ? "desc"
+          : "asc",
+    });
+  }
+
   function handleRowKeyDown(
     event: ReactKeyboardEvent<HTMLTableRowElement>,
     rowIndex: number,
@@ -500,65 +637,69 @@ export default function ProductsPage() {
   }
 
   function toggleProductSelection(
-    productId: number,
+    product: Product,
   ): void {
-    setSelectedProductIds((current) => {
-      const next = new Set(current);
+    setSelectedProducts((current) => {
+      const next = new Map(current);
 
-      if (next.has(productId)) {
-        next.delete(productId);
+      if (next.has(product.id)) {
+        next.delete(product.id);
       } else {
-        next.add(productId);
+        next.set(product.id, product);
       }
 
       return next;
-    });
-
-    setLabelGenerationState({
-      status: "idle",
-      message: null,
     });
   }
 
   function toggleVisibleProducts(): void {
-    setSelectedProductIds((current) => {
-      const next = new Set(current);
+    const visibleProducts =
+      loadState.status === "success"
+        ? loadState.data.results
+        : [];
 
-      if (areAllVisibleProductsSelected) {
-        for (const productId of visibleProductIds) {
-          next.delete(productId);
-        }
-      } else {
-        for (const productId of visibleProductIds) {
-          next.add(productId);
+    setSelectedProducts((current) => {
+      const next = new Map(current);
+
+      for (const product of visibleProducts) {
+        if (areAllVisibleProductsSelected) {
+          next.delete(product.id);
+        } else {
+          next.set(product.id, product);
         }
       }
 
       return next;
     });
-
-    setLabelGenerationState({
-      status: "idle",
-      message: null,
-    });
   }
 
   function clearProductSelection(): void {
-    setSelectedProductIds(
-      new Set<number>(),
+    setSelectedProducts(
+      new Map<number, Product>(),
     );
+  }
 
+  function openLabelsDialog(): void {
     setLabelGenerationState({
       status: "idle",
       message: null,
     });
+
+    setIsLabelsDialogOpen(true);
   }
 
-  async function handleGenerateLabels(): Promise<void> {
-    if (
-      !token ||
-      selectedProductIds.size === 0
-    ) {
+  function closeLabelsDialog(): void {
+    if (labelGenerationState.status === "generating") {
+      return;
+    }
+
+    setIsLabelsDialogOpen(false);
+  }
+
+  async function handleGenerateLabels(
+    items: ProductLabelItem[],
+  ): Promise<void> {
+    if (!token || items.length === 0) {
       return;
     }
 
@@ -570,7 +711,7 @@ export default function ProductsPage() {
     try {
       const blob = await generateProductLabels(
         token,
-        Array.from(selectedProductIds),
+        items,
       );
 
       const downloadUrl =
@@ -595,6 +736,8 @@ export default function ProductsPage() {
         status: "idle",
         message: null,
       });
+
+      setIsLabelsDialogOpen(false);
     } catch (error) {
       if (
         error instanceof ApiError &&
@@ -653,7 +796,7 @@ export default function ProductsPage() {
   ): Promise<void> {
     if (
       !token ||
-      selectedProductIds.size === 0
+      selectedProducts.size === 0
     ) {
       return;
     }
@@ -666,7 +809,7 @@ export default function ProductsPage() {
     try {
       const blob = await createProforma(
         token,
-        Array.from(selectedProductIds, (productId) => ({
+        Array.from(selectedProducts.keys(), (productId) => ({
           productId,
           quantity: 1,
         })),
@@ -870,40 +1013,64 @@ export default function ProductsPage() {
             </form>
           </div>
 
-          {filters.query && (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <p className="text-sm text-muted-foreground">
-                Resultados para{" "}
-                <span className="font-semibold text-foreground">
-                  “{filters.query}”
-                </span>
-              </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {filters.query ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Resultados para{" "}
+                  <span className="font-semibold text-foreground">
+                    “{filters.query}”
+                  </span>
+                </p>
 
-              <button
-                type="button"
-                onClick={handleClearSearch}
-                className="text-sm font-semibold text-primary hover:underline"
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="text-sm font-semibold text-primary hover:underline"
+                >
+                  Limpiar búsqueda
+                </button>
+              </div>
+            ) : (
+              <span aria-hidden="true" />
+            )}
+
+            <div className="flex min-w-0 items-center gap-3 sm:w-[26rem]">
+              <label
+                htmlFor="products-ordering"
+                className="shrink-0 text-sm font-semibold text-muted-foreground"
               >
-                Limpiar búsqueda
-              </button>
+                Ordenar por
+              </label>
+
+              <div className="min-w-0 flex-1">
+                <ProductOrderingSelect
+                  id="products-ordering"
+                  value={
+                    filters.ordering ??
+                    DEFAULT_PRODUCT_ORDERING
+                  }
+                  onChange={changeOrdering}
+                />
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         {hasWriteAccess &&
-          selectedProductIds.size > 0 && (
+          selectedProducts.size > 0 && (
             <div className="flex flex-col gap-3 border-b border-[var(--color-border-soft)] bg-[var(--color-primary-soft)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  {selectedProductIds.size}{" "}
-                  {selectedProductIds.size === 1
+                  {selectedProducts.size}{" "}
+                  {selectedProducts.size === 1
                     ? "producto seleccionado"
                     : "productos seleccionados"}
                 </p>
 
                 <p className="mt-1 text-xs text-muted-foreground">
-                  El PDF utilizará la ubicación
-                  como código de barras Code 128.
+                  La selección se mantiene al cambiar
+                  de página, de búsqueda o de orden.
                 </p>
               </div>
 
@@ -914,28 +1081,15 @@ export default function ProductsPage() {
                   onClick={
                     clearProductSelection
                   }
-                  disabled={
-                    labelGenerationState.status ===
-                    "generating"
-                  }
                 >
                   Limpiar selección
                 </Button>
 
                 <Button
                   type="button"
-                  onClick={() => {
-                    void handleGenerateLabels();
-                  }}
-                  disabled={
-                    labelGenerationState.status ===
-                    "generating"
-                  }
+                  onClick={openLabelsDialog}
                 >
-                  {labelGenerationState.status ===
-                  "generating"
-                    ? "Generando PDF…"
-                    : "Generar etiquetas"}
+                  Generar etiquetas
                 </Button>
 
                 <Button
@@ -953,17 +1107,36 @@ export default function ProductsPage() {
             </div>
           )}
 
-        {labelGenerationState.status ===
-          "error" && (
-          <div
-            className="border-b border-[var(--color-border-soft)] bg-[var(--color-danger-soft)] px-5 py-3 text-sm font-medium text-[var(--color-danger)]"
-            role="alert"
-          >
-            {labelGenerationState.message}
-          </div>
-        )}
+        <Dialog
+          open={isLabelsDialogOpen}
+          title="Generar etiquetas"
+          description="El código de barras de cada etiqueta es el código propio del producto o, si no tiene, el universal."
+          onClose={closeLabelsDialog}
+        >
+          <ProductLabelsForm
+            products={Array.from(
+              selectedProducts.values(),
+            )}
+            initialOrdering={
+              filters.ordering ??
+              DEFAULT_PRODUCT_ORDERING
+            }
+            isGenerating={
+              labelGenerationState.status ===
+              "generating"
+            }
+            submitError={
+              labelGenerationState.status ===
+              "error"
+                ? labelGenerationState.message
+                : null
+            }
+            onSubmit={handleGenerateLabels}
+            onCancel={closeLabelsDialog}
+          />
+        </Dialog>
 
-        {isProformaFormOpen && selectedProductIds.size > 0 && (
+        {isProformaFormOpen && selectedProducts.size > 0 && (
           <div className="border-b border-[var(--color-border-soft)] bg-surface-muted/40 p-6">
             <div className="mb-5">
               <h3 className="text-base font-semibold text-foreground">
@@ -971,8 +1144,8 @@ export default function ProductsPage() {
               </h3>
 
               <p className="mt-1 text-sm text-muted-foreground">
-                {selectedProductIds.size}{" "}
-                {selectedProductIds.size === 1
+                {selectedProducts.size}{" "}
+                {selectedProducts.size === 1
                   ? "producto seleccionado"
                   : "productos seleccionados"}
                 . El precio de cada producto es el que aparece en la lista; el
@@ -1089,21 +1262,38 @@ export default function ProductsPage() {
                         </th>
                       )}
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <SortableHeader
+                        field="standard_code"
+                        ordering={filters.ordering}
+                        onToggle={toggleColumnOrdering}
+                      >
                         Código
-                      </th>
+                      </SortableHeader>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <SortableHeader
+                        field="name"
+                        ordering={filters.ordering}
+                        onToggle={toggleColumnOrdering}
+                      >
                         Producto
-                      </th>
+                      </SortableHeader>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <SortableHeader
+                        field="location"
+                        ordering={filters.ordering}
+                        onToggle={toggleColumnOrdering}
+                      >
                         Ubicación
-                      </th>
+                      </SortableHeader>
 
-                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <SortableHeader
+                        field="current_stock"
+                        ordering={filters.ordering}
+                        onToggle={toggleColumnOrdering}
+                        alignRight
+                      >
                         Existencia
-                      </th>
+                      </SortableHeader>
 
                       <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Mínimo
@@ -1151,12 +1341,12 @@ export default function ProductsPage() {
                               >
                                 <input
                                   type="checkbox"
-                                  checked={selectedProductIds.has(
+                                  checked={selectedProducts.has(
                                     product.id,
                                   )}
                                   onChange={() => {
                                     toggleProductSelection(
-                                      product.id,
+                                      product,
                                     );
                                   }}
                                   onClick={(event) => {

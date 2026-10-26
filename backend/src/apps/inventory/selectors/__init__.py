@@ -3,7 +3,7 @@ from .pricing import (
     latest_suggested_price,
     with_latest_suggested_price,
 )
-from .products import variant_family
+from .products import product_ordering_expressions, variant_family
 from .stock import (
     current_stock,
     current_stock_bulk,
@@ -17,6 +17,7 @@ __all__ = [
     "effective_sale_price",
     "latest_suggested_price",
     "low_stock_products",
+    "product_ordering_expressions",
     "stock_history",
     "variant_family",
     "with_latest_suggested_price",

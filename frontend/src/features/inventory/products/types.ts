@@ -37,10 +37,68 @@ export type Product = {
   updated_at: string;
 };
 
+/**
+ * Punto 2 del plan del 2026-10-22: campos por los que se ordena la lista
+ * de productos (el `?ordering=` del backend, PRODUCT_ORDERINGS).
+ */
+export type ProductOrderingField =
+  | "standard_code"
+  | "name"
+  | "description"
+  | "location"
+  | "current_stock"
+  | "created_at"
+  | "updated_at";
+
+export type ProductOrdering = {
+  field: ProductOrderingField;
+  direction: "asc" | "desc";
+};
+
+export const DEFAULT_PRODUCT_ORDERING: ProductOrdering = {
+  field: "standard_code",
+  direction: "asc",
+};
+
+type OrderingFieldKind = "text" | "number" | "date";
+
+export const PRODUCT_ORDERING_FIELD_OPTIONS: Array<{
+  value: ProductOrderingField;
+  label: string;
+  kind: OrderingFieldKind;
+}> = [
+  { value: "standard_code", label: "Código", kind: "text" },
+  { value: "name", label: "Nombre", kind: "text" },
+  { value: "description", label: "Descripción", kind: "text" },
+  { value: "location", label: "Ubicación", kind: "text" },
+  { value: "current_stock", label: "Existencia", kind: "number" },
+  { value: "created_at", label: "Fecha de registro", kind: "date" },
+  { value: "updated_at", label: "Fecha de modificación", kind: "date" },
+];
+
+const DIRECTION_LABELS: Record<OrderingFieldKind, Record<ProductOrdering["direction"], string>> = {
+  text: { asc: "A → Z", desc: "Z → A" },
+  number: { asc: "Menor a mayor", desc: "Mayor a menor" },
+  date: { asc: "Más antiguos primero", desc: "Más recientes primero" },
+};
+
+/** Texto de cada dirección según el campo ("A → Z", "Mayor a menor"…). */
+export function productOrderingDirectionLabel(
+  field: ProductOrderingField,
+  direction: ProductOrdering["direction"],
+): string {
+  const kind =
+    PRODUCT_ORDERING_FIELD_OPTIONS.find((option) => option.value === field)?.kind ?? "text";
+
+  return DIRECTION_LABELS[kind][direction];
+}
+
 export type ProductFilters = {
   query: string;
   activeState: "all" | "active" | "inactive";
   storageLocationId?: number;
+  /** Sin valor, el orden por defecto del backend (el de los buscadores). */
+  ordering?: ProductOrdering;
   page: number;
   pageSize: number;
 };

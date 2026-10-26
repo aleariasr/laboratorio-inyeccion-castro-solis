@@ -421,7 +421,13 @@ Versión: todo esto va en la **2.5.0**.
       ventana con el formulario completo (primer uso del `Dialog` del punto 7); factura con el
       detalle; aviso al entregar con total ₡0. `ServiceTypePriceHistory` dejó de escribirse y
       leerse; el modelo sigue (ver sección 7).
-- [ ] 2 + 4 — Orden de productos; orden y copias de etiquetas
+- [x] 2 + 4 — Orden de productos; orden y copias de etiquetas. La lista ordena con `?ordering=`
+      (selector y clic en los encabezados; recuerda el último orden; colación ICU `lics_natural`,
+      migración `inventory/0027`). "Generar etiquetas" abre una ventana con los seleccionados (aunque
+      estén en otras páginas), el orden (propuesto: el de la lista) y las copias de cada uno. A
+      diferencia de la propuesta, **ordena la pantalla** con el mismo criterio que el backend y manda
+      `items` ya ordenados: así la ventana muestra exactamente el orden en que salen; el endpoint
+      imprime en el orden recibido. `product_ids` (una copia de cada uno) se sigue aceptando.
 - [ ] 6 — Traslados a la otra sede
 - [ ] 7 — Crear desde el formulario (ventana)
 - [ ] 1C — Formulario completo de recepción del servicio
