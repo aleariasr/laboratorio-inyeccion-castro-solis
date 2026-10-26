@@ -22,6 +22,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import {
+  canCreateCustomers,
   canReadCustomers,
   canReadProducts,
   canWriteProducts,
@@ -1155,6 +1156,7 @@ export default function ProductsPage() {
 
             <ProformaForm
               canReadCustomers={hasCustomersAccess}
+              canCreateCustomers={user ? canCreateCustomers(user) : false}
               token={token ?? ""}
               isSubmitting={proformaState.status === "generating"}
               submitError={

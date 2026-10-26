@@ -12,7 +12,11 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCosts, canWriteProducts } from "@/features/auth/permissions";
+import {
+  canCreateLocations,
+  canReadCosts,
+  canWriteProducts,
+} from "@/features/auth/permissions";
 import {
   createProduct,
   getActiveLocations,
@@ -390,6 +394,7 @@ export default function NewProductPage() {
             mode="create"
             token={token ?? ""}
             canReadCosts={hasCostsAccess}
+            canCreateLocations={user ? canCreateLocations(user) : false}
             initialValues={
               EMPTY_PRODUCT_FORM_VALUES
             }

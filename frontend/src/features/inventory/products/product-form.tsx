@@ -11,13 +11,16 @@ import {
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
+import { formActionsClassName, formSectionClassName } from "@/components/forms/form-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
+import { CreateLocationDialog } from "../locations/create-location-dialog";
 import { getLatestProductCostHistory } from "../purchases/api";
 import { formatMoney } from "../purchases/format";
 import type { ProductCostHistory } from "../purchases/types";
@@ -52,6 +55,12 @@ type ProductFormProps = {
     values: ProductFormValues,
   ) => void | Promise<void>;
   onCancel: () => void;
+  // Punto 7: "Nueva" ubicación en una ventana encima, para quien puede
+  // crear ubicaciones. No dentro de otra ventana (un solo nivel).
+  canCreateLocations?: boolean;
+  // Dentro de una ventana: paneles internos, sin la casilla de activo (lo
+  // creado así nace activo) ni la nota de existencias.
+  embedded?: boolean;
 };
 
 function areValuesEqual(
@@ -95,6 +104,8 @@ export function ProductForm({
   serverErrors = {},
   onSubmit,
   onCancel,
+  canCreateLocations = false,
+  embedded = false,
 }: ProductFormProps) {
   const formRef =
     useRef<HTMLFormElement>(null);
@@ -109,6 +120,24 @@ export function ProductForm({
 
   const [priceReference, setPriceReference] =
     useState<ProductCostHistory | null>(null);
+
+  // Ubicaciones creadas desde la ventana: se suman a las que trae la
+  // página, que no se vuelve a consultar.
+  const [createdLocations, setCreatedLocations] =
+    useState<StorageLocationSummary[]>([]);
+
+  const [isLocationDialogOpen, setIsLocationDialogOpen] =
+    useState(false);
+
+  const locationOptions = [
+    ...locations,
+    ...createdLocations.filter(
+      (created) =>
+        !locations.some((location) => location.id === created.id),
+    ),
+  ];
+
+  const canOpenLocationDialog = canCreateLocations && !embedded;
 
   const isDirty = useMemo(
     () => !areValuesEqual(values, initialValues),
@@ -190,7 +219,7 @@ export function ProductForm({
       ) {
         event.preventDefault();
 
-        if (!isSubmitting) {
+        if (!isSubmitting && isFormShortcutTarget(formRef.current)) {
           formRef.current?.requestSubmit();
         }
       }
@@ -333,6 +362,7 @@ export function ProductForm({
   })();
 
   return (
+    <>
     <form
       ref={formRef}
       onSubmit={handleSubmit}
@@ -343,7 +373,7 @@ export function ProductForm({
         <FormError message={submitError} />
       )}
 
-      <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
+      <section className={formSectionClassName(embedded)}>
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
             Información del producto
@@ -517,7 +547,7 @@ export function ProductForm({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
+      <section className={formSectionClassName(embedded)}>
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
             Inventario y ubicación
@@ -536,6 +566,7 @@ export function ProductForm({
             hint="Solo se muestran ubicaciones activas."
             error={errors.storageLocationId}
           >
+            <div className="flex gap-2">
             <Select
               id="storage-location"
               name="storageLocationId"
@@ -562,7 +593,7 @@ export function ProductForm({
                 Seleccione una ubicación
               </option>
 
-              {locations.map((location) => (
+              {locationOptions.map((location) => (
                 <option
                   key={location.id}
                   value={location.id}
@@ -574,6 +605,21 @@ export function ProductForm({
                 </option>
               ))}
             </Select>
+
+            {canOpenLocationDialog && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-12 shrink-0"
+                onClick={() => {
+                  setIsLocationDialogOpen(true);
+                }}
+                disabled={isSubmitting}
+              >
+                Nueva
+              </Button>
+            )}
+            </div>
           </Field>
 
           <Field
@@ -641,6 +687,7 @@ export function ProductForm({
           </Field>
         </div>
 
+        {!embedded && (
         <div className="border-t border-[var(--color-border-soft)] p-5 sm:p-6">
           <label
             htmlFor="product-active"
@@ -672,9 +719,10 @@ export function ProductForm({
             </span>
           </label>
         </div>
+        )}
       </section>
 
-      <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
+      <section className={formSectionClassName(embedded)}>
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
             Precio de venta
@@ -721,6 +769,7 @@ export function ProductForm({
         </div>
       </section>
 
+      {!embedded && (
       <section className="rounded-[var(--radius-xl)] bg-[var(--color-primary-soft)] p-5 ring-1 ring-[rgb(7_81_132_/_12%)] sm:p-6">
         <h2 className="text-sm font-semibold text-foreground">
           Existencias protegidas
@@ -730,13 +779,16 @@ export function ProductForm({
           La existencia actual no se modifica desde este formulario. Todo cambio de stock debe registrarse mediante entradas, salidas, ajustes o conteos físicos.
         </p>
       </section>
+      )}
 
-      <div className="flex flex-col-reverse gap-3 rounded-[var(--radius-xl)] bg-surface p-4 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)] sm:flex-row sm:items-center sm:justify-between">
+      <div className={formActionsClassName(embedded)}>
+        {!embedded && (
         <div className="text-xs text-muted-foreground">
           {isDirty
             ? "Hay cambios pendientes de guardar."
             : "No hay cambios pendientes."}
         </div>
+        )}
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
@@ -764,5 +816,21 @@ export function ProductForm({
         </div>
       </div>
     </form>
+
+    {canOpenLocationDialog && (
+      <CreateLocationDialog
+        open={isLocationDialogOpen}
+        token={token}
+        onClose={() => {
+          setIsLocationDialogOpen(false);
+        }}
+        onCreated={(location) => {
+          setCreatedLocations((current) => [...current, location]);
+          updateValue("storageLocationId", String(location.id));
+          setIsLocationDialogOpen(false);
+        }}
+      />
+    )}
+    </>
   );
 }

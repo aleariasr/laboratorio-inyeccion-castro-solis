@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import type { AppRole } from "@/features/auth/permissions";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import {
   PERMISSION_ACTION_LABELS,
@@ -167,7 +168,7 @@ export function UserForm({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
 
-        if (!isSubmitting) {
+        if (!isSubmitting && isFormShortcutTarget(formRef.current)) {
           formRef.current?.requestSubmit();
         }
       }

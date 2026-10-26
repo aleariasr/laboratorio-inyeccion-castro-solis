@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCustomers, canWriteInjectors } from "@/features/auth/permissions";
+import { canCreateCustomers, canReadCustomers, canWriteInjectors } from "@/features/auth/permissions";
 import { createInjector } from "@/features/injectors/api";
 import { mapInjectorApiFieldErrors } from "@/features/injectors/form-errors";
 import { InjectorForm } from "@/features/injectors/injector-form";
@@ -132,6 +132,7 @@ export default function NewInjectorPage() {
       <InjectorForm
         mode="create"
         canReadCustomers={hasCustomersAccess}
+        canCreateCustomers={user ? canCreateCustomers(user) : false}
         initialValues={EMPTY_INJECTOR_FORM_VALUES}
         token={token ?? ""}
         isSubmitting={isSubmitting}

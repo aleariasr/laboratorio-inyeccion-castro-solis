@@ -16,8 +16,10 @@ import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import { getSuppliers } from "../suppliers/api";
+import { CreateSupplierDialog } from "../suppliers/create-supplier-dialog";
 import type { Supplier } from "../suppliers/types";
 
 import type {
@@ -39,6 +41,9 @@ type PurchaseFormProps = {
   serverErrors?: PurchaseFormErrors;
   onSubmit: (values: PurchaseFormValues) => void | Promise<void>;
   onCancel: () => void;
+  // Punto 7: "Nuevo" proveedor en una ventana encima, para quien puede
+  // crear proveedores.
+  canCreateSuppliers?: boolean;
 };
 
 function areValuesEqual(
@@ -76,12 +81,15 @@ export function PurchaseForm({
   serverErrors = {},
   onSubmit,
   onCancel,
+  canCreateSuppliers = false,
 }: PurchaseFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
   const [values, setValues] = useState<PurchaseFormValues>(initialValues);
 
   const [localErrors, setLocalErrors] = useState<PurchaseFormErrors>({});
+
+  const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
 
   const [selectedSupplierLabel, setSelectedSupplierLabel] = useState<string | null>(
     mode === "edit" ? supplierDisplayLabel ?? null : null,
@@ -175,7 +183,7 @@ export function PurchaseForm({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
 
-        if (!isSubmitting) {
+        if (!isSubmitting && isFormShortcutTarget(formRef.current)) {
           formRef.current?.requestSubmit();
         }
       }
@@ -266,6 +274,7 @@ export function PurchaseForm({
     mode === "create" ? "Creando compra…" : "Guardando cambios…";
 
   return (
+    <>
     <form
       ref={formRef}
       onSubmit={handleSubmit}
@@ -317,7 +326,8 @@ export function PurchaseForm({
                 </button>
               </div>
             ) : (
-              <div className="relative">
+              <div className="flex gap-2">
+              <div className="relative min-w-0 flex-1">
                 <Input
                   id="purchase-supplier"
                   value={supplierQuery}
@@ -382,6 +392,21 @@ export function PurchaseForm({
                     )}
                   </div>
                 )}
+              </div>
+
+              {canCreateSuppliers && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-12 shrink-0"
+                  onClick={() => {
+                    setIsSupplierDialogOpen(true);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Nuevo
+                </Button>
+              )}
               </div>
             )}
           </Field>
@@ -538,5 +563,20 @@ export function PurchaseForm({
         </div>
       </div>
     </form>
+
+    {canCreateSuppliers && mode === "create" && (
+      <CreateSupplierDialog
+        open={isSupplierDialogOpen}
+        token={token}
+        onClose={() => {
+          setIsSupplierDialogOpen(false);
+        }}
+        onCreated={(supplier) => {
+          selectSupplier(supplier);
+          setIsSupplierDialogOpen(false);
+        }}
+      />
+    )}
+    </>
   );
 }

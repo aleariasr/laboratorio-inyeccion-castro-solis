@@ -434,7 +434,14 @@ Versión: todo esto va en la **2.5.0**.
       se crean desde el traslado ("Nueva", en ventana); se renombran o desactivan en el panel de
       administración; la migración deja creada "Otra sede". Movimientos muestran "Traslado #N" con
       enlace; "Productos que más se mueven" no los cuenta. Permisos: 38 → 42.
-- [ ] 7 — Crear desde el formulario (ventana)
+- [x] 7 — Crear desde el formulario (ventana). Botón "Nuevo" (solo con permiso de crear, `add_*`):
+      producto → ubicación; compra → proveedor; línea de compra y producto de proveedor → producto
+      (propone como código lo escrito en el buscador); venta, proforma e inyector → cliente. Los
+      formularios de página tienen modo `embedded` (paneles internos, sin la casilla de activo). El
+      `Dialog` se monta en `<body>` y no deja subir el submit (la proforma del listado de productos
+      tiene el buscador de cliente dentro de su formulario); Ctrl+S solo guarda el formulario de la
+      ventana abierta (`isFormShortcutTarget`). **Ventas puede crear clientes** (`add_customers`, sin
+      editar), decisión del 2026-10-25. La recepción del servicio (cliente e inyector) va en el 1C.
 - [ ] 1C — Formulario completo de recepción del servicio
 
 ---
@@ -447,4 +454,5 @@ Consultar cada una al empezar su punto:
 2. (3 + 1B) ¿Borrar `ServiceTypePriceHistory`? Desde el 3 + 1B ya no se escribe ni se lee (sus
    datos eran totales con accesorios); el modelo, su tabla y su endpoint de solo lectura siguen.
    Borrarlo es una migración destructiva aparte: decidir antes de liberar la 2.5.0.
-3. (7) ¿Ventas puede crear un cliente desde la venta o la proforma? Hoy solo los busca.
+3. (7) ¿Ventas puede crear un cliente desde la venta o la proforma? **Sí** (2026-10-25): el rol
+   Ventas recibe `add_customers`, sin `change_customers`.

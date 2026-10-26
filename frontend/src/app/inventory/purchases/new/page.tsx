@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canWritePurchases } from "@/features/auth/permissions";
+import { canCreateSuppliers, canWritePurchases } from "@/features/auth/permissions";
 import { createPurchase } from "@/features/inventory/purchases/api";
 import { mapPurchaseApiFieldErrors } from "@/features/inventory/purchases/form-errors";
 import { PurchaseForm } from "@/features/inventory/purchases/purchase-form";
@@ -133,6 +133,7 @@ export default function NewPurchasePage() {
     >
       <PurchaseForm
         mode="create"
+        canCreateSuppliers={user ? canCreateSuppliers(user) : false}
         initialValues={EMPTY_PURCHASE_FORM_VALUES}
         token={token}
         isSubmitting={isSubmitting}

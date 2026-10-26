@@ -53,7 +53,7 @@ auditoría de 30 mejoras):
 | Rol | Puede | No tiene |
 |---|---|---|
 | `INVENTORY` (Inventario) | Productos y ubicaciones (ver, crear, editar), etiquetas y proformas. Lee clientes para la proforma. | Compras, proveedores, conteos, movimientos, reportes, caja. Ningún costo: ve solo el precio de venta. |
-| `SALES` (Ventas) | Ventas (crear, confirmar, anular) y proformas con cantidades. Lee productos y clientes para armar la venta, sin esos módulos en su menú. | Costos, compras, reportes, caja. |
+| `SALES` (Ventas) | Ventas (crear, confirmar, anular) y proformas con cantidades. Lee productos y clientes para armar la venta, sin esos módulos en su menú, y crea un cliente desde la venta o la proforma (`add_customers`, sin editar clientes). | Costos, compras, reportes, caja. |
 | `CUSTOMERS` (Clientes y servicio) | Clientes, inyectores y servicios: recibir, iniciar, marcar listo, anular. Lee productos para los accesorios. | Poner el precio o el tipo de servicio, entregar, ver el precio, el método de pago, el importe de los accesorios o la factura: eso es solo del Administrador. |
 | `READ_ONLY` (Solo lectura) | Ver productos, ubicaciones, proveedores, compras, conteos, ventas, clientes, inyectores, servicios y documentos. | Escribir en cualquier módulo. Sin `view_costs`: no ve costos en las pantallas de producto (sí dentro de una compra, donde el costo es el dato principal). |
 

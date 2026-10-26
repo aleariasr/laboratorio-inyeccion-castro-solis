@@ -44,6 +44,8 @@ ROLE_PERMISSIONS = {
     # cliente al armar una venta; sin ellos el formulario no funciona
     # (punto 4). Ninguna de las dos pantallas aparece en su menú.
     # add_documents es para generar proformas desde /sales/proforma.
+    # add_customers (sin change_) es para crear el cliente desde la venta o
+    # la proforma, en la ventana encima (punto 7 del plan del 2026-10-22).
     ROLE_SALES: [
         "view_sales",
         "add_sales",
@@ -51,6 +53,7 @@ ROLE_PERMISSIONS = {
         "cancel_sales",
         "view_products",
         "view_customers",
+        "add_customers",
         "view_documents",
         "add_documents",
     ],

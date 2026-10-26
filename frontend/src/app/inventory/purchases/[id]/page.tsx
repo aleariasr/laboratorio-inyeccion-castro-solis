@@ -12,7 +12,13 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCosts, canReadProducts, canReadPurchases, canWritePurchases } from "@/features/auth/permissions";
+import {
+  canCreateProducts,
+  canReadCosts,
+  canReadProducts,
+  canReadPurchases,
+  canWritePurchases,
+} from "@/features/auth/permissions";
 import {
   cancelPurchase,
   confirmPurchase,
@@ -940,6 +946,8 @@ export default function PurchaseDetailPage() {
                 <PurchaseItemForm
                   key={itemFormKey}
                   canReadProducts={hasProductsAccess}
+                  canCreateProducts={user ? canCreateProducts(user) : false}
+                  canReadCosts={user ? canReadCosts(user) : false}
                   mode={itemFormState.mode}
                   initialValues={itemFormInitialValues}
                   productDisplayLabel={itemDisplayLabel}

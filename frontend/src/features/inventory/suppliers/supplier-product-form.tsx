@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { CreateProductDialog } from "../products/create-product-dialog";
 import type { Product } from "../products/types";
 
 import { searchActiveProducts } from "./api";
@@ -37,6 +38,10 @@ type SupplierProductFormProps = {
   serverErrors?: SupplierProductFormErrors;
   onSubmit: (values: SupplierProductFormValues) => void | Promise<void>;
   onCancel: () => void;
+  // Punto 7: "Nuevo" producto en una ventana encima, para quien puede
+  // crear productos. canReadCosts habilita el precio de venta en ella.
+  canCreateProducts?: boolean;
+  canReadCosts?: boolean;
 };
 
 function mergeErrors(
@@ -64,6 +69,8 @@ export function SupplierProductForm({
   serverErrors = {},
   onSubmit,
   onCancel,
+  canCreateProducts = false,
+  canReadCosts = false,
 }: SupplierProductFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -82,6 +89,11 @@ export function SupplierProductForm({
   const [isProductListOpen, setIsProductListOpen] = useState(false);
 
   const [productSearchError, setProductSearchError] = useState<string | null>(null);
+
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+
+  // Lo escrito al abrir la ventana, para proponerlo como código.
+  const [productDialogCode, setProductDialogCode] = useState("");
 
   const errors = mergeErrors(localErrors, serverErrors);
 
@@ -197,6 +209,7 @@ export function SupplierProductForm({
   const submittingLabel = mode === "create" ? "Asociando producto…" : "Guardando cambios…";
 
   return (
+    <>
     <form
       ref={formRef}
       onSubmit={handleSubmit}
@@ -236,7 +249,8 @@ export function SupplierProductForm({
             </button>
           </div>
         ) : (
-          <div className="relative">
+          <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
             <Input
               id="supplier-product-product"
               value={productQuery}
@@ -305,6 +319,22 @@ export function SupplierProductForm({
                 )}
               </div>
             )}
+          </div>
+
+          {canCreateProducts && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-12 shrink-0"
+              onClick={() => {
+                setProductDialogCode(productQuery);
+                setIsProductDialogOpen(true);
+              }}
+              disabled={isSubmitting}
+            >
+              Nuevo
+            </Button>
+          )}
           </div>
         )}
       </Field>
@@ -395,5 +425,23 @@ export function SupplierProductForm({
         </Button>
       </div>
     </form>
+
+    {canCreateProducts && mode === "create" && (
+      <CreateProductDialog
+        open={isProductDialogOpen}
+        token={token}
+        canReadCosts={canReadCosts}
+        initialCode={productDialogCode}
+        purpose="este proveedor"
+        onClose={() => {
+          setIsProductDialogOpen(false);
+        }}
+        onCreated={(product) => {
+          selectProduct(product);
+          setIsProductDialogOpen(false);
+        }}
+      />
+    )}
+    </>
   );
 }

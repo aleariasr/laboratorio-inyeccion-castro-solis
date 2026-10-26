@@ -10,7 +10,13 @@ import { ArrowLeftIcon } from "@/components/icons/app-icons";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadProducts, canReadSuppliers, canWriteSuppliers } from "@/features/auth/permissions";
+import {
+  canCreateProducts,
+  canReadCosts,
+  canReadProducts,
+  canReadSuppliers,
+  canWriteSuppliers,
+} from "@/features/auth/permissions";
 import {
   createSupplierProduct,
   getSupplier,
@@ -661,6 +667,8 @@ export default function SupplierDetailPage() {
                 <SupplierProductForm
                   key={supplierProductFormKey}
                   canReadProducts={hasProductsAccess}
+                  canCreateProducts={user ? canCreateProducts(user) : false}
+                  canReadCosts={user ? canReadCosts(user) : false}
                   mode={supplierProductFormState.mode}
                   initialValues={supplierProductFormInitialValues}
                   productDisplayLabel={supplierProductDisplayLabel}

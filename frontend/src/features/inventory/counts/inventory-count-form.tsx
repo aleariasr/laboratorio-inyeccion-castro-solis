@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import type {
   InventoryCountFormErrors,
@@ -102,7 +103,7 @@ export function InventoryCountForm({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
 
-        if (!isSubmitting) {
+        if (!isSubmitting && isFormShortcutTarget(formRef.current)) {
           formRef.current?.requestSubmit();
         }
       }

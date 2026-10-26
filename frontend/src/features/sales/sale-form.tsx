@@ -17,6 +17,7 @@ import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import { searchCustomers } from "./api";
 import {
@@ -29,6 +30,7 @@ import {
   type SaleFormValues,
 } from "./types";
 import { validateSaleForm } from "./validation";
+import { CreateCustomerDialog } from "@/features/customers/create-customer-dialog";
 
 type SaleFormMode = "create" | "edit";
 
@@ -43,6 +45,9 @@ type SaleFormProps = {
   serverErrors?: SaleFormErrors;
   onSubmit: (values: SaleFormValues) => void | Promise<void>;
   onCancel: () => void;
+  // Punto 7: "Nuevo" cliente en una ventana encima, para quien puede
+  // crear clientes.
+  canCreateCustomers?: boolean;
 };
 
 function areValuesEqual(
@@ -79,6 +84,7 @@ export function SaleForm({
   serverErrors = {},
   onSubmit,
   onCancel,
+  canCreateCustomers = false,
 }: SaleFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -97,6 +103,8 @@ export function SaleForm({
   const [isCustomerListOpen, setIsCustomerListOpen] = useState(false);
 
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
+
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
 
   const isDirty = useMemo(
     () => !areValuesEqual(values, initialValues),
@@ -173,7 +181,7 @@ export function SaleForm({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
 
-        if (!isSubmitting) {
+        if (!isSubmitting && isFormShortcutTarget(formRef.current)) {
           formRef.current?.requestSubmit();
         }
       }
@@ -264,6 +272,7 @@ export function SaleForm({
     mode === "create" ? "Creando venta…" : "Guardando cambios…";
 
   return (
+    <>
     <form
       ref={formRef}
       onSubmit={handleSubmit}
@@ -314,7 +323,8 @@ export function SaleForm({
                 </button>
               </div>
             ) : (
-              <div className="relative">
+              <div className="flex gap-2">
+              <div className="relative min-w-0 flex-1">
                 <Input
                   id="sale-customer"
                   value={customerQuery}
@@ -385,6 +395,21 @@ export function SaleForm({
                     )}
                   </div>
                 )}
+              </div>
+
+              {canCreateCustomers && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-12 shrink-0"
+                  onClick={() => {
+                    setIsCustomerDialogOpen(true);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Nuevo
+                </Button>
+              )}
               </div>
             )}
           </Field>
@@ -500,5 +525,21 @@ export function SaleForm({
         </div>
       </div>
     </form>
+
+    {canCreateCustomers && mode === "create" && (
+      <CreateCustomerDialog
+        open={isCustomerDialogOpen}
+        token={token}
+        purpose="esta venta"
+        onClose={() => {
+          setIsCustomerDialogOpen(false);
+        }}
+        onCreated={(customer) => {
+          selectCustomer(customer);
+          setIsCustomerDialogOpen(false);
+        }}
+      />
+    )}
+    </>
   );
 }

@@ -73,6 +73,31 @@ export function canWriteProducts(user: AuthUser): boolean {
   );
 }
 
+// --- Crear desde una ventana (punto 7 del plan del 2026-10-22) ---
+// El botón "Nuevo" de un formulario sale solo si el backend acepta el
+// alta (add_<módulo>), no basta con poder editar.
+
+export function canCreateProducts(user: AuthUser): boolean {
+  return hasAnyRole(user, ["INVENTORY"]) || hasModulePermission(user, "add_products");
+}
+
+export function canCreateLocations(user: AuthUser): boolean {
+  return hasAnyRole(user, ["INVENTORY"]) || hasModulePermission(user, "add_locations");
+}
+
+export function canCreateSuppliers(user: AuthUser): boolean {
+  return isModuleAdmin(user) || hasModulePermission(user, "add_suppliers");
+}
+
+// Ventas también: crea el cliente desde la venta o la proforma, sin
+// editar clientes (decisión del 2026-10-25).
+export function canCreateCustomers(user: AuthUser): boolean {
+  return (
+    hasAnyRole(user, ["CUSTOMERS", "SALES"]) ||
+    hasModulePermission(user, "add_customers")
+  );
+}
+
 // --- Inventario: ubicaciones ---
 
 export function canReadLocations(user: AuthUser): boolean {

@@ -13,6 +13,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import {
+  canCreateLocations,
   canReadCosts,
   canReadLocations,
   canWriteProducts,
@@ -594,6 +595,7 @@ export default function EditProductPage() {
           productId={loadState.product.id}
           token={token ?? ""}
           canReadCosts={hasCostsAccess}
+          canCreateLocations={user ? canCreateLocations(user) : false}
           initialValues={productToFormValues(
             loadState.product,
           )}

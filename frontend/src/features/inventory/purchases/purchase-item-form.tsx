@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { searchActiveProducts } from "../suppliers/api";
+import { CreateProductDialog } from "../products/create-product-dialog";
 import { findScannedProduct } from "../products/scan";
 import type { Product } from "../products/types";
 
@@ -37,6 +38,10 @@ type PurchaseItemFormProps = {
   serverErrors?: PurchaseItemFormErrors;
   onSubmit: (values: PurchaseItemFormValues) => void | Promise<void>;
   onCancel: () => void;
+  // Punto 7: "Nuevo" producto en una ventana encima, para quien puede
+  // crear productos. canReadCosts habilita el precio de venta en ella.
+  canCreateProducts?: boolean;
+  canReadCosts?: boolean;
 };
 
 function mergeErrors(
@@ -64,6 +69,8 @@ export function PurchaseItemForm({
   serverErrors = {},
   onSubmit,
   onCancel,
+  canCreateProducts = false,
+  canReadCosts = false,
 }: PurchaseItemFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -82,6 +89,11 @@ export function PurchaseItemForm({
   const [isListOpen, setIsListOpen] = useState(false);
 
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+
+  // Lo escrito al abrir la ventana, para proponerlo como código.
+  const [productDialogCode, setProductDialogCode] = useState("");
 
   const errors = mergeErrors(localErrors, serverErrors);
 
@@ -209,6 +221,7 @@ export function PurchaseItemForm({
   const submittingLabel = mode === "create" ? "Agregando línea…" : "Guardando cambios…";
 
   return (
+    <>
     <form
       ref={formRef}
       onSubmit={handleSubmit}
@@ -246,7 +259,8 @@ export function PurchaseItemForm({
             </button>
           </div>
         ) : (
-          <div className="relative">
+          <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
             <Input
               id="purchase-item-product"
               value={query}
@@ -323,6 +337,22 @@ export function PurchaseItemForm({
               </div>
             )}
           </div>
+
+          {canCreateProducts && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-12 shrink-0"
+              onClick={() => {
+                setProductDialogCode(query);
+                setIsProductDialogOpen(true);
+              }}
+              disabled={isSubmitting}
+            >
+              Nuevo
+            </Button>
+          )}
+          </div>
         )}
       </Field>
 
@@ -364,5 +394,23 @@ export function PurchaseItemForm({
         </Button>
       </div>
     </form>
+
+    {canCreateProducts && mode === "create" && (
+      <CreateProductDialog
+        open={isProductDialogOpen}
+        token={token}
+        canReadCosts={canReadCosts}
+        initialCode={productDialogCode}
+        purpose="esta línea de compra"
+        onClose={() => {
+          setIsProductDialogOpen(false);
+        }}
+        onCreated={(product) => {
+          selectProduct(product);
+          setIsProductDialogOpen(false);
+        }}
+      />
+    )}
+    </>
   );
 }

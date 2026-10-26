@@ -16,6 +16,8 @@ import type { ProformaAmountSettings } from "./api";
 
 type ProformaFormProps = {
   canReadCustomers: boolean;
+  // Punto 7: "Nuevo" cliente en una ventana encima.
+  canCreateCustomers?: boolean;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -28,6 +30,7 @@ type ProformaFormProps = {
 
 export function ProformaForm({
   canReadCustomers,
+  canCreateCustomers = false,
   token,
   isSubmitting = false,
   submitError = null,
@@ -67,6 +70,7 @@ export function ProformaForm({
         <CustomerPicker
           id="proforma-customer"
           canReadCustomers={canReadCustomers}
+          canCreateCustomers={canCreateCustomers}
           token={token}
           value={selectedCustomer}
           onChange={setSelectedCustomer}

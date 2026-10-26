@@ -7,7 +7,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadCustomers, canWriteSales } from "@/features/auth/permissions";
+import { canCreateCustomers, canReadCustomers, canWriteSales } from "@/features/auth/permissions";
 import { createSale } from "@/features/sales/api";
 import { mapSaleApiFieldErrors } from "@/features/sales/form-errors";
 import { SaleForm } from "@/features/sales/sale-form";
@@ -136,6 +136,7 @@ export default function NewSalePage() {
       <SaleForm
         mode="create"
         canReadCustomers={hasCustomersAccess}
+        canCreateCustomers={user ? canCreateCustomers(user) : false}
         initialValues={EMPTY_SALE_FORM_VALUES}
         token={token}
         isSubmitting={isSubmitting}

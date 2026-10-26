@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import {
+  canCreateCustomers,
   canCreateProformas,
   canReadCustomers,
 } from "@/features/auth/permissions";
@@ -587,6 +588,7 @@ export default function NewProformaPage() {
               <CustomerPicker
                 id="proforma-customer"
                 canReadCustomers={hasCustomersAccess}
+                canCreateCustomers={user ? canCreateCustomers(user) : false}
                 token={token}
                 value={customer}
                 onChange={(nextCustomer) => {

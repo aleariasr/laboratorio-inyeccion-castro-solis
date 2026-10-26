@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CreateCustomerDialog } from "@/features/customers/create-customer-dialog";
 
 import { searchCustomers } from "./api";
 import type { CustomerSummary } from "./types";
@@ -19,6 +21,10 @@ type CustomerPickerProps = {
   value: SelectedCustomer | null;
   onChange: (customer: SelectedCustomer | null) => void;
   disabled?: boolean;
+  // Punto 7: "Nuevo" cliente en una ventana encima, para quien puede crear
+  // clientes (también Ventas). purpose completa "elegido para …".
+  canCreateCustomers?: boolean;
+  purpose?: string;
 };
 
 /**
@@ -32,6 +38,8 @@ export function CustomerPicker({
   value,
   onChange,
   disabled = false,
+  canCreateCustomers = false,
+  purpose = "esta proforma",
 }: CustomerPickerProps) {
   const [customerQuery, setCustomerQuery] = useState("");
 
@@ -40,6 +48,8 @@ export function CustomerPicker({
   const [isCustomerListOpen, setIsCustomerListOpen] = useState(false);
 
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
+
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
 
   const effectiveCustomerSearchError = canReadCustomers
     ? customerSearchError
@@ -130,7 +140,8 @@ export function CustomerPicker({
   }
 
   return (
-    <div className="relative">
+    <div className="flex gap-2">
+    <div className="relative min-w-0 flex-1">
       <Input
         id={id}
         value={customerQuery}
@@ -192,6 +203,36 @@ export function CustomerPicker({
           )}
         </div>
       )}
+    </div>
+
+    {canCreateCustomers && (
+      <>
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-12 shrink-0"
+          onClick={() => {
+            setIsCustomerDialogOpen(true);
+          }}
+          disabled={disabled}
+        >
+          Nuevo
+        </Button>
+
+        <CreateCustomerDialog
+          open={isCustomerDialogOpen}
+          token={token}
+          purpose={purpose}
+          onClose={() => {
+            setIsCustomerDialogOpen(false);
+          }}
+          onCreated={(customer) => {
+            onChange({ id: customer.id, label: customer.display_name });
+            setIsCustomerDialogOpen(false);
+          }}
+        />
+      </>
+    )}
     </div>
   );
 }
