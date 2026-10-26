@@ -12,9 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadTransfers, canWriteTransfers } from "@/features/auth/permissions";
+import { formatDateOnly } from "@/features/inventory/purchases/format";
 import { getStockTransfers } from "@/features/inventory/transfers/api";
 import {
-  formatDateOnly,
   STOCK_TRANSFER_STATUS_BADGE_CLASSES,
   STOCK_TRANSFER_STATUS_LABELS,
   type StockTransfer,

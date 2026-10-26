@@ -40,6 +40,8 @@ import type {
 } from "@/features/inventory/counts/types";
 import { getProducts } from "@/features/inventory/products/api";
 import type { Product } from "@/features/inventory/products/types";
+import { findScannedProduct } from "@/features/inventory/products/scan";
+import { formatDateOnly } from "@/features/inventory/purchases/format";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
@@ -412,6 +414,17 @@ export default function InventoryCountDetailPage() {
       controller.abort();
     };
   }, [canManageItems, hasProductsAccess, captureState.query, token]);
+
+
+  useEffect(() => {
+    // Código propio o universal completo (lector o escrito a mano): se
+    // elige solo, como en compras y ventas (findScannedProduct).
+    const exactMatch = findScannedProduct(captureState.results, captureState.query);
+
+    if (exactMatch) {
+      selectProduct(exactMatch);
+    }
+  }, [captureState.query, captureState.results]);
 
   useEffect(() => {
     if (captureState.selectedProduct) {
@@ -861,7 +874,7 @@ export default function InventoryCountDetailPage() {
       }
       description={
         loadState.status === "success"
-          ? `Conteo físico del ${loadState.inventoryCount.count_date}`
+          ? `Conteo físico del ${formatDateOnly(loadState.inventoryCount.count_date)}`
           : "Información registrada del conteo."
       }
       actions={
@@ -1013,7 +1026,7 @@ export default function InventoryCountDetailPage() {
             <dl className="border-t border-[var(--color-border-soft)]">
               <div className="app-status-row">
                 <dt>Fecha del conteo</dt>
-                <dd>{loadState.inventoryCount.count_date}</dd>
+                <dd>{formatDateOnly(loadState.inventoryCount.count_date)}</dd>
               </div>
 
               <div className="app-status-row">

@@ -739,7 +739,7 @@ export default function SupplierDetailPage() {
 
                         <td className="px-5 py-4">
                           {supplierProduct.preferred_supplier ? (
-                            <span className="inline-flex items-center rounded-full bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-brand-blue)]">
+                            <span className="inline-flex items-center rounded-full bg-[var(--color-primary-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--color-brand-blue)]">
                               Preferido
                             </span>
                           ) : (
@@ -750,7 +750,7 @@ export default function SupplierDetailPage() {
                         <td className="px-5 py-4">
                           <span
                             className={[
-                              "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                              "inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold",
                               supplierProduct.is_active
                                 ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
                                 : "bg-surface-muted text-muted-foreground",

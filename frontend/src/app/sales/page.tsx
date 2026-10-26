@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canCreateProformas, canReadSales, canWriteSales } from "@/features/auth/permissions";
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import { getSales } from "@/features/sales/api";
 import type { Sale, SaleFilters, SaleStatus } from "@/features/sales/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
@@ -461,29 +461,35 @@ export default function SalesPage() {
               <option value="all">Todas</option>
             </select>
 
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) => {
-                const dateFrom = event.target.value;
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Desde
+              <Input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(event) => {
+                  const dateFrom = event.target.value;
 
-                updateFilters((current) => ({ ...current, dateFrom, page: 1 }));
-              }}
-              className="h-11 w-auto"
-              aria-label="Fecha inicial"
-            />
+                  updateFilters((current) => ({ ...current, dateFrom, page: 1 }));
+                }}
+                className="h-11 w-auto"
+                aria-label="Fecha inicial"
+              />
+            </label>
 
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) => {
-                const dateTo = event.target.value;
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Hasta
+              <Input
+                type="date"
+                value={filters.dateTo}
+                onChange={(event) => {
+                  const dateTo = event.target.value;
 
-                updateFilters((current) => ({ ...current, dateTo, page: 1 }));
-              }}
-              className="h-11 w-auto"
-              aria-label="Fecha final"
-            />
+                  updateFilters((current) => ({ ...current, dateTo, page: 1 }));
+                }}
+                className="h-11 w-auto"
+                aria-label="Fecha final"
+              />
+            </label>
           </div>
 
           {filters.query && (
@@ -568,7 +574,7 @@ export default function SalesPage() {
                       Fecha
                     </th>
 
-                    <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                       Total
                     </th>
 
@@ -603,11 +609,11 @@ export default function SalesPage() {
                       </td>
 
                       <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        {sale.sale_date}
+                        {formatDateOnly(sale.sale_date)}
                       </td>
 
-                      <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        {sale.total !== null ? `${formatMoney(sale.total)} CRC` : "—"}
+                      <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-foreground">
+                        {sale.total !== null ? `₡${formatMoney(sale.total)}` : "—"}
                       </td>
 
                       <td className="px-5 py-4 align-top">

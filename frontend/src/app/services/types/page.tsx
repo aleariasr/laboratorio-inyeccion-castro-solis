@@ -310,7 +310,7 @@ export default function ServiceTypesPage() {
                       <td className="px-5 py-4 align-top">
                         <span
                           className={[
-                            "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                            "inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold",
                             serviceType.is_active
                               ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
                               : "bg-surface-muted text-muted-foreground",

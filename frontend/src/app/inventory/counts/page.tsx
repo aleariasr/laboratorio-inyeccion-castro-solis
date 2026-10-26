@@ -24,6 +24,7 @@ import type {
   InventoryCountFilters,
   InventoryCountStatus,
 } from "@/features/inventory/counts/types";
+import { formatDateOnly } from "@/features/inventory/purchases/format";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import type { PaginatedResponse } from "@/lib/api/types";
 
@@ -446,29 +447,35 @@ export default function InventoryCountsPage() {
               <option value="all">Todos</option>
             </select>
 
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) => {
-                const dateFrom = event.target.value;
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Desde
+              <Input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(event) => {
+                  const dateFrom = event.target.value;
 
-                updateFilters((current) => ({ ...current, dateFrom, page: 1 }));
-              }}
-              className="h-11 w-auto"
-              aria-label="Fecha inicial"
-            />
+                  updateFilters((current) => ({ ...current, dateFrom, page: 1 }));
+                }}
+                className="h-11 w-auto"
+                aria-label="Fecha inicial"
+              />
+            </label>
 
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) => {
-                const dateTo = event.target.value;
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Hasta
+              <Input
+                type="date"
+                value={filters.dateTo}
+                onChange={(event) => {
+                  const dateTo = event.target.value;
 
-                updateFilters((current) => ({ ...current, dateTo, page: 1 }));
-              }}
-              className="h-11 w-auto"
-              aria-label="Fecha final"
-            />
+                  updateFilters((current) => ({ ...current, dateTo, page: 1 }));
+                }}
+                className="h-11 w-auto"
+                aria-label="Fecha final"
+              />
+            </label>
           </div>
 
           {filters.query && (
@@ -582,7 +589,7 @@ export default function InventoryCountsPage() {
                       </td>
 
                       <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        {inventoryCount.count_date}
+                        {formatDateOnly(inventoryCount.count_date)}
                       </td>
 
                       <td className="px-5 py-4 align-top">

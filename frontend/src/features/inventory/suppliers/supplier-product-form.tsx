@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { CreateProductDialog } from "../products/create-product-dialog";
 import type { Product } from "../products/types";
+import { findScannedProduct } from "../products/scan";
 
 import { searchActiveProducts } from "./api";
 import { validateSupplierProductForm } from "./supplier-product-validation";
@@ -172,6 +173,23 @@ export function SupplierProductForm({
       updateValue(field, event.target.value);
     };
   }
+
+  useEffect(() => {
+    if (mode === "edit") {
+      return;
+    }
+
+    // Código propio o universal completo (lector o escrito a mano): se
+    // elige solo, como en compras y ventas (findScannedProduct).
+    const exactMatch = findScannedProduct(productResults, productQuery);
+
+    if (exactMatch) {
+      selectProduct(exactMatch);
+    }
+    // selectProduct se recrea en cada render; incluirla aquí re-dispararía el
+    // efecto sin necesidad. Solo depende de lo buscado y los resultados.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, productQuery, productResults]);
 
   function selectProduct(product: Product): void {
     updateValue("productId", String(product.id));

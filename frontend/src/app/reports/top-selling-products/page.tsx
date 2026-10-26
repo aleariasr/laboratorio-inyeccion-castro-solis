@@ -313,8 +313,8 @@ export default function TopSellingProductsReportPage() {
                       {entry.quantity_sold}
                     </td>
 
-                    <td className="px-5 py-4 text-right align-top text-sm font-semibold text-foreground">
-                      {formatMoney(entry.total)} CRC
+                    <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm font-semibold text-foreground">
+                      ₡{formatMoney(entry.total)}
                     </td>
                   </tr>
                 ))}

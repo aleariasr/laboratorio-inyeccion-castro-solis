@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 
 import { searchActiveProducts } from "../inventory/suppliers/api";
 import type { Product } from "../inventory/products/types";
+import { findScannedProduct } from "../inventory/products/scan";
 
 import { validateServiceAccessoryForm } from "./validation";
 import type {
@@ -112,6 +113,19 @@ export function ServiceAccessoryForm({
       controller.abort();
     };
   }, [canReadProducts, query, token]);
+
+  useEffect(() => {
+    // Código propio o universal completo (lector o escrito a mano): se
+    // elige solo, como en compras y ventas (findScannedProduct).
+    const exactMatch = findScannedProduct(results, query);
+
+    if (exactMatch) {
+      selectProduct(exactMatch);
+    }
+    // selectProduct se recrea en cada render; incluirla aquí re-dispararía el
+    // efecto sin necesidad. Solo depende de lo buscado y los resultados.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, results]);
 
   function updateValue(field: keyof ServiceAccessoryFormValues, value: string): void {
     setValues((current) => ({

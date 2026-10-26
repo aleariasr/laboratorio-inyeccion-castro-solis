@@ -13,7 +13,7 @@ export function KeyboardShortcut({
       {keys.map((key) => (
         <kbd
           key={key}
-          className="min-w-6 rounded-md border border-border bg-surface-muted px-1.5 py-0.5 text-center font-mono text-[11px] font-medium text-muted-foreground shadow-sm"
+          className="min-w-6 rounded-[var(--radius-sm)] border border-border bg-surface-muted px-1.5 py-0.5 text-center font-mono text-[11px] font-medium text-muted-foreground shadow-sm"
         >
           {key}
         </kbd>

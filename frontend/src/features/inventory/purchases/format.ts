@@ -75,3 +75,20 @@ export function formatDate(value: string): string {
     timeZone: "America/Costa_Rica",
   }).format(date);
 }
+
+/**
+ * Una fecha sin hora (AAAA-MM-DD) en texto: "25 oct 2026". Se arma con la
+ * fecha local: `new Date("2026-10-25")` es medianoche UTC, que en Costa
+ * Rica cae el día anterior.
+ */
+export function formatDateOnly(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("es-CR", { dateStyle: "medium" }).format(
+    new Date(year, month - 1, day),
+  );
+}

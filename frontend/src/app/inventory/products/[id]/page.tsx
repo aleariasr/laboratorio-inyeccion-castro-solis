@@ -1493,11 +1493,11 @@ export default function ProductDetailPage() {
                         Tipo
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Precio
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Existencia
                       </th>
 
@@ -1543,22 +1543,22 @@ export default function ProductDetailPage() {
                           {VARIANT_KIND_LABELS[variant.variant_kind]}
                         </td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">
-                          {variant.effective_sale_price
-                            ? `₡${formatMoney(
-                                Number(variant.effective_sale_price),
-                              )}`
-                            : "Sin precio"}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-foreground">
+                          {variant.effective_sale_price ? (
+                            `₡${formatMoney(Number(variant.effective_sale_price))}`
+                          ) : (
+                            <span className="font-sans text-muted-foreground">Sin precio</span>
+                          )}
                         </td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">
+                        <td className="px-5 py-4 text-right font-mono text-sm text-foreground">
                           {variant.current_stock}
                         </td>
 
                         <td className="px-5 py-4">
                           <span
                             className={[
-                              "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                              "inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold",
                               variant.is_active
                                 ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
                                 : "bg-surface-muted text-muted-foreground",

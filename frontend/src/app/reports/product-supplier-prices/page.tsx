@@ -16,7 +16,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { canReadProducts, canReadReports } from "@/features/auth/permissions";
 import { getProducts } from "@/features/inventory/products/api";
 import type { Product } from "@/features/inventory/products/types";
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import {
   getProductSupplierPricesReport,
   getProductSupplierPricesReportPdf,
@@ -481,11 +481,11 @@ export default function ProductSupplierPricesReportPage() {
                           {entry.last_purchase_date}
                         </td>
 
-                        <td className="px-5 py-4 text-right align-top text-sm font-semibold text-foreground">
+                        <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm font-semibold text-foreground">
                           {formatMoney(entry.last_unit_cost)} {entry.currency}
                         </td>
 
-                        <td className="px-5 py-4 text-right align-top text-sm text-muted-foreground">
+                        <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-muted-foreground">
                           {formatMoney(entry.average_unit_cost)} {entry.currency}
                         </td>
 
@@ -526,14 +526,14 @@ export default function ProductSupplierPricesReportPage() {
                                 {entry.purchases.map((purchaseEntry) => (
                                   <tr key={purchaseEntry.id}>
                                     <td className="py-1.5 pr-4 text-sm text-muted-foreground">
-                                      {purchaseEntry.purchase_date}
+                                      {formatDateOnly(purchaseEntry.purchase_date)}
                                     </td>
 
                                     <td className="py-1.5 pr-4 text-sm text-muted-foreground">
                                       {purchaseEntry.invoice_number}
                                     </td>
 
-                                    <td className="py-1.5 text-right text-sm font-medium text-foreground">
+                                    <td className="whitespace-nowrap py-1.5 text-right font-mono text-sm font-medium text-foreground">
                                       {formatMoney(purchaseEntry.unit_cost)} {purchaseEntry.currency}
                                     </td>
                                   </tr>

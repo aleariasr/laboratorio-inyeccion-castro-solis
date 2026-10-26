@@ -88,23 +88,6 @@ export function todayIsoDate(): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-/**
- * Una fecha sin hora (AAAA-MM-DD) en texto. Se arma con la fecha local:
- * `new Date("2026-10-25")` es medianoche UTC, que en Costa Rica cae el
- * día anterior.
- */
-export function formatDateOnly(value: string): string {
-  const [year, month, day] = value.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("es-CR", { dateStyle: "medium" }).format(
-    new Date(year, month - 1, day),
-  );
-}
-
 export function emptyStockTransferFormValues(): StockTransferFormValues {
   return { branchId: "", transferDate: todayIsoDate(), notes: "" };
 }

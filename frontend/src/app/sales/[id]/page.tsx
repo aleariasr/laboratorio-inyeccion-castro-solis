@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
 import { canCancelSales, canReadProducts, canReadSales, canWriteSales } from "@/features/auth/permissions";
-import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { formatDate, formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import {
   cancelSale,
   confirmSale,
@@ -912,14 +912,14 @@ export default function SaleDetailPage() {
             <dl className="border-t border-[var(--color-border-soft)]">
               <div className="app-status-row">
                 <dt>Fecha de venta</dt>
-                <dd>{loadState.sale.sale_date}</dd>
+                <dd>{formatDateOnly(loadState.sale.sale_date)}</dd>
               </div>
 
               <div className="app-status-row">
                 <dt>Total de la venta</dt>
                 <dd>
                   {loadState.sale.total !== null
-                    ? `${formatMoney(loadState.sale.total)} CRC`
+                    ? `₡${formatMoney(loadState.sale.total)}`
                     : "Revise el descuento"}
                 </dd>
               </div>
@@ -1033,15 +1033,15 @@ export default function SaleDetailPage() {
                         Producto
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Cantidad
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Precio unitario
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Subtotal
                       </th>
 
@@ -1069,14 +1069,14 @@ export default function SaleDetailPage() {
                           </p>
                         </td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">{item.quantity}</td>
+                        <td className="px-5 py-4 text-right text-sm text-foreground">{item.quantity}</td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">
-                          {formatMoney(item.unit_price)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
+                          ₡{formatMoney(item.unit_price)}
                         </td>
 
-                        <td className="px-5 py-4 text-sm font-semibold text-foreground">
-                          {formatMoney(item.subtotal)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                          ₡{formatMoney(item.subtotal)}
                         </td>
 
                         {canManageItems && (

@@ -20,7 +20,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { canReadPurchases, canWritePurchases } from "@/features/auth/permissions";
 import { getPurchases } from "@/features/inventory/purchases/api";
 import type { Purchase, PurchaseFilters, PurchaseStatus } from "@/features/inventory/purchases/types";
-import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
+import { crcEquivalent, formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import type { PaginatedResponse } from "@/lib/api/types";
 
@@ -471,29 +471,35 @@ export default function PurchasesPage() {
               <option value="all">Todas</option>
             </select>
 
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) => {
-                const dateFrom = event.target.value;
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Desde
+              <Input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(event) => {
+                  const dateFrom = event.target.value;
 
-                updateFilters((current) => ({ ...current, dateFrom, page: 1 }));
-              }}
-              className="h-11 w-auto"
-              aria-label="Fecha inicial"
-            />
+                  updateFilters((current) => ({ ...current, dateFrom, page: 1 }));
+                }}
+                className="h-11 w-auto"
+                aria-label="Fecha inicial"
+              />
+            </label>
 
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) => {
-                const dateTo = event.target.value;
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Hasta
+              <Input
+                type="date"
+                value={filters.dateTo}
+                onChange={(event) => {
+                  const dateTo = event.target.value;
 
-                updateFilters((current) => ({ ...current, dateTo, page: 1 }));
-              }}
-              className="h-11 w-auto"
-              aria-label="Fecha final"
-            />
+                  updateFilters((current) => ({ ...current, dateTo, page: 1 }));
+                }}
+                className="h-11 w-auto"
+                aria-label="Fecha final"
+              />
+            </label>
           </div>
 
           {filters.query && (
@@ -582,7 +588,7 @@ export default function PurchasesPage() {
                       Fecha
                     </th>
 
-                    <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                       Total
                     </th>
 
@@ -619,11 +625,11 @@ export default function PurchasesPage() {
                       </td>
 
                       <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        {purchase.purchase_date}
+                        {formatDateOnly(purchase.purchase_date)}
                       </td>
 
-                      <td className="px-5 py-4 align-top text-sm text-muted-foreground">
-                        <p className="leading-tight">
+                      <td className="whitespace-nowrap px-5 py-4 text-right align-top text-sm text-muted-foreground">
+                        <p className="font-mono leading-tight text-foreground">
                           {formatMoney(purchaseTotal(purchase))} {purchase.currency}
                         </p>
 

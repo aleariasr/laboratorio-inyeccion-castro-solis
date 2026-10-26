@@ -312,7 +312,7 @@ export default function PurchasesBySupplierReportPage() {
                       {entry.purchase_count}
                     </td>
 
-                    <td className="px-5 py-4 text-right align-top text-sm font-semibold text-foreground">
+                    <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm font-semibold text-foreground">
                       {formatMoney(entry.invoice_subtotal)} {entry.currency}
                     </td>
                   </tr>

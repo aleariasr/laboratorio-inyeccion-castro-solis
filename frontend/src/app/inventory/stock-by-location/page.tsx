@@ -471,7 +471,7 @@ export default function StockByLocationPage() {
                               </span>
 
                               {isLowStock(product) && (
-                                <span className="ml-2 inline-flex items-center rounded-full bg-[var(--color-danger-soft)] px-2.5 py-1 text-xs font-semibold text-danger">
+                                <span className="ml-2 inline-flex items-center rounded-full bg-[var(--color-danger-soft)] px-3 py-1.5 text-xs font-semibold text-danger">
                                   Stock bajo
                                 </span>
                               )}

@@ -19,7 +19,7 @@ import {
   canWriteTransfers,
 } from "@/features/auth/permissions";
 import type { Product } from "@/features/inventory/products/types";
-import { formatDate } from "@/features/inventory/purchases/format";
+import { formatDate, formatDateOnly } from "@/features/inventory/purchases/format";
 import {
   cancelStockTransfer,
   confirmStockTransfer,
@@ -35,7 +35,6 @@ import { StockTransferForm } from "@/features/inventory/transfers/stock-transfer
 import { StockTransferItemForm } from "@/features/inventory/transfers/stock-transfer-item-form";
 import {
   buildStockTransferWritePayload,
-  formatDateOnly,
   mapStockTransferApiFieldErrors,
   STOCK_TRANSFER_STATUS_BADGE_CLASSES,
   STOCK_TRANSFER_STATUS_LABELS,

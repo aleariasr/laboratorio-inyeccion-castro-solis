@@ -27,7 +27,7 @@ import {
   getPurchase,
   updatePurchaseItem,
 } from "@/features/inventory/purchases/api";
-import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
+import { crcEquivalent, formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import { PurchaseCostsSection } from "@/features/inventory/purchases/purchase-costs-section";
 import { mapPurchaseItemApiFieldErrors } from "@/features/inventory/purchases/purchase-item-form-errors";
 import { PurchaseItemForm } from "@/features/inventory/purchases/purchase-item-form";
@@ -841,7 +841,7 @@ export default function PurchaseDetailPage() {
 
               <div className="app-status-row">
                 <dt>Fecha de compra</dt>
-                <dd>{loadState.purchase.purchase_date}</dd>
+                <dd>{formatDateOnly(loadState.purchase.purchase_date)}</dd>
               </div>
 
               <div className="app-status-row">
@@ -976,15 +976,15 @@ export default function PurchaseDetailPage() {
                         Producto
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Cantidad
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Costo unitario
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Subtotal
                       </th>
 
@@ -1012,13 +1012,13 @@ export default function PurchaseDetailPage() {
                           </p>
                         </td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">{item.quantity}</td>
+                        <td className="px-5 py-4 text-right text-sm text-foreground">{item.quantity}</td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
                           {formatMoney(item.unit_cost)}
                         </td>
 
-                        <td className="px-5 py-4 text-sm font-semibold text-foreground">
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
                           {formatMoney(item.subtotal)}
                         </td>
 

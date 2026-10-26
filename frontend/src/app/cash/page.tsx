@@ -11,6 +11,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
+import { formatWeekRange } from "@/features/cash/format";
 import { canReadCash, canWriteCash } from "@/features/auth/permissions";
 import { getCashClosings } from "@/features/cash/api";
 import { PettyCashWeekCard } from "@/features/cash/petty-cash-week-card";
@@ -426,7 +427,7 @@ export default function CashClosingsPage() {
                       >
                         <td className="px-5 py-4 align-top">
                           <span className="text-sm font-semibold text-foreground">
-                            {closing.week_start} — {closing.week_end}
+                            {formatWeekRange(closing.week_start, closing.week_end)}
                           </span>
                         </td>
 

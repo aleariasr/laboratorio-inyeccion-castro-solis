@@ -15,7 +15,7 @@ import {
   canReadSales,
   canWriteCustomers,
 } from "@/features/auth/permissions";
-import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { formatDate, formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import { getCustomer, getCustomerInjectors } from "@/features/customers/api";
 import type { Customer, CustomerInjector } from "@/features/customers/types";
 import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
@@ -610,7 +610,7 @@ export default function CustomerDetailPage() {
                         <td className="px-5 py-4">
                           <span
                             className={[
-                              "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                              "inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold",
                               injector.is_active
                                 ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
                                 : "bg-surface-muted text-muted-foreground",
@@ -681,7 +681,7 @@ export default function CustomerDetailPage() {
                         Fecha
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Total
                       </th>
 
@@ -709,10 +709,10 @@ export default function CustomerDetailPage() {
                         }}
                         className="cursor-pointer border-b border-[var(--color-border-soft)] transition-colors last:border-b-0 hover:bg-[rgb(7_81_132_/_3%)] focus:bg-[var(--color-primary-soft)] focus:outline-none"
                       >
-                        <td className="px-5 py-4 text-sm text-foreground">{sale.sale_date}</td>
+                        <td className="px-5 py-4 text-sm text-foreground">{formatDateOnly(sale.sale_date)}</td>
 
-                        <td className="px-5 py-4 text-sm font-semibold text-foreground">
-                          {sale.total !== null ? `${formatMoney(sale.total)} CRC` : "—"}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                          {sale.total !== null ? `₡${formatMoney(sale.total)}` : "—"}
                         </td>
 
                         <td className="px-5 py-4 text-sm text-muted-foreground">

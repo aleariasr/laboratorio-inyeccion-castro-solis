@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/features/inventory/purchases/format";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import { getCashClosingPreview, getCloseableWeeks } from "./api";
 import { formatWeekdayDate, formatWeekRange } from "./format";
@@ -51,7 +54,17 @@ export function CashClosingForm({
   onSubmit,
   onCancel,
 }: CashClosingFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+
   const [values, setValues] = useState<CashClosingFormValues>(initialValues);
+
+  // Punto de partida para saber si hay cambios: la semana que viene
+  // elegida sola no es un cambio de la persona.
+  const [baseline, setBaseline] = useState<CashClosingFormValues>(initialValues);
+
+  const isDirty = (Object.keys(values) as Array<keyof CashClosingFormValues>).some(
+    (field) => values[field] !== baseline[field],
+  );
 
   const [localErrors, setLocalErrors] = useState<CashClosingFormErrors>({});
 
@@ -70,6 +83,36 @@ export function CashClosingForm({
   );
 
   const errors = mergeErrors(localErrors, serverErrors);
+
+  // Ctrl+S y aviso al cancelar, como el resto de los formularios.
+  useEffect(() => {
+    function handleSaveShortcut(event: KeyboardEvent): void {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+
+        if (!isSubmitting && isFormShortcutTarget(formRef.current)) {
+          formRef.current?.requestSubmit();
+        }
+      }
+    }
+
+    globalThis.addEventListener("keydown", handleSaveShortcut);
+
+    return () => {
+      globalThis.removeEventListener("keydown", handleSaveShortcut);
+    };
+  }, [isSubmitting]);
+
+  function handleCancel(): void {
+    if (
+      isDirty &&
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+    ) {
+      return;
+    }
+
+    onCancel();
+  }
 
   // Qué semanas se pueden cerrar lo decide el backend (las ya terminadas
   // sin cierre): se ofrecen como lista y viene elegida la más reciente,
@@ -92,11 +135,13 @@ export function CashClosingForm({
           const [mostRecent] = result.weeks;
 
           if (mostRecent) {
-            setValues((current) =>
+            const selectMostRecent = (current: CashClosingFormValues) =>
               current.weekStart
                 ? current
-                : { ...current, weekStart: mostRecent.week_start },
-            );
+                : { ...current, weekStart: mostRecent.week_start };
+
+            setValues(selectMostRecent);
+            setBaseline(selectMostRecent);
           }
         })
         .catch((error: unknown) => {
@@ -254,7 +299,7 @@ export function CashClosingForm({
       : "Cada semana de caja va de sábado a viernes y se cierra a partir de su viernes.";
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid gap-5">
       {submitError && <FormError message={submitError} />}
 
       <Field
@@ -486,7 +531,7 @@ export function CashClosingForm({
       </Field>
 
       <div className="flex flex-wrap justify-end gap-3 border-t border-[var(--color-border-soft)] pt-5">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
+        <Button type="button" variant="secondary" onClick={handleCancel} disabled={isSubmitting}>
           Cancelar
         </Button>
 
@@ -496,7 +541,9 @@ export function CashClosingForm({
           loadingText="Guardando…"
           disabled={futureWeekMessage !== null || !hasCloseableWeeks}
         >
-          Cerrar semana
+          <span>Cerrar semana</span>
+
+          {!isSubmitting && <KeyboardShortcut keys={["Ctrl", "S"]} />}
         </Button>
       </div>
     </form>

@@ -228,25 +228,25 @@ export default function AccountPage() {
                     user.groups.map((role) => (
                       <span
                         key={role}
-                        className="inline-flex items-center rounded-full bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-brand-blue)]"
+                        className="inline-flex items-center rounded-full bg-[var(--color-primary-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--color-brand-blue)]"
                       >
                         {ROLE_LABELS[role] ?? role}
                       </span>
                     ))
                   ) : (
-                    <span className="inline-flex items-center rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                    <span className="inline-flex items-center rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground">
                       Sin rol asignado
                     </span>
                   )}
 
                   {user.is_superuser && (
-                    <span className="inline-flex items-center rounded-full bg-[var(--color-warning-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-warning)]">
+                    <span className="inline-flex items-center rounded-full bg-[var(--color-warning-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--color-warning)]">
                       Superusuario
                     </span>
                   )}
 
                   {user.is_staff && !user.is_superuser && (
-                    <span className="inline-flex items-center rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                    <span className="inline-flex items-center rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground">
                       Administra usuarios
                     </span>
                   )}
@@ -315,7 +315,7 @@ export default function AccountPage() {
                             className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary hover:underline"
                           >
                             <span
-                              className="flex size-7 shrink-0 items-center justify-center rounded-[10px] bg-surface-muted text-muted-foreground"
+                              className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-surface-muted text-muted-foreground"
                               aria-hidden="true"
                             >
                               <Icon className="size-4" />

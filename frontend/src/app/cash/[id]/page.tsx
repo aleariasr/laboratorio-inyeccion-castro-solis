@@ -9,6 +9,7 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
+import { formatWeekRange } from "@/features/cash/format";
 import { canReadCash } from "@/features/auth/permissions";
 import { getCashClosing, getCashClosingPdf } from "@/features/cash/api";
 import type { CashClosing } from "@/features/cash/types";
@@ -73,7 +74,7 @@ export default function CashClosingDetailPage() {
       ? {
           type: "cash",
           id: loadState.closing.id,
-          label: `Cierre de caja · ${loadState.closing.week_start}`,
+          label: `Cierre de caja · ${formatWeekRange(loadState.closing.week_start, loadState.closing.week_end)}`,
           href: `/cash/${loadState.closing.id}`,
         }
       : null,
@@ -215,7 +216,7 @@ export default function CashClosingDetailPage() {
     <AppShell
       title={
         loadState.status === "success"
-          ? `Cierre ${loadState.closing.week_start} — ${loadState.closing.week_end}`
+          ? `Cierre del ${formatWeekRange(loadState.closing.week_start, loadState.closing.week_end)}`
           : "Detalle de cierre"
       }
       description="Los cierres de caja no se pueden editar ni eliminar una vez creados."
@@ -379,7 +380,7 @@ export default function CashClosingDetailPage() {
             <div className="app-status-row">
               <dt>Semana</dt>
               <dd>
-                {loadState.closing.week_start} — {loadState.closing.week_end}
+                {formatWeekRange(loadState.closing.week_start, loadState.closing.week_end)}
               </dd>
             </div>
 

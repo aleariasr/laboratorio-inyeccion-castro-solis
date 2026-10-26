@@ -20,6 +20,7 @@ import {
 } from "@/features/auth/permissions";
 import { createProforma, getProducts } from "@/features/inventory/products/api";
 import type { Product } from "@/features/inventory/products/types";
+import { findScannedProduct } from "@/features/inventory/products/scan";
 import { formatMoney } from "@/features/inventory/purchases/format";
 import {
   CustomerPicker,
@@ -155,6 +156,16 @@ export default function NewProformaPage() {
       controller.abort();
     };
   }, [hasProformaAccess, query, token]);
+
+  useEffect(() => {
+    // Código propio o universal completo (lector o escrito a mano): se
+    // elige solo, como en compras y ventas (findScannedProduct).
+    const exactMatch = findScannedProduct(results, query);
+
+    if (exactMatch) {
+      addProduct(exactMatch);
+    }
+  }, [query, results]);
 
   function handleQueryChange(value: string): void {
     setQuery(value);
