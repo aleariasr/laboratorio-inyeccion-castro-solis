@@ -65,8 +65,9 @@ Reglas que no dependen de un permiso de módulo:
   (`ViewCostsRequired`).
 - **Precio y entrega de servicios** son solo del grupo `ADMIN` (`ModuleAdminRequired` /
   `is_module_admin`), también la factura del servicio.
-- **`view_reports`**, **`view_movements`** y el módulo de **caja** (`view_cash` / `add_cash`)
-  son exclusivos de `ADMIN`: ningún otro rol los incluye.
+- **`view_reports`**, **`view_movements`**, el módulo de **caja** (`view_cash` / `add_cash`) y
+  el de **traslados** a otra sede (`view/add/change/cancel_transfers`) son exclusivos de `ADMIN`:
+  ningún otro rol los incluye.
 - **Contraseñas:** mínimo 8 caracteres. Cada usuario cambia la suya en "Mi cuenta" (no cierra la
   sesión: devuelve un token nuevo) y el Administrador puede restablecer la de otros desde Usuarios.
 

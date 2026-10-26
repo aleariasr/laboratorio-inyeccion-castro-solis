@@ -300,3 +300,28 @@ export function canWriteCash(user: AuthUser): boolean {
     hasModulePermission(user, "add_cash")
   );
 }
+
+// --- Inventario: traslados a otra sede (punto 6 del plan del 2026-10-22) ---
+// Ningún rol los tiene: solo ADMIN, o quien reciba los permisos sueltos.
+
+export function canReadTransfers(user: AuthUser): boolean {
+  return (
+    isModuleAdmin(user) ||
+    hasModulePermission(user, "view_transfers")
+  );
+}
+
+export function canWriteTransfers(user: AuthUser): boolean {
+  return (
+    isModuleAdmin(user) ||
+    hasModulePermission(user, "add_transfers") ||
+    hasModulePermission(user, "change_transfers")
+  );
+}
+
+export function canCancelTransfers(user: AuthUser): boolean {
+  return (
+    isModuleAdmin(user) ||
+    hasModulePermission(user, "cancel_transfers")
+  );
+}

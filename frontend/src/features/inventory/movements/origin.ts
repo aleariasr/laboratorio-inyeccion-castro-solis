@@ -3,6 +3,7 @@ import {
   canReadPurchases,
   canReadSales,
   canReadServices,
+  canReadTransfers,
 } from "@/features/auth/permissions";
 import type { AuthUser } from "@/features/auth/types";
 
@@ -68,6 +69,16 @@ export function getMovementOrigin(
       href:
         user && canReadServices(user)
           ? `/services/${movement.service_record_id}`
+          : null,
+    };
+  }
+
+  if (movement.stock_transfer_id !== null) {
+    return {
+      label: `Traslado #${movement.stock_transfer_id}`,
+      href:
+        user && canReadTransfers(user)
+          ? `/inventory/transfers/${movement.stock_transfer_id}`
           : null,
     };
   }

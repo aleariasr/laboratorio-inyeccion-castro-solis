@@ -16,6 +16,10 @@ from .costs import (
     discard_purchase_cost_calculation,
     purchase_cost_summary,
 )
+from .transfers import (
+    cancel_stock_transfer,
+    confirm_stock_transfer,
+)
 
 __all__ = [
     "approve_inventory_count",
@@ -27,4 +31,6 @@ __all__ = [
     "calculate_purchase_costs",
     "discard_purchase_cost_calculation",
     "purchase_cost_summary",
+    "confirm_stock_transfer",
+    "cancel_stock_transfer",
 ]

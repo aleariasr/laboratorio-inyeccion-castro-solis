@@ -38,6 +38,13 @@ export function Dialog({ open, title, description, onClose, children }: DialogPr
       returnFocusRef.current =
         document.activeElement instanceof HTMLElement ? document.activeElement : null;
       dialog.showModal();
+
+      // showModal le da el foco al primer elemento enfocable (la ×), y el
+      // autoFocus de React ya corrió antes de abrirse: se pasa al primer
+      // campo del formulario.
+      dialog
+        .querySelector<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled])")
+        ?.focus();
     } else if (!open && dialog.open) {
       dialog.close();
       returnFocusRef.current?.focus();

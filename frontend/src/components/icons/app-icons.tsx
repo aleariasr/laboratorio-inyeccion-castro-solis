@@ -246,6 +246,33 @@ export function LocationIcon({
   );
 }
 
+/** Traslados a otra sede (punto 6): una caja con una flecha que sale. */
+export function TransferIcon({
+  className = "size-5",
+}: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M3.5 6.5h9v11h-9zM3.5 10h9"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M12.5 13.75h8M17.25 10.5l3.25 3.25-3.25 3.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function TruckIcon({
   className = "size-5",
 }: IconProps) {

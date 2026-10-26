@@ -716,13 +716,16 @@ def most_moved_products_results(date_from, date_to):
     Neto de reversiones: un movimiento revertido (una venta anulada, por
     ejemplo) no cuenta, y la reversión tampoco. El inventario inicial
     queda fuera: es la carga de existencias, no un movimiento del
-    negocio. Ajustes y conteos sí cuentan.
+    negocio. Ajustes y conteos sí cuentan. Los traslados a otra sede
+    (punto 6 del plan del 2026-10-22) tampoco: mueven mercadería entre
+    sedes, no son rotación del negocio.
     """
 
     movements = StockMovement.objects.exclude(
         movement_type__in=(
             StockMovementType.INITIAL,
             StockMovementType.REVERSAL,
+            StockMovementType.TRANSFER_OUT,
         ),
     ).filter(
         reversal_movement__isnull=True,

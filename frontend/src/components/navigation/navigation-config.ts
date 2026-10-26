@@ -10,6 +10,7 @@ import {
   ReportsIcon,
   SearchIcon,
   StatusIcon,
+  TransferIcon,
   TruckIcon,
   UsersIcon,
   WrenchIcon,
@@ -26,6 +27,7 @@ import {
   canReadSales,
   canReadServices,
   canReadSuppliers,
+  canReadTransfers,
 } from "@/features/auth/permissions";
 
 import type {
@@ -111,6 +113,13 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     section: "inventory",
     icon: ClipboardCheckIcon,
     permissionCheck: canReadInventoryCounts,
+  },
+  {
+    href: "/inventory/transfers",
+    label: "Traslados",
+    section: "inventory",
+    icon: TransferIcon,
+    permissionCheck: canReadTransfers,
   },
   {
     href: "/sales",

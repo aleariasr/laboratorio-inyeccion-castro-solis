@@ -129,4 +129,10 @@ class ModulePermissions(models.Model):
             ("view_movements", "Movimientos de inventario: ver"),
             ("view_cash", "Caja: ver"),
             ("add_cash", "Caja: crear"),
+            # Punto 6 del plan del 2026-10-22. Ningún rol los recibe:
+            # solo el Administrador (que tiene todo).
+            ("view_transfers", "Traslados: ver"),
+            ("add_transfers", "Traslados: crear"),
+            ("change_transfers", "Traslados: editar"),
+            ("cancel_transfers", "Traslados: cancelar"),
         ]

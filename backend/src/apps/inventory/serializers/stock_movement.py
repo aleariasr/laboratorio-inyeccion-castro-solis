@@ -26,6 +26,7 @@ class StockMovementSerializer(
         serializers.SerializerMethodField()
     )
     service_record_id = serializers.SerializerMethodField()
+    stock_transfer_id = serializers.SerializerMethodField()
     created_by_username = (
         serializers.SerializerMethodField()
     )
@@ -50,6 +51,7 @@ class StockMovementSerializer(
             "inventory_count_reference",
             "service_accessory",
             "service_record_id",
+            "stock_transfer_id",
             "reverses_movement",
             "notes",
             "created_by_username",
@@ -120,6 +122,17 @@ class StockMovementSerializer(
             return None
 
         return obj.service_accessory.service_record_id
+
+    def get_stock_transfer_id(
+        self,
+        obj: StockMovement,
+    ) -> int | None:
+        """Traslado a otra sede del que viene el movimiento (punto 6)."""
+
+        if obj.stock_transfer_item_id is None:
+            return None
+
+        return obj.stock_transfer_item.stock_transfer_id
 
     def get_created_by_username(
         self,

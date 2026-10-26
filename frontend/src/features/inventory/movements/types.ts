@@ -6,7 +6,8 @@ export type StockMovementType =
   | "ADJUSTMENT"
   | "INITIAL"
   | "REVERSAL"
-  | "SERVICE_USE";
+  | "SERVICE_USE"
+  | "TRANSFER_OUT";
 
 export type MovementDirection = "IN" | "OUT";
 
@@ -29,6 +30,8 @@ export type StockMovement = {
   service_accessory: number | null;
   /** Servicio del accesorio, o null si el accesorio ya se borró. */
   service_record_id: number | null;
+  /** Traslado a otra sede del que viene (punto 6), o null. */
+  stock_transfer_id: number | null;
   reverses_movement: number | null;
   notes: string;
   created_by_username: string | null;
@@ -70,6 +73,7 @@ export const STOCK_MOVEMENT_TYPE_OPTIONS: Array<{
   { value: "INITIAL", label: "Inventario inicial" },
   { value: "REVERSAL", label: "Reversión" },
   { value: "SERVICE_USE", label: "Uso en servicio" },
+  { value: "TRANSFER_OUT", label: "Traslado a sede" },
 ];
 
 export const MOVEMENT_DIRECTION_OPTIONS: Array<{

@@ -13,6 +13,9 @@ from apps.inventory.views import (
     SupplierProductViewSet,
     SupplierViewSet,
     StockMovementViewSet,
+    BranchViewSet,
+    StockTransferItemViewSet,
+    StockTransferViewSet,
 )
 
 router = DefaultRouter()
@@ -75,6 +78,22 @@ router.register(
     "stock-movements",
     StockMovementViewSet,
     basename="stock-movement",
+)
+# Punto 6 del plan del 2026-10-22: traslados a otra sede.
+router.register(
+    "branches",
+    BranchViewSet,
+    basename="branch",
+)
+router.register(
+    "stock-transfers",
+    StockTransferViewSet,
+    basename="stock-transfer",
+)
+router.register(
+    "stock-transfer-items",
+    StockTransferItemViewSet,
+    basename="stock-transfer-item",
 )
 
 urlpatterns = router.urls

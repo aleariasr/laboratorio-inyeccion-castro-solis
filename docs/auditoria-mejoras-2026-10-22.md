@@ -428,7 +428,12 @@ Versión: todo esto va en la **2.5.0**.
       diferencia de la propuesta, **ordena la pantalla** con el mismo criterio que el backend y manda
       `items` ya ordenados: así la ventana muestra exactamente el orden en que salen; el endpoint
       imprime en el orden recibido. `product_ids` (una copia de cada uno) se sigue aceptando.
-- [ ] 6 — Traslados a la otra sede
+- [x] 6 — Traslados a la otra sede. Inventario › Traslados (solo Administrador): borrador con
+      líneas → confirmar (sale el inventario, `TRANSFER_OUT`) → anular con motivo (vuelve).
+      Guía de traslado en PDF (sin costos, con columna "Recibido" para anotar). Sedes: se eligen y
+      se crean desde el traslado ("Nueva", en ventana); se renombran o desactivan en el panel de
+      administración; la migración deja creada "Otra sede". Movimientos muestran "Traslado #N" con
+      enlace; "Productos que más se mueven" no los cuenta. Permisos: 38 → 42.
 - [ ] 7 — Crear desde el formulario (ventana)
 - [ ] 1C — Formulario completo de recepción del servicio
 

@@ -80,6 +80,16 @@ class StockMovement(AuditModel):
         blank=True,
     )
 
+    # Punto 6: la salida (y su reversión, si se anula) de una línea de
+    # traslado a otra sede.
+    stock_transfer_item = models.ForeignKey(
+        "StockTransferItem",
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+        null=True,
+        blank=True,
+    )
+
     reverses_movement = models.OneToOneField(
         "self",
         on_delete=models.PROTECT,
@@ -127,6 +137,17 @@ class StockMovement(AuditModel):
         ):
             raise ValidationError(
                 "Un uso en servicio debe estar asociado a un accesorio de servicio."
+            )
+
+        if (
+            self.movement_type == StockMovementType.TRANSFER_OUT
+            and (
+                self.stock_transfer_item is None
+                or self.direction != MovementDirection.OUT
+            )
+        ):
+            raise ValidationError(
+                "Un traslado a sede debe ser una salida asociada a una línea de traslado."
             )
 
         if (

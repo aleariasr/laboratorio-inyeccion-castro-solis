@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    Branch,
     ImportCost,
     ImportCostCategory,
     InventoryCount,
@@ -26,6 +27,26 @@ class StorageLocationAdmin(admin.ModelAdmin):
     search_fields = (
         "code",
         "description",
+    )
+    list_filter = (
+        "is_active",
+    )
+
+
+@admin.register(Branch)
+class BranchAdmin(admin.ModelAdmin):
+    """
+    Sedes de los traslados (punto 6): aquí se renombran o desactivan. Los
+    traslados no se registran en el admin: cambiar su estado desde aquí
+    se saltaría el inventario.
+    """
+
+    list_display = (
+        "name",
+        "is_active",
+    )
+    search_fields = (
+        "name",
     )
     list_filter = (
         "is_active",

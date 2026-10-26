@@ -20,6 +20,7 @@ from apps.core.permissions import (
     SalesPermission,
     ServicesPermission,
     SuppliersPermission,
+    TransfersPermission,
     ROLE_ADMIN,
     ROLE_CUSTOMERS,
     ROLE_INVENTORY,
@@ -59,6 +60,7 @@ MODULE_PERMISSION_SPECS = [
     ("customers", CustomersPermission, False),
     ("injectors", InjectorsPermission, False),
     ("services", ServicesPermission, True),
+    ("transfers", TransfersPermission, True),
 ]
 
 # Módulos que en ModulePermissions.Meta.permissions solo declaran
@@ -450,8 +452,9 @@ class SetupRolesCommandTest(TestCase):
         # 38 = cantidad de tuplas en ModulePermissions.Meta.permissions
         # al momento de escribir este test. Un cambio en este número
         # es la señal de que hay que revisar ROLE_PERMISSIONS también.
-        # (37 → 38 con view_costs, del rediseño de roles del punto 13.)
-        self.assertEqual(len(all_module_codenames), 38)
+        # (37 → 38 con view_costs, del rediseño de roles del punto 13;
+        # 38 → 42 con los traslados, punto 6 del plan del 2026-10-22.)
+        self.assertEqual(len(all_module_codenames), 42)
 
         admin_group = Group.objects.get(name=ROLE_ADMIN)
         admin_codenames = set(

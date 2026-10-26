@@ -57,6 +57,7 @@ class StockMovementViewSet(
                 "reverses_movement",
                 "inventory_count",
                 "service_accessory",
+                "stock_transfer_item",
             )
         )
 
@@ -79,6 +80,10 @@ class StockMovementViewSet(
         inventory_count_id = parse_positive_integer_query_param(
             self.request.query_params.get("inventory_count"),
             name="inventory_count",
+        )
+        stock_transfer_id = parse_positive_integer_query_param(
+            self.request.query_params.get("stock_transfer"),
+            name="stock_transfer",
         )
         movement_type = self.request.query_params.get(
             "movement_type", "",
@@ -125,6 +130,11 @@ class StockMovementViewSet(
         if inventory_count_id:
             queryset = queryset.filter(
                 inventory_count_id=inventory_count_id,
+            )
+
+        if stock_transfer_id:
+            queryset = queryset.filter(
+                stock_transfer_item__stock_transfer_id=stock_transfer_id,
             )
 
         if movement_type:
@@ -376,6 +386,9 @@ def movement_origin_label(movement):
         and movement.service_accessory.service_record_id is not None
     ):
         return f"Servicio #{movement.service_accessory.service_record_id}"
+
+    if movement.stock_transfer_item_id is not None:
+        return f"Traslado #{movement.stock_transfer_item.stock_transfer_id}"
 
     if movement.reverses_movement_id is not None:
         return f"Revierte #{movement.reverses_movement_id}"

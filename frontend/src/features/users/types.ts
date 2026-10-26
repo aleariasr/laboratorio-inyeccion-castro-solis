@@ -94,6 +94,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { key: "documents", label: "Documentos", actions: ["view", "add"] },
   { key: "movements", label: "Movimientos de inventario", actions: ["view"] },
   { key: "cash", label: "Caja", actions: ["view", "add"] },
+  { key: "transfers", label: "Traslados", actions: ["view", "add", "change", "cancel"] },
 ];
 
 // Permiso que la pantalla de usuarios muestra aparte de la matriz, con

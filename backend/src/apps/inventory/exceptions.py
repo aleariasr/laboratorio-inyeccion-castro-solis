@@ -19,3 +19,7 @@ class InvalidPurchaseStatusError(InventoryError):
 
 class InsufficientStockForPurchaseReversalError(InventoryError):
     """No existe inventario suficiente para revertir una compra."""
+
+
+class StockTransferError(InventoryError):
+    """Un traslado no puede cambiar de estado (punto 6). El mensaje va a la pantalla."""

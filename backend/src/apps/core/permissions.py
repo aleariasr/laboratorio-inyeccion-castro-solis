@@ -208,3 +208,11 @@ class MovementsPermission(ModulePermission):
 
 class CashPermission(ModulePermission):
     module = "cash"
+
+
+class TransfersPermission(ModulePermission):
+    """Punto 6: traslados a otra sede. Solo el Administrador (ningún rol)."""
+
+    module = "transfers"
+    cancel_actions = frozenset({"cancel"})
+    read_actions = frozenset({"guide"})
