@@ -43,6 +43,9 @@ type LocationFormProps = {
   // Dentro de una ventana (punto 7): paneles internos, sin la casilla de
   // activa (lo creado así nace activo) ni la nota de seguridad.
   embedded?: boolean;
+  // Avisa si hay cambios sin guardar: la ventana pregunta antes de
+  // descartarlos al cerrarla con Esc o la × (punto 7).
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 function areValuesEqual(
@@ -75,6 +78,7 @@ export function LocationForm({
   onSubmit,
   onCancel,
   embedded = false,
+  onDirtyChange,
 }: LocationFormProps) {
   const formRef =
     useRef<HTMLFormElement>(null);
@@ -91,6 +95,10 @@ export function LocationForm({
     () => !areValuesEqual(values, initialValues),
     [initialValues, values],
   );
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const errors = mergeErrors(
     localErrors,

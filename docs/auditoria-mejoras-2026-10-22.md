@@ -442,6 +442,13 @@ Versión: todo esto va en la **2.5.0**.
       tiene el buscador de cliente dentro de su formulario); Ctrl+S solo guarda el formulario de la
       ventana abierta (`isFormShortcutTarget`). **Ventas puede crear clientes** (`add_customers`, sin
       editar), decisión del 2026-10-25. La recepción del servicio (cliente e inyector) va en el 1C.
+      Ajustes tras revisarlo con Alejandro: sin resultados, la lista ofrece "Crear … «lo buscado»"
+      (`SearchNoResults`), y es **la única forma en los buscadores** (se quitó el botón "Nuevo" de
+      al lado: obliga a buscar antes y evita duplicados; la ayuda del campo lo dice). Los selectores
+      (ubicación, sede, tipo de servicio) conservan su botón "Nueva/Nuevo". La ventana abre con lo escrito (nombre del cliente o proveedor; en
+      producto, una palabra va como código y con espacios como nombre); cerrar con Esc o la × pregunta
+      si hay cambios; la ventana de producto muestra solo código, nombre y ubicación, y el resto en
+      "Más datos" (se abre sola si alguno trae un error).
 - [ ] 1C — Formulario completo de recepción del servicio
 
 ---

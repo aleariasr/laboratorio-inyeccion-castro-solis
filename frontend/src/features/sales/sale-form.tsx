@@ -11,11 +11,13 @@ import {
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
+import { SearchNoResults } from "@/components/forms/search-no-results";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { CreateCustomerDialog } from "@/features/customers/create-customer-dialog";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
@@ -30,7 +32,6 @@ import {
   type SaleFormValues,
 } from "./types";
 import { validateSaleForm } from "./validation";
-import { CreateCustomerDialog } from "@/features/customers/create-customer-dialog";
 
 type SaleFormMode = "create" | "edit";
 
@@ -45,8 +46,8 @@ type SaleFormProps = {
   serverErrors?: SaleFormErrors;
   onSubmit: (values: SaleFormValues) => void | Promise<void>;
   onCancel: () => void;
-  // Punto 7: "Nuevo" cliente en una ventana encima, para quien puede
-  // crear clientes.
+  // Punto 7: sin resultados, la lista ofrece crear el cliente buscado en
+  // una ventana encima, para quien puede crear clientes.
   canCreateCustomers?: boolean;
 };
 
@@ -105,6 +106,9 @@ export function SaleForm({
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
 
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+
+  // Lo escrito al abrir la ventana: abre como nombre del cliente.
+  const [customerDialogName, setCustomerDialogName] = useState("");
 
   const isDirty = useMemo(
     () => !areValuesEqual(values, initialValues),
@@ -298,7 +302,7 @@ export function SaleForm({
             label="Cliente"
             hint={
               mode === "create"
-                ? "Busque por nombre, identificación o teléfono. Déjelo vacío para venta de mostrador."
+                ? `Busque por nombre, identificación o teléfono${canCreateCustomers ? "; si no existe, se crea desde la lista" : ""}. Déjelo vacío para venta de mostrador.`
                 : "El cliente no puede modificarse una vez creada la venta."
             }
             error={errors.customerId}
@@ -323,8 +327,7 @@ export function SaleForm({
                 </button>
               </div>
             ) : (
-              <div className="flex gap-2">
-              <div className="relative min-w-0 flex-1">
+              <div className="relative">
                 <Input
                   id="sale-customer"
                   value={customerQuery}
@@ -362,9 +365,18 @@ export function SaleForm({
                     )}
 
                     {!effectiveCustomerSearchError && customerResults.length === 0 && (
-                      <p className="px-4 py-3 text-sm text-muted-foreground">
-                        Sin resultados.
-                      </p>
+                      <SearchNoResults
+                        query={customerQuery}
+                        entityLabel="cliente"
+                        onCreate={
+                          canCreateCustomers
+                            ? () => {
+                                setCustomerDialogName(customerQuery);
+                                setIsCustomerDialogOpen(true);
+                              }
+                            : undefined
+                        }
+                      />
                     )}
 
                     {!effectiveCustomerSearchError && customerResults.length > 0 && (
@@ -395,21 +407,6 @@ export function SaleForm({
                     )}
                   </div>
                 )}
-              </div>
-
-              {canCreateCustomers && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-12 shrink-0"
-                  onClick={() => {
-                    setIsCustomerDialogOpen(true);
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Nuevo
-                </Button>
-              )}
               </div>
             )}
           </Field>
@@ -530,6 +527,7 @@ export function SaleForm({
       <CreateCustomerDialog
         open={isCustomerDialogOpen}
         token={token}
+        initialName={customerDialogName}
         purpose="esta venta"
         onClose={() => {
           setIsCustomerDialogOpen(false);

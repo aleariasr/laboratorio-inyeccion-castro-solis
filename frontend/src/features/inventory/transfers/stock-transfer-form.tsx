@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/errors";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import { createBranch, getActiveBranches } from "./api";
 import {
@@ -47,7 +50,18 @@ export function StockTransferForm({
   onSubmit,
   onCancel,
 }: StockTransferFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+
   const [values, setValues] = useState(initialValues);
+
+  // Punto de partida para saber si hay cambios: la sede que se elige sola
+  // (cuando hay una sola) no es un cambio de la persona.
+  const [baseline, setBaseline] = useState(initialValues);
+
+  const isDirty =
+    values.branchId !== baseline.branchId ||
+    values.transferDate !== baseline.transferDate ||
+    values.notes !== baseline.notes;
 
   const [localErrors, setLocalErrors] = useState<StockTransferFormErrors>({});
 
@@ -67,11 +81,13 @@ export function StockTransferForm({
         setBranches(data);
 
         // Con una sola sede (lo normal), queda elegida.
-        setValues((current) =>
+        const selectOnlyBranch = (current: StockTransferFormValues) =>
           !current.branchId && data.length === 1
             ? { ...current, branchId: String(data[0].id) }
-            : current,
-        );
+            : current;
+
+        setValues(selectOnlyBranch);
+        setBaseline(selectOnlyBranch);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
@@ -87,6 +103,35 @@ export function StockTransferForm({
       controller.abort();
     };
   }, [token]);
+
+  useEffect(() => {
+    function handleSaveShortcut(event: KeyboardEvent): void {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+
+        if (!isSubmitting && isFormShortcutTarget(formRef.current)) {
+          formRef.current?.requestSubmit();
+        }
+      }
+    }
+
+    globalThis.addEventListener("keydown", handleSaveShortcut);
+
+    return () => {
+      globalThis.removeEventListener("keydown", handleSaveShortcut);
+    };
+  }, [isSubmitting]);
+
+  function handleCancel(): void {
+    if (
+      isDirty &&
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+    ) {
+      return;
+    }
+
+    onCancel();
+  }
 
   function updateValue(field: keyof StockTransferFormValues, value: string): void {
     setValues((current) => ({ ...current, [field]: value }));
@@ -107,6 +152,22 @@ export function StockTransferForm({
     void onSubmit(values);
   }
 
+  // Si la ventana de sede tiene un nombre escrito: cerrarla pregunta antes,
+  // como el resto de las ventanas.
+  const isBranchFormDirtyRef = useRef(false);
+
+  function closeBranchDialog(): void {
+    if (
+      isBranchFormDirtyRef.current &&
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+    ) {
+      return;
+    }
+
+    isBranchFormDirtyRef.current = false;
+    setIsBranchDialogOpen(false);
+  }
+
   function handleBranchCreated(branch: Branch): void {
     setBranches((current) =>
       [...(current ?? []), branch].sort((a, b) => a.name.localeCompare(b.name, "es")),
@@ -117,7 +178,7 @@ export function StockTransferForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} noValidate className="grid gap-6">
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid gap-6">
         {submitError && <FormError message={submitError} />}
 
         <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
@@ -213,7 +274,7 @@ export function StockTransferForm({
           </div>
 
           <div className="flex flex-col-reverse gap-3 border-t border-[var(--color-border-soft)] p-5 sm:flex-row sm:justify-end sm:p-6">
-            <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
+            <Button type="button" variant="secondary" onClick={handleCancel} disabled={isSubmitting}>
               Cancelar
             </Button>
 
@@ -222,7 +283,9 @@ export function StockTransferForm({
               isLoading={isSubmitting}
               loadingText={mode === "create" ? "Creando…" : "Guardando…"}
             >
-              {mode === "create" ? "Crear traslado" : "Guardar cambios"}
+              <span>{mode === "create" ? "Crear traslado" : "Guardar cambios"}</span>
+
+              {!isSubmitting && <KeyboardShortcut keys={["Ctrl", "S"]} />}
             </Button>
           </div>
         </section>
@@ -232,15 +295,14 @@ export function StockTransferForm({
         open={isBranchDialogOpen}
         title="Nueva sede"
         description="Queda en el catálogo de sedes y elegida para este traslado."
-        onClose={() => {
-          setIsBranchDialogOpen(false);
-        }}
+        onClose={closeBranchDialog}
       >
         <BranchForm
           token={token}
           onCreated={handleBranchCreated}
-          onCancel={() => {
-            setIsBranchDialogOpen(false);
+          onCancel={closeBranchDialog}
+          onDirtyChange={(isBranchDirty) => {
+            isBranchFormDirtyRef.current = isBranchDirty;
           }}
         />
       </Dialog>
@@ -252,12 +314,20 @@ function BranchForm({
   token,
   onCreated,
   onCancel,
+  onDirtyChange,
 }: {
   token: string;
   onCreated: (branch: Branch) => void;
   onCancel: () => void;
+  onDirtyChange: (isDirty: boolean) => void;
 }) {
   const [name, setName] = useState("");
+
+  const isDirty = name.trim() !== "";
+
+  useEffect(() => {
+    onDirtyChange(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const [error, setError] = useState<string | null>(null);
 

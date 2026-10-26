@@ -18,6 +18,8 @@ type CreateCustomerDialogProps = {
   token: string;
   /** Para qué queda elegido: "esta venta", "este inyector"… */
   purpose: string;
+  /** Lo escrito en el buscador: abre como nombre del cliente. */
+  initialName?: string;
   onClose: () => void;
   onCreated: (customer: Customer) => void;
 };
@@ -27,6 +29,7 @@ export function CreateCustomerDialog({
   open,
   token,
   purpose,
+  initialName = "",
   onClose,
   onCreated,
 }: CreateCustomerDialogProps) {
@@ -48,17 +51,22 @@ export function CreateCustomerDialog({
       open={open}
       title="Nuevo cliente"
       description={`Queda en el catálogo de clientes y elegido para ${purpose}.`}
-      onClose={close}
+      onClose={() => {
+        if (dialogCreate.confirmDiscard()) {
+          close();
+        }
+      }}
     >
       <CustomerForm
         mode="create"
         embedded
-        initialValues={EMPTY_CUSTOMER_FORM_VALUES}
+        initialValues={{ ...EMPTY_CUSTOMER_FORM_VALUES, displayName: initialName.trim() }}
         isSubmitting={dialogCreate.isSubmitting}
         submitError={dialogCreate.submitError}
         serverErrors={dialogCreate.serverErrors}
         onSubmit={dialogCreate.submit}
         onCancel={close}
+        onDirtyChange={dialogCreate.setDirty}
       />
     </Dialog>
   );

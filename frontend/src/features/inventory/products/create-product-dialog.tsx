@@ -29,8 +29,11 @@ type CreateProductDialogProps = {
   open: boolean;
   token: string;
   canReadCosts: boolean;
-  /** Lo que se escribió en el buscador: si parece un código, lo propone. */
-  initialCode?: string;
+  /**
+   * Lo escrito en el buscador: si es una sola palabra (un código) abre
+   * como código estándar; si tiene espacios, como nombre.
+   */
+  initialQuery?: string;
   /** Para qué queda elegido: "esta línea de compra"… */
   purpose: string;
   onClose: () => void;
@@ -47,7 +50,7 @@ export function CreateProductDialog({
   open,
   token,
   canReadCosts,
-  initialCode = "",
+  initialQuery = "",
   purpose,
   onClose,
   onCreated,
@@ -69,12 +72,16 @@ export function CreateProductDialog({
       open={open}
       title="Nuevo producto"
       description={`Queda en el catálogo de productos y elegido para ${purpose}.`}
-      onClose={close}
+      onClose={() => {
+        if (dialogCreate.confirmDiscard()) {
+          close();
+        }
+      }}
     >
       <CreateProductDialogBody
         token={token}
         canReadCosts={canReadCosts}
-        initialCode={initialCode}
+        initialQuery={initialQuery}
         dialogCreate={dialogCreate}
         onCancel={close}
       />
@@ -86,24 +93,29 @@ export function CreateProductDialog({
 function CreateProductDialogBody({
   token,
   canReadCosts,
-  initialCode,
+  initialQuery,
   dialogCreate,
   onCancel,
 }: {
   token: string;
   canReadCosts: boolean;
-  initialCode: string;
+  initialQuery: string;
   dialogCreate: ReturnType<typeof useDialogCreate<ProductFormValues, ProductFormErrors, Product>>;
   onCancel: () => void;
 }) {
   const [locationsState, setLocationsState] = useState<LocationsState>({ status: "loading" });
 
-  // Un código escrito en el buscador (sin espacios) se propone como código
-  // estándar; un nombre no.
-  const [initialValues] = useState<ProductFormValues>(() => ({
-    ...EMPTY_PRODUCT_FORM_VALUES,
-    standardCode: /^\S+$/.test(initialCode.trim()) ? initialCode.trim().toUpperCase() : "",
-  }));
+  // Lo buscado: una sola palabra es un código; con espacios, un nombre.
+  const [initialValues] = useState<ProductFormValues>(() => {
+    const query = initialQuery.trim();
+    const isCode = /^\S+$/.test(query);
+
+    return {
+      ...EMPTY_PRODUCT_FORM_VALUES,
+      standardCode: isCode ? query.toUpperCase() : "",
+      name: isCode ? "" : query,
+    };
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -168,6 +180,7 @@ function CreateProductDialogBody({
       serverErrors={dialogCreate.serverErrors}
       onSubmit={dialogCreate.submit}
       onCancel={onCancel}
+      onDirtyChange={dialogCreate.setDirty}
     />
   );
 }

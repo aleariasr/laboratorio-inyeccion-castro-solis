@@ -10,6 +10,7 @@ import {
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
+import { SearchNoResults } from "@/components/forms/search-no-results";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,8 +39,8 @@ type SupplierProductFormProps = {
   serverErrors?: SupplierProductFormErrors;
   onSubmit: (values: SupplierProductFormValues) => void | Promise<void>;
   onCancel: () => void;
-  // Punto 7: "Nuevo" producto en una ventana encima, para quien puede
-  // crear productos. canReadCosts habilita el precio de venta en ella.
+  // Punto 7: sin resultados, la lista ofrece crear el producto buscado
+  // en una ventana encima, para quien puede crear productos. canReadCosts habilita el precio de venta en ella.
   canCreateProducts?: boolean;
   canReadCosts?: boolean;
 };
@@ -224,7 +225,7 @@ export function SupplierProductForm({
         required
         hint={
           mode === "create"
-            ? "Busque por código o nombre. Solo se muestran productos activos."
+            ? `Busque por código o nombre. Solo se muestran productos activos.${canCreateProducts ? " Si no existe, se crea desde la lista." : ""}`
             : "El producto asociado no puede modificarse; cree un nuevo registro si desea asociar otro producto."
         }
         error={errors.productId}
@@ -249,8 +250,7 @@ export function SupplierProductForm({
             </button>
           </div>
         ) : (
-          <div className="flex gap-2">
-          <div className="relative min-w-0 flex-1">
+          <div className="relative">
             <Input
               id="supplier-product-product"
               value={productQuery}
@@ -288,9 +288,18 @@ export function SupplierProductForm({
                 )}
 
                 {!effectiveProductSearchError && productResults.length === 0 && (
-                  <p className="px-4 py-3 text-sm text-muted-foreground">
-                    Sin resultados.
-                  </p>
+                  <SearchNoResults
+                        query={productQuery}
+                        entityLabel="producto"
+                        onCreate={
+                          canCreateProducts
+                            ? () => {
+                                setProductDialogCode(productQuery);
+                                setIsProductDialogOpen(true);
+                              }
+                            : undefined
+                        }
+                      />
                 )}
 
                 {!effectiveProductSearchError && productResults.length > 0 && (
@@ -319,22 +328,6 @@ export function SupplierProductForm({
                 )}
               </div>
             )}
-          </div>
-
-          {canCreateProducts && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-12 shrink-0"
-              onClick={() => {
-                setProductDialogCode(productQuery);
-                setIsProductDialogOpen(true);
-              }}
-              disabled={isSubmitting}
-            >
-              Nuevo
-            </Button>
-          )}
           </div>
         )}
       </Field>
@@ -431,7 +424,7 @@ export function SupplierProductForm({
         open={isProductDialogOpen}
         token={token}
         canReadCosts={canReadCosts}
-        initialCode={productDialogCode}
+        initialQuery={productDialogCode}
         purpose="este proveedor"
         onClose={() => {
           setIsProductDialogOpen(false);

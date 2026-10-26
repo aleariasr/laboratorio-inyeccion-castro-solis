@@ -39,7 +39,11 @@ export function CreateLocationDialog({ open, token, onClose, onCreated }: Create
       open={open}
       title="Nueva ubicación"
       description="Queda en el catálogo de ubicaciones y elegida para este producto."
-      onClose={close}
+      onClose={() => {
+        if (dialogCreate.confirmDiscard()) {
+          close();
+        }
+      }}
     >
       <LocationForm
         mode="create"
@@ -50,6 +54,7 @@ export function CreateLocationDialog({ open, token, onClose, onCreated }: Create
         serverErrors={dialogCreate.serverErrors}
         onSubmit={dialogCreate.submit}
         onCancel={close}
+        onDirtyChange={dialogCreate.setDirty}
       />
     </Dialog>
   );

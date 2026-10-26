@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { SearchNoResults } from "@/components/forms/search-no-results";
 import { Input } from "@/components/ui/input";
 import { CreateCustomerDialog } from "@/features/customers/create-customer-dialog";
 
@@ -21,8 +21,9 @@ type CustomerPickerProps = {
   value: SelectedCustomer | null;
   onChange: (customer: SelectedCustomer | null) => void;
   disabled?: boolean;
-  // Punto 7: "Nuevo" cliente en una ventana encima, para quien puede crear
-  // clientes (también Ventas). purpose completa "elegido para …".
+  // Punto 7: sin resultados, la lista ofrece crear el cliente buscado en
+  // una ventana encima (quien puede crear clientes, también Ventas).
+  // purpose completa "elegido para …".
   canCreateCustomers?: boolean;
   purpose?: string;
 };
@@ -50,6 +51,9 @@ export function CustomerPicker({
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
 
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+
+  // Lo escrito al abrir la ventana: abre como nombre del cliente.
+  const [customerDialogName, setCustomerDialogName] = useState("");
 
   const effectiveCustomerSearchError = canReadCustomers
     ? customerSearchError
@@ -140,8 +144,7 @@ export function CustomerPicker({
   }
 
   return (
-    <div className="flex gap-2">
-    <div className="relative min-w-0 flex-1">
+    <div className="relative">
       <Input
         id={id}
         value={customerQuery}
@@ -170,9 +173,18 @@ export function CustomerPicker({
           )}
 
           {!effectiveCustomerSearchError && customerResults.length === 0 && (
-            <p className="px-4 py-3 text-sm text-muted-foreground">
-              Sin resultados.
-            </p>
+            <SearchNoResults
+                        query={customerQuery}
+                        entityLabel="cliente"
+                        onCreate={
+                          canCreateCustomers
+                            ? () => {
+                                setCustomerDialogName(customerQuery);
+                                setIsCustomerDialogOpen(true);
+                              }
+                            : undefined
+                        }
+                      />
           )}
 
           {!effectiveCustomerSearchError && customerResults.length > 0 && (
@@ -203,25 +215,12 @@ export function CustomerPicker({
           )}
         </div>
       )}
-    </div>
 
-    {canCreateCustomers && (
-      <>
-        <Button
-          type="button"
-          variant="secondary"
-          className="h-12 shrink-0"
-          onClick={() => {
-            setIsCustomerDialogOpen(true);
-          }}
-          disabled={disabled}
-        >
-          Nuevo
-        </Button>
-
+      {canCreateCustomers && (
         <CreateCustomerDialog
           open={isCustomerDialogOpen}
           token={token}
+          initialName={customerDialogName}
           purpose={purpose}
           onClose={() => {
             setIsCustomerDialogOpen(false);
@@ -231,8 +230,7 @@ export function CustomerPicker({
             setIsCustomerDialogOpen(false);
           }}
         />
-      </>
-    )}
+      )}
     </div>
   );
 }

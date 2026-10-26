@@ -1,12 +1,16 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
+import { formActionsClassName, formSectionClassName } from "@/components/forms/form-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
+import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import type {
   ServiceTypeFormErrors,
@@ -25,16 +29,19 @@ type ServiceTypeFormProps = {
   onCancel: () => void;
   // Dentro de una ventana (Dialog): secciones como paneles internos.
   embedded?: boolean;
+  // Avisa si hay cambios sin guardar: la ventana pregunta antes de
+  // descartarlos al cerrarla con Esc o la × (punto 7).
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
-// En una página, cada sección es una tarjeta (24 px, con sombra). Dentro
-// de una ventana (embedded), que ya es la tarjeta, las secciones son
-// paneles internos: 18 px y sin sombra, como el resto de la escala.
-const SECTION_CLASSES =
-  "overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]";
-
-const EMBEDDED_SECTION_CLASSES =
-  "overflow-hidden rounded-[var(--radius-lg)] bg-surface ring-1 ring-[var(--color-border-soft)]";
+function areValuesEqual(left: ServiceTypeFormValues, right: ServiceTypeFormValues): boolean {
+  return (
+    left.name === right.name &&
+    left.description === right.description &&
+    left.defaultLaborPrice === right.defaultLaborPrice &&
+    left.isActive === right.isActive
+  );
+}
 
 /**
  * Tipo de servicio completo (punto 1A del plan del 2026-10-22): nombre,
@@ -50,16 +57,55 @@ export function ServiceTypeForm({
   onSubmit,
   onCancel,
   embedded = false,
+  onDirtyChange,
 }: ServiceTypeFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
-  const sectionClasses = embedded ? EMBEDDED_SECTION_CLASSES : SECTION_CLASSES;
+  const sectionClasses = formSectionClassName(embedded);
 
   const [values, setValues] = useState<ServiceTypeFormValues>(initialValues);
 
   const [localErrors, setLocalErrors] = useState<ServiceTypeFormErrors>({});
 
   const errors = { ...serverErrors, ...localErrors };
+
+  const isDirty = useMemo(
+    () => !areValuesEqual(values, initialValues),
+    [initialValues, values],
+  );
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    function handleSaveShortcut(event: KeyboardEvent): void {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+
+        if (!isSubmitting && isFormShortcutTarget(formRef.current)) {
+          formRef.current?.requestSubmit();
+        }
+      }
+    }
+
+    globalThis.addEventListener("keydown", handleSaveShortcut);
+
+    return () => {
+      globalThis.removeEventListener("keydown", handleSaveShortcut);
+    };
+  }, [isSubmitting]);
+
+  function handleCancel(): void {
+    if (
+      isDirty &&
+      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+    ) {
+      return;
+    }
+
+    onCancel();
+  }
 
   function clearError(field: ServiceTypeFormField): void {
     setLocalErrors((current) => {
@@ -170,7 +216,6 @@ export function ServiceTypeForm({
         </div>
       </section>
 
-
       {mode === "edit" && (
         <section className={sectionClasses}>
           <div className="p-5 sm:p-6">
@@ -201,18 +246,28 @@ export function ServiceTypeForm({
         </section>
       )}
 
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
-          Cancelar
-        </Button>
+      <div className={formActionsClassName(embedded)}>
+        {!embedded && (
+          <div className="text-xs text-muted-foreground">
+            {isDirty ? "Hay cambios pendientes de guardar." : "No hay cambios pendientes."}
+          </div>
+        )}
 
-        <Button
-          type="submit"
-          isLoading={isSubmitting}
-          loadingText={mode === "create" ? "Creando…" : "Guardando…"}
-        >
-          {mode === "create" ? "Crear tipo de servicio" : "Guardar cambios"}
-        </Button>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button type="button" variant="secondary" onClick={handleCancel} disabled={isSubmitting}>
+            Cancelar
+          </Button>
+
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            loadingText={mode === "create" ? "Creando…" : "Guardando…"}
+          >
+            <span>{mode === "create" ? "Crear tipo de servicio" : "Guardar cambios"}</span>
+
+            {!isSubmitting && <KeyboardShortcut keys={["Ctrl", "S"]} />}
+          </Button>
+        </div>
       </div>
     </form>
   );

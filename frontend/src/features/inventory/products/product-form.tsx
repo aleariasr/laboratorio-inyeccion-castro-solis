@@ -61,6 +61,9 @@ type ProductFormProps = {
   // Dentro de una ventana: paneles internos, sin la casilla de activo (lo
   // creado así nace activo) ni la nota de existencias.
   embedded?: boolean;
+  // Avisa si hay cambios sin guardar: la ventana pregunta antes de
+  // descartarlos al cerrarla con Esc o la × (punto 7).
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 function areValuesEqual(
@@ -106,6 +109,7 @@ export function ProductForm({
   onCancel,
   canCreateLocations = false,
   embedded = false,
+  onDirtyChange,
 }: ProductFormProps) {
   const formRef =
     useRef<HTMLFormElement>(null);
@@ -139,15 +143,36 @@ export function ProductForm({
 
   const canOpenLocationDialog = canCreateLocations && !embedded;
 
+  // Punto 7 (ajuste): en la ventana se ven solo código, nombre y
+  // ubicación; el resto tiene valores por defecto válidos y se abre con
+  // "Más datos", o solo si alguno de esos campos trae un error.
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+
   const isDirty = useMemo(
     () => !areValuesEqual(values, initialValues),
     [initialValues, values],
   );
 
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
   const errors = mergeErrors(
     localErrors,
     serverErrors,
   );
+
+  const hasErrorInOptionalFields = Boolean(
+    errors.variantKind ||
+      errors.ownCode ||
+      errors.description ||
+      errors.minimumStock ||
+      errors.unitOfMeasure ||
+      errors.customSalePrice,
+  );
+
+  const showAllFields =
+    !embedded || isMoreOpen || hasErrorInOptionalFields;
 
   useEffect(() => {
     if (mode !== "edit" || !productId || !canReadCosts) {
@@ -361,6 +386,73 @@ export function ProductForm({
     return `Sugerido: ₡${formatMoney(suggestedCrc)} (último cálculo, compra del ${priceReference.calculated_at.slice(0, 10)}). Si lo deja vacío, este es el precio que se usa.`;
   })();
 
+  // En la ventana compacta va en la primera tarjeta; en la página (o con
+  // "Más datos"), en la de inventario.
+  const locationField = (
+    <Field
+      id="storage-location"
+      label="Ubicación"
+      required
+      hint="Solo se muestran ubicaciones activas."
+      error={errors.storageLocationId}
+    >
+      <div className="flex gap-2">
+      <Select
+        id="storage-location"
+        name="storageLocationId"
+        value={
+          values.storageLocationId
+        }
+        onChange={handleTextChange(
+          "storageLocationId",
+        )}
+        hasError={
+              Boolean(errors.storageLocationId)
+          }
+        aria-describedby={[
+          "storage-location-hint",
+          errors.storageLocationId
+            ? "storage-location-error"
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        disabled={isSubmitting}
+      >
+        <option value="">
+          Seleccione una ubicación
+        </option>
+
+        {locationOptions.map((location) => (
+          <option
+            key={location.id}
+            value={location.id}
+          >
+            {location.code}
+            {location.description
+              ? ` — ${location.description}`
+              : ""}
+          </option>
+        ))}
+      </Select>
+
+      {canOpenLocationDialog && (
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-12 shrink-0"
+          onClick={() => {
+            setIsLocationDialogOpen(true);
+          }}
+          disabled={isSubmitting}
+        >
+          Nueva
+        </Button>
+      )}
+      </div>
+    </Field>
+  );
+
   return (
     <>
     <form
@@ -447,6 +539,7 @@ export function ProductForm({
             />
           </Field>
 
+          {showAllFields && (
           <Field
             id="variant-kind"
             label="Tipo de variante"
@@ -484,7 +577,9 @@ export function ProductForm({
               ))}
             </Select>
           </Field>
+          )}
 
+          {showAllFields && (
           <Field
             id="product-own-code"
             label="Código propio"
@@ -514,7 +609,9 @@ export function ProductForm({
               disabled={isSubmitting}
             />
           </Field>
+          )}
 
+          {showAllFields && (
           <div className="lg:col-span-2">
             <Field
               id="product-description"
@@ -544,9 +641,13 @@ export function ProductForm({
               />
             </Field>
           </div>
+          )}
+
+          {!showAllFields && locationField}
         </div>
       </section>
 
+      {showAllFields && (
       <section className={formSectionClassName(embedded)}>
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
@@ -559,69 +660,9 @@ export function ProductForm({
         </div>
 
         <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-3">
-          <Field
-            id="storage-location"
-            label="Ubicación"
-            required
-            hint="Solo se muestran ubicaciones activas."
-            error={errors.storageLocationId}
-          >
-            <div className="flex gap-2">
-            <Select
-              id="storage-location"
-              name="storageLocationId"
-              value={
-                values.storageLocationId
-              }
-              onChange={handleTextChange(
-                "storageLocationId",
-              )}
-              hasError={
-                    Boolean(errors.storageLocationId)
-                }
-              aria-describedby={[
-                "storage-location-hint",
-                errors.storageLocationId
-                  ? "storage-location-error"
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              disabled={isSubmitting}
-            >
-              <option value="">
-                Seleccione una ubicación
-              </option>
+          {locationField}
 
-              {locationOptions.map((location) => (
-                <option
-                  key={location.id}
-                  value={location.id}
-                >
-                  {location.code}
-                  {location.description
-                    ? ` — ${location.description}`
-                    : ""}
-                </option>
-              ))}
-            </Select>
-
-            {canOpenLocationDialog && (
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-12 shrink-0"
-                onClick={() => {
-                  setIsLocationDialogOpen(true);
-                }}
-                disabled={isSubmitting}
-              >
-                Nueva
-              </Button>
-            )}
-            </div>
-          </Field>
-
+          {showAllFields && (
           <Field
             id="minimum-stock"
             label="Stock mínimo"
@@ -654,7 +695,9 @@ export function ProductForm({
               disabled={isSubmitting}
             />
           </Field>
+          )}
 
+          {showAllFields && (
           <Field
             id="unit-of-measure"
             label="Unidad de medida"
@@ -685,6 +728,7 @@ export function ProductForm({
               disabled={isSubmitting}
             />
           </Field>
+          )}
         </div>
 
         {!embedded && (
@@ -721,7 +765,29 @@ export function ProductForm({
         </div>
         )}
       </section>
+      )}
 
+      {!showAllFields && (
+        <button
+          type="button"
+          onClick={() => {
+            setIsMoreOpen(true);
+          }}
+          className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-lg)] bg-surface px-5 py-4 text-left ring-1 ring-[var(--color-border-soft)] hover:bg-surface-muted"
+        >
+          <span>
+            <span className="block text-sm font-semibold text-foreground">
+              Más datos
+            </span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Opcionales: variante, código propio, descripción, mínimo, unidad y precio de venta. Se pueden completar después.
+            </span>
+          </span>
+          <span aria-hidden="true" className="text-lg text-muted-foreground">+</span>
+        </button>
+      )}
+
+      {showAllFields && (
       <section className={formSectionClassName(embedded)}>
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
@@ -768,6 +834,7 @@ export function ProductForm({
           </Field>
         </div>
       </section>
+      )}
 
       {!embedded && (
       <section className="rounded-[var(--radius-xl)] bg-[var(--color-primary-soft)] p-5 ring-1 ring-[rgb(7_81_132_/_12%)] sm:p-6">

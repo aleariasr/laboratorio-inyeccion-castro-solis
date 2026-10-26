@@ -16,7 +16,7 @@ import type { ProformaAmountSettings } from "./api";
 
 type ProformaFormProps = {
   canReadCustomers: boolean;
-  // Punto 7: "Nuevo" cliente en una ventana encima.
+  // Punto 7: crear el cliente buscado desde la lista sin resultados.
   canCreateCustomers?: boolean;
   token: string;
   isSubmitting?: boolean;
@@ -65,7 +65,7 @@ export function ProformaForm({
       <Field
         id="proforma-customer"
         label="Cliente"
-        hint="Opcional. Busque por nombre, identificación o teléfono, o déjelo vacío para no incluir datos de cliente."
+        hint={`Opcional. Busque por nombre, identificación o teléfono${canCreateCustomers ? " (si no existe, se crea desde la lista)" : ""}, o déjelo vacío para no incluir datos de cliente.`}
       >
         <CustomerPicker
           id="proforma-customer"

@@ -10,6 +10,7 @@ import {
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
+import { SearchNoResults } from "@/components/forms/search-no-results";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -38,8 +39,8 @@ type PurchaseItemFormProps = {
   serverErrors?: PurchaseItemFormErrors;
   onSubmit: (values: PurchaseItemFormValues) => void | Promise<void>;
   onCancel: () => void;
-  // Punto 7: "Nuevo" producto en una ventana encima, para quien puede
-  // crear productos. canReadCosts habilita el precio de venta en ella.
+  // Punto 7: sin resultados, la lista ofrece crear el producto buscado
+  // en una ventana encima, para quien puede crear productos. canReadCosts habilita el precio de venta en ella.
   canCreateProducts?: boolean;
   canReadCosts?: boolean;
 };
@@ -236,7 +237,7 @@ export function PurchaseItemForm({
         required
         hint={
           mode === "create"
-            ? "Busque por código o nombre. Solo se muestran productos activos."
+            ? `Busque por código o nombre. Solo se muestran productos activos.${canCreateProducts ? " Si no existe, se crea desde la lista." : ""}`
             : "El producto de la línea no puede modificarse; elimine la línea y cree una nueva si desea cambiarlo."
         }
         error={errors.productId}
@@ -259,8 +260,7 @@ export function PurchaseItemForm({
             </button>
           </div>
         ) : (
-          <div className="flex gap-2">
-          <div className="relative min-w-0 flex-1">
+          <div className="relative">
             <Input
               id="purchase-item-product"
               value={query}
@@ -301,7 +301,18 @@ export function PurchaseItemForm({
                 )}
 
                 {!effectiveSearchError && results.length === 0 && (
-                  <p className="px-4 py-3 text-sm text-muted-foreground">Sin resultados.</p>
+                  <SearchNoResults
+                        query={query}
+                        entityLabel="producto"
+                        onCreate={
+                          canCreateProducts
+                            ? () => {
+                                setProductDialogCode(query);
+                                setIsProductDialogOpen(true);
+                              }
+                            : undefined
+                        }
+                      />
                 )}
 
                 {!effectiveSearchError && results.length > 0 && (
@@ -336,22 +347,6 @@ export function PurchaseItemForm({
                 )}
               </div>
             )}
-          </div>
-
-          {canCreateProducts && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-12 shrink-0"
-              onClick={() => {
-                setProductDialogCode(query);
-                setIsProductDialogOpen(true);
-              }}
-              disabled={isSubmitting}
-            >
-              Nuevo
-            </Button>
-          )}
           </div>
         )}
       </Field>
@@ -400,7 +395,7 @@ export function PurchaseItemForm({
         open={isProductDialogOpen}
         token={token}
         canReadCosts={canReadCosts}
-        initialCode={productDialogCode}
+        initialQuery={productDialogCode}
         purpose="esta línea de compra"
         onClose={() => {
           setIsProductDialogOpen(false);

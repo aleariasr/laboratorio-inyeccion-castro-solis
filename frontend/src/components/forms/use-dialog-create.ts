@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import type { ApiFieldErrors } from "@/lib/api/types";
+import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 type DialogCreateState<TErrors> = {
   isSubmitting: boolean;
@@ -16,6 +17,10 @@ type DialogCreateState<TErrors> = {
  * guardar, mostrar el error del servidor en su campo y devolver lo creado
  * para que quede elegido en el formulario de fondo. Lo usan los
  * Create…Dialog de cada módulo.
+ *
+ * También sabe si el formulario de la ventana tiene cambios (el formulario
+ * lo avisa con onDirtyChange): cerrar con Esc o la × pregunta antes de
+ * descartarlos, igual que el botón Cancelar.
  */
 export function useDialogCreate<TValues, TErrors extends object, TResult>({
   create,
@@ -33,6 +38,21 @@ export function useDialogCreate<TValues, TErrors extends object, TResult>({
     submitError: null,
     serverErrors: {} as TErrors,
   });
+
+  // Ref y no estado: solo se consulta al cerrar, no cambia lo que se pinta.
+  const isDirtyRef = useRef(false);
+
+  function setDirty(isDirty: boolean): void {
+    isDirtyRef.current = isDirty;
+  }
+
+  /** Si se puede cerrar la ventana: sin cambios, o la persona lo confirma. */
+  function confirmDiscard(): boolean {
+    return (
+      !isDirtyRef.current ||
+      confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
+    );
+  }
 
   async function submit(values: TValues): Promise<void> {
     setState({ isSubmitting: true, submitError: null, serverErrors: {} as TErrors });
@@ -68,8 +88,9 @@ export function useDialogCreate<TValues, TErrors extends object, TResult>({
   }
 
   function reset(): void {
+    isDirtyRef.current = false;
     setState({ isSubmitting: false, submitError: null, serverErrors: {} as TErrors });
   }
 
-  return { ...state, submit, reset };
+  return { ...state, submit, reset, setDirty, confirmDiscard };
 }

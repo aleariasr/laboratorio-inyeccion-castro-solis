@@ -583,7 +583,7 @@ export default function NewProformaPage() {
             <Field
               id="proforma-customer"
               label="Cliente"
-              hint="Opcional. Si lo deja vacío, la proforma sale sin datos de cliente."
+              hint={`Opcional. Si lo deja vacío, la proforma sale sin datos de cliente.${user && canCreateCustomers(user) ? " Si no existe, se crea desde la lista." : ""}`}
             >
               <CustomerPicker
                 id="proforma-customer"

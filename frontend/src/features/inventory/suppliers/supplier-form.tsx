@@ -38,6 +38,9 @@ type SupplierFormProps = {
   onCancel: () => void;
   // Dentro de una ventana (punto 7): paneles internos, sin la casilla de activo (lo creado así nace activo).
   embedded?: boolean;
+  // Avisa si hay cambios sin guardar: la ventana pregunta antes de
+  // descartarlos al cerrarla con Esc o la × (punto 7).
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 function areValuesEqual(
@@ -74,6 +77,7 @@ export function SupplierForm({
   onSubmit,
   onCancel,
   embedded = false,
+  onDirtyChange,
 }: SupplierFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -85,6 +89,10 @@ export function SupplierForm({
     () => !areValuesEqual(values, initialValues),
     [initialValues, values],
   );
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const errors = mergeErrors(localErrors, serverErrors);
 

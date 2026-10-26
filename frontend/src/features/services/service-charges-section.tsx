@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
@@ -113,6 +113,10 @@ export function ServiceChargesSection({
   const [pendingLineId, setPendingLineId] = useState<number | null>(null);
 
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
+
+  // Si el formulario de la ventana tiene cambios: cerrarla con Esc o la ×
+  // pregunta antes de descartarlos, como el botón Cancelar.
+  const isTypeFormDirtyRef = useRef(false);
 
   const [typeSubmitting, setTypeSubmitting] = useState(false);
 
@@ -567,7 +571,11 @@ export function ServiceChargesSection({
         title="Nuevo tipo de servicio"
         description="Queda en el catálogo y elegido para esta línea, con su precio de mano de obra."
         onClose={() => {
-          if (!typeSubmitting) {
+          if (
+            !typeSubmitting &&
+            (!isTypeFormDirtyRef.current ||
+              confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?"))
+          ) {
             setIsTypeDialogOpen(false);
           }
         }}
@@ -582,6 +590,9 @@ export function ServiceChargesSection({
           onSubmit={handleCreateType}
           onCancel={() => {
             setIsTypeDialogOpen(false);
+          }}
+          onDirtyChange={(isDirty) => {
+            isTypeFormDirtyRef.current = isDirty;
           }}
         />
       </Dialog>
