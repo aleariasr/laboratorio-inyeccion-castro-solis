@@ -8,7 +8,9 @@ import {
 } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
+import { CREATE_OPTION_VALUE } from "@/components/forms/create-option";
 import { Field } from "@/components/forms/field";
+import { NameCreateDialog } from "@/components/forms/name-create-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -65,13 +67,7 @@ export function ImportCostForm({
 
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
-  const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false);
-
-  const [newCategoryName, setNewCategoryName] = useState("");
-
-  const [newCategoryError, setNewCategoryError] = useState<string | null>(null);
-
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
 
   const errors = mergeErrors(localErrors, serverErrors);
 
@@ -133,39 +129,15 @@ export function ImportCostForm({
     };
   }
 
-  async function handleCreateCategory(): Promise<void> {
-    const trimmedName = newCategoryName.trim();
+  function handleCategoryCreated(category: ImportCostCategory): void {
+    setCategories((current) =>
+      [...current, category].sort((left, right) =>
+        left.name.localeCompare(right.name, "es", { sensitivity: "base" }),
+      ),
+    );
 
-    if (!trimmedName) {
-      setNewCategoryError("El nombre de la categoría es obligatorio.");
-      return;
-    }
-
-    setIsCreatingCategory(true);
-    setNewCategoryError(null);
-
-    try {
-      const category = await createImportCostCategory(token, {
-        name: trimmedName,
-        description: "",
-      });
-
-      setCategories((current) =>
-        [...current, category].sort((left, right) =>
-          left.name.localeCompare(right.name, "es", { sensitivity: "base" }),
-        ),
-      );
-
-      updateValue("categoryId", String(category.id));
-      setNewCategoryName("");
-      setIsNewCategoryOpen(false);
-    } catch (error: unknown) {
-      setNewCategoryError(
-        error instanceof Error ? error.message : "No fue posible crear la categoría.",
-      );
-    } finally {
-      setIsCreatingCategory(false);
-    }
+    updateValue("categoryId", String(category.id));
+    setIsCategoryDialogOpen(false);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -187,81 +159,36 @@ export function ImportCostForm({
   const submittingLabel = mode === "create" ? "Agregando costo…" : "Guardando cambios…";
 
   return (
+    <>
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
       {submitError && <FormError message={submitError} />}
 
       <Field id="import-cost-category" label="Categoría" required error={errors.categoryId}>
-        <div className="flex gap-2">
-          <select
-            id="import-cost-category"
-            value={values.categoryId}
-            onChange={(event) => {
-              updateValue("categoryId", event.target.value);
-            }}
-            disabled={isSubmitting}
-            className="h-11 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
-          >
-            <option value="">Seleccione…</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+        <select
+          id="import-cost-category"
+          value={values.categoryId}
+          onChange={(event) => {
+            if (event.target.value === CREATE_OPTION_VALUE) {
+              setIsCategoryDialogOpen(true);
+              return;
+            }
 
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              setIsNewCategoryOpen((current) => !current);
-              setNewCategoryError(null);
-            }}
-            disabled={isSubmitting}
-          >
-            Nueva
-          </Button>
-        </div>
+            updateValue("categoryId", event.target.value);
+          }}
+          disabled={isSubmitting}
+          className="h-11 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
+        >
+          <option value="">Seleccione…</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+          <option value={CREATE_OPTION_VALUE}>+ Nueva categoría…</option>
+        </select>
 
         {categoriesError && <p className="mt-2 text-sm text-danger">{categoriesError}</p>}
       </Field>
-
-      {isNewCategoryOpen && (
-        <div className="rounded-[var(--radius-md)] border border-border bg-surface-muted px-4 py-3">
-          {newCategoryError && <p className="mb-2 text-sm text-danger">{newCategoryError}</p>}
-
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[220px] flex-1">
-              <label
-                htmlFor="new-import-cost-category"
-                className="mb-1 block text-xs font-semibold text-foreground"
-              >
-                Nombre de la nueva categoría
-              </label>
-
-              <Input
-                id="new-import-cost-category"
-                value={newCategoryName}
-                onChange={(event) => {
-                  setNewCategoryName(event.target.value);
-                }}
-                maxLength={100}
-                disabled={isCreatingCategory}
-              />
-            </div>
-
-            <Button
-              type="button"
-              isLoading={isCreatingCategory}
-              loadingText="Creando…"
-              onClick={() => {
-                void handleCreateCategory();
-              }}
-            >
-              Crear
-            </Button>
-          </div>
-        </div>
-      )}
 
       <Field id="import-cost-description" label="Descripción" error={errors.description}>
         <Input
@@ -370,5 +297,19 @@ export function ImportCostForm({
         </Button>
       </div>
     </form>
+
+    <NameCreateDialog
+      open={isCategoryDialogOpen}
+      title="Nueva categoría de costo"
+      description="Queda en el catálogo de categorías y elegida para este costo."
+      submitLabel="Crear categoría"
+      maxLength={100}
+      create={(name) => createImportCostCategory(token, { name, description: "" })}
+      onCreated={handleCategoryCreated}
+      onClose={() => {
+        setIsCategoryDialogOpen(false);
+      }}
+    />
+    </>
   );
 }

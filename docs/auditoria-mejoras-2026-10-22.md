@@ -444,8 +444,11 @@ Versión: todo esto va en la **2.5.0**.
       editar), decisión del 2026-10-25. La recepción del servicio (cliente e inyector) va en el 1C.
       Ajustes tras revisarlo con Alejandro: sin resultados, la lista ofrece "Crear … «lo buscado»"
       (`SearchNoResults`), y es **la única forma en los buscadores** (se quitó el botón "Nuevo" de
-      al lado: obliga a buscar antes y evita duplicados; la ayuda del campo lo dice). Los selectores
-      (ubicación, sede, tipo de servicio) conservan su botón "Nueva/Nuevo". La ventana abre con lo escrito (nombre del cliente o proveedor; en
+      al lado: obliga a buscar antes y evita duplicados; la ayuda del campo lo dice). En los selectores
+      (ubicación, sede, tipo de servicio, categoría de costo) tampoco hay botón: la última opción de
+      la lista es "+ Nueva …" y abre la ventana (`CREATE_OPTION_VALUE`; sede y categoría usan
+      `NameCreateDialog`). No queda ningún botón "Nuevo" al lado de un campo; solo los de los
+      encabezados de las listas, que abren la página de creación. La ventana abre con lo escrito (nombre del cliente o proveedor; en
       producto, una palabra va como código y con espacios como nombre); cerrar con Esc o la × pregunta
       si hay cambios; la ventana de producto muestra solo código, nombre y ubicación, y el resto en
       "Más datos" (se abre sola si alguno trae un error).

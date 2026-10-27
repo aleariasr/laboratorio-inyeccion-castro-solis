@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
+import { CREATE_OPTION_VALUE } from "@/components/forms/create-option";
 import { Field } from "@/components/forms/field";
+import { NameCreateDialog } from "@/components/forms/name-create-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,7 +38,8 @@ type StockTransferFormProps = {
 
 /**
  * Datos del traslado (punto 6): sede de destino, fecha y notas. La sede se
- * elige del catálogo; "Nueva" la crea en una ventana encima y queda
+ * elige del catálogo; "+ Nueva sede…", al final de la lista, la crea en
+ * una ventana encima y queda
  * elegida, sin perder lo escrito.
  */
 export function StockTransferForm({
@@ -152,22 +154,6 @@ export function StockTransferForm({
     void onSubmit(values);
   }
 
-  // Si la ventana de sede tiene un nombre escrito: cerrarla pregunta antes,
-  // como el resto de las ventanas.
-  const isBranchFormDirtyRef = useRef(false);
-
-  function closeBranchDialog(): void {
-    if (
-      isBranchFormDirtyRef.current &&
-      !confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?")
-    ) {
-      return;
-    }
-
-    isBranchFormDirtyRef.current = false;
-    setIsBranchDialogOpen(false);
-  }
-
   function handleBranchCreated(branch: Branch): void {
     setBranches((current) =>
       [...(current ?? []), branch].sort((a, b) => a.name.localeCompare(b.name, "es")),
@@ -199,40 +185,35 @@ export function StockTransferForm({
               required
               error={errors.branchId ?? branchesError ?? undefined}
             >
-              <div className="flex gap-2">
-                <select
-                  id="stock-transfer-branch"
-                  value={values.branchId}
-                  onChange={(event) => {
-                    updateValue("branchId", event.target.value);
-                  }}
-                  disabled={isSubmitting || branches === null}
-                  aria-invalid={Boolean(errors.branchId) || undefined}
-                  className={`${SELECT_CLASSES} ${errors.branchId ? "border-danger" : "border-border"}`}
-                >
-                  <option value="">
-                    {branches === null ? "Consultando sedes…" : "Elija una sede"}
-                  </option>
-
-                  {branches?.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-12 shrink-0"
-                  onClick={() => {
+              <select
+                id="stock-transfer-branch"
+                value={values.branchId}
+                onChange={(event) => {
+                  if (event.target.value === CREATE_OPTION_VALUE) {
                     setIsBranchDialogOpen(true);
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Nueva
-                </Button>
-              </div>
+                    return;
+                  }
+
+                  updateValue("branchId", event.target.value);
+                }}
+                disabled={isSubmitting || branches === null}
+                aria-invalid={Boolean(errors.branchId) || undefined}
+                className={`${SELECT_CLASSES} ${errors.branchId ? "border-danger" : "border-border"}`}
+              >
+                <option value="">
+                  {branches === null ? "Consultando sedes…" : "Elija una sede"}
+                </option>
+
+                {branches?.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+
+                {branches !== null && (
+                  <option value={CREATE_OPTION_VALUE}>+ Nueva sede…</option>
+                )}
+              </select>
             </Field>
 
             <Field
@@ -291,104 +272,18 @@ export function StockTransferForm({
         </section>
       </form>
 
-      <Dialog
+      <NameCreateDialog
         open={isBranchDialogOpen}
         title="Nueva sede"
         description="Queda en el catálogo de sedes y elegida para este traslado."
-        onClose={closeBranchDialog}
-      >
-        <BranchForm
-          token={token}
-          onCreated={handleBranchCreated}
-          onCancel={closeBranchDialog}
-          onDirtyChange={(isBranchDirty) => {
-            isBranchFormDirtyRef.current = isBranchDirty;
-          }}
-        />
-      </Dialog>
+        submitLabel="Crear sede"
+        maxLength={100}
+        create={(name) => createBranch(token, name)}
+        onCreated={handleBranchCreated}
+        onClose={() => {
+          setIsBranchDialogOpen(false);
+        }}
+      />
     </>
-  );
-}
-
-function BranchForm({
-  token,
-  onCreated,
-  onCancel,
-  onDirtyChange,
-}: {
-  token: string;
-  onCreated: (branch: Branch) => void;
-  onCancel: () => void;
-  onDirtyChange: (isDirty: boolean) => void;
-}) {
-  const [name, setName] = useState("");
-
-  const isDirty = name.trim() !== "";
-
-  useEffect(() => {
-    onDirtyChange(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  const [error, setError] = useState<string | null>(null);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-
-    if (!name.trim()) {
-      setError("Escriba el nombre de la sede.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      onCreated(await createBranch(token, name.trim()));
-    } catch (submitError: unknown) {
-      setError(
-        submitError instanceof ApiError
-          ? submitError.message
-          : "No fue posible crear la sede.",
-      );
-      setIsSubmitting(false);
-    }
-  }
-
-  return (
-    <form
-      onSubmit={(event) => {
-        void handleSubmit(event);
-      }}
-      noValidate
-      className="grid gap-5"
-    >
-      <Field id="branch-name" label="Nombre" required error={error ?? undefined}>
-        <Input
-          id="branch-name"
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            setError(null);
-          }}
-          hasError={Boolean(error)}
-          maxLength={100}
-          autoComplete="off"
-          autoFocus
-          disabled={isSubmitting}
-        />
-      </Field>
-
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
-          Cancelar
-        </Button>
-
-        <Button type="submit" isLoading={isSubmitting} loadingText="Creando…">
-          Crear sede
-        </Button>
-      </div>
-    </form>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
+import { CREATE_OPTION_VALUE } from "@/components/forms/create-option";
 import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -466,37 +467,30 @@ export function ServiceChargesSection({
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_6rem_9rem]">
             <Field id="charge-line-type" label="Tipo de servicio">
-              <div className="flex gap-2">
-                <select
-                  id="charge-line-type"
-                  value={draft.serviceTypeId}
-                  onChange={(event) => {
-                    selectType(event.target.value);
-                  }}
-                  disabled={isAdding}
-                  className={SELECT_CLASSES}
-                >
-                  <option value="">Sin tipo</option>
-                  {serviceTypes.map((serviceType) => (
-                    <option key={serviceType.id} value={serviceType.id}>
-                      {serviceType.name}
-                    </option>
-                  ))}
-                </select>
-
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
+              <select
+                id="charge-line-type"
+                value={draft.serviceTypeId}
+                onChange={(event) => {
+                  if (event.target.value === CREATE_OPTION_VALUE) {
                     setTypeSubmitError(null);
                     setTypeServerErrors({});
                     setIsTypeDialogOpen(true);
-                  }}
-                  disabled={isAdding}
-                >
-                  Nuevo
-                </Button>
-              </div>
+                    return;
+                  }
+
+                  selectType(event.target.value);
+                }}
+                disabled={isAdding}
+                className={SELECT_CLASSES}
+              >
+                <option value="">Sin tipo</option>
+                {serviceTypes.map((serviceType) => (
+                  <option key={serviceType.id} value={serviceType.id}>
+                    {serviceType.name}
+                  </option>
+                ))}
+                <option value={CREATE_OPTION_VALUE}>+ Nuevo tipo de servicio…</option>
+              </select>
             </Field>
 
             <Field id="charge-line-description" label="Concepto">

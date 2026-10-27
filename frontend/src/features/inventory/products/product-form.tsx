@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
+import { CREATE_OPTION_VALUE } from "@/components/forms/create-option";
 import { Field } from "@/components/forms/field";
 import { formActionsClassName, formSectionClassName } from "@/components/forms/form-layout";
 import { Button } from "@/components/ui/button";
@@ -55,8 +56,9 @@ type ProductFormProps = {
     values: ProductFormValues,
   ) => void | Promise<void>;
   onCancel: () => void;
-  // Punto 7: "Nueva" ubicación en una ventana encima, para quien puede
-  // crear ubicaciones. No dentro de otra ventana (un solo nivel).
+  // Punto 7: "+ Nueva ubicación…" al final de la lista abre una ventana
+  // encima, para quien puede crear ubicaciones. No dentro de otra ventana
+  // (un solo nivel).
   canCreateLocations?: boolean;
   // Dentro de una ventana: paneles internos, sin la casilla de activo (lo
   // creado así nace activo) ni la nota de existencias.
@@ -396,16 +398,20 @@ export function ProductForm({
       hint="Solo se muestran ubicaciones activas."
       error={errors.storageLocationId}
     >
-      <div className="flex gap-2">
       <Select
         id="storage-location"
         name="storageLocationId"
         value={
           values.storageLocationId
         }
-        onChange={handleTextChange(
-          "storageLocationId",
-        )}
+        onChange={(event) => {
+          if (event.target.value === CREATE_OPTION_VALUE) {
+            setIsLocationDialogOpen(true);
+            return;
+          }
+
+          updateValue("storageLocationId", event.target.value);
+        }}
         hasError={
               Boolean(errors.storageLocationId)
           }
@@ -434,22 +440,11 @@ export function ProductForm({
               : ""}
           </option>
         ))}
-      </Select>
 
-      {canOpenLocationDialog && (
-        <Button
-          type="button"
-          variant="secondary"
-          className="h-12 shrink-0"
-          onClick={() => {
-            setIsLocationDialogOpen(true);
-          }}
-          disabled={isSubmitting}
-        >
-          Nueva
-        </Button>
-      )}
-      </div>
+        {canOpenLocationDialog && (
+          <option value={CREATE_OPTION_VALUE}>+ Nueva ubicación…</option>
+        )}
+      </Select>
     </Field>
   );
 
