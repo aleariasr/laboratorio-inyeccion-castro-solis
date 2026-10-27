@@ -5,8 +5,8 @@ import type {
   ServiceAccessoryFormValues,
   ServicePriceFormErrors,
   ServicePriceFormValues,
-  ServiceRecordCreateFormErrors,
-  ServiceRecordCreateFormValues,
+  ServiceReceptionFormErrors,
+  ServiceReceptionFormValues,
   ServiceRecordTechnicalFormErrors,
   ServiceRecordTechnicalFormValues,
   ServiceTypeFormErrors,
@@ -15,13 +15,15 @@ import type {
 
 const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 
-export function validateServiceRecordCreateForm(
-  values: ServiceRecordCreateFormValues,
-): ServiceRecordCreateFormErrors {
-  const errors: ServiceRecordCreateFormErrors = {};
+export function validateServiceReceptionForm(
+  values: ServiceReceptionFormValues,
+): ServiceReceptionFormErrors {
+  const errors: ServiceReceptionFormErrors = {};
 
-  if (!values.injectorId) {
-    errors.injectorId = "Debe seleccionar un inyector.";
+  if (!values.customer) {
+    errors.customer = "Falta el cliente.";
+  } else if (values.items.length === 0) {
+    errors.items = "Falta al menos un inyector.";
   }
 
   if (!values.receivedAt) {

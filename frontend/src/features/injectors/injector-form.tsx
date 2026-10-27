@@ -11,6 +11,7 @@ import {
 
 import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
+import { formActionsClassName, formSectionClassName } from "@/components/forms/form-layout";
 import { SearchNoResults } from "@/components/forms/search-no-results";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,15 @@ type InjectorFormProps = {
   // Punto 7: sin resultados, la lista ofrece crear el cliente buscado en
   // una ventana encima, para quien puede crear clientes.
   canCreateCustomers?: boolean;
+  // Punto 1C: el cliente ya está elegido (la recepción crea el inyector de
+  // ese cliente). Se muestra fijo, como al editar; initialValues lo trae.
+  fixedCustomerLabel?: string;
+  // Dentro de una ventana: paneles internos, sin la casilla de activo (lo
+  // creado así nace activo).
+  embedded?: boolean;
+  // Avisa si hay cambios sin guardar: la ventana pregunta antes de
+  // descartarlos al cerrarla con Esc o la × (punto 7).
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 function areValuesEqual(
@@ -83,6 +93,9 @@ export function InjectorForm({
   onSubmit,
   onCancel,
   canCreateCustomers = false,
+  fixedCustomerLabel,
+  embedded = false,
+  onDirtyChange,
 }: InjectorFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -91,8 +104,10 @@ export function InjectorForm({
   const [localErrors, setLocalErrors] = useState<InjectorFormErrors>({});
 
   const [selectedCustomerLabel, setSelectedCustomerLabel] = useState<string | null>(
-    mode === "edit" ? customerDisplayLabel ?? null : null,
+    mode === "edit" ? customerDisplayLabel ?? null : fixedCustomerLabel ?? null,
   );
+
+  const isCustomerFixed = mode === "edit" || fixedCustomerLabel !== undefined;
 
   const [customerQuery, setCustomerQuery] = useState("");
 
@@ -111,6 +126,10 @@ export function InjectorForm({
     () => !areValuesEqual(values, initialValues),
     [initialValues, values],
   );
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const errors = mergeErrors(localErrors, serverErrors);
 
@@ -282,7 +301,7 @@ export function InjectorForm({
     >
       {submitError && <FormError message={submitError} />}
 
-      <section className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
+      <section className={formSectionClassName(embedded)}>
         <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
             Datos del inyector
@@ -299,13 +318,15 @@ export function InjectorForm({
             label="Cliente"
             required
             hint={
-              mode === "create"
+              fixedCustomerLabel !== undefined
+                ? undefined
+                : mode === "create"
                 ? `Busque por nombre. Solo se muestran clientes activos.${canCreateCustomers ? " Si no existe, se crea desde la lista." : ""}`
                 : "El cliente no puede modificarse una vez creado el inyector."
             }
             error={errors.customerId}
           >
-            {mode === "edit" ? (
+            {isCustomerFixed ? (
               <div className="flex h-12 items-center rounded-[var(--radius-md)] border border-border bg-surface-muted px-4 text-sm font-medium text-foreground">
                 {selectedCustomerLabel ?? "Cliente no disponible"}
               </div>
@@ -461,6 +482,7 @@ export function InjectorForm({
           </div>
         </div>
 
+        {!embedded && (
         <div className="border-t border-[var(--color-border-soft)] p-5 sm:p-6">
           <label
             htmlFor="injector-active"
@@ -489,12 +511,15 @@ export function InjectorForm({
             </span>
           </label>
         </div>
+        )}
       </section>
 
-      <div className="flex flex-col-reverse gap-3 rounded-[var(--radius-xl)] bg-surface p-4 shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)] sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-xs text-muted-foreground">
-          {isDirty ? "Hay cambios pendientes de guardar." : "No hay cambios pendientes."}
-        </div>
+      <div className={formActionsClassName(embedded)}>
+        {!embedded && (
+          <div className="text-xs text-muted-foreground">
+            {isDirty ? "Hay cambios pendientes de guardar." : "No hay cambios pendientes."}
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button

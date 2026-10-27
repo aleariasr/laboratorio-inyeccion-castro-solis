@@ -452,7 +452,16 @@ Versión: todo esto va en la **2.5.0**.
       producto, una palabra va como código y con espacios como nombre); cerrar con Esc o la × pregunta
       si hay cambios; la ventana de producto muestra solo código, nombre y ubicación, y el resto en
       "Más datos" (se abre sola si alguno trae un error).
-- [ ] 1C — Formulario completo de recepción del servicio
+- [x] 1C — Recepción del servicio, revisada con Alejandro el 2026-10-26: **solo lo de la recepción**
+      (cliente, inyectores, fecha, tipo de servicio para el Administrador y lo que reporta el
+      cliente de cada inyector); cobro, accesorios y datos técnicos siguen en el detalle (ponerlos al
+      recibir duplicaba el detalle). **Varios inyectores del mismo cliente a la vez**: un servicio por
+      inyector, en una transacción (`POST service-records/receive/`, `receive_injectors`; permiso
+      `add_services` vía `create_actions`). Cliente y tipo se crean desde la lista; el inyector, con
+      "+ Nuevo inyector de …" (ventana con el cliente fijo). La fila avisa si el inyector ya tiene un
+      servicio abierto (no bloquea). En el detalle, "Corregir recepción" (inyector del mismo cliente
+      y fecha) mientras no esté entregado. Las mediciones **no** van al recibir: el servicio guarda
+      una sola medición (el resultado del banco) y se sobrescribiría.
 
 ---
 

@@ -38,6 +38,7 @@ import {
 import { ServiceAccessoryForm } from "@/features/services/service-accessory-form";
 import { ServiceChargesSection } from "@/features/services/service-charges-section";
 import { ServicePriceForm } from "@/features/services/service-price-form";
+import { ServiceReceptionEdit } from "@/features/services/service-reception-edit";
 import { ServiceTechnicalForm } from "@/features/services/service-technical-form";
 import {
   buildServiceAccessoryWritePayload,
@@ -206,6 +207,9 @@ export default function ServiceDetailPage() {
   });
 
   const [isSavingAccessoryEdit, setIsSavingAccessoryEdit] = useState(false);
+
+  // Punto 1C: corregir inyector y fecha de recepción.
+  const [isEditingReception, setIsEditingReception] = useState(false);
 
   const serviceRecordId = Number(params.id);
 
@@ -985,6 +989,35 @@ export default function ServiceDetailPage() {
                 <dd>{formatDate(loadState.serviceRecord.updated_at)}</dd>
               </div>
             </dl>
+
+            {canManage &&
+              token &&
+              (isEditingReception ? (
+                <ServiceReceptionEdit
+                  token={token}
+                  serviceRecord={loadState.serviceRecord}
+                  onSaved={async () => {
+                    await reloadServiceData();
+                    setIsEditingReception(false);
+                  }}
+                  onCancel={() => {
+                    setIsEditingReception(false);
+                  }}
+                  onUnauthorized={handleUnauthorized}
+                />
+              ) : (
+                <div className="flex justify-end border-t border-[var(--color-border-soft)] px-6 py-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsEditingReception(true);
+                    }}
+                  >
+                    Corregir recepción
+                  </Button>
+                </div>
+              ))}
           </section>
 
           {hasPricingAccess && (

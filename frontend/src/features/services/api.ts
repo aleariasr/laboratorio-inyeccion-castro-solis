@@ -9,7 +9,7 @@ import type {
   ServiceChargeLineWritePayload,
   ServicePriceWritePayload,
   ServiceRecord,
-  ServiceRecordCreatePayload,
+  ServiceReceptionPayload,
   ServiceRecordFilters,
   ServiceRecordTechnicalWritePayload,
   ServiceTypeDetail,
@@ -90,13 +90,32 @@ export function getServiceRecord(
   );
 }
 
-export function createServiceRecord(
+/** Punto 1C: recibe uno o varios inyectores; devuelve los servicios creados. */
+export function receiveInjectors(
   token: string,
-  payload: ServiceRecordCreatePayload,
-): Promise<ServiceRecord> {
-  return apiPost<ServiceRecord>("/api/customers/service-records/", payload, {
+  payload: ServiceReceptionPayload,
+): Promise<ServiceRecord[]> {
+  return apiPost<ServiceRecord[]>("/api/customers/service-records/receive/", payload, {
     token,
   });
+}
+
+/**
+ * Punto 1C: corregir los datos de la recepción (inyector y fecha) mientras
+ * el servicio no esté entregado ni anulado.
+ */
+export function updateServiceRecordReception(
+  token: string,
+  serviceRecordId: number,
+  payload: { injector: number; received_at: string },
+): Promise<ServiceRecord> {
+  return apiPatch<ServiceRecord>(
+    `/api/customers/service-records/${serviceRecordId}/`,
+    payload,
+    {
+      token,
+    },
+  );
 }
 
 export function updateServiceRecordTechnicalData(

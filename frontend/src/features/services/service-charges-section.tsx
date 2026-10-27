@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { FormError } from "@/components/feedback/form-error";
 import { CREATE_OPTION_VALUE } from "@/components/forms/create-option";
 import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/features/inventory/purchases/format";
 import { ApiError } from "@/lib/api/errors";
@@ -14,21 +13,15 @@ import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
 import {
   createServiceChargeLine,
-  createServiceType,
   deleteServiceChargeLine,
   getServiceTypes,
   updateServiceChargeLine,
 } from "./api";
-import { mapServiceTypeApiFieldErrors } from "./form-errors";
-import { ServiceTypeForm } from "./service-type-form";
+import { CreateServiceTypeDialog } from "./create-service-type-dialog";
 import {
-  EMPTY_SERVICE_TYPE_FORM_VALUES,
-  buildServiceTypeWritePayload,
   type ServiceAccessory,
   type ServiceChargeLine,
   type ServiceTypeDetail,
-  type ServiceTypeFormErrors,
-  type ServiceTypeFormValues,
 } from "./types";
 
 type ServiceChargesSectionProps = {
@@ -114,16 +107,6 @@ export function ServiceChargesSection({
   const [pendingLineId, setPendingLineId] = useState<number | null>(null);
 
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
-
-  // Si el formulario de la ventana tiene cambios: cerrarla con Esc o la ×
-  // pregunta antes de descartarlos, como el botón Cancelar.
-  const isTypeFormDirtyRef = useRef(false);
-
-  const [typeSubmitting, setTypeSubmitting] = useState(false);
-
-  const [typeSubmitError, setTypeSubmitError] = useState<string | null>(null);
-
-  const [typeServerErrors, setTypeServerErrors] = useState<ServiceTypeFormErrors>({});
 
   useEffect(() => {
     if (!canManage) {
@@ -271,46 +254,25 @@ export function ServiceChargesSection({
     }
   }
 
-  async function handleCreateType(values: ServiceTypeFormValues): Promise<void> {
-    setTypeSubmitting(true);
-    setTypeSubmitError(null);
-    setTypeServerErrors({});
+  function handleTypeCreated(created: ServiceTypeDetail): void {
+    setServiceTypes((current) =>
+      [...current, created].sort((left, right) =>
+        left.name.localeCompare(right.name, "es", { sensitivity: "base" }),
+      ),
+    );
 
-    try {
-      const created = await createServiceType(token, buildServiceTypeWritePayload(values));
+    // Queda elegido en la línea, con su precio precargado.
+    setDraft((current) => ({
+      ...current,
+      serviceTypeId: String(created.id),
+      description: created.name,
+      unitPrice:
+        created.default_labor_price !== null
+          ? String(Number(created.default_labor_price))
+          : current.unitPrice,
+    }));
 
-      setServiceTypes((current) =>
-        [...current, created].sort((left, right) =>
-          left.name.localeCompare(right.name, "es", { sensitivity: "base" }),
-        ),
-      );
-
-      // Queda elegido en la línea, con su precio precargado.
-      setDraft((current) => ({
-        ...current,
-        serviceTypeId: String(created.id),
-        description: created.name,
-        unitPrice:
-          created.default_labor_price !== null
-            ? String(Number(created.default_labor_price))
-            : current.unitPrice,
-      }));
-
-      setIsTypeDialogOpen(false);
-    } catch (caught: unknown) {
-      if (caught instanceof ApiError && caught.status === 401) {
-        onUnauthorized();
-        return;
-      }
-
-      if (caught instanceof ApiError && caught.status === 400) {
-        setTypeServerErrors(mapServiceTypeApiFieldErrors(caught.fieldErrors));
-      }
-
-      setTypeSubmitError(errorMessage(caught, "No fue posible crear el tipo de servicio."));
-    } finally {
-      setTypeSubmitting(false);
-    }
+    setIsTypeDialogOpen(false);
   }
 
   const hasCharges = lines.length > 0 || accessories.length > 0;
@@ -472,8 +434,6 @@ export function ServiceChargesSection({
                 value={draft.serviceTypeId}
                 onChange={(event) => {
                   if (event.target.value === CREATE_OPTION_VALUE) {
-                    setTypeSubmitError(null);
-                    setTypeServerErrors({});
                     setIsTypeDialogOpen(true);
                     return;
                   }
@@ -560,36 +520,15 @@ export function ServiceChargesSection({
         </dl>
       )}
 
-      <Dialog
+      <CreateServiceTypeDialog
         open={isTypeDialogOpen}
-        title="Nuevo tipo de servicio"
-        description="Queda en el catálogo y elegido para esta línea, con su precio de mano de obra."
+        token={token}
+        purpose="esta línea"
         onClose={() => {
-          if (
-            !typeSubmitting &&
-            (!isTypeFormDirtyRef.current ||
-              confirmWithFocusRestore("Hay cambios sin guardar. ¿Desea salir y descartarlos?"))
-          ) {
-            setIsTypeDialogOpen(false);
-          }
+          setIsTypeDialogOpen(false);
         }}
-      >
-        <ServiceTypeForm
-          mode="create"
-          embedded
-          initialValues={EMPTY_SERVICE_TYPE_FORM_VALUES}
-          isSubmitting={typeSubmitting}
-          submitError={typeSubmitError}
-          serverErrors={typeServerErrors}
-          onSubmit={handleCreateType}
-          onCancel={() => {
-            setIsTypeDialogOpen(false);
-          }}
-          onDirtyChange={(isDirty) => {
-            isTypeFormDirtyRef.current = isDirty;
-          }}
-        />
-      </Dialog>
+        onCreated={handleTypeCreated}
+      />
     </div>
   );
 }

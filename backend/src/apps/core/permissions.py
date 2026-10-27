@@ -70,6 +70,9 @@ class ModulePermission(permissions.BasePermission):
       están implementadas con un método HTTP no seguro (ej. "labels",
       que genera un PDF con POST). Sin esto se exigiría por error
       "change_<module>" en vez de "view_<module>".
+    - create_actions: nombres de @action que crean registros como
+      "create" (ej. "receive" en InjectorServiceRecord, que recibe
+      varios inyectores a la vez): exigen "add_<module>".
 
     Superusuarios y miembros del grupo ADMIN pasan siempre. A
     diferencia del esquema anterior, is_staff por sí solo YA NO da
@@ -81,7 +84,7 @@ class ModulePermission(permissions.BasePermission):
 
     1. La acción está en cancel_actions -> cancel_<module>.
     2. La acción está en read_actions -> view_<module>.
-    3. La acción es "create" -> add_<module>.
+    3. La acción es "create" o está en create_actions -> add_<module>.
     4. El método HTTP es seguro (GET/HEAD/OPTIONS) -> view_<module>.
        Cubre "list", "retrieve" y cualquier @action de solo lectura
        (ej. "cost_summary") sin tener que enumerarlas.
@@ -95,6 +98,7 @@ class ModulePermission(permissions.BasePermission):
     module = None
     cancel_actions = frozenset()
     read_actions = frozenset()
+    create_actions = frozenset()
 
     def has_permission(self, request, view):
         user = request.user
@@ -121,7 +125,7 @@ class ModulePermission(permissions.BasePermission):
         if action in self.read_actions:
             return f"view_{self.module}"
 
-        if action == "create":
+        if action == "create" or action in self.create_actions:
             return f"add_{self.module}"
 
         if request.method in permissions.SAFE_METHODS:
@@ -170,6 +174,8 @@ class InjectorsPermission(ModulePermission):
 class ServicesPermission(ModulePermission):
     module = "services"
     cancel_actions = frozenset({"cancel"})
+    # Punto 1C: recibir varios inyectores a la vez es crear servicios.
+    create_actions = frozenset({"receive"})
 
 
 class CostsPermission(ModulePermission):

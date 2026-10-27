@@ -18,6 +18,7 @@ from .service_record import (
     deliver_service,
     mark_ready,
     receive_injector,
+    receive_injectors,
     start_service,
 )
 
@@ -25,6 +26,7 @@ __all__ = [
     "register_customer",
     "register_injector",
     "receive_injector",
+    "receive_injectors",
     "start_service",
     "mark_ready",
     "deliver_service",

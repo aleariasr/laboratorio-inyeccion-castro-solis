@@ -5,26 +5,27 @@ import type {
   ServiceAccessoryFormField,
   ServicePriceFormErrors,
   ServicePriceFormField,
-  ServiceRecordCreateFormErrors,
-  ServiceRecordCreateFormField,
+  ServiceReceptionFormErrors,
+  ServiceReceptionFormField,
   ServiceRecordTechnicalFormErrors,
   ServiceRecordTechnicalFormField,
   ServiceTypeFormErrors,
   ServiceTypeFormField,
 } from "./types";
 
-const CREATE_FIELD_MAP: Record<string, ServiceRecordCreateFormField> = {
-  injector: "injectorId",
+const RECEPTION_FIELD_MAP: Record<string, ServiceReceptionFormField> = {
+  items: "items",
   received_at: "receivedAt",
+  service_type: "serviceTypeId",
 };
 
-export function mapServiceRecordCreateApiFieldErrors(
+export function mapServiceReceptionApiFieldErrors(
   fieldErrors: ApiFieldErrors,
-): ServiceRecordCreateFormErrors {
-  const mappedErrors: ServiceRecordCreateFormErrors = {};
+): ServiceReceptionFormErrors {
+  const mappedErrors: ServiceReceptionFormErrors = {};
 
   for (const [apiField, messages] of Object.entries(fieldErrors)) {
-    const formField = CREATE_FIELD_MAP[apiField];
+    const formField = RECEPTION_FIELD_MAP[apiField];
     const firstMessage = messages[0];
 
     if (formField && firstMessage) {

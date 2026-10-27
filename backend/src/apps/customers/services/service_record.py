@@ -51,6 +51,8 @@ def receive_injector(
     received_at,
     user,
     tax_percentage=0,
+    service_type=None,
+    notes_before="",
 ):
     # La vista (la pantalla) pasa DEFAULT_TAX_PERCENTAGE; el código que
     # crea servicios por otra vía queda en 0, igual que las ventas.
@@ -58,9 +60,40 @@ def receive_injector(
         injector=injector,
         received_at=received_at,
         tax_percentage=tax_percentage,
+        service_type=service_type,
+        notes_before=notes_before,
         created_by=user,
         updated_by=user,
     )
+
+
+@transaction.atomic
+def receive_injectors(
+    *,
+    items,
+    received_at,
+    user,
+    tax_percentage=0,
+    service_type=None,
+):
+    """
+    Recepción de varios inyectores del mismo cliente a la vez (punto 1C
+    del plan del 2026-10-22). Sigue siendo un servicio por inyector, con
+    la misma fecha y tipo; `items` es [(inyector, notas antes)]. En una
+    transacción: si uno falla no queda ninguno a medias.
+    """
+
+    return [
+        receive_injector(
+            injector=injector,
+            received_at=received_at,
+            user=user,
+            tax_percentage=tax_percentage,
+            service_type=service_type,
+            notes_before=notes_before,
+        )
+        for injector, notes_before in items
+    ]
 
 
 @transaction.atomic

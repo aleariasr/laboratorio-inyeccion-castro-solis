@@ -365,7 +365,7 @@ export default function ServicesPage() {
                   router.push("/services/new");
                 }}
               >
-                Recibir inyector
+                Recibir inyectores
               </Button>
             )}
           </div>

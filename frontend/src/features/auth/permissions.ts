@@ -98,6 +98,10 @@ export function canCreateCustomers(user: AuthUser): boolean {
   );
 }
 
+export function canCreateInjectors(user: AuthUser): boolean {
+  return hasAnyRole(user, ["CUSTOMERS"]) || hasModulePermission(user, "add_injectors");
+}
+
 // --- Inventario: ubicaciones ---
 
 export function canReadLocations(user: AuthUser): boolean {

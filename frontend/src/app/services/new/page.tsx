@@ -7,14 +7,20 @@ import { StatePanel } from "@/components/feedback/state-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
-import { canReadInjectors, canWriteServices } from "@/features/auth/permissions";
-import { createServiceRecord } from "@/features/services/api";
-import { mapServiceRecordCreateApiFieldErrors } from "@/features/services/form-errors";
-import { ServiceRecordCreateForm } from "@/features/services/service-record-create-form";
 import {
-  buildServiceRecordCreatePayload,
-  type ServiceRecordCreateFormErrors,
-  type ServiceRecordCreateFormValues,
+  canCreateCustomers,
+  canCreateInjectors,
+  canPriceServices,
+  canReadCustomers,
+  canWriteServices,
+} from "@/features/auth/permissions";
+import { receiveInjectors } from "@/features/services/api";
+import { mapServiceReceptionApiFieldErrors } from "@/features/services/form-errors";
+import { ServiceReceptionForm } from "@/features/services/service-reception-form";
+import {
+  buildServiceReceptionPayload,
+  type ServiceReceptionFormErrors,
+  type ServiceReceptionFormValues,
 } from "@/features/services/types";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import { goBackOr } from "@/lib/navigation/go-back";
@@ -33,11 +39,11 @@ function nowAsDateTimeLocal(): string {
 
 function getSubmitErrorMessage(error: unknown): string {
   if (error instanceof ApiTimeoutError) {
-    return "La recepción del inyector tardó demasiado tiempo en responder.";
+    return "La recepción tardó demasiado tiempo en responder.";
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local.";
   }
 
   if (error instanceof ApiError) {
@@ -47,22 +53,32 @@ function getSubmitErrorMessage(error: unknown): string {
   return "No fue posible registrar la recepción.";
 }
 
+/**
+ * Recepción de servicio (punto 1C del plan del 2026-10-22): uno o varios
+ * inyectores del mismo cliente. Con uno se sigue en el detalle del
+ * servicio; con varios, en la lista, donde quedan arriba.
+ */
 export default function NewServiceRecordPage() {
   const router = useRouter();
 
   const { status: authStatus, user, token, logout } = useAuth();
 
+  const [initialValues] = useState<ServiceReceptionFormValues>(() => ({
+    customer: null,
+    items: [],
+    receivedAt: nowAsDateTimeLocal(),
+    serviceTypeId: "",
+  }));
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [serverErrors, setServerErrors] = useState<ServiceRecordCreateFormErrors>({});
+  const [serverErrors, setServerErrors] = useState<ServiceReceptionFormErrors>({});
 
   const hasWriteAccess = user ? canWriteServices(user) : false;
 
-  const hasInjectorsAccess = user ? canReadInjectors(user) : false;
-
-  async function handleSubmit(values: ServiceRecordCreateFormValues): Promise<void> {
+  async function handleSubmit(values: ServiceReceptionFormValues): Promise<void> {
     if (!token || isSubmitting || !hasWriteAccess) {
       return;
     }
@@ -72,12 +88,11 @@ export default function NewServiceRecordPage() {
     setServerErrors({});
 
     try {
-      const serviceRecord = await createServiceRecord(
-        token,
-        buildServiceRecordCreatePayload(values),
-      );
+      const serviceRecords = await receiveInjectors(token, buildServiceReceptionPayload(values));
 
-      router.replace(`/services/${serviceRecord.id}`);
+      router.replace(
+        serviceRecords.length === 1 ? `/services/${serviceRecords[0].id}` : "/services",
+      );
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         await logout();
@@ -85,31 +100,17 @@ export default function NewServiceRecordPage() {
         return;
       }
 
-      if (error instanceof ApiError && error.status === 403) {
-        setSubmitError("Este usuario no tiene permisos para recibir inyectores.");
-        return;
-      }
-
       if (error instanceof ApiError && error.status === 400) {
-        const mappedErrors = mapServiceRecordCreateApiFieldErrors(error.fieldErrors);
-
-        setServerErrors(mappedErrors);
-
-        if (Object.keys(mappedErrors).length === 0) {
-          setSubmitError(error.message);
-        }
-
-        return;
+        setServerErrors(mapServiceReceptionApiFieldErrors(error.fieldErrors));
       }
 
-      setSubmitError(getSubmitErrorMessage(error));
-    } finally {
+      setSubmitError(
+        error instanceof ApiError && error.status === 403
+          ? "Este usuario no tiene permisos para recibir inyectores."
+          : getSubmitErrorMessage(error),
+      );
       setIsSubmitting(false);
     }
-  }
-
-  function handleCancel(): void {
-    goBackOr(router, "/services");
   }
 
   if (authStatus === "authenticated" && user && !hasWriteAccess) {
@@ -138,23 +139,29 @@ export default function NewServiceRecordPage() {
     );
   }
 
+  if (!token || !user) {
+    return null;
+  }
+
   return (
     <AppShell
-      title="Recibir inyector"
-      description="Registre la entrada de un inyector para revisión."
+      title="Recibir inyectores"
+      description="Uno o varios inyectores de un mismo cliente; se crea un servicio por inyector."
     >
-      <ServiceRecordCreateForm
-        canReadInjectors={hasInjectorsAccess}
-        initialValues={{
-          injectorId: "",
-          receivedAt: nowAsDateTimeLocal(),
-        }}
-        token={token ?? ""}
+      <ServiceReceptionForm
+        token={token}
+        initialValues={initialValues}
+        canReadCustomers={canReadCustomers(user)}
+        canCreateCustomers={canCreateCustomers(user)}
+        canCreateInjectors={canCreateInjectors(user)}
+        canChooseServiceType={canPriceServices(user)}
         isSubmitting={isSubmitting}
         submitError={submitError}
         serverErrors={serverErrors}
         onSubmit={handleSubmit}
-        onCancel={handleCancel}
+        onCancel={() => {
+          goBackOr(router, "/services");
+        }}
       />
     </AppShell>
   );

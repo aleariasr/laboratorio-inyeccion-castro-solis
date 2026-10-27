@@ -39,6 +39,7 @@ from apps.customers.serializers import (
     InjectorServiceAccessorySerializer,
     InjectorServiceRecordSerializer,
     ServiceChargeLineSerializer,
+    ServiceReceptionSerializer,
     ServiceTypePriceHistorySerializer,
     ServiceTypeSerializer,
 )
@@ -49,6 +50,7 @@ from apps.customers.services import (
     deliver_service,
     mark_ready,
     receive_injector,
+    receive_injectors,
     register_customer,
     register_injector,
     remove_charge_line,
@@ -300,6 +302,43 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
 
         return Response(
             output_serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="receive",
+    )
+    def receive(self, request):
+        """
+        Recepción de varios inyectores del mismo cliente a la vez (punto 1C
+        del plan del 2026-10-22): un servicio por inyector, todos en una
+        transacción. Devuelve los servicios creados.
+        """
+
+        input_serializer = ServiceReceptionSerializer(
+            data=request.data,
+            context=self.get_serializer_context(),
+        )
+        input_serializer.is_valid(raise_exception=True)
+
+        data = input_serializer.validated_data
+
+        service_records = receive_injectors(
+            items=[
+                (item["injector"], item["notes_before"].strip())
+                for item in data["items"]
+            ],
+            received_at=data["received_at"],
+            user=request.user,
+            # Igual que la recepción de uno: arranca con el IVA (punto 26).
+            tax_percentage=DEFAULT_TAX_PERCENTAGE,
+            service_type=data["service_type"],
+        )
+
+        return Response(
+            self.get_serializer(service_records, many=True).data,
             status=status.HTTP_201_CREATED,
         )
 

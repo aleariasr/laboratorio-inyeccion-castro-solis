@@ -70,31 +70,46 @@ export type ServiceRecordFilters = {
 };
 
 // Creación ("recepción" de un inyector)
-export type ServiceRecordCreatePayload = {
-  injector: number;
-  received_at: string;
+/**
+ * Recepción (punto 1C del plan del 2026-10-22): uno o varios inyectores
+ * del mismo cliente a la vez; se crea un servicio por inyector, con la
+ * misma fecha y tipo. El tipo lo elige solo el Administrador.
+ */
+export type ServiceReceptionItemValues = {
+  injectorId: number;
+  injectorNumber: string;
+  description: string;
+  /** Lo que reporta el cliente de este inyector ("notas antes"). */
+  notesBefore: string;
 };
 
-export type ServiceRecordCreateFormValues = {
-  injectorId: string;
+export type ServiceReceptionFormValues = {
+  customer: { id: number; label: string } | null;
+  items: ServiceReceptionItemValues[];
   receivedAt: string;
+  serviceTypeId: string;
 };
 
-export type ServiceRecordCreateFormField = "injectorId" | "receivedAt";
+export type ServiceReceptionFormField = "customer" | "items" | "receivedAt" | "serviceTypeId";
 
-export type ServiceRecordCreateFormErrors = Partial<Record<ServiceRecordCreateFormField, string>>;
+export type ServiceReceptionFormErrors = Partial<Record<ServiceReceptionFormField, string>>;
 
-export const EMPTY_SERVICE_RECORD_CREATE_FORM_VALUES: ServiceRecordCreateFormValues = {
-  injectorId: "",
-  receivedAt: "",
+export type ServiceReceptionPayload = {
+  received_at: string;
+  service_type: number | null;
+  items: Array<{ injector: number; notes_before: string }>;
 };
 
-export function buildServiceRecordCreatePayload(
-  values: ServiceRecordCreateFormValues,
-): ServiceRecordCreatePayload {
+export function buildServiceReceptionPayload(
+  values: ServiceReceptionFormValues,
+): ServiceReceptionPayload {
   return {
-    injector: Number(values.injectorId),
     received_at: new Date(values.receivedAt).toISOString(),
+    service_type: values.serviceTypeId ? Number(values.serviceTypeId) : null,
+    items: values.items.map((item) => ({
+      injector: item.injectorId,
+      notes_before: item.notesBefore.trim(),
+    })),
   };
 }
 

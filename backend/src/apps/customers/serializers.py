@@ -491,6 +491,80 @@ class InjectorServiceRecordSerializer(
         return data
 
 
+# Punto 1C: tope de inyectores por recepción (un vehículo trae pocos; el
+# tope solo evita un envío desproporcionado).
+MAX_RECEPTION_INJECTORS = 20
+
+
+class ServiceReceptionItemSerializer(serializers.Serializer):
+    injector = serializers.PrimaryKeyRelatedField(
+        queryset=Injector.objects.select_related("customer"),
+    )
+    # Lo que reporta el cliente de este inyector.
+    notes_before = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+
+
+class ServiceReceptionSerializer(ModuleAdminContextMixin, serializers.Serializer):
+    """
+    Recepción de varios inyectores del mismo cliente a la vez (punto 1C del
+    plan del 2026-10-22): un servicio por inyector, con la misma fecha y
+    tipo de servicio. El tipo lo elige solo el Administrador (punto 25).
+    """
+
+    received_at = serializers.DateTimeField()
+    service_type = serializers.PrimaryKeyRelatedField(
+        queryset=ServiceType.objects.all(),
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    items = ServiceReceptionItemSerializer(many=True)
+
+    def validate_service_type(self, value):
+        if value is None:
+            return value
+
+        if not self._is_module_admin():
+            raise serializers.ValidationError(SERVICE_PRICING_ONLY_ADMIN_MESSAGE)
+
+        if not value.is_active:
+            raise serializers.ValidationError("El tipo de servicio está inactivo.")
+
+        return value
+
+    def validate_items(self, items):
+        if not items:
+            raise serializers.ValidationError("Falta al menos un inyector.")
+
+        if len(items) > MAX_RECEPTION_INJECTORS:
+            raise serializers.ValidationError(
+                f"Una recepción lleva hasta {MAX_RECEPTION_INJECTORS} inyectores."
+            )
+
+        injectors = [item["injector"] for item in items]
+
+        if len({injector.id for injector in injectors}) != len(injectors):
+            raise serializers.ValidationError("Hay un inyector repetido.")
+
+        inactive = [injector.injector_number for injector in injectors if not injector.is_active]
+
+        if inactive:
+            raise serializers.ValidationError(
+                "Estos inyectores están inactivos: " + ", ".join(inactive) + "."
+            )
+
+        if len({injector.customer_id for injector in injectors}) > 1:
+            raise serializers.ValidationError(
+                "Los inyectores de una recepción son todos del mismo cliente."
+            )
+
+        return items
+
+
 class ServiceTypePriceHistorySerializer(serializers.ModelSerializer):
     service_type_detail = ServiceTypeSummarySerializer(
         source="service_type",
