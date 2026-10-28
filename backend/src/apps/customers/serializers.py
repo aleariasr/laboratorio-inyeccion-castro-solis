@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.core.money import DocumentAmountsError, compute_document_amounts
@@ -303,6 +306,22 @@ class ServiceTypeSerializer(
         return data
 
 
+# Margen para la diferencia de reloj entre la computadora que manda la
+# fecha y el servidor.
+RECEIVED_AT_CLOCK_MARGIN = timedelta(minutes=5)
+
+
+def validate_received_at_not_future(value):
+    """Un inyector no se recibe en el futuro (pasada previa a la 2.5.0)."""
+
+    if value > timezone.now() + RECEIVED_AT_CLOCK_MARGIN:
+        raise serializers.ValidationError(
+            "La fecha de recepción no puede ser futura."
+        )
+
+    return value
+
+
 class InjectorServiceRecordSerializer(
     ModuleAdminContextMixin,
     serializers.ModelSerializer,
@@ -363,6 +382,9 @@ class InjectorServiceRecordSerializer(
             "updated_at",
         )
 
+    def validate_received_at(self, value):
+        return validate_received_at_not_future(value)
+
     def validate(self, attrs):
         if (
             self.instance is not None
@@ -374,6 +396,18 @@ class InjectorServiceRecordSerializer(
         ):
             raise serializers.ValidationError(
                 "No se pueden modificar servicios entregados o anulados."
+            )
+
+        # "Corregir recepción" cambia el inyector por otro del mismo
+        # cliente; la pantalla solo ofrece esos, y ahora la API también
+        # (antes movía el servicio a cualquier cliente).
+        if (
+            self.instance is not None
+            and "injector" in attrs
+            and attrs["injector"].customer_id != self.instance.injector.customer_id
+        ):
+            raise serializers.ValidationError(
+                {"injector": "El inyector tiene que ser del mismo cliente del servicio."}
             )
 
         if not self._is_module_admin():
@@ -523,6 +557,9 @@ class ServiceReceptionSerializer(ModuleAdminContextMixin, serializers.Serializer
     )
     items = ServiceReceptionItemSerializer(many=True)
 
+    def validate_received_at(self, value):
+        return validate_received_at_not_future(value)
+
     def validate_service_type(self, value):
         if value is None:
             return value
@@ -656,8 +693,8 @@ class InjectorServiceAccessorySerializer(
                     raise serializers.ValidationError(
                         {
                             field_name: (
-                                "No se puede cambiar; quite el accesorio y "
-                                "agregue otro."
+                                "No se puede cambiar; se quita el accesorio "
+                                "y se agrega otro."
                             )
                         }
                     )

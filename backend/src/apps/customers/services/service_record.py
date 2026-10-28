@@ -11,9 +11,11 @@ from apps.customers.models import (
     InjectorServiceStatus,
 )
 from apps.customers.selectors import live_service_amounts
+from apps.customers.services.locking import lock_service_record
 from apps.customers.services.service_accessory import (
     reverse_accessory_stock_movement,
 )
+from apps.inventory.selectors import lock_products
 
 
 def _change_status(
@@ -103,7 +105,7 @@ def start_service(
     user,
 ):
     return _change_status(
-        service_record=service_record,
+        service_record=lock_service_record(service_record.pk),
         expected_status=InjectorServiceStatus.RECEIVED,
         new_status=InjectorServiceStatus.IN_PROGRESS,
         user=user,
@@ -117,7 +119,7 @@ def mark_ready(
     user,
 ):
     return _change_status(
-        service_record=service_record,
+        service_record=lock_service_record(service_record.pk),
         expected_status=InjectorServiceStatus.IN_PROGRESS,
         new_status=InjectorServiceStatus.READY,
         user=user,
@@ -131,10 +133,14 @@ def deliver_service(
     delivered_at,
     user,
 ):
+    # Recién leído y bloqueado: entrega lo que el servicio tiene ahora,
+    # aunque otra pantalla le acabe de agregar un accesorio.
+    service_record = lock_service_record(service_record.pk)
+
     if service_record.price is None:
         raise ServiceMissingPriceError(
-            "El servicio no tiene nada que cobrar todavía: agregue una línea "
-            "de cobro o un accesorio antes de entregarlo (así se cuenta "
+            "El servicio no tiene nada que cobrar todavía: para entregarlo "
+            "hace falta una línea de cobro o un accesorio (así se cuenta "
             "correctamente en el cierre de caja)."
         )
 
@@ -179,6 +185,8 @@ def cancel_service(
     service_record,
     user,
 ):
+    service_record = lock_service_record(service_record.pk)
+
     if service_record.status == InjectorServiceStatus.DELIVERED:
         raise InvalidServiceTransitionError(
             "Un servicio entregado no puede anularse."
@@ -195,9 +203,15 @@ def cancel_service(
     # anulado el servicio ya no se pueden quitar uno por uno
     # (_LOCKED_STATUSES en service_accessory.py), así que esta es la única
     # oportunidad de devolver el stock.
-    for service_accessory in service_record.accessories.select_related(
-        "product",
-    ).prefetch_related("stock_movements"):
+    accessories = list(
+        service_record.accessories.select_related(
+            "product",
+        ).prefetch_related("stock_movements")
+    )
+
+    lock_products(accessory.product_id for accessory in accessories)
+
+    for service_accessory in accessories:
         reverse_accessory_stock_movement(
             service_accessory=service_accessory,
             notes=f"Anulación de servicio #{service_record.id}",

@@ -1,9 +1,11 @@
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from apps.core.locking import lock_document
 from apps.core.permissions import TransfersPermission
 from apps.core.query_params import (
     parse_boolean_query_param,
@@ -39,6 +41,17 @@ from apps.inventory.services import (
 )
 
 from .product import NonDestructiveDeleteMixin
+
+
+def lock_draft_transfer(transfer_id, message):
+    """El traslado bloqueado mientras se escribe en él (ver lock_document)."""
+
+    return lock_document(
+        StockTransfer,
+        transfer_id,
+        editable_statuses={StockTransferStatus.DRAFT},
+        message=message,
+    )
 
 
 class BranchViewSet(NonDestructiveDeleteMixin, viewsets.ModelViewSet):
@@ -131,19 +144,24 @@ class StockTransferViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
+    @transaction.atomic
     def perform_update(self, serializer):
+        serializer.instance = lock_draft_transfer(
+            serializer.instance.pk,
+            "Solo se modifica un traslado en borrador.",
+        )
         serializer.save(updated_by=self.request.user)
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        stock_transfer = self.get_object()
+        stock_transfer = lock_draft_transfer(
+            self.get_object().pk,
+            "Solo se elimina un traslado en borrador; uno confirmado se anula.",
+        )
 
-        if stock_transfer.status != StockTransferStatus.DRAFT:
-            return Response(
-                {"detail": "Solo se elimina un traslado en borrador; uno confirmado se anula."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        self.perform_destroy(stock_transfer)
 
-        return super().destroy(request, *args, **kwargs)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"], url_path="confirm")
     def confirm(self, request, pk=None):
@@ -274,19 +292,31 @@ class StockTransferItemViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    @transaction.atomic
     def perform_create(self, serializer):
+        lock_draft_transfer(
+            serializer.validated_data["stock_transfer"].pk,
+            "Solo se modifican las líneas de un traslado en borrador.",
+        )
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
+    @transaction.atomic
     def perform_update(self, serializer):
+        lock_draft_transfer(
+            serializer.instance.stock_transfer_id,
+            "Solo se modifican las líneas de un traslado en borrador.",
+        )
         serializer.save(updated_by=self.request.user)
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         item = self.get_object()
 
-        if item.stock_transfer.status != StockTransferStatus.DRAFT:
-            return Response(
-                {"detail": "Solo se quitan líneas de un traslado en borrador."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        lock_draft_transfer(
+            item.stock_transfer_id,
+            "Solo se quitan líneas de un traslado en borrador.",
+        )
 
-        return super().destroy(request, *args, **kwargs)
+        self.perform_destroy(item)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -2,8 +2,15 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from apps.customers.exceptions import ServiceNotEditableError
+from apps.customers.exceptions import (
+    ServiceNotEditableError,
+    ServicePriceTooHighError,
+)
 from apps.customers.models import InjectorServiceStatus, ServiceChargeLine
+from apps.customers.services.locking import lock_service_record
+
+# El precio del servicio es DecimalField(max_digits=12, decimal_places=4).
+MAX_SERVICE_PRICE = Decimal("99999999.9999")
 
 _LOCKED_STATUSES = {
     InjectorServiceStatus.DELIVERED,
@@ -16,6 +23,24 @@ def _ensure_service_is_editable(service_record):
         raise ServiceNotEditableError(
             "No se puede modificar el cobro de servicios entregados o anulados."
         )
+
+
+def _lock_line(line):
+    """
+    Bloquea el servicio de la línea y relee la línea: si mientras tanto
+    otra pantalla la quitó, no hay nada que cambiar.
+    """
+
+    service_record = lock_service_record(line.service_record_id)
+
+    fresh = ServiceChargeLine.objects.filter(pk=line.pk).first()
+
+    if fresh is None:
+        raise ServiceNotEditableError("La línea ya no está en el servicio.")
+
+    fresh.service_record = service_record
+
+    return fresh
 
 
 def recalculate_service_price(service_record):
@@ -44,6 +69,15 @@ def recalculate_service_price(service_record):
             Decimal("0"),
         )
 
+    # Antes de guardar: un total que no cabe daba error 500 (pasada previa
+    # a la 2.5.0). Al cortar aquí, la transacción deshace también la línea
+    # o el accesorio que lo provocó.
+    if price is not None and price > MAX_SERVICE_PRICE:
+        raise ServicePriceTooHighError(
+            "El total del servicio superaría ₡99 999 999,99, el máximo que "
+            "se puede registrar."
+        )
+
     if price != service_record.price:
         service_record.price = price
         service_record.save(update_fields=["price", "updated_at"])
@@ -61,6 +95,8 @@ def add_charge_line(
     user,
     service_type=None,
 ):
+    service_record = lock_service_record(service_record.pk)
+
     _ensure_service_is_editable(service_record)
 
     line = ServiceChargeLine.objects.create(
@@ -89,6 +125,8 @@ def add_charge_line(
 
 @transaction.atomic
 def update_charge_line(*, line, user, **fields):
+    line = _lock_line(line)
+
     _ensure_service_is_editable(line.service_record)
 
     for field_name, value in fields.items():
@@ -104,6 +142,7 @@ def update_charge_line(*, line, user, **fields):
 
 @transaction.atomic
 def remove_charge_line(*, line, user):
+    line = _lock_line(line)
     service_record = line.service_record
 
     _ensure_service_is_editable(service_record)

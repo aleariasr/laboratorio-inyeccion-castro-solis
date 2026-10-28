@@ -4,6 +4,7 @@ from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 
+from apps.core.deletion import ProtectedDeleteMixin
 from apps.core.permissions import CostsPermission, PurchasesPermission
 from apps.core.query_params import parse_boolean_query_param
 
@@ -21,7 +22,7 @@ from apps.inventory.serializers import (
 from apps.inventory.services import discard_purchase_cost_calculation
 
 
-class ImportCostCategoryViewSet(viewsets.ModelViewSet):
+class ImportCostCategoryViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     serializer_class = ImportCostCategorySerializer
     permission_classes = [PurchasesPermission]
 

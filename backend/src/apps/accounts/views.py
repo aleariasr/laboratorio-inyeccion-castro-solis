@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 
+from apps.core.deletion import ProtectedDeleteMixin
 from apps.core.permissions import (
     AdministrationPermission,
     ROLE_ADMIN,
@@ -91,7 +92,7 @@ class RoleListView(APIView):
         return Response({"results": self.ROLES})
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     permission_classes = [AdministrationPermission]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["username", "first_name", "last_name"]

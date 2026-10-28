@@ -129,7 +129,7 @@ class CashClosingViewSet(
             FutureWeekClosingError,
         ) as exc:
             return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
+                {"detail": str(exc) or (exc.__doc__ or "").strip()},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

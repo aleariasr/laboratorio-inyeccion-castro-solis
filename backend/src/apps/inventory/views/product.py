@@ -104,10 +104,7 @@ class NonDestructiveDeleteMixin:
     def destroy(self, request, *args, **kwargs):
         raise MethodNotAllowed(
             method="DELETE",
-            detail=(
-                "Este registro no puede eliminarse. "
-                "Debe desactivarlo mediante una actualización."
-            ),
+            detail="Este registro no se elimina; se desactiva.",
         )
 
 

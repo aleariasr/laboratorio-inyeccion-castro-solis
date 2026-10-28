@@ -82,6 +82,17 @@ class InventoryCountItemSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs):
+        if (
+            self.instance is not None
+            and "inventory_count" in attrs
+            and attrs["inventory_count"] != self.instance.inventory_count
+        ):
+            # Se validaba el conteo de destino y no el propio: una línea
+            # podía salir de un conteo aprobado (pasada previa a la 2.5.0).
+            raise serializers.ValidationError(
+                {"inventory_count": "Una línea no se cambia de conteo."}
+            )
+
         inventory_count = attrs.get(
             "inventory_count",
             self.instance.inventory_count if self.instance else None,

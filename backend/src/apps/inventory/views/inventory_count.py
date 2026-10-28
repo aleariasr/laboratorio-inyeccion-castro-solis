@@ -1,9 +1,11 @@
+from django.db import transaction
 from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import filters, status, viewsets
 
+from apps.core.locking import lock_document
 from apps.core.permissions import InventoryCountsPermission
 from apps.core.query_params import (
     parse_boolean_query_param,
@@ -21,6 +23,17 @@ from apps.inventory.serializers import (
     InventoryCountSerializer,
 )
 from apps.inventory.services import approve_inventory_count, cancel_inventory_count
+
+
+def lock_draft_count(inventory_count_id, message):
+    """El conteo bloqueado mientras se escribe en él (ver lock_document)."""
+
+    return lock_document(
+        InventoryCount,
+        inventory_count_id,
+        editable_statuses={InventoryCountStatus.DRAFT},
+        message=message,
+    )
 
 
 class InventoryCountViewSet(viewsets.ModelViewSet):
@@ -73,30 +86,26 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def perform_update(self, serializer):
+        serializer.instance = lock_draft_count(
+            serializer.instance.pk,
+            "No se pueden modificar conteos aprobados o anulados.",
+        )
         serializer.save(
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        inventory_count = self.get_object()
-
-        if inventory_count.status != InventoryCountStatus.DRAFT:
-            return Response(
-                {
-                    "detail": (
-                        "Solo se pueden eliminar conteos "
-                        "de inventario en borrador."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        return super().destroy(
-            request,
-            *args,
-            **kwargs,
+        inventory_count = lock_draft_count(
+            self.get_object().pk,
+            "Solo se pueden eliminar conteos de inventario en borrador.",
         )
+
+        self.perform_destroy(inventory_count)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=True,
@@ -180,36 +189,36 @@ class InventoryCountItemViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    @transaction.atomic
     def perform_create(self, serializer):
+        lock_draft_count(
+            serializer.validated_data["inventory_count"].pk,
+            "No se pueden modificar líneas de conteos aprobados o anulados.",
+        )
         serializer.save(
             created_by=self.request.user,
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def perform_update(self, serializer):
+        lock_draft_count(
+            serializer.instance.inventory_count_id,
+            "No se pueden modificar líneas de conteos aprobados o anulados.",
+        )
         serializer.save(
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         inventory_count_item = self.get_object()
 
-        if (
-            inventory_count_item.inventory_count.status
-            != InventoryCountStatus.DRAFT
-        ):
-            return Response(
-                {
-                    "detail": (
-                        "Solo se pueden eliminar líneas "
-                        "de conteos en borrador."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        return super().destroy(
-            request,
-            *args,
-            **kwargs,
+        lock_draft_count(
+            inventory_count_item.inventory_count_id,
+            "Solo se pueden eliminar líneas de conteos en borrador.",
         )
+
+        self.perform_destroy(inventory_count_item)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

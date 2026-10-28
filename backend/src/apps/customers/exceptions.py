@@ -32,3 +32,7 @@ class ServiceMissingPriceError(CustomerError):
 
 class ServiceAmountsError(CustomerError):
     """El descuento o el impuesto no son válidos para el precio."""
+
+
+class ServicePriceTooHighError(CustomerError):
+    """El total del servicio no cabe en el precio (máximo ₡99 999 999,9999)."""

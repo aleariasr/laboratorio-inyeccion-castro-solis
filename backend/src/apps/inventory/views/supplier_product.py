@@ -2,6 +2,7 @@
 from django.db.models import Case, IntegerField, Q, Value, When
 from rest_framework import viewsets
 
+from apps.core.deletion import ProtectedDeleteMixin
 from apps.core.permissions import SuppliersPermission
 from apps.core.query_params import (
     parse_boolean_query_param,
@@ -12,7 +13,7 @@ from apps.inventory.models import SupplierProduct
 from apps.inventory.serializers import SupplierProductSerializer
 
 
-class SupplierProductViewSet(viewsets.ModelViewSet):
+class SupplierProductViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     serializer_class = SupplierProductSerializer
     permission_classes = [SuppliersPermission]
 

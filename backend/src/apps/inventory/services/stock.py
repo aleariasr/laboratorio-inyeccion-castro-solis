@@ -7,7 +7,7 @@ from apps.inventory.models import (
     StockMovement,
     StockMovementType,
 )
-from apps.inventory.selectors import current_stock
+from apps.inventory.selectors import current_stock, lock_products
 
 
 @transaction.atomic
@@ -22,6 +22,8 @@ def initial_inventory(
         raise InventoryError(
             "La cantidad debe ser mayor que cero."
         )
+
+    lock_products([product.pk])
 
     if product.stock_movements.exists():
         raise InventoryError(
@@ -51,6 +53,8 @@ def adjust_stock(
         raise InventoryError(
             "El ajuste no puede ser cero."
         )
+
+    lock_products([product.pk])
 
     available_stock = current_stock(product)
 

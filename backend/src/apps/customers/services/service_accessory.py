@@ -8,13 +8,18 @@ from apps.customers.models import (
     InjectorServiceAccessory,
     InjectorServiceStatus,
 )
+from apps.customers.services.locking import lock_service_record
 from apps.customers.services.service_charges import recalculate_service_price
 from apps.inventory.models import (
     MovementDirection,
     StockMovement,
     StockMovementType,
 )
-from apps.inventory.selectors import current_stock, effective_sale_price
+from apps.inventory.selectors import (
+    current_stock,
+    effective_sale_price,
+    lock_products,
+)
 
 _LOCKED_STATUSES = {
     InjectorServiceStatus.DELIVERED,
@@ -27,6 +32,30 @@ def _ensure_service_is_editable(service_record):
         raise ServiceNotEditableError(
             "No se pueden modificar accesorios de servicios entregados o anulados."
         )
+
+
+def _lock_accessory(service_accessory):
+    """
+    Bloquea el servicio del accesorio y relee el accesorio: si mientras
+    tanto otra pantalla lo quitó, no hay nada que cambiar.
+    """
+
+    service_record = lock_service_record(service_accessory.service_record_id)
+
+    fresh = (
+        InjectorServiceAccessory.objects.select_related("product")
+        .filter(pk=service_accessory.pk)
+        .first()
+    )
+
+    if fresh is None:
+        raise ServiceNotEditableError(
+            "El accesorio ya no está en el servicio."
+        )
+
+    fresh.service_record = service_record
+
+    return fresh
 
 
 def _ensure_stock(product, needed, available):
@@ -83,7 +112,12 @@ def add_service_accessory(
     user,
     unit_price=None,
 ):
+    service_record = lock_service_record(service_record.pk)
+
     _ensure_service_is_editable(service_record)
+
+    lock_products([product.pk])
+
     _ensure_stock(product, quantity, current_stock(product))
 
     service_accessory = InjectorServiceAccessory.objects.create(
@@ -159,6 +193,7 @@ def update_service_accessory(
     inventario más lo que el accesorio ya tenía.
     """
 
+    service_accessory = _lock_accessory(service_accessory)
     service_record = service_accessory.service_record
 
     _ensure_service_is_editable(service_record)
@@ -167,6 +202,8 @@ def update_service_accessory(
 
     if quantity is not None and quantity != service_accessory.quantity:
         product = service_accessory.product
+
+        lock_products([product.pk])
 
         _ensure_stock(
             product,
@@ -214,9 +251,12 @@ def remove_service_accessory(
     service_accessory: InjectorServiceAccessory,
     user,
 ):
+    service_accessory = _lock_accessory(service_accessory)
     service_record = service_accessory.service_record
 
     _ensure_service_is_editable(service_record)
+
+    lock_products([service_accessory.product_id])
 
     reverse_accessory_stock_movement(
         service_accessory=service_accessory,

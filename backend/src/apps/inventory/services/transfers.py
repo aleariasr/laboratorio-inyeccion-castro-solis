@@ -9,7 +9,7 @@ from apps.inventory.models import (
     StockTransfer,
     StockTransferStatus,
 )
-from apps.inventory.selectors import current_stock
+from apps.inventory.selectors import current_stock, lock_products
 
 
 @transaction.atomic
@@ -32,7 +32,7 @@ def confirm_stock_transfer(*, stock_transfer: StockTransfer, user):
 
     if not stock_transfer.branch.is_active:
         raise StockTransferError(
-            "La sede de destino está inactiva; elija otra antes de confirmar."
+            "La sede de destino está inactiva; confirmar requiere una sede activa."
         )
 
     items = list(
@@ -43,6 +43,8 @@ def confirm_stock_transfer(*, stock_transfer: StockTransfer, user):
         raise StockTransferError(
             "El traslado no tiene productos."
         )
+
+    lock_products(item.product_id for item in items)
 
     shortages = []
 
@@ -116,6 +118,8 @@ def cancel_stock_transfer(*, stock_transfer: StockTransfer, user, reason: str):
         items = list(
             stock_transfer.items.select_related("product").order_by("id")
         )
+
+        lock_products(item.product_id for item in items)
 
         for item in items:
             original_movement = item.stock_movements.get(

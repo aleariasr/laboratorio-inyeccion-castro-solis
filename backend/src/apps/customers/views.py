@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.decorators import action
@@ -5,6 +6,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import filters, mixins, permissions, status, viewsets
 
+from apps.core.deletion import ProtectedDeleteMixin
 from apps.core.money import DEFAULT_TAX_PERCENTAGE
 from apps.core.permissions import (
     CustomersPermission,
@@ -26,11 +28,13 @@ from apps.customers.exceptions import (
     ServiceAmountsError,
     ServiceMissingPriceError,
     ServiceNotEditableError,
+    ServicePriceTooHighError,
 )
 from apps.customers.models import (
     Customer,
     Injector,
     InjectorServiceRecord,
+    InjectorServiceStatus,
 )
 
 from apps.customers.serializers import (
@@ -58,6 +62,7 @@ from apps.customers.services import (
     update_charge_line,
     update_service_accessory,
 )
+from apps.customers.services.locking import lock_service_record
 
 from apps.customers.models import (
     Customer,
@@ -69,7 +74,7 @@ from apps.customers.models import (
 )
 
 
-class CustomerViewSet(viewsets.ModelViewSet):
+class CustomerViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     serializer_class = CustomerSerializer
     permission_classes = [CustomersPermission]
     filter_backends = [filters.OrderingFilter]
@@ -150,7 +155,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         )
 
 
-class InjectorViewSet(viewsets.ModelViewSet):
+class InjectorViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     serializer_class = InjectorSerializer
     permission_classes = [InjectorsPermission]
     filter_backends = [filters.OrderingFilter]
@@ -224,6 +229,11 @@ class InjectorViewSet(viewsets.ModelViewSet):
 class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
     serializer_class = InjectorServiceRecordSerializer
     permission_classes = [ServicesPermission]
+    # Sin DELETE: un servicio se anula (devuelve los accesorios al
+    # inventario) y nunca se borra. Borrarlo se llevaba lo cobrado de la
+    # caja y dejaba los accesorios fuera del inventario para siempre, y
+    # el operario podía hacerlo (pasada previa a la 2.5.0).
+    http_method_names = ["get", "post", "patch", "head", "options"]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["received_at", "delivered_at", "status", "created_at"]
     ordering = ["-received_at", "-id"]
@@ -340,11 +350,22 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @transaction.atomic
     def perform_update(self, serializer):
-        # Ya no se anota el precio en el historial del tipo de servicio:
-        # guardaba el total con accesorios y el sugerido los volvía a
-        # sumar, así que el precio crecía (punto 3 del plan del
-        # 2026-10-22). El precio de referencia es el del tipo.
+        # Bloqueado y recién leído: si se entregó o se anuló mientras
+        # tanto, no se escribe encima la copia vieja (que lo devolvía a
+        # "listo" o pisaba el precio recalculado).
+        service_record = lock_service_record(serializer.instance.pk)
+
+        if service_record.status in {
+            InjectorServiceStatus.DELIVERED,
+            InjectorServiceStatus.CANCELLED,
+        }:
+            raise ValidationError(
+                {"detail": "No se pueden modificar servicios entregados o anulados."}
+            )
+
+        serializer.instance = service_record
         serializer.save(
             updated_by=self.request.user,
         )
@@ -481,7 +502,7 @@ class InjectorServiceRecordViewSet(viewsets.ModelViewSet):
         )
 
 
-class ServiceTypeViewSet(viewsets.ModelViewSet):
+class ServiceTypeViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     serializer_class = ServiceTypeSerializer
     permission_classes = [ServicesPermission]
     filter_backends = [filters.OrderingFilter]
@@ -581,9 +602,10 @@ class InjectorServiceAccessoryViewSet(
         except (
             ServiceNotEditableError,
             InsufficientStockForServiceError,
+            ServicePriceTooHighError,
         ) as exc:
             return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
+                {"detail": str(exc) or (exc.__doc__ or "").strip()},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -615,9 +637,10 @@ class InjectorServiceAccessoryViewSet(
         except (
             ServiceNotEditableError,
             InsufficientStockForServiceError,
+            ServicePriceTooHighError,
         ) as exc:
             return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
+                {"detail": str(exc) or (exc.__doc__ or "").strip()},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -633,7 +656,7 @@ class InjectorServiceAccessoryViewSet(
             )
         except ServiceNotEditableError as exc:
             return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
+                {"detail": str(exc) or (exc.__doc__ or "").strip()},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -688,7 +711,7 @@ class ServiceChargeLineViewSet(
                 unit_price=serializer.validated_data["unit_price"],
                 user=request.user,
             )
-        except ServiceNotEditableError as exc:
+        except (ServiceNotEditableError, ServicePriceTooHighError) as exc:
             return Response(
                 {"detail": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -713,7 +736,7 @@ class ServiceChargeLineViewSet(
 
         try:
             line = update_charge_line(line=line, user=request.user, **fields)
-        except ServiceNotEditableError as exc:
+        except (ServiceNotEditableError, ServicePriceTooHighError) as exc:
             return Response(
                 {"detail": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,

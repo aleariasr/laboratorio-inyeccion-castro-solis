@@ -14,7 +14,7 @@ from apps.inventory.models import (
     StockMovement,
     StockMovementType,
 )
-from apps.inventory.selectors import current_stock
+from apps.inventory.selectors import current_stock, lock_products
 
 
 @transaction.atomic
@@ -39,6 +39,8 @@ def confirm_purchase(*, purchase: Purchase, user):
 
     if not items:
         raise PurchaseWithoutItemsError()
+
+    lock_products(item.supplier_product.product_id for item in items)
 
     purchase.status = PurchaseStatus.CONFIRMED
     purchase.confirmed_at = timezone.now()
@@ -100,6 +102,8 @@ def cancel_purchase(
                 "stock_movements",
             )
         )
+
+        lock_products(item.supplier_product.product_id for item in items)
 
         reversal_data = []
 

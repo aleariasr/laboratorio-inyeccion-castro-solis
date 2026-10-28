@@ -27,7 +27,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.cash.models import CashClosing
+from apps.cash.models import CashClosing, PettyCashMovement
 from apps.cash.selectors import expected_totals_by_method
 from apps.cash.services import create_cash_closing
 from apps.core.models import PaymentMethod
@@ -70,6 +70,8 @@ from apps.inventory.models import (
     Purchase,
     PurchaseItem,
     StockMovement,
+    StockTransfer,
+    StockTransferItem,
     StorageLocation,
     Supplier,
     SupplierProduct,
@@ -438,7 +440,7 @@ class Command(BaseCommand):
 
         answer = input(
             "Esto BORRA productos, compras, ventas, clientes, servicios, "
-            "conteos y cierres de caja de la base de desarrollo.\n"
+            "conteos, traslados y cierres de caja de la base de desarrollo.\n"
             "Escribí 'si' para continuar: "
         )
 
@@ -451,6 +453,9 @@ class Command(BaseCommand):
 
         StockMovement.objects.filter(reverses_movement__isnull=False).delete()
         StockMovement.objects.all().delete()
+        # Los traslados (2.5.0) protegen a sus productos: van antes.
+        StockTransferItem.objects.all().delete()
+        StockTransfer.objects.all().delete()
         InjectorServiceAccessory.objects.all().delete()
         InjectorServiceRecord.objects.all().delete()
         Injector.objects.all().delete()
@@ -459,6 +464,7 @@ class Command(BaseCommand):
         Customer.objects.all().delete()
         ServiceType.objects.all().delete()
         CashClosing.objects.all().delete()
+        PettyCashMovement.objects.all().delete()
         InventoryCountItem.objects.all().delete()
         InventoryCount.objects.all().delete()
         ProductCostHistory.objects.all().delete()

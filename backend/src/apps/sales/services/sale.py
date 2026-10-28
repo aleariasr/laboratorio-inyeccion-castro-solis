@@ -7,7 +7,7 @@ from apps.inventory.models import (
     StockMovementType,
 )
 from apps.core.money import DocumentAmountsError
-from apps.inventory.selectors import current_stock
+from apps.inventory.selectors import current_stock, lock_products
 from apps.sales.exceptions import (
     InsufficientStockError,
     SaleAlreadyCancelledError,
@@ -69,6 +69,8 @@ def confirm_sale(*, sale: Sale, user):
 
     if not items:
         raise SaleWithoutItemsError()
+
+    lock_products(item.product_id for item in items)
 
     for item in items:
         available = current_stock(item.product)
@@ -141,6 +143,8 @@ def cancel_sale(
             "stock_movements",
         )
     )
+
+    lock_products(item.product_id for item in items)
 
     reversal_data = []
 

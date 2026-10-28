@@ -8,6 +8,28 @@ from apps.inventory.models import (
 )
 
 
+def lock_products(product_ids) -> None:
+    """
+    Bloquea las filas de los productos (SELECT … FOR UPDATE) hasta el fin
+    de la transacción. Se llama antes de leer la existencia en todo lo que
+    mueve inventario: así dos documentos que sacan el mismo producto a la
+    vez no pasan los dos la verificación con la misma existencia (pasada
+    previa a la 2.5.0: dos ventas por todo el stock, confirmadas a la vez,
+    lo dejaban en negativo).
+
+    Siempre en orden de id, para que dos transacciones que bloquean los
+    mismos productos no se esperen en cruz. Debe llamarse dentro de
+    transaction.atomic.
+    """
+
+    list(
+        Product.objects.select_for_update()
+        .filter(pk__in=set(product_ids))
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+
+
 def current_stock(product: Product) -> int:
     result = (
         product.stock_movements.annotate(

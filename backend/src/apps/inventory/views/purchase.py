@@ -6,6 +6,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.locking import lock_document
 from apps.core.permissions import PurchasesPermission, ViewCostsRequired
 from apps.core.query_params import (
     parse_boolean_query_param,
@@ -42,6 +43,17 @@ from apps.inventory.services import (
     discard_purchase_cost_calculation,
     purchase_cost_summary,
 )
+
+
+def lock_draft_purchase(purchase_id, message):
+    """La compra bloqueada mientras se escribe en ella (ver lock_document)."""
+
+    return lock_document(
+        Purchase,
+        purchase_id,
+        editable_statuses={PurchaseStatus.DRAFT},
+        message=message,
+    )
 
 
 class PurchaseViewSet(viewsets.ModelViewSet):
@@ -128,25 +140,23 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def perform_update(self, serializer):
+        serializer.instance = lock_draft_purchase(
+            serializer.instance.pk,
+            "Solo se pueden modificar compras en borrador.",
+        )
         serializer.save(
             updated_by=self.request.user,
         )
 
     def destroy(self, request, *args, **kwargs):
-        purchase = self.get_object()
-
-        if purchase.status != PurchaseStatus.DRAFT:
-            return Response(
-                {
-                    "detail": (
-                        "Solo se pueden eliminar compras en borrador."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+        with transaction.atomic():
+            purchase = lock_draft_purchase(
+                self.get_object().pk,
+                "Solo se pueden eliminar compras en borrador.",
             )
 
-        with transaction.atomic():
             # ProductCostHistory apunta a Purchase con PROTECT, así que
             # sin esto borrar un borrador al que ya se le calcularon
             # costos fallaba con ProtectedError.
@@ -180,7 +190,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                 {
                     "detail": (
                         str(exc)
-                        or exc.__class__.__name__
+                        or (exc.__doc__ or "").strip()
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -220,7 +230,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                 {
                     "detail": (
                         str(exc)
-                        or exc.__class__.__name__
+                        or (exc.__doc__ or "").strip()
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -328,6 +338,10 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
     # discard_purchase_cost_calculation).
     @transaction.atomic
     def perform_create(self, serializer):
+        lock_draft_purchase(
+            serializer.validated_data["purchase"].pk,
+            "Solo se pueden modificar líneas de compras en borrador.",
+        )
         serializer.save(
             created_by=self.request.user,
             updated_by=self.request.user,
@@ -339,6 +353,10 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def perform_update(self, serializer):
+        lock_draft_purchase(
+            serializer.instance.purchase_id,
+            "Solo se pueden modificar líneas de compras en borrador.",
+        )
         serializer.save(
             updated_by=self.request.user,
         )
@@ -350,18 +368,12 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         purchase_item = self.get_object()
 
-        if purchase_item.purchase.status != PurchaseStatus.DRAFT:
-            return Response(
-                {
-                    "detail": (
-                        "Solo se pueden eliminar líneas "
-                        "de compras en borrador."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+        with transaction.atomic():
+            lock_draft_purchase(
+                purchase_item.purchase_id,
+                "Solo se pueden eliminar líneas de compras en borrador.",
             )
 
-        with transaction.atomic():
             discard_purchase_cost_calculation(
                 purchase=purchase_item.purchase,
             )

@@ -146,6 +146,39 @@ Nada pendiente de registrar.
 - **El precio sugerido del servicio crecía cada vez que se guardaba**
   (punto 3): se anotaba el total, con los accesorios, como precio del
   tipo, y el sugerido les volvía a sumar los accesorios.
+- **Operaciones simultáneas que descuadraban datos** (pasada previa a la
+  liberación, 2026-10-27; venían de versiones anteriores salvo lo de
+  servicios). Reproducidas en vivo y corregidas bloqueando el documento y
+  los productos mientras se escriben (`apps/core/locking.py`,
+  `lock_products`):
+  - dos documentos que sacaban el mismo producto a la vez (dos ventas,
+    venta y traslado, accesorios en dos servicios) pasaban los dos la
+    verificación de existencia y la dejaban en negativo;
+  - aprobar un conteo dos veces a la vez (doble clic con red lenta)
+    registraba el ajuste dos veces;
+  - guardar una venta mientras se confirmaba la devolvía a borrador con el
+    stock ya descontado (lo mismo podía pasar en compras, traslados,
+    conteos y servicios);
+  - una línea agregada a un conteo mientras se aprobaba quedaba sin ajuste;
+  - un accesorio agregado mientras se entregaba el servicio salía del
+    inventario sin cobrarse.
+- **La API permitía lo que la pantalla no:**
+  - borrar un servicio, incluso entregado y por el rol Clientes y servicio:
+    se llevaba lo cobrado de la caja y dejaba sus accesorios fuera del
+    inventario. Ahora un servicio no se borra, se anula;
+  - mover una línea de venta o de compra a un documento ya confirmado, o
+    sacar una línea de un conteo aprobado;
+  - "Corregir recepción" con un inyector de otro cliente, y fechas de
+    recepción en el futuro.
+- **Respuestas de error 500 donde correspondía un aviso:** borrar algo con
+  historial (cliente, inyector, tipo de servicio, proveedor, producto de
+  proveedor, categoría de costo, usuario), repetir una acción sobre un
+  accesorio ya quitado o un servicio ya anulado, y un servicio cuyo total
+  no cabe en el precio (más de ₡99 999 999,99).
+- Los avisos de "venta ya confirmada" y similares llegaban como nombre
+  técnico (`SaleAlreadyConfirmedError`); ahora son una frase.
+- `seed_demo_data --reset` fallaba si había traslados, y no borraba las
+  salidas de caja chica.
 
 ### Removed
 

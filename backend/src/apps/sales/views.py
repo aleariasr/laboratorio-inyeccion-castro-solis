@@ -1,8 +1,10 @@
+from django.db import transaction
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import filters, status, viewsets
 
+from apps.core.locking import lock_document
 from apps.core.permissions import SalesPermission
 from apps.core.query_params import (
     parse_boolean_query_param,
@@ -32,6 +34,17 @@ from apps.sales.services import (
     cancel_sale,
     confirm_sale,
 )
+
+
+def lock_draft_sale(sale_id, message):
+    """La venta bloqueada mientras se escribe en ella (ver lock_document)."""
+
+    return lock_document(
+        Sale,
+        sale_id,
+        editable_statuses={SaleStatus.DRAFT},
+        message=message,
+    )
 
 
 class SaleViewSet(viewsets.ModelViewSet):
@@ -100,29 +113,26 @@ class SaleViewSet(viewsets.ModelViewSet):
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def perform_update(self, serializer):
+        serializer.instance = lock_draft_sale(
+            serializer.instance.pk,
+            "Solo se pueden modificar ventas en borrador.",
+        )
         serializer.save(
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        sale = self.get_object()
-
-        if sale.status != SaleStatus.DRAFT:
-            return Response(
-                {
-                    "detail": (
-                        "Solo se pueden eliminar ventas en borrador."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        return super().destroy(
-            request,
-            *args,
-            **kwargs,
+        sale = lock_draft_sale(
+            self.get_object().pk,
+            "Solo se pueden eliminar ventas en borrador.",
         )
+
+        self.perform_destroy(sale)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=True,
@@ -145,7 +155,7 @@ class SaleViewSet(viewsets.ModelViewSet):
             SaleWithoutItemsError,
         ) as exc:
             return Response(
-                {"detail": str(exc) or exc.__class__.__name__},
+                {"detail": str(exc) or (exc.__doc__ or "").strip()},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -183,7 +193,7 @@ class SaleViewSet(viewsets.ModelViewSet):
                 {
                     "detail": (
                         str(exc)
-                        or exc.__class__.__name__
+                        or (exc.__doc__ or "").strip()
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -208,33 +218,36 @@ class SaleItemViewSet(viewsets.ModelViewSet):
     serializer_class = SaleItemSerializer
     permission_classes = [SalesPermission]
 
+    @transaction.atomic
     def perform_create(self, serializer):
+        lock_draft_sale(
+            serializer.validated_data["sale"].pk,
+            "Solo se pueden modificar líneas de ventas en borrador.",
+        )
         serializer.save(
             created_by=self.request.user,
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def perform_update(self, serializer):
+        lock_draft_sale(
+            serializer.instance.sale_id,
+            "Solo se pueden modificar líneas de ventas en borrador.",
+        )
         serializer.save(
             updated_by=self.request.user,
         )
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         sale_item = self.get_object()
 
-        if sale_item.sale.status != SaleStatus.DRAFT:
-            return Response(
-                {
-                    "detail": (
-                        "Solo se pueden eliminar líneas "
-                        "de ventas en borrador."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        return super().destroy(
-            request,
-            *args,
-            **kwargs,
+        lock_draft_sale(
+            sale_item.sale_id,
+            "Solo se pueden eliminar líneas de ventas en borrador.",
         )
+
+        self.perform_destroy(sale_item)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

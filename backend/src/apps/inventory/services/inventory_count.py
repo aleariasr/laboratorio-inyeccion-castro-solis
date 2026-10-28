@@ -8,7 +8,7 @@ from apps.inventory.models import (
     StockMovement,
     StockMovementType,
 )
-from apps.inventory.selectors import current_stock
+from apps.inventory.selectors import current_stock, lock_products
 
 
 @transaction.atomic
@@ -25,14 +25,26 @@ def approve_inventory_count(
 
     Si existe diferencia genera automáticamente un
     movimiento de ajuste.
+
+    El conteo y sus productos quedan bloqueados mientras tanto: sin eso,
+    dos aprobaciones a la vez registraban el ajuste dos veces (pasada
+    previa a la 2.5.0).
     """
+
+    inventory_count = InventoryCount.objects.select_for_update().get(
+        pk=inventory_count.pk,
+    )
 
     if inventory_count.status != InventoryCountStatus.DRAFT:
         raise InventoryError(
             "Solo un conteo en borrador puede aprobarse."
         )
 
-    for item in inventory_count.items.select_related("product"):
+    items = list(inventory_count.items.select_related("product"))
+
+    lock_products(item.product_id for item in items)
+
+    for item in items:
 
         stock = current_stock(item.product)
 
@@ -81,6 +93,10 @@ def cancel_inventory_count(
     Solo un conteo en borrador puede anularse: una vez aprobado, ya
     generó movimientos de ajuste y no debe revertirse desde aquí.
     """
+
+    inventory_count = InventoryCount.objects.select_for_update().get(
+        pk=inventory_count.pk,
+    )
 
     if inventory_count.status != InventoryCountStatus.DRAFT:
         raise InventoryError(

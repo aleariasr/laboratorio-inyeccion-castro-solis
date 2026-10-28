@@ -47,6 +47,13 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         purchase = attrs.get("purchase")
 
         if self.instance is not None:
+            # Mover la línea a otra compra la dejaba en una confirmada sin
+            # entrada de inventario (pasada previa a la 2.5.0).
+            if purchase is not None and purchase != self.instance.purchase:
+                raise serializers.ValidationError(
+                    {"purchase": "Una línea no se cambia de compra."}
+                )
+
             purchase = self.instance.purchase
 
         if purchase is not None and purchase.status != PurchaseStatus.DRAFT:

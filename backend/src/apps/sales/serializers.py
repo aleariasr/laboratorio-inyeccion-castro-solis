@@ -62,6 +62,13 @@ class SaleItemSerializer(serializers.ModelSerializer):
         sale = attrs.get("sale")
 
         if self.instance is not None:
+            # Mover la línea a otra venta la dejaba en una confirmada sin
+            # salida de inventario (pasada previa a la 2.5.0).
+            if sale is not None and sale != self.instance.sale:
+                raise serializers.ValidationError(
+                    {"sale": "Una línea no se cambia de venta."}
+                )
+
             sale = self.instance.sale
 
         if sale is not None and sale.status != SaleStatus.DRAFT:
@@ -77,7 +84,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
                     {
                         "unit_price": (
                             "Este producto no tiene precio de venta; "
-                            "ingrese uno."
+                            "el precio unitario es obligatorio."
                         ),
                     }
                 )
