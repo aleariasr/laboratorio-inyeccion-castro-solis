@@ -14,7 +14,7 @@ El backend base ya existe, pero no debe seguir ampliándose por suposición. La 
 
 Versión actual:
 
-    2.4.0
+    2.5.0
 
 Estado resumido:
 
@@ -39,6 +39,12 @@ Estado resumido:
     reportes y del cierre; Excel de movimientos y productos que más se mueven; código propio de
     producto; menú de escritorio con confirmación, progreso y errores claros. Ver
     docs/auditoria-mejoras-30-puntos-2026-09-21.md.
+    Plan de servicios, etiquetas, caja y traslados (2026-10-22): completado en la 2.5.0
+    (2026-10-27) — cobro por líneas en servicios (mano de obra y accesorios con su precio, que
+    corrige el precio que se acumulaba), tipos de servicio con precio de mano de obra, recepción de
+    varios inyectores a la vez, orden de productos y etiquetas con orden y copias, "Debe haber al
+    contar" destacado en el cierre, traslados a la otra sede con guía en PDF y crear lo que falta
+    desde el mismo formulario. Ver docs/auditoria-mejoras-2026-10-22.md.
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
     cliente importados y conciliados contra el stock auxiliar legacy. Ver "Fase 10" abajo y
@@ -394,9 +400,16 @@ Implementado como parte del backlog de la visita al cliente (§2.2, §2.3):
 
 - proforma desde el listado de productos (`POST /api/documents/proforma/`), cliente opcional;
 - factura interna descargable para ventas confirmadas (`GET /api/documents/sales/{id}/invoice/`);
-- factura interna descargable para servicios entregados (`GET /api/documents/services/{id}/invoice/`) — un solo renglón por el precio total del servicio (incluye accesorios), con lista informativa de accesorios sin precio aparte para no duplicar el total;
+- factura interna descargable para servicios entregados (`GET /api/documents/services/{id}/invoice/`) — desde la 2.5.0 con el detalle: un renglón por cada línea de cobro y por cada accesorio, con su cantidad y precio (antes, un solo renglón por el total);
 - **no son comprobantes fiscales/Hacienda** — son comprobantes internos para el cliente, confirmado explícitamente con Alejandro.
 - estilo visual con los colores de marca de la app (banda de encabezado, tabla con encabezado de color, filas zebra, barra de total).
+
+Agregado después:
+
+- 2.4.0: PDF de todos los reportes, de Movimientos y del cierre de caja (con "Descargar PDF" e
+  "Imprimir");
+- 2.5.0: guía de traslado a otra sede (`GET /api/inventory/stock-transfers/{id}/guide/`), solo con
+  cantidades y una columna "Recibido" para anotar.
 
 Candidatos todavía sin construir (no debe avanzarse sin validar primero cuáles necesita realmente el negocio):
 

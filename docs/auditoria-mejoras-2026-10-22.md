@@ -1,3 +1,7 @@
+> **Estado: implementado y liberado en la 2.5.0 (2026-10-27).** La sección 6 resume cómo quedó
+> cada punto y la 7 las dudas resueltas; el detalle de lo liberado está en `CHANGELOG.md`. Lo que
+> sigue se conserva como registro del plan original y de las decisiones.
+
 # Auditoría y plan de trabajo: servicios, etiquetas, caja y traslados (2026-10-22)
 
 > **Qué es este archivo.** Es el prompt y el material de apoyo para implementar los 6 puntos que
@@ -420,7 +424,7 @@ Versión: todo esto va en la **2.5.0**.
       una nueva); quitar y anular devuelven solo la salida vigente; "Nuevo" tipo de servicio en
       ventana con el formulario completo (primer uso del `Dialog` del punto 7); factura con el
       detalle; aviso al entregar con total ₡0. `ServiceTypePriceHistory` dejó de escribirse y
-      leerse; el modelo sigue (ver sección 7).
+      leerse; el modelo se borró antes de liberar (`customers/0015`, ver sección 7).
 - [x] 2 + 4 — Orden de productos; orden y copias de etiquetas. La lista ordena con `?ordering=`
       (selector y clic en los encabezados; recuerda el último orden; colación ICU `lics_natural`,
       migración `inventory/0027`). "Generar etiquetas" abre una ventana con los seleccionados (aunque
@@ -471,7 +475,7 @@ Consultar cada una al empezar su punto:
 
 1. (5) ¿Unificar "Total esperado" del formulario y "Cobrado" del detalle como "Total cobrado"?
 2. (3 + 1B) ¿Borrar `ServiceTypePriceHistory`? Desde el 3 + 1B ya no se escribe ni se lee (sus
-   datos eran totales con accesorios); el modelo, su tabla y su endpoint de solo lectura siguen.
-   Borrarlo es una migración destructiva aparte: decidir antes de liberar la 2.5.0.
+   datos eran totales con accesorios). **Sí** (2026-10-27): se borraron el modelo, su tabla y su
+   endpoint de solo lectura (migración destructiva `customers/0015`), antes de liberar la 2.5.0.
 3. (7) ¿Ventas puede crear un cliente desde la venta o la proforma? **Sí** (2026-10-25): el rol
    Ventas recibe `add_customers`, sin `change_customers`.

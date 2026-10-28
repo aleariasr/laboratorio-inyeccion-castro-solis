@@ -20,6 +20,145 @@ Nada pendiente de registrar.
 
 ---
 
+## [2.5.0] - 2026-10-27
+
+> Implementa el plan del 2026-10-22 (`docs/auditoria-mejoras-2026-10-22.md`;
+> la sección 6 tiene el detalle de cada punto): servicios con cobro por
+> líneas, recepción completa, orden de productos y etiquetas, traslados a
+> la otra sede y crear lo que falta desde el mismo formulario.
+
+### Cómo llevar esta versión a una instalación existente
+
+- **Django y Next:** con el release offline de `2.5.0` copiado en
+  `C:\lics-dev\`, usar **LICS > Actualizar aplicación (Django/Next)…**.
+  `update.sh` respalda, corre las migraciones y vuelve a correr
+  `setup_roles`, así que el permiso nuevo de Ventas y los de traslados se
+  aplican solos.
+- **App de escritorio:** esta versión no cambia el `.exe`. No hace falta
+  reinstalarlo.
+- **Migraciones:**
+  - `customers/0012`: precio de mano de obra del tipo de servicio (vacío en
+    los existentes) y descripción como texto libre. Aditiva.
+  - `customers/0013`: líneas de cobro. **Mueve datos sin cambiar montos:**
+    cada servicio que tenía precio queda con una línea "Servicio" por ese
+    mismo precio y sus accesorios en ₡0. El total de cada servicio, lo
+    congelado de los entregados y los cierres de caja quedan iguales.
+  - `customers/0014`: quita el kit de accesorios del tipo de servicio
+    (agregado en la `0012`). Destructiva solo para esa lista de referencia,
+    sin movimientos de inventario.
+  - `customers/0015`: borra el histórico de precios por tipo de servicio
+    (`ServiceTypePriceHistory`). **Destructiva para esa tabla:** guardaba el
+    total de cada servicio, con los accesorios, como si fuera el precio del
+    tipo, y era la causa del precio que se acumulaba. Ya no se escribía ni
+    se leía. No toca servicios, líneas, accesorios ni montos cobrados.
+  - `inventory/0027`: colación ICU `lics_natural` para ordenar "A2" antes
+    que "A10". No toca tablas.
+  - `inventory/0028` y `0029`: sedes, traslados y sus líneas, el tipo de
+    movimiento "Traslado a sede" y la sede "Otra sede" ya creada. Aditivas.
+  - `core/0005`: permisos `view/add/change/cancel_transfers`, solo para el
+    Administrador. Aditiva.
+- **Servicios existentes:** revisar en el detalle de los servicios abiertos
+  que la línea "Servicio" migrada tenga el concepto correcto. Se puede
+  cambiar o partir en mano de obra y accesorios antes de entregar.
+- **Sede:** renombrar "Otra sede" desde el panel de administración
+  (Inventario › Sedes) con el nombre real.
+
+### Added
+
+- **Cobro por líneas en los servicios** (puntos 3 y 1B):
+  - "Mano de obra" u otros conceptos, cada uno con cantidad y precio;
+  - los accesorios llevan su propio precio, fijo al agregarlos (el precio
+    de venta del producto en ese momento);
+  - el total se calcula solo y ya no se escribe a mano;
+  - la factura muestra el detalle.
+  Solo el Administrador ve y cambia montos.
+- **Accesorios editables** en el servicio: cantidad, precio y notas. Al
+  cambiar la cantidad se revierte la salida de inventario vigente y se
+  registra una nueva; quitar el accesorio o anular el servicio devuelve
+  solo la salida vigente.
+- **Tipo de servicio completo** (punto 1A): precio de mano de obra (solo lo
+  ve el Administrador; es el precio que propone la línea), descripción de
+  qué incluye y pantalla para administrarlos en Servicios › Tipos de
+  servicio.
+- **Recepción completa del servicio** (punto 1C):
+  - cliente, uno o varios inyectores del mismo cliente, fecha, tipo de
+    servicio (solo el Administrador) y lo que reporta el cliente de cada
+    inyector, en un solo formulario;
+  - un servicio por inyector, todos o ninguno
+    (`POST /api/customers/service-records/receive/`, hasta 20);
+  - cliente y tipo se crean desde la lista; el inyector, con "+ Nuevo
+    inyector de …" con el cliente ya puesto;
+  - cada fila avisa si el inyector ya tiene un servicio abierto, sin
+    bloquear.
+- **"Corregir recepción"** en el detalle del servicio: inyector (del mismo
+  cliente) y fecha de recepción, mientras no esté entregado.
+- **Aviso al entregar un servicio con total ₡0.**
+- **Orden de la lista de productos** (punto 2): por código, nombre,
+  descripción, ubicación, existencia, fecha de registro o de modificación,
+  ascendente o descendente, desde el selector o los encabezados. Recuerda
+  el último orden. El código y la ubicación se ordenan de forma natural
+  ("A2" antes que "A10").
+- **Etiquetas con orden y copias** (puntos 2 y 4): "Generar etiquetas" abre
+  una ventana con los productos seleccionados (aunque estén en otras
+  páginas), el orden (propuesto: el de la lista) y las copias de cada uno
+  (1 por defecto, con un atajo para poner la misma cantidad a todos).
+- **Traslados a la otra sede** (punto 6), en Inventario › Traslados, solo
+  para el Administrador:
+  - documento con líneas: borrador → confirmar (sale el inventario) →
+    anular con motivo obligatorio (vuelve);
+  - guía de traslado en PDF, solo con cantidades y una columna "Recibido"
+    para anotar;
+  - la sede se elige de una lista y se crea desde el mismo traslado;
+  - Movimientos muestra "Traslado #N" con enlace. "Productos que más se
+    mueven" no los cuenta; Bajo mínimo sí los refleja.
+- **Crear lo que falta desde el mismo formulario** (punto 7), en una
+  ventana encima que no pierde lo escrito y deja elegido lo creado:
+  - en los buscadores (cliente, proveedor, producto), cuando no hay
+    resultados: "+ Crear … «lo buscado»", con lo buscado ya escrito;
+  - en las listas desplegables (ubicación, sede, tipo de servicio,
+    categoría de costo): la última opción "+ Nueva …".
+  Solo aparece para quien puede crear eso. Cerrar con Esc o la × pregunta
+  si hay cambios, y Ctrl+S guarda solo la ventana abierta.
+
+### Changed
+
+- **El rol Ventas puede crear clientes** desde la venta o la proforma
+  (`add_customers`), sin editarlos.
+- **Cierre de caja** (punto 5): "Debe haber al contar" grande, centrado y
+  arriba, antes del desglose (también en el detalle, sin repetirse);
+  "Total cobrado" centrado y con ese nombre en el formulario y el detalle.
+- **Formularios y pantallas uniformes en todo el sistema:**
+  - fechas en el mismo formato;
+  - montos en colones con ₡, alineados a la derecha;
+  - filtros de fechas con su etiqueta;
+  - escanear en cualquier buscador de producto elige el producto solo;
+  - ya no hay botones "Nuevo" al lado de los campos: se crea desde la
+    lista, lo que obliga a buscar antes y evita duplicados.
+- `POST /api/inventory/products/labels/` acepta `items` (producto y copias,
+  en el orden en que se imprimen); `product_ids` se sigue aceptando.
+
+### Fixed
+
+- **El precio sugerido del servicio crecía cada vez que se guardaba**
+  (punto 3): se anotaba el total, con los accesorios, como precio del
+  tipo, y el sugerido les volvía a sumar los accesorios.
+
+### Removed
+
+- Kit de accesorios del tipo de servicio: se agregó en esta misma versión y
+  se quitó porque descontaba inventario por suposición.
+- Histórico de precios por tipo de servicio (`ServiceTypePriceHistory`) y
+  su endpoint de solo lectura
+  `/api/customers/service-type-price-history/`.
+
+### Pending
+
+- Lo pendiente de la 2.4.0 sigue igual: probar en la máquina Windows el
+  menú LICS e "Imprimir", y "Actualizar aplicación" de punta a punta con
+  hardware real.
+
+---
+
 ## [2.4.0] - 2026-10-22
 
 > Implementa las 30 mejoras auditadas el 2026-09-21

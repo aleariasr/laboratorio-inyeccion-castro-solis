@@ -451,7 +451,7 @@ Estos documentos no describen el estado actual del sistema; son insumos y trabaj
 
 - [Backlog de la visita al cliente (2026-09, 20 puntos)](backlog-cliente-2026-09.md) — ya implementado salvo §5; se conserva como registro de la decisión original.
 - [Auditoría y plan de 30 mejoras (2026-09-21)](auditoria-mejoras-30-puntos-2026-09-21.md) — implementada en la 2.4.0 (el punto 6 se descartó); la sección 6 resume cada punto y la sección 3 las decisiones del cliente.
-- [Auditoría y plan: servicios, etiquetas, caja y traslados (2026-10-22)](auditoria-mejoras-2026-10-22.md) — plan para la 2.5.0, en curso; la sección 3 tiene las decisiones y la 6 el avance.
+- [Auditoría y plan: servicios, etiquetas, caja y traslados (2026-10-22)](auditoria-mejoras-2026-10-22.md) — implementado en la 2.5.0; la sección 3 tiene las decisiones y la 6 cómo quedó cada punto.
 
 ---
 
@@ -459,7 +459,7 @@ Estos documentos no describen el estado actual del sistema; son insumos y trabaj
 
 Versión actual:
 
-    2.4.0
+    2.5.0
 
 Estado resumido:
 
@@ -485,6 +485,12 @@ Estado resumido:
     reportes y del cierre; Excel de movimientos y productos que más se mueven; código propio de
     producto; menú de escritorio con confirmación, progreso y errores claros. Ver
     [auditoria-mejoras-30-puntos-2026-09-21.md](auditoria-mejoras-30-puntos-2026-09-21.md).
+    Plan de servicios, etiquetas, caja y traslados (2026-10-22): completado en la 2.5.0
+    (2026-10-27) — cobro por líneas en servicios (mano de obra y accesorios con su precio, que
+    corrige el precio que se acumulaba), tipos de servicio con precio de mano de obra, recepción de
+    varios inyectores a la vez, orden de productos y etiquetas con orden y copias, "Debe haber al
+    contar" destacado en el cierre, traslados a la otra sede con guía en PDF y crear lo que falta
+    desde el mismo formulario. Ver [auditoria-mejoras-2026-10-22.md](auditoria-mejoras-2026-10-22.md).
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
     cliente importados y conciliados contra el stock auxiliar legacy. Ver

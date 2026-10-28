@@ -35,7 +35,7 @@ LICS está orientado a producción real, no a prototipo académico. Las decision
 
 Versión actual:
 
-    2.4.0
+    2.5.0
 
 Estado actual:
 
@@ -51,6 +51,11 @@ Estado actual:
     roles nuevos con permiso para ver costos, resumen de ventas comparativo, PDF e impresión de
     reportes, Excel de movimientos, código propio de producto y menú de escritorio con progreso.
     Ver docs/auditoria-mejoras-30-puntos-2026-09-21.md y CHANGELOG.md.
+    Plan de servicios, etiquetas, caja y traslados (2026-10-22): completado en la 2.5.0 — cobro
+    por líneas en servicios (mano de obra y accesorios con su precio), recepción de varios
+    inyectores a la vez, orden de productos y etiquetas con copias, traslados a la otra sede con
+    guía en PDF y crear cliente, producto, proveedor, etc. desde el mismo formulario.
+    Ver docs/auditoria-mejoras-2026-10-22.md y CHANGELOG.md.
     Migración de datos legacy DBF del cliente (proveedores, productos y compras): completada
     (2026-09-09) — ver docs/dbf-migration-closure.md.
     Validación con flujos y datos reales: pendiente.
@@ -184,8 +189,9 @@ Documento principal de cierre:
 - Validación de stock suficiente.
 - Clientes.
 - Inyectores.
-- Servicios de inyector: precio (sugerido desde tipo de servicio + accesorios reales usados, editable), descuento e impuesto congelados al entregar, método de pago, catálogo de "Tipo de Servicio" con histórico de precio. Solo el Administrador pone el precio y entrega.
+- Servicios de inyector: recepción de uno o varios inyectores del mismo cliente a la vez (un servicio por inyector); cobro por líneas (mano de obra u otros conceptos con cantidad y precio, más los accesorios con su precio fijado al agregarlos), con el total calculado; descuento e impuesto congelados al entregar, método de pago, catálogo de "Tipo de Servicio" con precio de mano de obra y descripción. Solo el Administrador ve y pone montos y entrega.
 - Accesorios de servicio ligados al inventario real de productos, con descuento y reversión de stock.
+- Traslados a otra sede: documento con líneas (borrador, confirmar que descuenta inventario, anular con motivo que lo devuelve) y guía en PDF sin costos; solo ADMIN.
 - Cierre de caja semanal (sábado a viernes), suma ventas y servicios por método de pago (efectivo/tarjeta/transferencia/otro), con desglose por método, impuestos cobrados (aparte del ingreso) y descuentos congelados al cerrar; caja chica con fondo semanal y salidas; solo ADMIN.
 - Documentos PDF: etiquetas, proforma (con cantidades, descuento e impuesto) y facturas internas (no fiscales) para ventas confirmadas y servicios entregados.
 - Conteo físico.
@@ -204,14 +210,16 @@ Documento principal de cierre:
 - Panel de inicio accionable: servicios listos para entregar, productos bajo mínimo, borradores de venta y de compra pendientes, alerta de cierre de caja pendiente de la semana, y "vistos recientemente" con los últimos elementos abiertos en todo el sistema (productos, ubicaciones, proveedores, compras, ventas, clientes, inyectores, servicios y cierres de caja).
 - Pantalla administrativa de estado del sistema.
 - Búsqueda universal con atajo de teclado y navegación a detalle, cubriendo productos (nombre/descripción/código), ubicaciones, proveedores, clientes (nombre/identificación/teléfono), ventas y servicios de inyector.
-- Módulo de productos: listado, detalle, creación, edición, precio de venta editable con sugerencia, código propio, variantes original/genérico bajo el mismo código (creación guiada con ubicación propia, sin afectar el formulario normal de creación), historial de movimientos e impresión de etiquetas.
+- Módulo de productos: listado ordenable (código, nombre, descripción, ubicación, existencia o fechas, con orden natural y recordando el último), detalle, creación, edición, precio de venta editable con sugerencia, código propio, variantes original/genérico bajo el mismo código (creación guiada con ubicación propia, sin afectar el formulario normal de creación), historial de movimientos e impresión de etiquetas con el orden elegido y copias por producto.
 - Módulo de ubicaciones: listado, detalle, creación y edición.
 - Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
 - Módulo de compras: listado con filtros, detalle, creación, edición de borrador, líneas de compra, confirmación y anulación con motivo.
 - Módulo de costos de importación: categorías, costos por compra con conversión de moneda mediante tipo de cambio, resumen de costos con desglose por producto, aplicación de costos e histórico append-only.
 - Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con el precio de venta precargado (y selección automática al escanear el código propio o universal) y validación de stock disponible, descuento e impuesto con resumen en vivo, confirmación y anulación con motivo, método de pago, descarga de factura interna para ventas confirmadas.
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
-- Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), y bandeja operativa de servicios (recepción, iniciar, marcar listo, entregar, anular — la entrega exige que el servicio tenga precio definido) con datos técnicos editables, precio con sugerencia (tipo de servicio + accesorios usados) y método de pago, gestión de accesorios reales de inventario, tarjeta resumen de precio total, y descarga de factura interna para servicios entregados.
+- Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), recepción en un solo formulario (cliente, varios inyectores, fecha, tipo y lo que reporta el cliente, con aviso si el inyector ya tiene un servicio abierto), "Corregir recepción" mientras no esté entregado, y bandeja operativa de servicios (iniciar, marcar listo, entregar, anular — la entrega exige que el servicio tenga total) con datos técnicos editables, líneas de cobro, accesorios reales de inventario editables (cantidad, precio y notas), método de pago, aviso al entregar en ₡0 y descarga de factura interna con el detalle para servicios entregados. Tipos de servicio en `/services/types`.
+- Módulo de traslados (`/inventory/transfers`, solo ADMIN): listado, creación con líneas, confirmación, anulación con motivo y guía en PDF; la sede se elige o se crea desde el mismo traslado.
+- Crear desde el formulario: cuando un buscador no encuentra lo escrito ofrece "+ Crear … «lo buscado»", y las listas desplegables terminan en "+ Nueva …"; ambos abren una ventana encima que deja elegido lo creado sin perder lo escrito (cliente, proveedor, producto, ubicación, sede, tipo de servicio, inyector, categoría de costo).
 - Módulo de cierre de caja: listado con filtro por fechas y buscador, detalle con PDF, creación eligiendo de la lista de semanas por cerrar, con previsualización del desglose esperado por método de pago (efectivo/tarjeta/transferencia/otro), los impuestos y el ingreso del negocio, y la caja chica (fondo, salidas y saldo) antes de confirmar; un único campo de "total contado" que se compara contra lo cobrado más el saldo de caja chica (así se concilia igual que en el proceso real: efectivo + vouchers de datáfono + comprobantes de transferencia contra lo registrado); semana sábado-viernes, solo visible para ADMIN.
 - Proforma: desde Ventas (`/sales/proforma`, con cantidades) o desde el listado de productos, cliente opcional, descuento e impuesto.
 - Mi cuenta: cambio de la propia contraseña.
@@ -394,6 +402,7 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/inventory/locations/
     GET /api/inventory/products/
     GET /api/inventory/products/?standard_code=<codigo>
+    GET /api/inventory/products/?ordering=-current_stock
     POST /api/inventory/products/{id}/add-variant/
     POST /api/inventory/products/labels/
     GET /api/inventory/suppliers/
@@ -413,6 +422,12 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/inventory/inventory-counts/
     POST /api/inventory/inventory-counts/{id}/approve/
     POST /api/inventory/inventory-counts/{id}/cancel/
+    GET /api/inventory/branches/
+    GET /api/inventory/stock-transfers/
+    POST /api/inventory/stock-transfers/{id}/confirm/
+    POST /api/inventory/stock-transfers/{id}/cancel/
+    GET /api/inventory/stock-transfers/{id}/guide/
+    GET /api/inventory/stock-transfer-items/
 
 ## Ventas
 
@@ -428,12 +443,13 @@ autenticados sin privilegios administrativos reciben `403 Forbidden`.
     GET /api/customers/customers/
     GET /api/customers/injectors/
     GET /api/customers/service-records/
+    POST /api/customers/service-records/receive/
     POST /api/customers/service-records/{id}/start/
     POST /api/customers/service-records/{id}/mark-ready/
     POST /api/customers/service-records/{id}/deliver/
     POST /api/customers/service-records/{id}/cancel/
-    GET /api/customers/accessories/
     GET /api/customers/service-accessories/
+    GET /api/customers/service-charge-lines/
     GET /api/customers/service-types/
 
 ## Caja
@@ -514,6 +530,7 @@ Documentos operativos:
 Insumos y trabajo en curso (no son documentación de referencia del sistema tal como está hoy):
 
 - [Backlog de la visita al cliente (2026-09, 20 puntos)](docs/backlog-cliente-2026-09.md) — ya implementado.
+- [Plan de servicios, etiquetas, caja y traslados (2026-10-22)](docs/auditoria-mejoras-2026-10-22.md) — implementado en la 2.5.0.
 
 ---
 
@@ -529,16 +546,16 @@ Validación técnica del backend base:
     Build backend Docker: OK
 
 El backend base queda cerrado como `0.2.0-alpha`. Las fases posteriores (frontend operativo,
-backlog de la visita al cliente 2026-09, auditoría de 30 mejoras de la 2.4.0) están descritas en
-[Roadmap](docs/roadmap.md).
+backlog de la visita al cliente 2026-09, auditoría de 30 mejoras de la 2.4.0, plan del 2026-10-22
+de la 2.5.0) están descritas en [Roadmap](docs/roadmap.md).
 
 ---
 
 # Pendientes principales
 
-El frontend operativo, el backlog de la visita al cliente (2026-09) y la auditoría de 30 mejoras
-(2.4.0) ya están completos — ver [Roadmap](docs/roadmap.md). Lo que queda antes de operar con
-datos reales del negocio:
+El frontend operativo, el backlog de la visita al cliente (2026-09), la auditoría de 30 mejoras
+(2.4.0) y el plan del 2026-10-22 (2.5.0) ya están completos — ver [Roadmap](docs/roadmap.md). Lo
+que queda antes de operar con datos reales del negocio:
 
 1. Validación con usuarios y datos reales (Fase 8 del roadmap): revisión de flujos, campos,
    reportes, documentos y permisos reales, con el negocio operando de verdad.

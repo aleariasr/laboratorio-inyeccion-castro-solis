@@ -153,6 +153,27 @@ Reglas:
 - ningún movimiento debe borrarse físicamente en operación normal;
 - las correcciones deben hacerse con movimientos compensatorios.
 
+> Nota de implementación (2.5.0): tipo nuevo `TRANSFER_OUT` ("Traslado a sede"), con FK
+> `stock_transfer_item` a la línea del traslado (obligatoria para ese tipo). Lo crea solo la
+> confirmación del traslado vía `StockMovement.create_from_service`; anularlo registra reversiones.
+
+### Branch, StockTransfer y StockTransferItem (2.5.0)
+
+Traslados de mercadería a otra sede (punto 6 del plan del 2026-10-22). Solo salidas: no hay
+devoluciones desde la otra sede.
+
+- `Branch`: sede de destino, `name` único y activa/inactiva. La migración `inventory/0029` deja
+  creada "Otra sede"; se crean desde el traslado y se renombran o desactivan en el admin.
+- `StockTransfer`: `branch`, `transfer_date`, `status` (`DRAFT` / `CONFIRMED` / `CANCELLED`),
+  `notes`, quién y cuándo confirmó, quién y cuándo anuló, y `cancellation_reason` (obligatorio).
+  Mismo ciclo que una venta: en borrador se arman las líneas; al confirmar sale el inventario;
+  al anular uno confirmado vuelve.
+- `StockTransferItem`: `stock_transfer`, `product` y `quantity` (mayor que cero). Sin costos ni
+  precios: la guía en PDF lleva solo cantidades.
+
+Los traslados cuentan en Movimientos y en la existencia (Bajo mínimo), pero no en "Productos que
+más se mueven". Permisos `view/add/change/cancel_transfers`, solo del Administrador.
+
 ## Proveedores
 
 ### Supplier
@@ -380,6 +401,13 @@ Campos conceptuales:
 
 > Nota de implementación (2.4.0): además tiene `price` (precio total del servicio, sugerido desde el tipo de servicio y los accesorios usados), `payment_method`, descuento e impuesto con los mismos campos y el mismo cálculo que `Sale`, congelados al entregar. Solo el Administrador pone el precio y entrega (`ModuleAdminRequired`). Lo que cuenta en caja y reportes es `delivered_services()`: entregados y activos, por la fecha de entrega.
 
+> Nota de implementación (2.5.0): `price` ya no se escribe a mano. Es el subtotal que calcula
+> `recalculate_service_price` (`apps/customers/services/service_charges.py`) cada vez que cambia
+> una línea de cobro o un accesorio: suma de líneas (cantidad × precio) más accesorios (cantidad ×
+> precio). Sin líneas ni accesorios queda nulo y el servicio no se entrega. La recepción crea uno o
+> varios servicios del mismo cliente a la vez, uno por inyector, en una transacción
+> (`receive_injectors`, `POST /api/customers/service-records/receive/`, hasta 20).
+
 > Nota de implementación: el modelo real (`InjectorServiceRecord`) **no** tiene campos directos `cliente` ni `número de inyector`. Referencia un `injector` (FK a `Injector`), y es `Injector` quien tiene `customer` (FK a `Customer`) e `injector_number`. Es decir, cliente y número de inyector se obtienen indirectamente vía `injector.customer` e `injector.injector_number`. El campo `status` (`RECEIVED` / `IN_PROGRESS` / `READY` / `DELIVERED` / `CANCELLED`) tampoco aparece en la lista conceptual anterior y es central para el flujo de servicio (acciones `start`, `mark-ready`, `deliver`, `cancel`).
 
 ### InjectorAccessory
@@ -409,6 +437,26 @@ Campos conceptuales:
 - notas.
 
 Esta relación evita columnas repetidas y mantiene el modelo normalizado.
+
+> Nota de implementación (2.5.0): el accesorio real es un producto de inventario y tiene
+> `unit_price`, el precio fijo por unidad que se toma del precio de venta del producto al
+> agregarlo (los anteriores a la 2.5.0 quedaron en 0). Cambiar la cantidad revierte la salida de
+> inventario vigente y registra una nueva.
+
+### ServiceChargeLine (2.5.0)
+
+Línea de cobro del servicio que no es un accesorio: `service_record`, `service_type` opcional (de
+dónde se propuso), `description` (por ejemplo "Mano de obra"), `quantity` y `unit_price`. Solo el
+Administrador las ve y las cambia. La migración `customers/0013` dejó a cada servicio que tenía
+precio con una línea "Servicio" por ese mismo precio, sin cambiar ningún monto.
+
+### ServiceType
+
+Tipo de servicio: `name` único, `description` (qué incluye, texto libre) y `default_labor_price`
+(2.5.0; precio de mano de obra que propone la línea de cobro, solo visible para el
+Administrador). Desde la 2.5.0 ya no existe `ServiceTypePriceHistory` (migración `customers/0015`):
+guardaba el total de cada servicio, con los accesorios, como precio del tipo, y era la causa del
+precio que se acumulaba.
 
 ## Documentos PDF
 
@@ -445,6 +493,11 @@ tornillo bloqueo cummins
 El sistema debe permitir seleccionar varias etiquetas y generarlas en una misma hoja PDF.
 
 > Nota de implementación (2.4.0): la etiqueta de producto que imprime la pantalla (`apps/inventory/services/product_labels.py`, `POST /api/inventory/products/labels/`) muestra la ubicación, el código universal, el nombre y, si lo hay, el código propio; el código de barras Code128 lleva el código propio cuando existe y si no el universal (`label_barcode_value`), y compras y ventas reconocen ese mismo código al escanear.
+
+> Nota de implementación (2.5.0): el endpoint acepta `items` (`product_id` y `copies`) y las imprime
+> en el orden recibido; la pantalla las ordena con el mismo criterio que la lista de productos
+> (`?ordering=`, orden natural con la colación ICU `lics_natural`). `product_ids` (una copia de
+> cada uno) se sigue aceptando.
 
 ## Reportes
 
