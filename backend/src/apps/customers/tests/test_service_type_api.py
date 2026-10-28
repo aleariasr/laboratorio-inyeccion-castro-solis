@@ -15,7 +15,6 @@ from apps.customers.models import (
     Injector,
     InjectorServiceRecord,
     ServiceType,
-    ServiceTypePriceHistory,
 )
 
 User = get_user_model()
@@ -104,66 +103,6 @@ class ServiceTypeApiTest(APITestCase):
             "Descripción actualizada",
         )
         self.assertEqual(self.service_type.updated_by, self.user)
-
-
-class ServiceTypePriceHistoryNotWrittenTest(APITestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="admin",
-            password="12345678",
-        )
-
-        call_command("setup_roles")
-
-        self.user.groups.add(
-            Group.objects.get(name=ROLE_ADMIN),
-        )
-
-        self.client.force_authenticate(self.user)
-
-        self.customer = Customer.objects.create(
-            customer_type=CustomerType.PERSON,
-            display_name="Cliente prueba",
-            identification="987654321",
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        self.injector = Injector.objects.create(
-            customer=self.customer,
-            injector_number="0445110184",
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        self.service_record = InjectorServiceRecord.objects.create(
-            injector=self.injector,
-            received_at=timezone.now(),
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        self.service_type = ServiceType.objects.create(
-            name="Arreglar carro",
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-    def test_saving_a_service_no_longer_records_its_total_as_type_price(self):
-        # Punto 3 del plan del 2026-10-22: guardar el servicio anotaba su
-        # precio total (con accesorios) como precio del tipo, y el sugerido
-        # le volvía a sumar los accesorios. Ya no se anota nada.
-        response = self.client.patch(
-            f"/api/customers/service-records/{self.service_record.id}/",
-            {
-                "service_type": self.service_type.id,
-                "price": "15000.0000",
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(ServiceTypePriceHistory.objects.count(), 0)
 
 
 from apps.core.permissions import ROLE_CUSTOMERS  # noqa: E402

@@ -16,7 +16,6 @@ from apps.customers.models import (
     InjectorServiceRecord,
     InjectorServiceStatus,
     ServiceType,
-    ServiceTypePriceHistory,
 )
 from apps.inventory.models import (
     MovementDirection,
@@ -190,7 +189,6 @@ class ServiceChargesApiTest(APITestCase):
         self.assertEqual(self.price(), Decimal("18500"))
         self.service_type.refresh_from_db()
         self.assertEqual(self.service_type.default_labor_price, Decimal("15000"))
-        self.assertEqual(ServiceTypePriceHistory.objects.count(), 0)
 
     def test_accessory_price_is_fixed_when_added(self):
         response = self.add_accessory(self.filter, 1)

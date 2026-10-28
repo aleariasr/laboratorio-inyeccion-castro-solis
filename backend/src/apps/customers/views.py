@@ -40,7 +40,6 @@ from apps.customers.serializers import (
     InjectorServiceRecordSerializer,
     ServiceChargeLineSerializer,
     ServiceReceptionSerializer,
-    ServiceTypePriceHistorySerializer,
     ServiceTypeSerializer,
 )
 from apps.customers.services import (
@@ -67,7 +66,6 @@ from apps.customers.models import (
     InjectorServiceRecord,
     ServiceChargeLine,
     ServiceType,
-    ServiceTypePriceHistory,
 )
 
 
@@ -526,26 +524,6 @@ class ServiceTypeViewSet(viewsets.ModelViewSet):
         serializer.save(
             updated_by=self.request.user,
         )
-
-
-class ServiceTypePriceHistoryViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = ServiceTypePriceHistorySerializer
-    # Son precios cobrados: solo el Administrador (punto 25).
-    permission_classes = [ServicesPermission, ModuleAdminRequired]
-
-    def get_queryset(self):
-        queryset = (
-            ServiceTypePriceHistory.objects
-            .select_related("service_type", "service_record")
-            .order_by("-charged_at", "-id")
-        )
-
-        service_type_id = self.request.query_params.get("service_type")
-
-        if service_type_id:
-            queryset = queryset.filter(service_type_id=service_type_id)
-
-        return queryset
 
 
 class InjectorServiceAccessoryViewSet(

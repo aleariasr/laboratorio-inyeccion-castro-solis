@@ -6,7 +6,6 @@ from .models import (
     InjectorServiceAccessory,
     InjectorServiceRecord,
     ServiceType,
-    ServiceTypePriceHistory,
 )
 
 
@@ -114,21 +113,4 @@ class ServiceTypeAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "is_active",
-    )
-
-
-@admin.register(ServiceTypePriceHistory)
-class ServiceTypePriceHistoryAdmin(admin.ModelAdmin):
-    list_display = (
-        "service_type",
-        "service_record",
-        "price",
-        "charged_at",
-    )
-    search_fields = (
-        "service_type__name",
-        "service_record__injector__injector_number",
-    )
-    list_filter = (
-        "charged_at",
     )

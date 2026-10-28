@@ -20,7 +20,6 @@ from apps.customers.models import (
     InjectorServiceStatus,
     ServiceChargeLine,
     ServiceType,
-    ServiceTypePriceHistory,
 )
 
 
@@ -563,27 +562,6 @@ class ServiceReceptionSerializer(ModuleAdminContextMixin, serializers.Serializer
             )
 
         return items
-
-
-class ServiceTypePriceHistorySerializer(serializers.ModelSerializer):
-    service_type_detail = ServiceTypeSummarySerializer(
-        source="service_type",
-        read_only=True,
-    )
-
-    class Meta:
-        model = ServiceTypePriceHistory
-        fields = (
-            "id",
-            "service_type",
-            "service_type_detail",
-            "service_record",
-            "price",
-            "charged_at",
-            "created_at",
-            "updated_at",
-        )
-        read_only_fields = fields
 
 
 ACCESSORY_PRICE_ONLY_ADMIN_MESSAGE = (

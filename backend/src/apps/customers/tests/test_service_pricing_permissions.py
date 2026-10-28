@@ -293,13 +293,6 @@ class ServicePricingPermissionApiTest(APITestCase):
         self.assertEqual(creation.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(update.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_operator_cannot_read_price_history(self):
-        self.client.force_authenticate(self.operator)
-
-        response = self.client.get("/api/customers/service-type-price-history/")
-
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
     # --- El Administrador ------------------------------------------------
 
     def test_admin_sees_price_and_accessory_prices(self):

@@ -45,7 +45,6 @@ from apps.customers.models import (
     InjectorServiceAccessory,
     InjectorServiceRecord,
     ServiceType,
-    ServiceTypePriceHistory,
 )
 from apps.customers.services.customer import (
     register_customer,
@@ -452,7 +451,6 @@ class Command(BaseCommand):
 
         StockMovement.objects.filter(reverses_movement__isnull=False).delete()
         StockMovement.objects.all().delete()
-        ServiceTypePriceHistory.objects.all().delete()
         InjectorServiceAccessory.objects.all().delete()
         InjectorServiceRecord.objects.all().delete()
         Injector.objects.all().delete()
