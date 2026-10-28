@@ -60,7 +60,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -222,7 +222,7 @@ export default function EditPurchasePage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione una compra válida."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -276,7 +276,7 @@ export default function EditPurchasePage() {
       description={
         loadState.status === "success"
           ? loadState.purchase.supplier_detail.name
-          : "Modifique la información registrada de la compra."
+          : "Información registrada de la compra."
       }
     >
       {loadState.status === "loading" && <LoadingState message="Consultando compra…" />}

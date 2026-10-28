@@ -60,7 +60,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -222,7 +222,7 @@ export default function EditSupplierPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un proveedor válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -272,7 +272,7 @@ export default function EditSupplierPage() {
       description={
         loadState.status === "success"
           ? loadState.supplier.country || "Empresa que suministra productos al laboratorio."
-          : "Modifique la información registrada del proveedor."
+          : "Información registrada del proveedor."
       }
     >
       {loadState.status === "loading" && <LoadingState message="Consultando proveedor…" />}

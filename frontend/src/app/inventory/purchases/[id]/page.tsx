@@ -604,7 +604,7 @@ export default function PurchaseDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione una compra válida."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -630,7 +630,7 @@ export default function PurchaseDetailPage() {
       >
         <StatePanel
           title="No tiene acceso a la compra"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -938,8 +938,8 @@ export default function PurchaseDetailPage() {
 
                   <p className="mt-1 text-sm text-muted-foreground">
                     {itemFormState.mode === "create"
-                      ? "Busque el producto en todo el catálogo."
-                      : "Actualice la cantidad o el costo unitario."}
+                      ? "Producto de todo el catálogo, con su cantidad y costo."
+                      : "Cantidad y costo unitario de la línea."}
                   </p>
                 </div>
 
@@ -1091,7 +1091,7 @@ export default function PurchaseDetailPage() {
                 disabled={loadState.purchase.items.length === 0}
                 title={
                   loadState.purchase.items.length === 0
-                    ? "Agregue al menos una línea antes de confirmar."
+                    ? "Confirmar requiere al menos una línea."
                     : undefined
                 }
                 onClick={() => {

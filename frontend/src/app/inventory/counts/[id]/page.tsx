@@ -651,7 +651,7 @@ export default function InventoryCountDetailPage() {
     if (!trimmedValue || !/^\d+$/.test(trimmedValue)) {
       setEditingQuantity((current) =>
         current
-          ? { ...current, error: "Ingrese un número entero mayor o igual a cero." }
+          ? { ...current, error: "La cantidad contada debe ser un número entero mayor o igual a cero." }
           : current,
       );
 
@@ -823,7 +823,7 @@ export default function InventoryCountDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un conteo válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -849,7 +849,7 @@ export default function InventoryCountDetailPage() {
       >
         <StatePanel
           title="No tiene acceso al conteo"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -889,7 +889,7 @@ export default function InventoryCountDetailPage() {
                 disabled={itemsState.status !== "success" || itemsState.items.length === 0}
                 title={
                   itemsState.status === "success" && itemsState.items.length === 0
-                    ? "Agregue al menos una línea antes de aprobar."
+                    ? "Aprobar requiere al menos una línea."
                     : undefined
                 }
                 onClick={() => {
@@ -1070,9 +1070,8 @@ export default function InventoryCountDetailPage() {
                   <h3 className="text-base font-semibold text-foreground">Captura rápida</h3>
 
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Busque por código o nombre y presione Enter para seleccionar. Ingrese la
-                    cantidad y presione Enter para agregar la línea y continuar con el siguiente
-                    producto.
+                    Búsqueda por código o nombre: Enter elige el producto. En la cantidad, Enter
+                    agrega la línea y pasa al siguiente producto.
                   </p>
                 </div>
 

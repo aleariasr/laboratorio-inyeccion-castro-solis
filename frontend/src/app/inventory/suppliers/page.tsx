@@ -299,7 +299,7 @@ export default function SuppliersPage() {
       >
         <StatePanel
           title="No tiene acceso a proveedores"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -320,7 +320,7 @@ export default function SuppliersPage() {
   return (
     <AppShell
       title="Proveedores"
-      description="Consulte empresas proveedoras y sus productos asociados."
+      description="Empresas proveedoras y sus productos asociados."
       actions={
         hasWriteAccess ? (
           <Button
@@ -349,7 +349,7 @@ export default function SuppliersPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por nombre, contacto, teléfono, correo o país.
+                Búsqueda por nombre, contacto, teléfono, correo o país.
               </p>
             </div>
 
@@ -470,7 +470,7 @@ export default function SuppliersPage() {
               title={filters.query ? "No se encontraron proveedores" : "No hay proveedores registrados"}
               message={
                 filters.query
-                  ? "Revise el nombre o intente con otro contacto, teléfono o país."
+                  ? "Se buscó por nombre, contacto, teléfono, correo y país."
                   : "El catálogo todavía no contiene proveedores para el filtro seleccionado."
               }
               icon={<TruckIcon />}

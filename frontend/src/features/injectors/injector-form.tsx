@@ -321,7 +321,7 @@ export function InjectorForm({
               fixedCustomerLabel !== undefined
                 ? undefined
                 : mode === "create"
-                ? `Busque por nombre. Solo se muestran clientes activos.${canCreateCustomers ? " Si no existe, se crea desde la lista." : ""}`
+                ? `Búsqueda por nombre, solo entre clientes activos.${canCreateCustomers ? " Si no existe, se crea desde la lista." : ""}`
                 : "El cliente no puede modificarse una vez creado el inyector."
             }
             error={errors.customerId}

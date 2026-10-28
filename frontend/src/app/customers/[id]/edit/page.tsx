@@ -60,7 +60,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -222,7 +222,7 @@ export default function EditCustomerPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un cliente válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -275,8 +275,8 @@ export default function EditCustomerPage() {
       }
       description={
         loadState.status === "success"
-          ? "Modifique la información registrada del cliente."
-          : "Modifique la información registrada del cliente."
+          ? "Información registrada del cliente."
+          : "Información registrada del cliente."
       }
     >
       {loadState.status === "loading" && <LoadingState message="Consultando cliente…" />}

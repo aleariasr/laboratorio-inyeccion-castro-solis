@@ -883,7 +883,7 @@ export default function ProductsPage() {
       >
         <StatePanel
           title="No tiene acceso a productos"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -904,7 +904,7 @@ export default function ProductsPage() {
   return (
     <AppShell
       title="Productos"
-      description="Consulte piezas, ubicaciones y existencias actuales."
+      description="Piezas, ubicaciones y existencias actuales."
       actions={
         hasWriteAccess ? (
           <Button
@@ -935,7 +935,7 @@ export default function ProductsPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por código, nombre, descripción o ubicación.
+                Búsqueda por código, nombre, descripción o ubicación.
               </p>
             </div>
 
@@ -1215,7 +1215,7 @@ export default function ProductsPage() {
                 }
                 message={
                   filters.query
-                    ? "Revise el código o intente con otro nombre, descripción o ubicación."
+                    ? "Se buscó por código, nombre, descripción y ubicación."
                     : "El catálogo todavía no contiene productos para el filtro seleccionado."
                 }
                 icon={<BoxIcon />}

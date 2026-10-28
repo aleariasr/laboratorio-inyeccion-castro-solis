@@ -168,7 +168,7 @@ export default function CashClosingDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un cierre válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -194,7 +194,7 @@ export default function CashClosingDetailPage() {
       >
         <StatePanel
           title="No tiene acceso a caja"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button

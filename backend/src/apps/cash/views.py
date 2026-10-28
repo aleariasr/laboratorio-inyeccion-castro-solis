@@ -172,7 +172,7 @@ class CashClosingViewSet(
             return Response(
                 {
                     "week_start": [
-                        "Debe indicar la fecha de inicio de semana (sábado)."
+                        "La fecha de inicio de semana (sábado) es obligatoria."
                     ],
                 },
                 status=status.HTTP_400_BAD_REQUEST,

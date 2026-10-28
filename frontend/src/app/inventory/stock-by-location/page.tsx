@@ -237,7 +237,7 @@ export default function StockByLocationPage() {
       >
         <StatePanel
           title="No tiene acceso a reportes de inventario"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -377,7 +377,7 @@ export default function StockByLocationPage() {
           title={hasActiveFilters ? "Sin resultados para estos filtros" : "Sin ubicaciones registradas"}
           message={
             hasActiveFilters
-              ? "Revise el código de producto o la ubicación indicada."
+              ? "Ningún producto ni ubicación coincide con lo indicado."
               : "El sistema todavía no tiene ubicaciones de almacenamiento con productos."
           }
           icon={<LayersIcon />}

@@ -9,7 +9,7 @@ export function validateInjectorForm(
   const description = values.description.trim();
 
   if (!values.customerId) {
-    errors.customerId = "Debe seleccionar un cliente.";
+    errors.customerId = "El cliente es obligatorio.";
   }
 
   if (!injectorNumber) {

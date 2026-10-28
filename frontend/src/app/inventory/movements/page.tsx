@@ -374,7 +374,7 @@ export default function StockMovementsPage() {
       >
         <StatePanel
           title="No tiene acceso a movimientos de inventario"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -395,7 +395,7 @@ export default function StockMovementsPage() {
   return (
     <AppShell
       title="Movimientos de inventario"
-      description="Consulte el historial de entradas, salidas y ajustes de existencias."
+      description="Historial de entradas, salidas y ajustes de existencias."
       actions={
         <ReportPdfActions
           onBack={goBack}
@@ -716,7 +716,7 @@ export default function StockMovementsPage() {
 
         {viewState.status === "success" && viewState.mode === "kardex" && viewState.truncated && (
           <div className="border-b border-[var(--color-border-soft)] bg-[var(--color-warning-soft)] px-5 py-3 text-sm text-[var(--color-warning)]">
-            Se alcanzó el límite de 2000 movimientos mostrados. Use el rango de fechas para acotar
+            Se alcanzó el límite de 2000 movimientos mostrados; un rango de fechas más corto acota
             la consulta.
           </div>
         )}

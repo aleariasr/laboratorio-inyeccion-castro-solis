@@ -500,7 +500,7 @@ export default function SearchPage() {
   return (
     <AppShell
       title="Búsqueda universal"
-      description="Encuentre rápidamente productos, ubicaciones, referencias, proveedores, compras, clientes e inyectores."
+      description="Productos, ubicaciones, referencias, proveedores, compras, clientes e inyectores en una sola búsqueda."
     >
       <div className="space-y-7">
         <section className="app-status-card overflow-hidden">
@@ -520,9 +520,9 @@ export default function SearchPage() {
               </h2>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Escriba un código de producto,
-                ubicación, referencia, proveedor,
-                factura, cliente o número de inyector.
+                Código de producto, ubicación, referencia,
+                proveedor, factura, cliente o número de
+                inyector.
               </p>
 
               <div className="mt-6">
@@ -610,7 +610,7 @@ export default function SearchPage() {
 
         {query.trim().length === 1 && (
           <StatePanel
-            title="Escriba un poco más"
+            title="Búsqueda muy corta"
             message="La búsqueda universal necesita al menos 2 caracteres."
             tone="neutral"
           />
@@ -706,7 +706,7 @@ export default function SearchPage() {
             {totalResults === 0 ? (
               <StatePanel
                 title="No encontramos coincidencias"
-                message={`No existen resultados visibles para “${visibleSearchData.query}”. Revise el término e inténtelo nuevamente.`}
+                message={`No existen resultados visibles para “${visibleSearchData.query}”.`}
                 tone="neutral"
               />
             ) : (

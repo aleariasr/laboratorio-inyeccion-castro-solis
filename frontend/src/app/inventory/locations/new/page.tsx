@@ -34,7 +34,7 @@ function getSubmitErrorMessage(
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -177,7 +177,7 @@ export default function NewStorageLocationPage() {
   return (
     <AppShell
       title="Nueva ubicación"
-      description="Registre un espacio físico para almacenar productos."
+      description="Espacio físico para almacenar productos."
     >
       <LocationForm
         mode="create"

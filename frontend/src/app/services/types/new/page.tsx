@@ -90,7 +90,7 @@ export default function NewServiceTypePage() {
       >
         <StatePanel
           title="No puede crear tipos de servicio"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button

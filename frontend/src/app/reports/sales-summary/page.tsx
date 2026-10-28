@@ -437,7 +437,7 @@ export default function SalesSummaryReportPage() {
       >
         <StatePanel
           title="No tiene acceso a reportes"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -601,7 +601,7 @@ export default function SalesSummaryReportPage() {
 
           {!isRangeValid && (
             <p className="mt-4 text-sm font-medium text-[var(--color-danger)]">
-              Indique un rango válido: &ldquo;Desde&rdquo; no puede ser posterior a &ldquo;Hasta&rdquo;.
+              Rango no válido: &ldquo;Desde&rdquo; no puede ser posterior a &ldquo;Hasta&rdquo;.
             </p>
           )}
 
@@ -693,7 +693,7 @@ export default function SalesSummaryReportPage() {
                     No hay ventas ni servicios en este rango
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Pruebe con otras fechas.
+                    Sin ventas confirmadas ni servicios entregados entre esas fechas.
                   </p>
                 </div>
               ) : (

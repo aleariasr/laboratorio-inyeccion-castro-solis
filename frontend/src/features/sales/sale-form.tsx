@@ -292,7 +292,7 @@ export function SaleForm({
           </h2>
 
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Cliente opcional: déjelo sin seleccionar para una venta de mostrador.
+            Cliente opcional: sin cliente, es una venta de mostrador.
           </p>
         </div>
 
@@ -302,7 +302,7 @@ export function SaleForm({
             label="Cliente"
             hint={
               mode === "create"
-                ? `Busque por nombre, identificación o teléfono${canCreateCustomers ? "; si no existe, se crea desde la lista" : ""}. Déjelo vacío para venta de mostrador.`
+                ? `Búsqueda por nombre, identificación o teléfono${canCreateCustomers ? "; si no existe, se crea desde la lista" : ""}. Sin cliente, es una venta de mostrador.`
                 : "El cliente no puede modificarse una vez creada la venta."
             }
             error={errors.customerId}

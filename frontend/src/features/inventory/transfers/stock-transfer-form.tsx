@@ -201,7 +201,7 @@ export function StockTransferForm({
                 className={`${SELECT_CLASSES} ${errors.branchId ? "border-danger" : "border-border"}`}
               >
                 <option value="">
-                  {branches === null ? "Consultando sedes…" : "Elija una sede"}
+                  {branches === null ? "Consultando sedes…" : "Sin elegir"}
                 </option>
 
                 {branches?.map((branch) => (

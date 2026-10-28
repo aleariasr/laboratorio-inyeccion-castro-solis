@@ -73,7 +73,7 @@ export function useDialogCreate<TValues, TErrors extends object, TResult>({
       } else if (error instanceof ApiError) {
         message =
           error.status === 401
-            ? "La sesión expiró. Vuelva a iniciar sesión."
+            ? "La sesión expiró; hace falta iniciar sesión de nuevo."
             : error.status === 403
               ? "Este usuario no tiene permiso para crear esto."
               : error.message;

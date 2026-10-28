@@ -172,7 +172,7 @@ def _parse_range(request, from_name, to_name, *, required):
 
     if not from_value or not to_value:
         return None, None, (
-            f"Indique {from_name} y {to_name} (formato AAAA-MM-DD)."
+            f"{from_name} y {to_name} son obligatorios (formato AAAA-MM-DD)."
         )
 
     date_from = parse_date_or_none(from_value)

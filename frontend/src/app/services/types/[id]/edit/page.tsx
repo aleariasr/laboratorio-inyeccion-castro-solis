@@ -153,7 +153,7 @@ export default function EditServiceTypePage() {
       >
         <StatePanel
           title="No puede editar tipos de servicio"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button

@@ -121,7 +121,7 @@ export function StockTransferItemForm({
     const parsedQuantity = parseQuantity(quantity);
 
     if (!selected) {
-      setLocalError("Elija un producto.");
+      setLocalError("El producto es obligatorio.");
       return;
     }
 

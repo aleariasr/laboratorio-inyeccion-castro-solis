@@ -13,7 +13,7 @@ export function validateImportCostForm(
   const errors: ImportCostFormErrors = {};
 
   if (!values.categoryId) {
-    errors.categoryId = "Debe seleccionar una categoría de costo.";
+    errors.categoryId = "La categoría de costo es obligatoria.";
   }
 
   const description = values.description.trim();
@@ -31,7 +31,7 @@ export function validateImportCostForm(
   }
 
   if (!CURRENCY_VALUES.includes(values.currency)) {
-    errors.currency = "Seleccione una moneda válida.";
+    errors.currency = "La moneda no es válida.";
   }
 
   const exchangeRate = values.exchangeRate.trim();
@@ -49,7 +49,7 @@ export function validateImportCostForm(
     values.currency !== purchaseCurrency &&
     Number(exchangeRate) === 1
   ) {
-    errors.exchangeRate = "No puede ser exactamente 1 cuando las monedas son distintas. Verifique el tipo de cambio real.";
+    errors.exchangeRate = "No puede ser exactamente 1 cuando las monedas son distintas. Corresponde el tipo de cambio real.";
   }
 
   return errors;

@@ -79,7 +79,7 @@ const REPORT_CARDS: ReportCard[] = [
     href: "/reports/product-supplier-prices",
     title: "Comparación de precios por proveedor",
     description:
-      "Compare el precio pagado a cada proveedor por un mismo producto.",
+      "Precio pagado a cada proveedor por un mismo producto.",
     icon: <LayersIcon className="size-7" />,
     accent: "#6e4bb8",
     surface: "#f3effb",
@@ -128,7 +128,7 @@ export default function ReportsIndexPage() {
       >
         <StatePanel
           title="No tiene acceso a reportes"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button

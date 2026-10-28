@@ -317,7 +317,7 @@ export default function SalesPage() {
       >
         <StatePanel
           title="No tiene acceso a ventas"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -338,7 +338,7 @@ export default function SalesPage() {
   return (
     <AppShell
       title="Ventas"
-      description="Consulte ventas registradas y su estado."
+      description="Ventas registradas y su estado."
       actions={
         hasWriteAccess || hasProformaAccess ? (
           <div className="flex flex-wrap gap-2">
@@ -383,7 +383,7 @@ export default function SalesPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por nombre del cliente.
+                Búsqueda por nombre del cliente.
               </p>
             </div>
 
@@ -552,7 +552,7 @@ export default function SalesPage() {
               title={filters.query ? "No se encontraron ventas" : "No hay ventas registradas"}
               message={
                 filters.query
-                  ? "Revise el nombre del cliente o intente sin filtros."
+                  ? "Se buscó por nombre del cliente, con los filtros aplicados."
                   : "El sistema todavía no contiene ventas para el filtro seleccionado."
               }
               icon={<CartIcon />}

@@ -250,7 +250,7 @@ export default function UserDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un usuario válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -276,7 +276,7 @@ export default function UserDetailPage() {
       >
         <StatePanel
           title="No tiene acceso al usuario"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -461,7 +461,7 @@ export default function UserDetailPage() {
 
             {isOwnUser ? (
               <p className="mt-1 text-sm text-muted-foreground">
-                Para cambiar su propia contraseña use &ldquo;Cambiar mi
+                La propia contraseña se cambia en &ldquo;Cambiar mi
                 contraseña&rdquo;, abajo en el menú: ahí se pide la contraseña
                 actual y la sesión no se cierra.
               </p>
@@ -475,8 +475,8 @@ export default function UserDetailPage() {
 
                 {resetState.wasReset && (
                   <p className="mt-4 text-sm font-medium text-foreground">
-                    Contraseña restablecida. Entréguele la nueva a{" "}
-                    {loadState.targetUser.username}.
+                    Contraseña restablecida. Desde ahora{" "}
+                    {loadState.targetUser.username} entra con la nueva.
                   </p>
                 )}
 
@@ -508,7 +508,7 @@ export default function UserDetailPage() {
                       />
                     </Field>
 
-                    <Field id="reset-password-repeat" label="Repita la contraseña" required>
+                    <Field id="reset-password-repeat" label="Confirmación de la contraseña" required>
                       <Input
                         id="reset-password-repeat"
                         type="password"

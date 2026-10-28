@@ -80,7 +80,7 @@ function getSubmitErrorMessage(
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -310,7 +310,7 @@ export default function NewProductPage() {
   return (
     <AppShell
       title="Nuevo producto"
-      description="Registre una pieza nueva en el catálogo de inventario."
+      description="Pieza nueva del catálogo de inventario."
       actions={
         <Button
           type="button"
@@ -370,7 +370,7 @@ export default function NewProductPage() {
         locationsState.locations.length === 0 && (
           <StatePanel
             title="No hay ubicaciones activas"
-            message="Debe registrar o reactivar al menos una ubicación antes de crear productos."
+            message="Crear productos requiere al menos una ubicación activa."
             tone="warning"
             action={
               <Button

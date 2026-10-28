@@ -26,7 +26,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -125,7 +125,7 @@ export default function NewSupplierPage() {
   return (
     <AppShell
       title="Nuevo proveedor"
-      description="Registre una empresa que suministra productos al laboratorio."
+      description="Empresa que suministra productos al laboratorio."
     >
       <SupplierForm
         mode="create"

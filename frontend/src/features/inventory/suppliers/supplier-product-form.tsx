@@ -243,8 +243,8 @@ export function SupplierProductForm({
         required
         hint={
           mode === "create"
-            ? `Busque por código o nombre. Solo se muestran productos activos.${canCreateProducts ? " Si no existe, se crea desde la lista." : ""}`
-            : "El producto asociado no puede modificarse; cree un nuevo registro si desea asociar otro producto."
+            ? `Búsqueda por código o nombre, solo entre productos activos.${canCreateProducts ? " Si no existe, se crea desde la lista." : ""}`
+            : "El producto asociado no puede modificarse; para asociar otro producto se crea un registro nuevo."
         }
         error={errors.productId}
       >

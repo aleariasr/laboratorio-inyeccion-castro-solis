@@ -652,7 +652,7 @@ export default function ProductDetailPage() {
     ) {
       setSalePriceState((current) => ({
         ...current,
-        error: "Ingrese un precio válido mayor que cero, o déjelo vacío.",
+        error: "El precio debe ser mayor que cero, o quedar vacío.",
       }));
 
       return;
@@ -720,7 +720,7 @@ export default function ProductDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al catálogo y seleccione un producto válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -752,7 +752,7 @@ export default function ProductDetailPage() {
       >
         <StatePanel
           title="No tiene acceso al producto"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -1453,8 +1453,8 @@ export default function ProductDetailPage() {
                   </h3>
 
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Registre un producto distinto (con su propio precio y
-                    stock) para la misma pieza.
+                    Producto distinto (con su propio precio y stock) para la
+                    misma pieza.
                   </p>
                 </div>
 

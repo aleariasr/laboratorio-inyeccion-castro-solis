@@ -40,7 +40,7 @@ class ProductLabelsPdfView(APIView):
         if not product_ids:
             return Response(
                 {
-                    "detail": "Debe indicar al menos un producto."
+                    "detail": "Falta al menos un producto."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -130,7 +130,7 @@ class ProformaPdfView(APIView):
         items = request.data.get("items")
 
         if not isinstance(items, list) or not items:
-            return _items_error("Debe agregar al menos un producto.")
+            return _items_error("Falta al menos un producto.")
 
         if len(items) > MAX_PROFORMA_ITEMS:
             return _items_error(

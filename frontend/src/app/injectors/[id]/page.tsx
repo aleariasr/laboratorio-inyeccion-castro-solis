@@ -248,7 +248,7 @@ export default function InjectorDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un inyector válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -274,7 +274,7 @@ export default function InjectorDetailPage() {
       >
         <StatePanel
           title="No tiene acceso al inyector"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button

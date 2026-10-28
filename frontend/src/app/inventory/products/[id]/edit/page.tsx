@@ -99,7 +99,7 @@ function getSubmitErrorMessage(
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -456,7 +456,7 @@ export default function EditProductPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al catálogo y seleccione un producto válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -514,7 +514,7 @@ export default function EditProductPage() {
       description={
         loadState.status === "success"
           ? loadState.product.standard_code
-          : "Modifique la información administrativa del producto."
+          : "Información administrativa del producto."
       }
       actions={
         <Button

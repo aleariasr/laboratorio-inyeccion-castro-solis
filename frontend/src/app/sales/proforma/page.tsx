@@ -57,7 +57,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -271,7 +271,7 @@ export default function NewProformaPage() {
     }
 
     if (lines.length === 0) {
-      setSubmitError("Agregue al menos un producto.");
+      setSubmitError("Falta al menos un producto.");
       return;
     }
 
@@ -282,13 +282,13 @@ export default function NewProformaPage() {
 
     if (items.some((item) => item.quantity === null)) {
       setSubmitError(
-        `Revise las cantidades: deben ser números enteros entre 1 y ${MAX_QUANTITY}.`,
+        `Las cantidades deben ser números enteros entre 1 y ${MAX_QUANTITY}.`,
       );
       return;
     }
 
     if (!amountsPreview.ok) {
-      setSubmitError("Revise el descuento o el impuesto.");
+      setSubmitError("El descuento o el impuesto no son válidos.");
       return;
     }
 
@@ -405,7 +405,7 @@ export default function NewProformaPage() {
             </h2>
 
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Busque por código o nombre. Si agrega un producto que ya está en la lista, se suma uno a su cantidad.
+              Búsqueda por código o nombre. Si el producto ya está en la lista, se suma uno a su cantidad.
             </p>
 
             <div className="relative mt-4">

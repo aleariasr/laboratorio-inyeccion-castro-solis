@@ -742,7 +742,7 @@ export default function ServiceDetailPage() {
     if (hasPricingAccess && !/^\d+(\.\d+)?$/.test(unitPrice)) {
       setAccessoryActionState((current) => ({
         ...current,
-        submitError: "Ingrese el precio del accesorio (0 o más).",
+        submitError: "El precio del accesorio debe ser 0 o más.",
       }));
       return;
     }
@@ -782,7 +782,7 @@ export default function ServiceDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un servicio válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -808,7 +808,7 @@ export default function ServiceDetailPage() {
       >
         <StatePanel
           title="No tiene acceso al servicio"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button

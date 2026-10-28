@@ -413,7 +413,7 @@ export default function StockTransferDetailPage() {
     }
 
     if (!cancelState.reason.trim()) {
-      setCancelState((current) => ({ ...current, error: "Escriba el motivo de la anulación." }));
+      setCancelState((current) => ({ ...current, error: "El motivo de anulación es obligatorio." }));
       return;
     }
 
@@ -443,7 +443,7 @@ export default function StockTransferDetailPage() {
       >
         <StatePanel
           title="No tiene acceso a los traslados"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
         />
       </AppShell>

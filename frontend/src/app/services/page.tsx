@@ -321,7 +321,7 @@ export default function ServicesPage() {
       >
         <StatePanel
           title="No tiene acceso a servicios"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -387,7 +387,7 @@ export default function ServicesPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por número de inyector o nombre del cliente.
+                Búsqueda por número de inyector o nombre del cliente.
               </p>
             </div>
 
@@ -540,7 +540,7 @@ export default function ServicesPage() {
               title={filters.query ? "No se encontraron servicios" : "No hay servicios registrados"}
               message={
                 filters.query
-                  ? "Revise el número de inyector o el nombre del cliente."
+                  ? "Se buscó por número de inyector y nombre del cliente."
                   : "Todavía no se ha recibido ningún inyector para este filtro."
               }
               icon={<WrenchIcon />}

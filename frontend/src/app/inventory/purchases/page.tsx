@@ -328,7 +328,7 @@ export default function PurchasesPage() {
       >
         <StatePanel
           title="No tiene acceso a compras"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -349,7 +349,7 @@ export default function PurchasesPage() {
   return (
     <AppShell
       title="Compras"
-      description="Consulte facturas de compra registradas y su estado."
+      description="Facturas de compra registradas y su estado."
       actions={
         hasWriteAccess ? (
           <Button
@@ -378,7 +378,7 @@ export default function PurchasesPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por número de factura o nombre del proveedor.
+                Búsqueda por número de factura o nombre del proveedor.
               </p>
             </div>
 
@@ -562,7 +562,7 @@ export default function PurchasesPage() {
               title={filters.query ? "No se encontraron compras" : "No hay compras registradas"}
               message={
                 filters.query
-                  ? "Revise el número de factura o intente con otro proveedor."
+                  ? "Se buscó por número de factura y nombre del proveedor."
                   : "El sistema todavía no contiene compras para el filtro seleccionado."
               }
               icon={<ReceiptIcon />}

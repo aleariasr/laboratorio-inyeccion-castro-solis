@@ -305,7 +305,7 @@ export default function CustomersPage() {
       >
         <StatePanel
           title="No tiene acceso a clientes"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -326,7 +326,7 @@ export default function CustomersPage() {
   return (
     <AppShell
       title="Clientes"
-      description="Consulte clientes registrados para ventas y servicios."
+      description="Clientes registrados para ventas y servicios."
       actions={
         hasWriteAccess ? (
           <Button
@@ -355,7 +355,7 @@ export default function CustomersPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por nombre, identificación, teléfono o correo.
+                Búsqueda por nombre, identificación, teléfono o correo.
               </p>
             </div>
 
@@ -492,7 +492,7 @@ export default function CustomersPage() {
               title={filters.query ? "No se encontraron clientes" : "No hay clientes registrados"}
               message={
                 filters.query
-                  ? "Revise el nombre o intente con otra identificación, teléfono o correo."
+                  ? "Se buscó por nombre, identificación, teléfono y correo."
                   : "El catálogo todavía no contiene clientes para el filtro seleccionado."
               }
               icon={<UsersIcon />}

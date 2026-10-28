@@ -49,10 +49,10 @@ def _parse_label_product_ids(product_ids):
     """
 
     if not isinstance(product_ids, list):
-        return [], "Debe enviar una lista de identificadores."
+        return [], "Se espera una lista de identificadores."
 
     if not product_ids:
-        return [], "Seleccione al menos un producto."
+        return [], "No hay productos seleccionados."
 
     if not all(_is_positive_integer(product_id) for product_id in product_ids):
         return [], (
@@ -70,10 +70,10 @@ def _parse_label_items(items):
     """
 
     if not isinstance(items, list):
-        return [], "Debe enviar una lista de productos."
+        return [], "Se espera una lista de productos."
 
     if not items:
-        return [], "Seleccione al menos un producto."
+        return [], "No hay productos seleccionados."
 
     requested = []
 
@@ -173,7 +173,7 @@ class StorageLocationViewSet(
             return Response(
                 {
                     "location_ids": [
-                        "Debe enviar una lista de identificadores."
+                        "Se espera una lista de identificadores."
                     ],
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -183,7 +183,7 @@ class StorageLocationViewSet(
             return Response(
                 {
                     "location_ids": [
-                        "Debe seleccionar al menos una ubicación."
+                        "No hay ubicaciones seleccionadas."
                     ],
                 },
                 status=status.HTTP_400_BAD_REQUEST,

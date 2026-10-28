@@ -106,11 +106,11 @@ export function validateStockTransferForm(
   const errors: StockTransferFormErrors = {};
 
   if (!values.branchId) {
-    errors.branchId = "Elija la sede de destino.";
+    errors.branchId = "La sede de destino es obligatoria.";
   }
 
   if (!values.transferDate) {
-    errors.transferDate = "Indique la fecha del traslado.";
+    errors.transferDate = "La fecha del traslado es obligatoria.";
   }
 
   return errors;

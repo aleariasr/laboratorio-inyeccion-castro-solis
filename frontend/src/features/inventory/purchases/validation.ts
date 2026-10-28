@@ -14,7 +14,7 @@ export function validatePurchaseForm(
   const exchangeRate = values.exchangeRate.trim();
 
   if (!values.supplierId) {
-    errors.supplierId = "Debe seleccionar un proveedor.";
+    errors.supplierId = "El proveedor es obligatorio.";
   }
 
   if (!invoiceNumber) {
@@ -28,7 +28,7 @@ export function validatePurchaseForm(
   }
 
   if (!CURRENCY_VALUES.includes(values.currency)) {
-    errors.currency = "Seleccione una moneda válida.";
+    errors.currency = "La moneda no es válida.";
   }
 
   if (!exchangeRate) {

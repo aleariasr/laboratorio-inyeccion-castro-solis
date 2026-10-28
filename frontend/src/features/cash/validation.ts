@@ -14,7 +14,7 @@ export function validateCashClosingForm(
   const errors: CashClosingFormErrors = {};
 
   if (!values.weekStart) {
-    errors.weekStart = "Debe indicar la fecha de inicio de semana (sábado).";
+    errors.weekStart = "La fecha de inicio de semana (sábado) es obligatoria.";
   } else {
     const parsedDate = new Date(`${values.weekStart}T00:00:00`);
 
@@ -29,12 +29,12 @@ export function validateCashClosingForm(
   const countedTotal = values.countedTotal.trim();
 
   if (!countedTotal) {
-    errors.countedTotal = "Debe indicar el total contado.";
+    errors.countedTotal = "El total contado es obligatorio.";
   } else if (
     !DECIMAL_PATTERN.test(countedTotal) ||
     Number(countedTotal) < 0
   ) {
-    errors.countedTotal = "Ingrese un monto válido, mayor o igual a cero.";
+    errors.countedTotal = "El monto debe ser un número mayor o igual a cero.";
   }
 
   // Caja chica: opcionales, pero si se escriben deben ser montos válidos.
@@ -42,7 +42,7 @@ export function validateCashClosingForm(
     const value = values[field].trim();
 
     if (value && !DECIMAL_PATTERN.test(value)) {
-      errors[field] = "Ingrese un monto válido, mayor o igual a cero.";
+      errors[field] = "El monto debe ser un número mayor o igual a cero.";
     }
   }
 
@@ -54,7 +54,7 @@ export function validateCashClosingForm(
     !values.differenceReason.trim()
   ) {
     errors.differenceReason =
-      "Debe indicar el motivo de la diferencia entre lo esperado y lo contado.";
+      "El motivo de la diferencia entre lo esperado y lo contado es obligatorio.";
   }
 
   return errors;

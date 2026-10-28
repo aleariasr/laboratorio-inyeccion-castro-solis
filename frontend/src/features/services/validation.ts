@@ -44,19 +44,19 @@ export function validateServiceRecordTechnicalForm(
   const isolation = values.isolation.trim();
 
   if (resistance && !DECIMAL_PATTERN.test(resistance)) {
-    errors.resistance = "Ingrese un número válido (ej. 1.250).";
+    errors.resistance = "Debe ser un número (ej. 1.250).";
   }
 
   if (leakage && !DECIMAL_PATTERN.test(leakage)) {
-    errors.leakage = "Ingrese un número válido (ej. 0.100).";
+    errors.leakage = "Debe ser un número (ej. 0.100).";
   }
 
   if (inductance && !DECIMAL_PATTERN.test(inductance)) {
-    errors.inductance = "Ingrese un número válido (ej. 1.250).";
+    errors.inductance = "Debe ser un número (ej. 1.250).";
   }
 
   if (isolation && !DECIMAL_PATTERN.test(isolation)) {
-    errors.isolation = "Ingrese un número válido (ej. 1.250).";
+    errors.isolation = "Debe ser un número (ej. 1.250).";
   }
 
   return errors;
@@ -91,7 +91,7 @@ export function validateServiceAccessoryForm(
   const errors: ServiceAccessoryFormErrors = {};
 
   if (!values.productId) {
-    errors.productId = "Debe seleccionar un producto.";
+    errors.productId = "El producto es obligatorio.";
   }
 
   const quantity = Number(values.quantity);
@@ -120,7 +120,7 @@ export function validateServiceTypeForm(
   }
 
   if (laborPrice && (!DECIMAL_PATTERN.test(laborPrice) || Number(laborPrice) <= 0)) {
-    errors.defaultLaborPrice = "Ingrese un precio mayor que cero, o déjelo vacío.";
+    errors.defaultLaborPrice = "El precio debe ser mayor que cero, o quedar vacío.";
   }
 
   return errors;

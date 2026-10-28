@@ -65,7 +65,7 @@ export function ProformaForm({
       <Field
         id="proforma-customer"
         label="Cliente"
-        hint={`Opcional. Busque por nombre, identificación o teléfono${canCreateCustomers ? " (si no existe, se crea desde la lista)" : ""}, o déjelo vacío para no incluir datos de cliente.`}
+        hint={`Opcional. Búsqueda por nombre, identificación o teléfono${canCreateCustomers ? " (si no existe, se crea desde la lista)" : ""}. Sin cliente, la proforma sale sin sus datos.`}
       >
         <CustomerPicker
           id="proforma-customer"

@@ -24,7 +24,7 @@ def parse_boolean_query_param(value, *, name):
     raise ValidationError(
         {
             name: [
-                "Debe indicar true o false.",
+                "El valor debe ser true o false.",
             ]
         }
     )
@@ -44,7 +44,7 @@ def parse_positive_integer_query_param(value, *, name):
         raise ValidationError(
             {
                 name: [
-                    "Debe indicar un número entero positivo.",
+                    "El valor debe ser un número entero positivo.",
                 ]
             }
         ) from exc
@@ -53,7 +53,7 @@ def parse_positive_integer_query_param(value, *, name):
         raise ValidationError(
             {
                 name: [
-                    "Debe indicar un número entero positivo.",
+                    "El valor debe ser un número entero positivo.",
                 ]
             }
         )

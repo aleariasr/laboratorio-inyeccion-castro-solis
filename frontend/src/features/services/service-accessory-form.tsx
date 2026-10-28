@@ -183,7 +183,7 @@ export function ServiceAccessoryForm({
         id="service-accessory-product"
         label="Producto"
         required
-        hint="Busque por código o nombre. Solo se muestran productos activos; al agregarlo se descuenta del inventario."
+        hint="Búsqueda por código o nombre, solo entre productos activos; al agregarlo se descuenta del inventario."
         error={errors.productId}
       >
         {selectedLabel ? (

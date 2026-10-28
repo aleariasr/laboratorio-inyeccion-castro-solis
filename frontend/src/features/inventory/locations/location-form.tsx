@@ -272,7 +272,7 @@ export function LocationForm({
           </h2>
 
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Registre el código operativo utilizado para identificar el espacio físico.
+            Código operativo que identifica el espacio físico.
           </p>
         </div>
 

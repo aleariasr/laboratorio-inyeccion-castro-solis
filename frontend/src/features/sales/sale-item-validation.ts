@@ -14,7 +14,7 @@ export function validateSaleItemForm(
   const errors: SaleItemFormErrors = {};
 
   if (!values.productId) {
-    errors.productId = "Debe seleccionar un producto.";
+    errors.productId = "El producto es obligatorio.";
   }
 
   const quantity = values.quantity.trim();
@@ -34,7 +34,7 @@ export function validateSaleItemForm(
 
   if (!unitPrice) {
     if (defaultUnitPrice === null) {
-      errors.unitPrice = "Este producto no tiene precio de venta; ingrese uno.";
+      errors.unitPrice = "Este producto no tiene precio de venta; el precio unitario es obligatorio.";
     } else if (defaultUnitPrice === undefined) {
       errors.unitPrice = "El precio unitario es obligatorio.";
     }

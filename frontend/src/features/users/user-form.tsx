@@ -418,7 +418,7 @@ export function UserForm({
               </span>
 
               <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                Permite administrar usuarios y roles, ver el estado del sistema y entrar al panel técnico de Django. No da acceso a inventario, ventas, servicios ni reportes: para eso marque el rol Administrador o los permisos de abajo.
+                Permite administrar usuarios y roles, ver el estado del sistema y entrar al panel técnico de Django. No da acceso a inventario, ventas, servicios ni reportes: eso lo dan el rol Administrador o los permisos de abajo.
               </span>
             </span>
           </label>
@@ -573,7 +573,7 @@ export function UserForm({
 
           {canSeeCosts && !costsIncludedByRole && !reachesCostScreens(values) && (
             <p className="mt-3 rounded-[var(--radius-md)] bg-[var(--color-warning-soft)] px-4 py-3 text-xs font-medium leading-5 text-[var(--color-warning)]">
-              Con los roles y permisos marcados, este usuario no entra a Productos ni a Compras, que es donde se muestran los costos. Márquele Inventario o Solo lectura para que los vea.
+              Con los roles y permisos marcados, este usuario no entra a Productos ni a Compras, que es donde se muestran los costos. Para verlos le falta el rol Inventario o Solo lectura.
             </p>
           )}
         </div>

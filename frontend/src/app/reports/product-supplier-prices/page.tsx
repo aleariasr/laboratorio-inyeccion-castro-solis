@@ -259,7 +259,7 @@ export default function ProductSupplierPricesReportPage() {
       >
         <StatePanel
           title="No tiene acceso a reportes"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -280,7 +280,7 @@ export default function ProductSupplierPricesReportPage() {
   return (
     <AppShell
       title="Comparación de precios por proveedor"
-      description="Busque un producto para comparar el precio pagado a cada proveedor, en colones."
+      description="Precio pagado a cada proveedor por un producto, en colones."
       actions={
         <ReportPdfActions
           onBack={goBack}
@@ -388,8 +388,8 @@ export default function ProductSupplierPricesReportPage() {
 
       {!selectedProduct && loadState.status === "idle" && (
         <StatePanel
-          title="Seleccione un producto"
-          message="Busque un producto para comparar el precio pagado a cada proveedor del que se ha comprado."
+          title="Sin producto elegido"
+          message="Al elegir un producto se compara el precio pagado a cada proveedor del que se ha comprado."
           icon={<TruckIcon />}
         />
       )}

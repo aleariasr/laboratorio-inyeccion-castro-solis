@@ -25,7 +25,7 @@ export function validateCustomerForm(
   if (email.length > 254) {
     errors.email = "El correo no puede superar 254 caracteres.";
   } else if (email && !EMAIL_PATTERN.test(email)) {
-    errors.email = "Ingrese un correo electrónico válido.";
+    errors.email = "El correo electrónico no es válido.";
   }
 
   if (identification.length > 50) {

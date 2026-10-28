@@ -436,7 +436,7 @@ export default function SupplierDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un proveedor válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -462,7 +462,7 @@ export default function SupplierDetailPage() {
       >
         <StatePanel
           title="No tiene acceso al proveedor"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -659,8 +659,8 @@ export default function SupplierDetailPage() {
 
                   <p className="mt-1 text-sm text-muted-foreground">
                     {supplierProductFormState.mode === "create"
-                      ? "Busque el producto que este proveedor suministra."
-                      : "Actualice los datos o el estado de la asociación seleccionada."}
+                      ? "Producto que suministra este proveedor."
+                      : "Datos y estado de la asociación seleccionada."}
                   </p>
                 </div>
 

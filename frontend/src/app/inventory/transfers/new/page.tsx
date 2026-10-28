@@ -89,7 +89,7 @@ export default function NewStockTransferPage() {
       >
         <StatePanel
           title="No puede crear traslados"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button

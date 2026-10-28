@@ -60,7 +60,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -231,7 +231,7 @@ export default function EditInjectorPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un inyector válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -285,7 +285,7 @@ export default function EditInjectorPage() {
       description={
         loadState.status === "success"
           ? loadState.injector.customer_detail.display_name
-          : "Modifique la información registrada del inyector."
+          : "Información registrada del inyector."
       }
     >
       {loadState.status === "loading" && <LoadingState message="Consultando inyector…" />}

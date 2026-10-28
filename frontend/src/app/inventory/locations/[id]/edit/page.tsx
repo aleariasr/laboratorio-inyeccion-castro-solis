@@ -77,7 +77,7 @@ function getSubmitErrorMessage(
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -318,7 +318,7 @@ export default function EditStorageLocationPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione una ubicación válida."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -381,7 +381,7 @@ export default function EditStorageLocationPage() {
         loadState.status === "success"
           ? loadState.location.description ||
             "Ubicación física del inventario."
-          : "Modifique la información administrativa de la ubicación."
+          : "Información administrativa de la ubicación."
       }
     >
       {loadState.status === "loading" && (

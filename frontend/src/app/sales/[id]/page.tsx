@@ -643,7 +643,7 @@ export default function SaleDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione una venta válida."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -669,7 +669,7 @@ export default function SaleDetailPage() {
       >
         <StatePanel
           title="No tiene acceso a la venta"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -725,7 +725,7 @@ export default function SaleDetailPage() {
                 disabled={loadState.sale.items.length === 0}
                 title={
                   loadState.sale.items.length === 0
-                    ? "Agregue al menos una línea antes de confirmar."
+                    ? "Confirmar requiere al menos una línea."
                     : undefined
                 }
                 onClick={() => {
@@ -920,7 +920,7 @@ export default function SaleDetailPage() {
                 <dd>
                   {loadState.sale.total !== null
                     ? `₡${formatMoney(loadState.sale.total)}`
-                    : "Revise el descuento"}
+                    : "Descuento no válido"}
                 </dd>
               </div>
 
@@ -997,8 +997,8 @@ export default function SaleDetailPage() {
 
                   <p className="mt-1 text-sm text-muted-foreground">
                     {itemFormState.mode === "create"
-                      ? "Busque el producto a vender."
-                      : "Actualice la cantidad o el precio unitario."}
+                      ? "Producto a vender, con su cantidad y precio."
+                      : "Cantidad y precio unitario de la línea."}
                   </p>
                 </div>
 

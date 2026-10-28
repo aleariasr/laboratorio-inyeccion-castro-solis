@@ -237,8 +237,8 @@ export function PurchaseItemForm({
         required
         hint={
           mode === "create"
-            ? `Busque por código o nombre. Solo se muestran productos activos.${canCreateProducts ? " Si no existe, se crea desde la lista." : ""}`
-            : "El producto de la línea no puede modificarse; elimine la línea y cree una nueva si desea cambiarlo."
+            ? `Búsqueda por código o nombre, solo entre productos activos.${canCreateProducts ? " Si no existe, se crea desde la lista." : ""}`
+            : "El producto de la línea no puede modificarse; para cambiarlo se elimina la línea y se crea otra."
         }
         error={errors.productId}
       >

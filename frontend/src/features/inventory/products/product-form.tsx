@@ -372,7 +372,7 @@ export function ProductForm({
       !priceReference ||
       !priceReference.suggested_price
     ) {
-      return "Sin precio sugerido calculado todavía (se calcula al procesar los costos de una compra). Si lo deja vacío, no habrá precio de venta hasta que calcule uno o lo defina aquí.";
+      return "Sin precio sugerido calculado todavía (se calcula al procesar los costos de una compra). Si queda vacío, no hay precio de venta hasta que se calcule uno o se defina aquí.";
     }
 
     const suggestedCrc =
@@ -385,7 +385,7 @@ export function ProductForm({
       return undefined;
     }
 
-    return `Sugerido: ₡${formatMoney(suggestedCrc)} (último cálculo, compra del ${priceReference.calculated_at.slice(0, 10)}). Si lo deja vacío, este es el precio que se usa.`;
+    return `Sugerido: ₡${formatMoney(suggestedCrc)} (último cálculo, compra del ${priceReference.calculated_at.slice(0, 10)}). Si queda vacío, este es el precio que se usa.`;
   })();
 
   // En la ventana compacta va en la primera tarjeta; en la página (o con
@@ -426,7 +426,7 @@ export function ProductForm({
         disabled={isSubmitting}
       >
         <option value="">
-          Seleccione una ubicación
+          Sin elegir
         </option>
 
         {locationOptions.map((location) => (
@@ -467,7 +467,7 @@ export function ProductForm({
           </h2>
 
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Registre la identificación y descripción de la pieza.
+            Identificación y descripción de la pieza.
           </p>
         </div>
 
@@ -650,7 +650,7 @@ export function ProductForm({
           </h2>
 
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Defina dónde se almacena la pieza y cuándo debe considerarse bajo mínimo.
+            Dónde se almacena la pieza y desde qué cantidad se considera bajo mínimo.
           </p>
         </div>
 
@@ -791,7 +791,7 @@ export function ProductForm({
 
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {canReadCosts
-              ? "Precio que se usa en la lista de productos y en la proforma. Totalmente editable: si lo deja vacío, se usa el último precio sugerido calculado a partir de una compra."
+              ? "Precio que se usa en la lista de productos y en la proforma. Totalmente editable: si queda vacío, se usa el último precio sugerido calculado a partir de una compra."
               : "Precio que se usa en la lista de productos y en la proforma."}
           </p>
         </div>

@@ -26,7 +26,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -129,7 +129,7 @@ export default function NewPurchasePage() {
   return (
     <AppShell
       title="Nueva compra"
-      description="Registre una factura de compra a un proveedor."
+      description="Factura de compra a un proveedor."
     >
       <PurchaseForm
         mode="create"

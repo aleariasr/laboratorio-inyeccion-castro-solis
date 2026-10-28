@@ -594,7 +594,7 @@ export default function StorageLocationsPage() {
       >
         <StatePanel
           title="No tiene acceso a ubicaciones"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -615,7 +615,7 @@ export default function StorageLocationsPage() {
   return (
     <AppShell
       title="Ubicaciones"
-      description="Consulte los espacios físicos disponibles para almacenar productos."
+      description="Espacios físicos disponibles para almacenar productos."
       actions={
         hasWriteAccess ? (
           <Button
@@ -646,7 +646,7 @@ export default function StorageLocationsPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por código operativo o descripción.
+                Búsqueda por código operativo o descripción.
               </p>
             </div>
 
@@ -852,7 +852,7 @@ export default function StorageLocationsPage() {
                 }
                 message={
                   filters.query
-                    ? "Revise el código o intente con otra descripción."
+                    ? "Se buscó por código y descripción."
                     : "Todavía no existen ubicaciones para el filtro seleccionado."
                 }
                 icon={<LocationIcon />}

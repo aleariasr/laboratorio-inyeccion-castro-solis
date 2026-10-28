@@ -187,7 +187,7 @@ export default function CashClosingsPage() {
       >
         <StatePanel
           title="No tiene acceso a caja"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -364,7 +364,7 @@ export default function CashClosingsPage() {
         (hasActiveFilters ? (
           <StatePanel
             title="Ningún cierre coincide con el filtro"
-            message="Pruebe con otras fechas o otra palabra, o limpie los filtros."
+            message="Ningún cierre coincide con las fechas o la palabra buscada."
             tone="neutral"
             action={
               <Button type="button" variant="secondary" onClick={handleClearFilters}>

@@ -135,7 +135,7 @@ class PettyCashMovementSerializer(serializers.ModelSerializer):
         value = value.strip()
 
         if not value:
-            raise serializers.ValidationError("Indique el motivo de la salida.")
+            raise serializers.ValidationError("El motivo de la salida es obligatorio.")
 
         return value
 

@@ -26,7 +26,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -131,7 +131,7 @@ export default function NewSalePage() {
   return (
     <AppShell
       title="Nueva venta"
-      description="Registre una venta a un cliente, o de mostrador."
+      description="Venta a un cliente o de mostrador."
     >
       <SaleForm
         mode="create"

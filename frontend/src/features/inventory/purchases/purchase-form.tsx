@@ -305,7 +305,7 @@ export function PurchaseForm({
             required
             hint={
               mode === "create"
-                ? `Busque por nombre. Solo se muestran proveedores activos.${canCreateSuppliers ? " Si no existe, se crea desde la lista." : ""}`
+                ? `Búsqueda por nombre, solo entre proveedores activos.${canCreateSuppliers ? " Si no existe, se crea desde la lista." : ""}`
                 : "El proveedor no puede modificarse una vez creada la compra."
             }
             error={errors.supplierId}

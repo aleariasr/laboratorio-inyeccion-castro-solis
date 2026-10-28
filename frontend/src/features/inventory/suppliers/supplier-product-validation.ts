@@ -12,7 +12,7 @@ export function validateSupplierProductForm(
   const manufacturer = values.manufacturer.trim();
 
   if (!Number.isInteger(productId) || productId <= 0) {
-    errors.productId = "Seleccione un producto válido.";
+    errors.productId = "El producto no es válido.";
   }
 
   if (manufacturer.length > 100) {

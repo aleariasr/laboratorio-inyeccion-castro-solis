@@ -73,13 +73,13 @@ export default function LoginPage() {
     const normalizedUsername = username.trim();
 
     if (!normalizedUsername) {
-      setErrorMessage("Ingrese el usuario.");
+      setErrorMessage("El usuario es obligatorio.");
       usernameRef.current?.focus();
       return;
     }
 
     if (!password) {
-      setErrorMessage("Ingrese la contraseña.");
+      setErrorMessage("La contraseña es obligatoria.");
       passwordRef.current?.focus();
       return;
     }
@@ -130,7 +130,7 @@ export default function LoginPage() {
             </h1>
 
             <p className="mt-2 text-[15px] text-muted-foreground">
-              Ingrese sus credenciales.
+              Acceso con usuario y contraseña.
             </p>
           </header>
 

@@ -406,7 +406,7 @@ export function CashClosingForm({
           outflows={pettyCashOutflows}
           openingNote={
             isFirstPettyCashOpening
-              ? "Primera vez: escriba con cuánto arrancó la caja chica esta semana. Desde ahora, cada cierre define el de la siguiente."
+              ? "Primera vez: con cuánto arrancó la caja chica esta semana. Desde ahora, cada cierre define el de la siguiente."
               : "Definido en el cierre anterior."
           }
           openingInput={

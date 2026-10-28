@@ -267,8 +267,8 @@ export function SaleItemForm({
         required
         hint={
           mode === "create"
-            ? "Busque por código o nombre. Solo productos activos."
-            : "El producto de la línea no puede modificarse; elimine la línea y cree una nueva si desea cambiarlo."
+            ? "Búsqueda por código o nombre, solo entre productos activos."
+            : "El producto de la línea no puede modificarse; para cambiarlo se elimina la línea y se crea otra."
         }
         error={errors.productId}
       >
@@ -402,7 +402,7 @@ export function SaleItemForm({
             selectedProduct
               ? salePrice
                 ? `Precio de venta: ₡${formatMoney(salePrice)}. Puede cambiarlo para esta venta.`
-                : "Este producto no tiene precio de venta; ingrese uno."
+                : "Este producto no tiene precio de venta; el precio unitario es obligatorio."
               : undefined
           }
           error={errors.unitPrice}

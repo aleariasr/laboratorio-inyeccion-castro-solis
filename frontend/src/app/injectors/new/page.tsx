@@ -26,7 +26,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -127,7 +127,7 @@ export default function NewInjectorPage() {
   return (
     <AppShell
       title="Nuevo inyector"
-      description="Registre un inyector para un cliente."
+      description="Inyector de un cliente, con sus datos."
     >
       <InjectorForm
         mode="create"

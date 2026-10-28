@@ -136,15 +136,15 @@ export function PettyCashWeekCard({
     const nextErrors: typeof fieldErrors = {};
 
     if (!date) {
-      nextErrors.date = "Indique la fecha.";
+      nextErrors.date = "La fecha es obligatoria.";
     }
 
     if (!DECIMAL_PATTERN.test(amount.trim()) || Number(amount) <= 0) {
-      nextErrors.amount = "Ingrese un monto mayor que cero.";
+      nextErrors.amount = "El monto debe ser mayor que cero.";
     }
 
     if (!reason.trim()) {
-      nextErrors.reason = "Indique el motivo de la salida.";
+      nextErrors.reason = "El motivo de la salida es obligatorio.";
     }
 
     setFieldErrors(nextErrors);

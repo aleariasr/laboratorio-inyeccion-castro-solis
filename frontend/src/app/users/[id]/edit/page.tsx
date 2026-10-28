@@ -60,7 +60,7 @@ function getSubmitErrorMessage(error: unknown): string {
   }
 
   if (error instanceof ApiNetworkError) {
-    return "No fue posible comunicarse con el sistema local. Revise el estado del sistema e inténtelo nuevamente.";
+    return "No fue posible comunicarse con el sistema local. Puede estar detenido o reiniciándose.";
   }
 
   if (error instanceof ApiError) {
@@ -231,7 +231,7 @@ export default function EditUserPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione un usuario válido."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -257,7 +257,7 @@ export default function EditUserPage() {
       >
         <StatePanel
           title="No puede editar usuarios"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -282,7 +282,7 @@ export default function EditUserPage() {
           ? `Editar ${loadState.targetUser.username}`
           : "Editar usuario"
       }
-      description="Modifique la información, el acceso y los roles del usuario."
+      description="Información, acceso y roles del usuario."
     >
       {loadState.status === "loading" && <LoadingState message="Consultando usuario…" />}
 

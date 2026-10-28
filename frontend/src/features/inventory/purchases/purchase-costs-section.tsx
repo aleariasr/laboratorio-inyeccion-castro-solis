@@ -370,7 +370,7 @@ export function PurchaseCostsSection({
     if (!margin || Number.isNaN(Number(margin)) || Number(margin) < 0) {
       setSummaryState((current) => ({
         ...current,
-        error: "Indique un margen válido (0 o mayor).",
+        error: "El margen debe ser 0 o mayor.",
         result: null,
       }));
 
@@ -397,7 +397,7 @@ export function PurchaseCostsSection({
     const margin = summaryState.marginPercentage.trim();
 
     if (!margin || Number.isNaN(Number(margin)) || Number(margin) < 0) {
-      setApplyState({ isApplying: false, error: "Indique un margen válido antes de aplicar los costos." });
+      setApplyState({ isApplying: false, error: "Aplicar los costos requiere un margen válido (0 o mayor)." });
       return;
     }
 
@@ -453,8 +453,8 @@ export function PurchaseCostsSection({
           className="rounded-[var(--radius-md)] border border-[var(--color-border-soft)] bg-surface-muted px-5 py-4 text-sm text-foreground"
         >
           Se borraron los costos calculados porque cambiaron las líneas o los
-          costos de importación de esta compra. Vuelva a calcularlos y a
-          aplicarlos.
+          costos de importación de esta compra. Hace falta calcularlos y
+          aplicarlos de nuevo.
         </p>
       )}
 
@@ -652,7 +652,7 @@ export function PurchaseCostsSection({
             </h2>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Calcule el costo total de la compra (líneas + costos activos) y el precio sugerido según un margen.
+              Costo total de la compra (líneas + costos activos) y precio sugerido según un margen.
             </p>
           </div>
 

@@ -19,7 +19,7 @@ export function validateUserForm(
   } else if (username.length > 150) {
     errors.username = "El usuario no puede superar 150 caracteres.";
   } else if (!USERNAME_PATTERN.test(username)) {
-    errors.username = "Use solo letras, números y los símbolos @ . + - _";
+    errors.username = "Solo letras, números y los símbolos @ . + - _";
   }
 
   if (mode === "create") {
@@ -41,7 +41,7 @@ export function validateUserForm(
   if (email.length > 254) {
     errors.email = "El correo no puede superar 254 caracteres.";
   } else if (email && !EMAIL_PATTERN.test(email)) {
-    errors.email = "Ingrese un correo electrónico válido.";
+    errors.email = "El correo electrónico no es válido.";
   }
 
   return errors;

@@ -178,7 +178,7 @@ export function ImportCostForm({
           disabled={isSubmitting}
           className="h-11 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
         >
-          <option value="">Seleccione…</option>
+          <option value="">Sin elegir</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}

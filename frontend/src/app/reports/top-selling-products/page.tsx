@@ -143,7 +143,7 @@ export default function TopSellingProductsReportPage() {
       >
         <StatePanel
           title="No tiene acceso a reportes"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button

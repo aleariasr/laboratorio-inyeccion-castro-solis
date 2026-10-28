@@ -159,7 +159,7 @@ class ProductMovementsReportView(APIView):
         if not product_id:
             return Response(
                 {
-                    "detail": "Debe indicar el producto."
+                    "detail": "El producto es obligatorio."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -308,7 +308,7 @@ def report_product(request):
     if not product_id:
         return None, Response(
             {
-                "detail": "Debe indicar el producto."
+                "detail": "El producto es obligatorio."
             },
             status=status.HTTP_400_BAD_REQUEST,
         )

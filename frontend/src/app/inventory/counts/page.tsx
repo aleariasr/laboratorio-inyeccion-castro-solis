@@ -319,7 +319,7 @@ export default function InventoryCountsPage() {
       >
         <StatePanel
           title="No tiene acceso a conteos físicos"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -340,7 +340,7 @@ export default function InventoryCountsPage() {
   return (
     <AppShell
       title="Conteos físicos"
-      description="Consulte conteos de inventario registrados y su estado."
+      description="Conteos de inventario registrados y su estado."
       actions={
         hasWriteAccess ? (
           <Button
@@ -369,7 +369,7 @@ export default function InventoryCountsPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por referencia del conteo.
+                Búsqueda por referencia del conteo.
               </p>
             </div>
 
@@ -538,7 +538,7 @@ export default function InventoryCountsPage() {
               title={filters.query ? "No se encontraron conteos" : "No hay conteos registrados"}
               message={
                 filters.query
-                  ? "Revise la referencia o intente con otro filtro."
+                  ? "Se buscó por referencia, con los filtros aplicados."
                   : "El sistema todavía no contiene conteos para el filtro seleccionado."
               }
               icon={<ClipboardCheckIcon />}

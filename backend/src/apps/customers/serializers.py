@@ -770,7 +770,7 @@ class ServiceChargeLineSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {
                         "description": (
-                            "Indique qué se cobra, o elija un tipo de servicio."
+                            "Falta qué se cobra, o un tipo de servicio."
                         )
                     }
                 )

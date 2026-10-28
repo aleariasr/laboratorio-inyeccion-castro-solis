@@ -61,7 +61,7 @@ export function validateProductForm(
     storageLocationId <= 0
   ) {
     errors.storageLocationId =
-      "Seleccione una ubicación válida.";
+      "La ubicación no es válida.";
   }
 
   if (
@@ -86,7 +86,7 @@ export function validateProductForm(
       Number(customSalePrice) <= 0)
   ) {
     errors.customSalePrice =
-      "Ingrese un precio válido mayor que cero, o déjelo vacío.";
+      "El precio debe ser mayor que cero, o quedar vacío.";
   }
 
   return errors;
@@ -106,7 +106,7 @@ export function validateProductVariantForm(
   }
 
   if (!values.storageLocationId) {
-    errors.storageLocationId = "Seleccione una ubicación.";
+    errors.storageLocationId = "La ubicación es obligatoria.";
   }
 
   if (!name) {
@@ -126,7 +126,7 @@ export function validateProductVariantForm(
       Number(customSalePrice) <= 0)
   ) {
     errors.customSalePrice =
-      "Ingrese un precio válido mayor que cero, o déjelo vacío.";
+      "El precio debe ser mayor que cero, o quedar vacío.";
   }
 
   return errors;

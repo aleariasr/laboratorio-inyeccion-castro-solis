@@ -57,7 +57,7 @@ const SELECT_CLASSES =
 
 function validateDraft(draft: LineDraft): string | null {
   if (!draft.description.trim() && !draft.serviceTypeId) {
-    return "Indique qué se cobra o elija un tipo de servicio.";
+    return "Falta qué se cobra, o un tipo de servicio.";
   }
 
   if (!/^\d+$/.test(draft.quantity.trim()) || Number(draft.quantity) < 1) {
@@ -65,7 +65,7 @@ function validateDraft(draft: LineDraft): string | null {
   }
 
   if (!DECIMAL_PATTERN.test(draft.unitPrice.trim())) {
-    return "Ingrese el precio (0 o más).";
+    return "El precio debe ser 0 o más.";
   }
 
   return null;
@@ -284,7 +284,7 @@ export function ServiceChargesSection({
       {lines.length === 0 ? (
         <p className="rounded-[var(--radius-lg)] border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">
           {canManage
-            ? "Todavía no hay líneas de cobro. Elija un tipo de servicio o escriba qué se cobra."
+            ? "Todavía no hay líneas de cobro. Se agregan con un tipo de servicio o escribiendo qué se cobra."
             : "Este servicio no tiene líneas de cobro."}
         </p>
       ) : (

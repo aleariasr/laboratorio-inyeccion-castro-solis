@@ -80,7 +80,7 @@ def create_cash_closing(
 
     if difference != 0 and not normalized_reason:
         raise DifferenceReasonRequiredError(
-            "Debe indicar el motivo de la diferencia entre lo esperado y lo contado."
+            "El motivo de la diferencia entre lo esperado y lo contado es obligatorio."
         )
 
     return CashClosing.objects.create(

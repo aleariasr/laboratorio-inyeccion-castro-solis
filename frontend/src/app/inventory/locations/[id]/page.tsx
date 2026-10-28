@@ -410,7 +410,7 @@ export default function StorageLocationDetailPage() {
       >
         <StatePanel
           title="Identificador incorrecto"
-          message="Regrese al listado y seleccione una ubicación válida."
+          message="El enlace está incompleto o fue modificado."
           tone="warning"
           action={
             <Button
@@ -442,7 +442,7 @@ export default function StorageLocationDetailPage() {
       >
         <StatePanel
           title="No tiene acceso a ubicaciones"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -471,7 +471,7 @@ export default function StorageLocationDetailPage() {
         loadState.status === "success"
           ? loadState.location.description ||
             "Ubicación física del inventario."
-          : "Consulte los productos asignados a esta ubicación."
+          : "Productos asignados a esta ubicación."
       }
       actions={
         loadState.status === "success" ? (

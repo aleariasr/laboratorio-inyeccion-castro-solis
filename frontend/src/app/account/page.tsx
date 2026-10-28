@@ -92,7 +92,7 @@ export default function AccountPage() {
     const nextErrors: FormErrors = {};
 
     if (!currentPassword) {
-      nextErrors.currentPassword = "Escriba su contraseña actual.";
+      nextErrors.currentPassword = "La contraseña actual es obligatoria.";
     }
 
     if (newPassword.length < MINIMUM_PASSWORD_LENGTH) {
@@ -363,7 +363,7 @@ export default function AccountPage() {
                 role="status"
                 className="rounded-[var(--radius-md)] bg-[var(--color-success-soft)] px-4 py-3 text-sm font-medium text-[var(--color-success)]"
               >
-                Contraseña cambiada. Úsela la próxima vez que inicie sesión.
+                Contraseña cambiada. La nueva rige desde el próximo inicio de sesión.
               </p>
             )}
 
@@ -409,7 +409,7 @@ export default function AccountPage() {
 
             <Field
               id="repeated-password"
-              label="Repita la contraseña nueva"
+              label="Confirmación de la contraseña nueva"
               required
               error={errors.repeatedPassword}
             >

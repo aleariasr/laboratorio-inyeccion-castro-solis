@@ -305,7 +305,7 @@ export default function UsersPage() {
       >
         <StatePanel
           title="No tiene acceso a usuarios"
-          message="Solicite a una persona administradora que revise los permisos de su usuario."
+          message="Los permisos de cada usuario los asigna el Administrador."
           tone="warning"
           action={
             <Button
@@ -326,7 +326,7 @@ export default function UsersPage() {
   return (
     <AppShell
       title="Usuarios"
-      description="Administre cuentas, roles y acceso al sistema."
+      description="Cuentas, roles y acceso al sistema."
       actions={
         hasAccess ? (
           <Button
@@ -355,7 +355,7 @@ export default function UsersPage() {
               </h2>
 
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Busque por usuario, nombre, apellido o correo.
+                Búsqueda por usuario, nombre, apellido o correo.
               </p>
             </div>
 
@@ -476,7 +476,7 @@ export default function UsersPage() {
               title={filters.query ? "No se encontraron usuarios" : "No hay usuarios registrados"}
               message={
                 filters.query
-                  ? "Revise el usuario, nombre, apellido o correo ingresado."
+                  ? "Se buscó por usuario, nombre, apellido y correo."
                   : "El catálogo todavía no contiene usuarios para el filtro seleccionado."
               }
               icon={<KeyIcon />}

@@ -9,7 +9,7 @@ export function validatePurchaseItemForm(
   const errors: PurchaseItemFormErrors = {};
 
   if (!values.productId) {
-    errors.productId = "Debe seleccionar un producto.";
+    errors.productId = "El producto es obligatorio.";
   }
 
   const quantity = values.quantity.trim();
