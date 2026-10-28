@@ -540,9 +540,8 @@ Validación técnica del backend base:
 
     Django check: OK
     Migraciones pendientes: no
-    Tests backend: suite completa en verde (último recuento parcial confirmado: 502 en
-    apps.core + apps.inventory + apps.cash + apps.documents, 2026-10-19 — correr `make test`
-    para el número exacto de la suite completa antes de citar un total).
+    Tests backend: suite completa en verde, 852 tests con `make test` (2026-10-27, versión
+    2.5.0).
     Build backend Docker: OK
 
 El backend base queda cerrado como `0.2.0-alpha`. Las fases posteriores (frontend operativo,
