@@ -134,6 +134,10 @@ Nada pendiente de registrar.
   - escanear en cualquier buscador de producto elige el producto solo;
   - ya no hay botones "Nuevo" al lado de los campos: se crea desde la
     lista, lo que obliga a buscar antes y evita duplicados.
+- **Textos de la interfaz neutros e informativos** en todo el sistema, en
+  vez de imperativos: "Búsqueda por nombre…" en vez de "Busque por
+  nombre…", "El cliente es obligatorio." en vez de "Debe seleccionar un
+  cliente.". Incluye los mensajes del backend que se muestran en pantalla.
 - `POST /api/inventory/products/labels/` acepta `items` (producto y copias,
   en el orden en que se imprimen); `product_ids` se sigue aceptando.
 
