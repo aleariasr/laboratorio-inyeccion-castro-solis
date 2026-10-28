@@ -34,8 +34,12 @@ Nada pendiente de registrar.
   `update.sh` respalda, corre las migraciones y vuelve a correr
   `setup_roles`, así que el permiso nuevo de Ventas y los de traslados se
   aplican solos.
-- **App de escritorio:** esta versión no cambia el `.exe`. No hace falta
-  reinstalarlo.
+- **App de escritorio:** `LICS Setup 2.5.0.exe` se instala encima del
+  actual y no reemplaza la distro. Trae el menú LICS de la 2.4.0 a quien
+  no lo tenga. Antes de instalarlo, respaldar fuera de la distro: el
+  desinstalador de los `.exe` anteriores, que corre al instalar encima,
+  pregunta si borrar la distro `lics-wsl` (base y respaldos); la
+  respuesta es **No**.
 - **Migraciones:**
   - `customers/0012`: precio de mano de obra del tipo de servicio (vacío en
     los existentes) y descripción como texto libre. Aditiva.
@@ -179,6 +183,11 @@ Nada pendiente de registrar.
   técnico (`SaleAlreadyConfirmedError`); ahora son una frase.
 - `seed_demo_data --reset` fallaba si había traslados, y no borraba las
   salidas de caja chica.
+- **El desinstalador podía borrar la base de datos al actualizar.** Al
+  instalar un `.exe` encima de otro, electron-builder corre el
+  desinstalador anterior, que preguntaba si borrar la distro `lics-wsl`.
+  Desde el 2.5.0, en una actualización no pregunta ni la toca
+  (`${isUpdated}`), y en modo silencioso la conserva (`/SD IDNO`).
 
 ### Removed
 

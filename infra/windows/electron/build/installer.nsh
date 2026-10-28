@@ -16,16 +16,22 @@
 !macroend
 
 !macro customUnInstall
-  MessageBox MB_YESNO|MB_ICONQUESTION "¿Eliminar también los servicios de LICS dentro de WSL2 (incluye la base de datos y los respaldos)?$\r$\nSi no está seguro, elija NO y consulte a soporte técnico." IDYES uninstallWsl IDNO skipWsl
+  ; Al instalar una versión nueva encima, electron-builder corre en silencio
+  ; el desinstalador de la anterior (con --updated). En ese caso la distro
+  ; con la base de datos no se toca ni se pregunta nada. Y si el
+  ; desinstalador corre en silencio por otro motivo, /SD IDNO la conserva.
+  ${ifNot} ${isUpdated}
+    MessageBox MB_YESNO|MB_ICONQUESTION "¿Eliminar también los servicios de LICS dentro de WSL2 (incluye la base de datos y los respaldos)?$\r$\nSi no está seguro, elija NO y consulte a soporte técnico." /SD IDNO IDYES uninstallWsl IDNO skipWsl
 
-  uninstallWsl:
-    DetailPrint "Eliminando la distro WSL2 lics-wsl (incluye datos y respaldos)..."
-    nsExec::ExecToLog 'wsl --unregister lics-wsl'
-    Goto doneWsl
+    uninstallWsl:
+      DetailPrint "Eliminando la distro WSL2 lics-wsl (incluye datos y respaldos)..."
+      nsExec::ExecToLog 'wsl --unregister lics-wsl'
+      Goto doneWsl
 
-  skipWsl:
-    DetailPrint "Se conserva la distro WSL2 lics-wsl. LICS ya no tiene ícono, pero los datos siguen intactos."
-    DetailPrint "Para eliminarla manualmente más adelante: wsl --unregister lics-wsl"
+    skipWsl:
+      DetailPrint "Se conserva la distro WSL2 lics-wsl. LICS ya no tiene ícono, pero los datos siguen intactos."
+      DetailPrint "Para eliminarla manualmente más adelante: wsl --unregister lics-wsl"
 
-  doneWsl:
+    doneWsl:
+  ${endIf}
 !macroend
