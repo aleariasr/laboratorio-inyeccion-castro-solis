@@ -2420,6 +2420,17 @@ class BusinessReportsApiTest(APITestCase):
             Decimal(cheapest["purchases"][0]["unit_cost"]),
             Decimal("90.0000"),
         )
+        # Lo que dice la factura en dólares, para mostrar de dónde salen
+        # los ₡90 (US$0,15 a ₡600).
+        self.assertEqual(cheapest["purchases"][0]["original_currency"], "USD")
+        self.assertEqual(
+            Decimal(cheapest["purchases"][0]["original_unit_cost"]),
+            Decimal("0.1500"),
+        )
+        self.assertEqual(
+            Decimal(cheapest["purchases"][0]["exchange_rate"]),
+            Decimal("600.0000"),
+        )
 
         # Proveedor original: dos compras en colones, sin conversión.
         # Último precio: 120.0000 (2026-07-20). Promedio: (100+120)/2=110.0000.

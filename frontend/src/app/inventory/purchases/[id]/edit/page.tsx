@@ -350,6 +350,7 @@ export default function EditPurchasePage() {
           mode="edit"
           initialValues={purchaseToFormValues(loadState.purchase)}
           supplierDisplayLabel={loadState.purchase.supplier_detail.name}
+          lineCount={loadState.purchase.items.length}
           token={token}
           isSubmitting={isSubmitting}
           submitError={submitError}

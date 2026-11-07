@@ -138,6 +138,14 @@ function MoneyCell({
   );
 }
 
+/** Un costo de importación en colones, con el tipo de cambio con que se pagó. */
+function importCostInColones(importCost: ImportCost): number {
+  return (
+    Number(importCost.amount) *
+    (importCost.currency === "USD" ? Number(importCost.exchange_rate) : 1)
+  );
+}
+
 export function PurchaseCostsSection({
   purchaseId,
   currency,
@@ -614,15 +622,20 @@ export function PurchaseCostsSection({
                             no depende de la moneda de la compra. */}
                         <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
                           {importCost.currency === "USD"
-                            ? formatNumber(importCost.exchange_rate, 4)
+                            ? `₡${formatNumber(importCost.exchange_rate, 4)}`
                             : "No aplica"}
                         </td>
 
-                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
-                          {formatColones(
-                            Number(importCost.amount) *
-                              (importCost.currency === "USD" ? Number(importCost.exchange_rate) : 1),
-                          )}
+                        <td
+                          className={[
+                            "whitespace-nowrap px-5 py-4 text-right font-mono text-sm",
+                            importCost.is_active
+                              ? "font-semibold text-foreground"
+                              : "text-muted-foreground line-through",
+                          ].join(" ")}
+                          title={importCost.is_active ? undefined : "Inactivo: no suma al costo de la compra."}
+                        >
+                          {formatColones(importCostInColones(importCost))}
                         </td>
 
                         <td className="px-5 py-4">
@@ -673,6 +686,22 @@ export function PurchaseCostsSection({
                       </tr>
                     ))}
                   </tbody>
+
+                  <tfoot>
+                    <tr className="border-t border-[var(--color-border-soft)] bg-surface-muted/50">
+                      <td colSpan={4} className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Total que suma (activos)
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm font-semibold text-foreground">
+                        {formatColones(
+                          loadState.importCosts
+                            .filter((importCost) => importCost.is_active)
+                            .reduce((total, importCost) => total + importCostInColones(importCost), 0),
+                        )}
+                      </td>
+                      <td colSpan={canEditImportCosts ? 2 : 1} />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}

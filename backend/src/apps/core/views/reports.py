@@ -379,6 +379,11 @@ def product_supplier_prices_results(product):
                 "purchase_date": purchase.purchase_date,
                 "unit_cost": unit_cost_crc,
                 "currency": "CRC",
+                # Lo que dice la factura, para que se vea de dónde salen
+                # los colones de una compra en dólares.
+                "original_unit_cost": item.unit_cost,
+                "original_currency": purchase.currency,
+                "exchange_rate": purchase.exchange_rate,
             }
         )
 

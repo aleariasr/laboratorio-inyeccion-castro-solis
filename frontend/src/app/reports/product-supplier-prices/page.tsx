@@ -16,7 +16,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { canReadProducts, canReadReports } from "@/features/auth/permissions";
 import { getProducts } from "@/features/inventory/products/api";
 import type { Product } from "@/features/inventory/products/types";
-import { formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
+import { formatDateOnly, formatMoney, formatNumber } from "@/features/inventory/purchases/format";
 import {
   getProductSupplierPricesReport,
   getProductSupplierPricesReportPdf,
@@ -280,7 +280,7 @@ export default function ProductSupplierPricesReportPage() {
   return (
     <AppShell
       title="Comparación de precios por proveedor"
-      description="Precio pagado a cada proveedor por un producto, en colones."
+      description="Precio de factura pagado a cada proveedor por un producto, en colones y sin costos de importación."
       actions={
         <ReportPdfActions
           onBack={goBack}
@@ -478,15 +478,15 @@ export default function ProductSupplierPricesReportPage() {
                         </td>
 
                         <td className="px-5 py-4 text-right align-top text-sm text-muted-foreground">
-                          {entry.last_purchase_date}
+                          {formatDateOnly(entry.last_purchase_date)}
                         </td>
 
                         <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm font-semibold text-foreground">
-                          {formatMoney(entry.last_unit_cost)} {entry.currency}
+                          ₡{formatMoney(entry.last_unit_cost)}
                         </td>
 
                         <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-muted-foreground">
-                          {formatMoney(entry.average_unit_cost)} {entry.currency}
+                          ₡{formatMoney(entry.average_unit_cost)}
                         </td>
 
                         <td className="px-5 py-4 text-right align-top text-sm">
@@ -534,7 +534,13 @@ export default function ProductSupplierPricesReportPage() {
                                     </td>
 
                                     <td className="whitespace-nowrap py-1.5 text-right font-mono text-sm font-medium text-foreground">
-                                      {formatMoney(purchaseEntry.unit_cost)} {purchaseEntry.currency}
+                                      ₡{formatMoney(purchaseEntry.unit_cost)}
+                                      {purchaseEntry.original_currency === "USD" && (
+                                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                          (US${formatMoney(purchaseEntry.original_unit_cost)} a ₡
+                                          {formatNumber(purchaseEntry.exchange_rate, 4)})
+                                        </span>
+                                      )}
                                     </td>
                                   </tr>
                                 ))}

@@ -73,7 +73,27 @@ El formato utiliza estas categorías:
   registrarla); el margen sí se puede recalcular.
 - El reporte de compras por proveedor (pantalla y PDF) muestra también los
   costos adicionales y el total con costos, en colones.
-- Montos de compras en `₡` / `US$` en lugar de "CRC" / "USD".
+- Montos de compras en `₡` / `US$` en lugar de "CRC" / "USD", y la moneda
+  visible en cada pantalla de la compra: el costo unitario de una línea se
+  escribe con su moneda y su equivalente en colones, la tabla de costos
+  muestra el total que suma (los inactivos tachados) y el reporte de
+  precios por proveedor dice de dónde salen los colones de cada compra en
+  dólares.
+- Los montos de dinero con céntimos se muestran siempre con dos decimales
+  (₡4 647.50, no ₡4 647.5) en todo el sistema.
+- Al cambiar la moneda de una compra que ya tiene líneas, el formulario
+  avisa que sus montos no se convierten.
+
+### Fixed (recorrido completo del 2026-11-07)
+
+- El resumen de costos devolvía los montos como números de punto flotante;
+  ahora como texto exacto, igual que el resto de la API.
+- Editar una línea con otro producto respondía bien pero no lo cambiaba;
+  ahora se rechaza con un mensaje.
+- Se podía cambiar por la API el proveedor de una compra con líneas, que
+  quedaban con productos del proveedor anterior; ahora se rechaza.
+- El aviso "Se borraron los costos calculados" salía aunque la compra no
+  tuviera ningún cálculo.
 
 ### Added
 

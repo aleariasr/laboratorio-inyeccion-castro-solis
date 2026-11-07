@@ -219,6 +219,10 @@ export type ProductSupplierPriceHistoryEntry = {
   purchase_date: string;
   unit_cost: string;
   currency: "CRC";
+  /** Lo que dice la factura, en su moneda. */
+  original_unit_cost: string;
+  original_currency: "CRC" | "USD";
+  exchange_rate: string;
 };
 
 export type ProductSupplierPriceEntry = {

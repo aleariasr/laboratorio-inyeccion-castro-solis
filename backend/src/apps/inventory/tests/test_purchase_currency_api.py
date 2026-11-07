@@ -366,3 +366,98 @@ class PurchaseCurrencyApiTest(APITestCase):
         self.assertEqual(Decimal(line["original_unit_cost_crc"]), Decimal("5200"))
         self.assertEqual(Decimal(line["final_unit_cost"]), Decimal("5200"))
         self.assertEqual(Decimal(line["suggested_price"]), Decimal("6760"))
+
+    # Recorrido completo del 2026-11-07 ---------------------------------
+
+    def test_cost_summary_amounts_are_exact_strings(self):
+        # Antes iban como números de punto flotante en el JSON.
+        purchase = self.make_purchase()
+
+        response = self.client.get(
+            f"/api/inventory/purchases/{purchase.id}/cost-summary/",
+            {"margin_percentage": "30"},
+        )
+
+        self.assertIsInstance(response.data["invoice_subtotal"], str)
+        self.assertIsInstance(response.data["cost_factor"], str)
+        self.assertIsInstance(response.data["items"][0]["suggested_price"], str)
+        self.assertEqual(response.data["items"][0]["quantity"], 1)
+        self.assertEqual(response.data["items"][0]["suggested_price"], "6760.00")
+
+    def test_line_product_cannot_change(self):
+        # Antes respondía 200 y el producto quedaba igual, sin aviso.
+        purchase = self.make_purchase()
+        line = purchase.items.get()
+        other_product = Product.objects.create(
+            standard_code="P-002",
+            name="Otra pieza",
+            storage_location=self.location,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/purchase-items/{line.id}/",
+            {"product": other_product.id, "quantity": 3},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("product", response.data)
+
+        line.refresh_from_db()
+
+        self.assertEqual(line.quantity, 1)
+
+    def test_line_can_be_saved_with_its_own_product(self):
+        purchase = self.make_purchase()
+        line = purchase.items.get()
+
+        response = self.client.patch(
+            f"/api/inventory/purchase-items/{line.id}/",
+            {"product": self.product.id, "quantity": 3},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_purchase_supplier_cannot_change(self):
+        # Las líneas quedaban con productos del proveedor anterior.
+        purchase = self.make_purchase()
+        other_supplier = Supplier.objects.create(
+            name="Otro proveedor",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.patch(
+            f"/api/inventory/purchases/{purchase.id}/",
+            {"supplier": other_supplier.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("supplier", response.data)
+
+        purchase.refresh_from_db()
+
+        self.assertEqual(purchase.supplier, self.supplier)
+
+    def test_full_edit_with_the_same_supplier_is_accepted(self):
+        purchase = self.make_purchase()
+
+        response = self.client.put(
+            f"/api/inventory/purchases/{purchase.id}/",
+            {
+                "supplier": self.supplier.id,
+                "invoice_number": purchase.invoice_number,
+                "purchase_date": str(purchase.purchase_date),
+                "currency": "USD",
+                "exchange_rate": "521.0000",
+                "notes": "",
+                "is_active": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

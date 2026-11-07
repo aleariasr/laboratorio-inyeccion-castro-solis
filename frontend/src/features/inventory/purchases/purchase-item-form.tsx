@@ -22,14 +22,20 @@ import type { Product } from "../products/types";
 import { validatePurchaseItemForm } from "./purchase-item-validation";
 import type {
   PurchaseItemFormErrors,
+  Currency,
   PurchaseItemFormField,
   PurchaseItemFormValues,
 } from "./types";
+import { formatMoney } from "./format";
 
 type PurchaseItemFormMode = "create" | "edit";
 
 type PurchaseItemFormProps = {
   mode: PurchaseItemFormMode;
+  /** Moneda de la compra: el costo unitario se escribe en esa moneda. */
+  currency: Currency;
+  /** Tipo de cambio de la compra (₡ por US$1), para mostrar el equivalente. */
+  exchangeRate: string;
   initialValues: PurchaseItemFormValues;
   productDisplayLabel?: string;
   canReadProducts: boolean;
@@ -61,6 +67,8 @@ function formatProductLabel(product: Product): string {
 
 export function PurchaseItemForm({
   mode,
+  currency,
+  exchangeRate,
   initialValues,
   productDisplayLabel,
   canReadProducts,
@@ -217,6 +225,14 @@ export function PurchaseItemForm({
     void onSubmit(values);
   }
 
+  const unitCostValue = Number(values.unitCost);
+  const unitCostHint =
+    currency === "USD"
+      ? unitCostValue > 0 && Number(exchangeRate) > 0
+        ? `En dólares, la moneda de la compra. Equivale a ₡${formatMoney(unitCostValue * Number(exchangeRate))}.`
+        : "En dólares, la moneda de la compra."
+      : "En colones, la moneda de la compra.";
+
   const submitLabel = mode === "create" ? "Agregar línea" : "Guardar cambios";
 
   const submittingLabel = mode === "create" ? "Agregando línea…" : "Guardando cambios…";
@@ -365,7 +381,13 @@ export function PurchaseItemForm({
           />
         </Field>
 
-        <Field id="purchase-item-unit-cost" label="Costo unitario" required error={errors.unitCost}>
+        <Field
+          id="purchase-item-unit-cost"
+          label={currency === "USD" ? "Costo unitario (US$)" : "Costo unitario (₡)"}
+          required
+          hint={unitCostHint}
+          error={errors.unitCost}
+        >
           <Input
             id="purchase-item-unit-cost"
             name="unitCost"

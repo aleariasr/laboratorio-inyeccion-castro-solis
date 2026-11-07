@@ -886,7 +886,9 @@ export default function PurchaseDetailPage() {
 
               <div className="app-status-row">
                 <dt>Moneda</dt>
-                <dd>{loadState.purchase.currency}</dd>
+                <dd>
+                  {loadState.purchase.currency === "USD" ? "Dólares (US$)" : "Colones (₡)"}
+                </dd>
               </div>
 
               <div className="app-status-row">
@@ -994,6 +996,8 @@ export default function PurchaseDetailPage() {
                   canReadProducts={hasProductsAccess}
                   canCreateProducts={user ? canCreateProducts(user) : false}
                   canReadCosts={user ? canReadCosts(user) : false}
+                  currency={loadState.purchase.currency}
+                  exchangeRate={loadState.purchase.exchange_rate}
                   mode={itemFormState.mode}
                   initialValues={itemFormInitialValues}
                   productDisplayLabel={itemDisplayLabel}

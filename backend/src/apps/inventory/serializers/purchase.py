@@ -61,6 +61,23 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
                     {"purchase": "Una línea no se cambia de compra."}
                 )
 
+            # Antes se respondía 200 y el producto quedaba igual, sin aviso
+            # (recorrido del 2026-11-07). La pantalla tampoco lo permite.
+            product = attrs.get("product")
+
+            if (
+                product is not None
+                and product.pk != self.instance.supplier_product.product_id
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "product": [
+                            "El producto de una línea no se cambia; se "
+                            "elimina la línea y se agrega otra."
+                        ]
+                    }
+                )
+
             purchase = self.instance.purchase
 
         if purchase is not None and purchase.status != PurchaseStatus.DRAFT:
@@ -231,6 +248,24 @@ class PurchaseSerializer(serializers.ModelSerializer):
         if self.instance is not None and self.instance.status != PurchaseStatus.DRAFT:
             raise serializers.ValidationError(
                 "Solo se pueden modificar compras en borrador."
+            )
+
+        # Las líneas apuntan a productos de ese proveedor (SupplierProduct):
+        # cambiarlo las dejaba con el proveedor anterior (recorrido del
+        # 2026-11-07). La pantalla ya decía que no se puede.
+        supplier = attrs.get("supplier")
+
+        if (
+            self.instance is not None
+            and supplier is not None
+            and supplier.pk != self.instance.supplier_id
+        ):
+            raise serializers.ValidationError(
+                {
+                    "supplier": [
+                        "El proveedor no puede modificarse una vez creada la compra."
+                    ]
+                }
             )
 
         currency = attrs.get(

@@ -40,6 +40,8 @@ type PurchaseFormProps = {
   mode: PurchaseFormMode;
   initialValues: PurchaseFormValues;
   supplierDisplayLabel?: string;
+  /** Líneas que ya tiene la compra (edición): sus montos están en la moneda actual. */
+  lineCount?: number;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -80,6 +82,7 @@ export function PurchaseForm({
   mode,
   initialValues,
   supplierDisplayLabel,
+  lineCount = 0,
   token,
   isSubmitting = false,
   submitError = null,
@@ -535,6 +538,17 @@ export function PurchaseForm({
               <option value="CRC">Colones (CRC)</option>
               <option value="USD">Dólares (USD)</option>
             </select>
+
+            {/* Los costos de las líneas no se convierten: el mismo número
+                pasa a leerse en la otra moneda (US$10 → ₡10). */}
+            {lineCount > 0 && values.currency !== initialValues.currency && (
+              <p
+                role="status"
+                className="mt-2 rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[var(--color-warning-soft)] px-3 py-2 text-xs text-foreground"
+              >
+                {`Esta compra ya tiene ${lineCount === 1 ? "una línea" : `${lineCount} líneas`} con costos en ${initialValues.currency === "USD" ? "dólares" : "colones"}. Al cambiar la moneda, esos montos no se convierten: los mismos números pasan a ser ${values.currency === "USD" ? "dólares" : "colones"}. Corresponde revisar cada línea después de guardar.`}
+              </p>
+            )}
           </Field>
 
           <Field
