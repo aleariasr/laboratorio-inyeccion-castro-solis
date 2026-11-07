@@ -43,7 +43,7 @@ import {
 } from "@/features/inventory/products/types";
 import { getMovementOrigin } from "@/features/inventory/movements/origin";
 import { getLatestProductCostHistory } from "@/features/inventory/purchases/api";
-import { crcEquivalent, formatMoney } from "@/features/inventory/purchases/format";
+import { crcEquivalent, formatMoney, formatNumber } from "@/features/inventory/purchases/format";
 import type { ProductCostHistory } from "@/features/inventory/purchases/types";
 import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import type { PaginatedResponse } from "@/lib/api/types";
@@ -1026,7 +1026,7 @@ export default function ProductDetailPage() {
 
             <p className="mt-1 text-sm text-muted-foreground">
               {hasCostsAccess
-                ? "Últimos valores calculados a partir de la compra más reciente con costos aplicados."
+                ? "Valores de la última compra confirmada con costos aplicados."
                 : "Precio al que se vende este producto."}
             </p>
 
@@ -1124,27 +1124,30 @@ export default function ProductDetailPage() {
                     Precio sin costos
                   </dt>
                   <dd className="mt-2 font-mono text-lg font-semibold text-foreground">
-                    {formatMoney(costHistory.original_unit_cost)} {costHistory.currency}
+                    {costHistory.currency === "USD"
+                      ? `US$${formatMoney(costHistory.original_unit_cost)}`
+                      : `₡${formatMoney(costHistory.original_unit_cost)}`}
                   </dd>
                   {costHistory.currency === "USD" && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       {crcEquivalent(costHistory.original_unit_cost, costHistory.exchange_rate)}
+                      {` (₡${formatNumber(costHistory.exchange_rate, 4)} por US$1)`}
                     </p>
                   )}
                 </div>
 
+                {/* Costo final y sugerido ya vienen en colones (auditoría de
+                    compras en dólares, 2026-11-07). */}
                 <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
                   <dt className="text-sm text-muted-foreground">
                     Último precio de costo
                   </dt>
                   <dd className="mt-2 font-mono text-lg font-semibold text-foreground">
-                    {formatMoney(costHistory.final_unit_cost)} {costHistory.currency}
+                    ₡{formatMoney(costHistory.final_unit_cost)}
                   </dd>
-                  {costHistory.currency === "USD" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {crcEquivalent(costHistory.final_unit_cost, costHistory.exchange_rate)}
-                    </p>
-                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Con los costos de importación de la compra.
+                  </p>
                 </div>
 
                 <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
@@ -1153,14 +1156,12 @@ export default function ProductDetailPage() {
                   </dt>
                   <dd className="mt-2 font-mono text-lg font-semibold text-foreground">
                     {costHistory.suggested_price
-                      ? `${formatMoney(costHistory.suggested_price)} ${costHistory.currency}`
+                      ? `₡${formatMoney(costHistory.suggested_price)}`
                       : "No calculado"}
                   </dd>
-                  {costHistory.currency === "USD" && costHistory.suggested_price && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {crcEquivalent(costHistory.suggested_price, costHistory.exchange_rate)}
-                    </p>
-                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Margen de {formatNumber(costHistory.margin_percentage)} %.
+                  </p>
                 </div>
               </dl>
             ) : (

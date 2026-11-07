@@ -37,6 +37,8 @@ export type Purchase = {
   cancellation_reason: string;
   notes: string;
   items: PurchaseItemInline[];
+  /** Si ya se aplicaron costos (hay cálculo de costos guardado). */
+  has_cost_calculation: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -230,13 +232,20 @@ export type ImportCostFormField =
 
 export type ImportCostFormErrors = Partial<Record<ImportCostFormField, string>>;
 
-export function emptyImportCostFormValues(currency: Currency): ImportCostFormValues {
+/**
+ * Un costo nuevo arranca en la moneda de la compra. En dólares propone el
+ * tipo de cambio de la compra (₡ por US$1); en colones, 1.
+ */
+export function emptyImportCostFormValues(
+  currency: Currency,
+  purchaseExchangeRate: string,
+): ImportCostFormValues {
   return {
     categoryId: "",
     description: "",
     amount: "",
     currency,
-    exchangeRate: "1",
+    exchangeRate: currency === "USD" ? purchaseExchangeRate : "1",
     isActive: true,
   };
 }
@@ -266,27 +275,48 @@ export function buildImportCostWritePayload(
   };
 }
 
+/**
+ * Resumen de costos (auditoría de compras en dólares, 2026-11-07): todo en
+ * colones salvo los campos *_original / original_unit_cost, que están en
+ * la moneda de la compra.
+ */
 export type CostSummaryItem = {
   supplier_product: number;
   product: number;
   standard_code: string;
   name: string;
   quantity: number;
+  /** En la moneda de la compra. */
   original_unit_cost: string;
+  original_unit_cost_crc: string;
   final_unit_cost: string;
   suggested_price: string;
 };
 
+export type CostSummaryImportCost = {
+  id: number;
+  category: string;
+  description: string;
+  amount: string;
+  currency: Currency;
+  exchange_rate: string;
+  amount_crc: string;
+};
+
 export type CostSummary = {
   purchase: number;
+  currency: Currency;
+  /** Con que se pasaron las líneas a colones (1 en una compra en colones). */
+  exchange_rate: string;
+  /** Subtotal de líneas en la moneda de la compra. */
+  invoice_subtotal_original: string;
   invoice_subtotal: string;
   import_costs_total: string;
   total_cost: string;
   cost_factor: string;
   margin_percentage: string;
   suggested_total: string;
-  currency: Currency;
-  exchange_rate: string;
+  import_costs: CostSummaryImportCost[];
   items: CostSummaryItem[];
 };
 
@@ -305,12 +335,15 @@ export type ProductCostHistory = {
     supplier: string;
     currency: Currency;
   };
+  /** En la moneda de la compra (currency, exchange_rate). */
   original_unit_cost: string;
   cost_factor: string;
+  /** En colones. */
   final_unit_cost: string;
   currency: Currency;
   exchange_rate: string;
   margin_percentage: string;
+  /** En colones. */
   suggested_price: string | null;
   calculated_at: string;
   created_at: string;

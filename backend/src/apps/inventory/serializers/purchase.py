@@ -10,6 +10,13 @@ from apps.inventory.models import (
     SupplierProduct,
 )
 
+from apps.inventory.exchange_rates import (
+    CRC_EXCHANGE_RATE,
+    USD_EXCHANGE_RATE_RANGE_MESSAGE,
+    USD_EXCHANGE_RATE_REQUIRED_MESSAGE,
+    is_valid_usd_exchange_rate,
+)
+
 from .supplier import SupplierSerializer
 
 
@@ -149,7 +156,16 @@ class PurchaseItemInlineSerializer(serializers.ModelSerializer):
 
 class PurchaseSerializer(serializers.ModelSerializer):
     currency = serializers.CharField(max_length=3)
-    
+    exchange_rate = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        required=False,
+    )
+    # Si la compra ya tiene costos aplicados (ProductCostHistory). El
+    # detalle lo usa para avisar al confirmar una compra sin costos: el
+    # precio de venta de sus productos no cambiaría.
+    has_cost_calculation = serializers.SerializerMethodField()
+
     supplier_detail = SupplierSerializer(
         source="supplier",
         read_only=True,
@@ -177,6 +193,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
             "cancellation_reason",
             "notes",
             "items",
+            "has_cost_calculation",
             "is_active",
             "created_at",
             "updated_at",
@@ -216,8 +233,39 @@ class PurchaseSerializer(serializers.ModelSerializer):
                 "Solo se pueden modificar compras en borrador."
             )
 
+        currency = attrs.get(
+            "currency",
+            self.instance.currency if self.instance is not None else None,
+        )
+
+        if currency == Currency.CRC:
+            # En colones el tipo de cambio no aplica: se guarda 1 aunque
+            # llegue otro valor (antes se aceptaba una compra CRC con 520).
+            attrs["exchange_rate"] = CRC_EXCHANGE_RATE
+        elif currency == Currency.USD:
+            exchange_rate = attrs.get("exchange_rate")
+
+            if exchange_rate is None and self.instance is not None:
+                exchange_rate = self.instance.exchange_rate
+
+            if exchange_rate is None:
+                raise serializers.ValidationError(
+                    {"exchange_rate": [USD_EXCHANGE_RATE_REQUIRED_MESSAGE]}
+                )
+
+            if not is_valid_usd_exchange_rate(exchange_rate):
+                raise serializers.ValidationError(
+                    {"exchange_rate": [USD_EXCHANGE_RATE_RANGE_MESSAGE]}
+                )
+
         return attrs
-    
+
+    def get_has_cost_calculation(self, obj):
+        if hasattr(obj, "has_cost_calculation"):
+            return obj.has_cost_calculation
+
+        return obj.product_cost_history.exists()
+
 class PurchaseCostSummaryInputSerializer(serializers.Serializer):
     margin_percentage = serializers.DecimalField(
         max_digits=8,

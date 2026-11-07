@@ -27,7 +27,12 @@ import {
   getPurchase,
   updatePurchaseItem,
 } from "@/features/inventory/purchases/api";
-import { crcEquivalent, formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
+import {
+  crcEquivalent,
+  formatDateOnly,
+  formatMoney,
+  formatNumber,
+} from "@/features/inventory/purchases/format";
 import { PurchaseCostsSection } from "@/features/inventory/purchases/purchase-costs-section";
 import { mapPurchaseItemApiFieldErrors } from "@/features/inventory/purchases/purchase-item-form-errors";
 import { PurchaseItemForm } from "@/features/inventory/purchases/purchase-item-form";
@@ -487,9 +492,30 @@ export default function PurchaseDetailPage() {
       return;
     }
 
+    setConfirmActionState({ isSubmitting: true, error: null });
+
+    // Se vuelve a leer la compra: los costos pudieron aplicarse en esta
+    // misma pantalla después de cargarla.
+    let hasCostCalculation = loadState.purchase.has_cost_calculation;
+
+    try {
+      hasCostCalculation = (await getPurchase(token, loadState.purchase.id)).has_cost_calculation;
+    } catch {
+      // Si no se puede leer, se avisa con el dato que ya había.
+    }
+
+    setConfirmActionState({ isSubmitting: false, error: null });
+
     if (
       !confirmWithFocusRestore(
-        "¿Confirmar esta compra? Se generará el ingreso de inventario correspondiente y ya no podrá editarse.",
+        [
+          "¿Confirmar esta compra? Se generará el ingreso de inventario correspondiente y ya no podrán editarse ni la compra ni sus costos de importación.",
+          hasCostCalculation
+            ? ""
+            : "Esta compra no tiene costos aplicados: el precio de venta de sus productos no cambia.",
+        ]
+          .filter(Boolean)
+          .join(" "),
       )
     ) {
       return;
@@ -851,14 +877,20 @@ export default function PurchaseDetailPage() {
 
               <div className="app-status-row">
                 <dt>Tipo de cambio</dt>
-                <dd>{formatMoney(loadState.purchase.exchange_rate)}</dd>
+                <dd className="font-mono">
+                  {loadState.purchase.currency === "USD"
+                    ? `₡${formatNumber(loadState.purchase.exchange_rate, 4)} por US$1`
+                    : "No aplica"}
+                </dd>
               </div>
 
               <div className="app-status-row">
-                <dt>Total de la factura</dt>
-                <dd>
+                <dt>Subtotal de la factura</dt>
+                <dd className="font-mono">
                   <p className="leading-tight">
-                    {formatMoney(total)} {loadState.purchase.currency}
+                    {loadState.purchase.currency === "USD"
+                      ? `US$${formatMoney(total)}`
+                      : `₡${formatMoney(total)}`}
                   </p>
 
                   {loadState.purchase.currency === "USD" &&
@@ -1075,6 +1107,7 @@ export default function PurchaseDetailPage() {
             token={token ?? ""}
             hasWriteAccess={hasWriteAccess}
             isDraft={loadState.purchase.status === "DRAFT"}
+            isCancelled={loadState.purchase.status === "CANCELLED"}
             wasCalculationDiscarded={costsReloadKey > 0}
           />
 

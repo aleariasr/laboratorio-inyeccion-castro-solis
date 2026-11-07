@@ -164,7 +164,7 @@ export default function PurchasesBySupplierReportPage() {
   return (
     <AppShell
       title="Compras por proveedor"
-      description="Cantidad de compras y subtotal facturado por proveedor, en colones."
+      description="Compras confirmadas por proveedor: factura, costos adicionales y total, en colones."
       actions={
         <ReportPdfActions
           onBack={goBack}
@@ -276,7 +276,7 @@ export default function PurchasesBySupplierReportPage() {
       {loadState.status === "success" && loadState.data.results.length > 0 && (
         <div className="overflow-hidden rounded-[var(--radius-xl)] bg-surface shadow-[var(--shadow-sm)] ring-1 ring-[var(--color-border-soft)]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse">
+            <table className="w-full min-w-[760px] border-collapse">
               <thead>
                 <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
                   <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -289,6 +289,14 @@ export default function PurchasesBySupplierReportPage() {
 
                   <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     Subtotal facturado
+                  </th>
+
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Costos adicionales
+                  </th>
+
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Total con costos
                   </th>
                 </tr>
               </thead>
@@ -312,8 +320,16 @@ export default function PurchasesBySupplierReportPage() {
                       {entry.purchase_count}
                     </td>
 
+                    <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-foreground">
+                      ₡{formatMoney(entry.invoice_subtotal)}
+                    </td>
+
+                    <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-muted-foreground">
+                      ₡{formatMoney(entry.import_costs_total)}
+                    </td>
+
                     <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm font-semibold text-foreground">
-                      {formatMoney(entry.invoice_subtotal)} {entry.currency}
+                      ₡{formatMoney(entry.total_cost)}
                     </td>
                   </tr>
                 ))}

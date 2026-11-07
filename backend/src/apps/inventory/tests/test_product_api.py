@@ -604,7 +604,7 @@ class ProductApiTest(APITestCase):
         """
         Las compras se crean CONFIRMADAS por defecto porque solo los
         cálculos de compras confirmadas definen el precio sugerido (ver
-        _cost_history_with_suggested_price_in_crc).
+        _current_cost_history).
         """
 
         supplier = Supplier.objects.create(
@@ -703,9 +703,12 @@ class ProductApiTest(APITestCase):
             "100.0000",
         )
 
-    def test_effective_sale_price_converts_usd_suggested_price_to_crc(self):
+    def test_suggested_price_of_usd_purchase_is_already_in_colones(self):
+        # Desde la auditoría del 2026-11-07 el cálculo guarda el precio
+        # sugerido en colones (US$10 × ₡520 = ₡5 200): no se vuelve a
+        # multiplicar por el tipo de cambio.
         self.create_cost_history(
-            "10.0000",
+            "5200.0000",
             currency=Currency.USD,
             exchange_rate="520.0000",
         )

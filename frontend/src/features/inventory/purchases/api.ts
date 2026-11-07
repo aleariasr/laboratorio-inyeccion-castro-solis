@@ -80,6 +80,39 @@ export function getPurchases(
   );
 }
 
+/**
+ * La compra más reciente (por fecha de factura) que cumple los filtros, sin
+ * contar las anuladas. El formulario la usa para proponer la moneda de un
+ * proveedor (la de su última compra) y el tipo de cambio en dólares (el de
+ * la última compra en dólares).
+ */
+export function getLatestPurchase(
+  token: string,
+  filters: { supplierId?: number; currency?: "CRC" | "USD" },
+  signal?: AbortSignal,
+): Promise<Purchase | null> {
+  const searchParams = new URLSearchParams({
+    page: "1",
+    page_size: "5",
+  });
+
+  if (filters.supplierId) {
+    searchParams.set("supplier", String(filters.supplierId));
+  }
+
+  if (filters.currency) {
+    searchParams.set("currency", filters.currency);
+  }
+
+  return apiGet<PaginatedResponse<Purchase>>(
+    `/api/inventory/purchases/?${searchParams.toString()}`,
+    { token, signal },
+  ).then(
+    (response) =>
+      response.results.find((purchase) => purchase.status !== "CANCELLED") ?? null,
+  );
+}
+
 export function getPurchase(
   token: string,
   purchaseId: number,
@@ -357,7 +390,7 @@ export function getProductCostHistory(
 /**
  * El cálculo de costos que está rigiendo el precio del producto: el de la
  * última compra CONFIRMADA. Los cálculos de borradores y de compras anuladas
- * no definen precio (ver _cost_history_with_suggested_price_in_crc).
+ * no definen precio (ver _current_cost_history en selectors/pricing.py).
  */
 export function getLatestProductCostHistory(
   token: string,

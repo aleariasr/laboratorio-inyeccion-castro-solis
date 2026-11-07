@@ -588,8 +588,11 @@ export default function PurchasesPage() {
                       Fecha
                     </th>
 
-                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                      Total
+                    <th
+                      className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+                      title="Suma de las líneas, sin costos de importación."
+                    >
+                      Subtotal
                     </th>
 
                     <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -630,7 +633,9 @@ export default function PurchasesPage() {
 
                       <td className="whitespace-nowrap px-5 py-4 text-right align-top text-sm text-muted-foreground">
                         <p className="font-mono leading-tight text-foreground">
-                          {formatMoney(purchaseTotal(purchase))} {purchase.currency}
+                          {purchase.currency === "USD"
+                            ? `US$${formatMoney(purchaseTotal(purchase))}`
+                            : `₡${formatMoney(purchaseTotal(purchase))}`}
                         </p>
 
                         {purchaseCrcEquivalent(purchase) && (

@@ -782,6 +782,10 @@ class Command(BaseCommand):
 
             if currency == Currency.USD:
                 self._add_import_costs(purchase, user)
+            elif self.rng.random() < 0.3:
+                # Compra en colones con un costo pagado en dólares (caso
+                # mixto de la auditoría del 2026-11-07).
+                self._add_usd_cost_to_colones_purchase(purchase, user)
 
             confirm_purchase(purchase=purchase, user=user)
             self._stamp(
@@ -821,10 +825,26 @@ class Command(BaseCommand):
                 description=f"{name} — factura {purchase.invoice_number}",
                 amount=amount,
                 currency=Currency.CRC if in_colones else Currency.USD,
-                exchange_rate=purchase.exchange_rate,
+                # Colones por dólar con que se pagó el costo; 1 si es en
+                # colones (ver apps/inventory/exchange_rates).
+                exchange_rate=(
+                    Decimal("1") if in_colones else purchase.exchange_rate
+                ),
                 created_by=user,
                 updated_by=user,
             )
+
+    def _add_usd_cost_to_colones_purchase(self, purchase, user):
+        ImportCost.objects.create(
+            purchase=purchase,
+            category=self.import_categories["Flete internacional"],
+            description=f"Courier en dólares — factura {purchase.invoice_number}",
+            amount=Decimal(self.rng.randint(25, 90)),
+            currency=Currency.USD,
+            exchange_rate=Decimal(self.rng.randint(50200, 52400)) / Decimal(100),
+            created_by=user,
+            updated_by=user,
+        )
 
     def _price_products_manually(self, purchase):
         """

@@ -36,6 +36,11 @@ export function formatMoney(value: string | number): string {
   return formatNumber(value, 2);
 }
 
+/** Un monto en colones: "₡15 000.50". */
+export function formatColones(value: string | number): string {
+  return `₡${formatMoney(value)}`;
+}
+
 /**
  * Equivalente en colones de un monto en dólares, usando un tipo de cambio
  * en colones por dólar (₡ por US$1). Retorna null si no aplica.
@@ -55,7 +60,7 @@ export function crcEquivalent(
     return null;
   }
 
-  return `≈ ${formatMoney(numericAmount * numericRate)} CRC`;
+  return `≈ ${formatColones(numericAmount * numericRate)}`;
 }
 
 /**

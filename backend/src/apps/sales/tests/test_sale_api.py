@@ -901,11 +901,13 @@ class SaleItemDefaultPriceApiTest(APITestCase):
             purchase=purchase,
             original_unit_cost=Decimal("5.0000"),
             cost_factor=Decimal("1.200000"),
-            final_unit_cost=Decimal("6.0000"),
+            # Costo final y precio sugerido ya en colones (US$6 y US$10 a
+            # ₡500 por dólar).
+            final_unit_cost=Decimal("3000.0000"),
             currency="USD",
             exchange_rate=Decimal("500.0000"),
             margin_percentage=Decimal("30.0000"),
-            suggested_price=Decimal("10.0000"),
+            suggested_price=Decimal("5000.0000"),
             created_by=self.user,
             updated_by=self.user,
         )
@@ -923,7 +925,7 @@ class SaleItemDefaultPriceApiTest(APITestCase):
         )
 
     def test_missing_unit_price_uses_latest_suggested_price_in_crc(self):
-        # 10 USD sugeridos × 500 de tipo de cambio = ₡5.000.
+        # El cálculo de una compra en dólares guarda el sugerido en colones.
         self.add_confirmed_usd_cost_history()
 
         response = self.post_item()

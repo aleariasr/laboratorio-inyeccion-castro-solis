@@ -589,7 +589,7 @@ class PurchaseApiTest(APITestCase):
             "FAC-001",
         )
 
-    def test_calculate_purchase_costs_creates_new_history_each_time(self):
+    def test_calculate_purchase_costs_replaces_the_previous_calculation(self):
         first_response = self.client.post(
             f"/api/inventory/purchases/{self.purchase.id}/calculate-costs/",
             {
@@ -608,7 +608,13 @@ class PurchaseApiTest(APITestCase):
 
         self.assertEqual(first_response.status_code, status.HTTP_200_OK)
         self.assertEqual(second_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(ProductCostHistory.objects.count(), 2)
+        # Antes cada cálculo agregaba otra fila por producto; ahora el
+        # nuevo reemplaza al anterior y rige el último margen.
+        self.assertEqual(ProductCostHistory.objects.count(), 1)
+        self.assertEqual(
+            ProductCostHistory.objects.get().margin_percentage,
+            Decimal("30.0000"),
+        )
 
     def test_calculate_purchase_costs_requires_valid_margin(self):
         response = self.client.post(

@@ -17,7 +17,7 @@ import {
   getProductCostHistory,
   updateImportCost,
 } from "./api";
-import { crcEquivalent, formatDate, formatMoney, formatNumber } from "./format";
+import { crcEquivalent, formatColones, formatDate, formatMoney, formatNumber } from "./format";
 import { ImportCostForm } from "./import-cost-form";
 import { mapImportCostApiFieldErrors } from "./import-cost-form-errors";
 import {
@@ -75,8 +75,13 @@ type PurchaseCostsSectionProps = {
   token: string;
   hasWriteAccess: boolean;
   canReadCosts: boolean;
-  /** Solo en borrador el backend descarta el cálculo al cambiar algo. */
+  /**
+   * Solo en borrador se editan los costos de importación (confirmar es
+   * definitivo) y el backend descarta el cálculo al cambiar algo.
+   */
   isDraft: boolean;
+  /** Una compra anulada no se calcula. */
+  isCancelled: boolean;
   /** El detalle de la compra ya descartó el cálculo (cambió una línea). */
   wasCalculationDiscarded: boolean;
 };
@@ -97,6 +102,10 @@ function getErrorMessage(error: unknown): string {
   return "No fue posible consultar los costos de importación.";
 }
 
+/**
+ * Un monto en su moneda: en colones "₡5 200"; en dólares "US$10" y debajo
+ * su equivalente en colones con el tipo de cambio indicado.
+ */
 function MoneyCell({
   amount,
   currency,
@@ -106,13 +115,15 @@ function MoneyCell({
   currency: Currency;
   exchangeRate: string | number;
 }) {
-  const equivalent = currency === "USD" ? crcEquivalent(amount, exchangeRate) : null;
+  if (currency !== "USD") {
+    return <p className="leading-tight">{formatColones(amount)}</p>;
+  }
+
+  const equivalent = crcEquivalent(amount, exchangeRate);
 
   return (
     <div>
-      <p className="leading-tight">
-        {formatMoney(amount)} {currency}
-      </p>
+      <p className="leading-tight">US${formatMoney(amount)}</p>
 
       {equivalent && (
         <p className="leading-tight text-xs text-[var(--color-text-subtle)]">
@@ -131,8 +142,11 @@ export function PurchaseCostsSection({
   hasWriteAccess,
   canReadCosts,
   isDraft,
+  isCancelled,
   wasCalculationDiscarded,
 }: PurchaseCostsSectionProps) {
+  const canEditImportCosts = hasWriteAccess && isDraft;
+
   const [loadState, setLoadState] = useState<CostsLoadState>({
     status: "loading",
     importCosts: null,
@@ -405,7 +419,7 @@ export function PurchaseCostsSection({
       !confirmWithFocusRestore(
         [
           "¿Aplicar estos costos a los productos de la compra?",
-          "Se creará un nuevo registro de histórico de costos por cada línea.",
+          "Reemplaza el cálculo anterior de esta compra, si lo había.",
           isDraft
             ? "El precio de venta de los productos se actualizará cuando la compra se confirme."
             : "",
@@ -429,7 +443,7 @@ export function PurchaseCostsSection({
           return current;
         }
 
-        return { status: "success", history: [...histories, ...current.history] };
+        return { status: "success", history: histories };
       });
 
       setApplyState({ isApplying: false, error: null });
@@ -441,7 +455,7 @@ export function PurchaseCostsSection({
   const initialFormValues =
     formState.mode === "edit"
       ? importCostToFormValues(formState.importCost)
-      : emptyImportCostFormValues(currency);
+      : emptyImportCostFormValues(currency, purchaseExchangeRate);
 
   const formKey = formState.mode === "edit" ? `edit-${formState.importCost.id}` : "create";
 
@@ -466,11 +480,13 @@ export function PurchaseCostsSection({
             </h2>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Costos adicionales de la factura (flete, seguros, impuestos, etc.).
+              {isDraft
+                ? "Costos adicionales de la factura (flete, seguros, impuestos, etc.), cada uno en la moneda y con el tipo de cambio con que se pagó."
+                : "Costos adicionales de la factura. En una compra confirmada o anulada ya no cambian."}
             </p>
           </div>
 
-          {hasWriteAccess && formState.mode === "closed" && (
+          {canEditImportCosts && formState.mode === "closed" && (
             <Button type="button" onClick={openCreateForm}>
               Agregar costo
             </Button>
@@ -508,6 +524,7 @@ export function PurchaseCostsSection({
                   mode={formState.mode}
                   initialValues={initialFormValues}
                   purchaseCurrency={currency}
+                  purchaseExchangeRate={purchaseExchangeRate}
                   token={token}
                   isSubmitting={actionState.isSubmitting}
                   submitError={actionState.submitError}
@@ -526,7 +543,7 @@ export function PurchaseCostsSection({
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] border-collapse">
+                <table className="w-full min-w-[880px] border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--color-border-soft)] bg-surface-muted/70 text-left">
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
@@ -537,19 +554,23 @@ export function PurchaseCostsSection({
                         Descripción
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Monto
                       </th>
 
-                      <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Tipo de cambio
+                      </th>
+
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        En colones
                       </th>
 
                       <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                         Estado
                       </th>
 
-                      {hasWriteAccess && (
+                      {canEditImportCosts && (
                         <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                           Acciones
                         </th>
@@ -568,23 +589,25 @@ export function PurchaseCostsSection({
                           {importCost.description || "—"}
                         </td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">
-                          <MoneyCell
-                            amount={importCost.amount}
-                            currency={importCost.currency}
-                            // El tipo de cambio del costo convierte a la moneda de
-                            // la compra (es 1 cuando las monedas coinciden), así que
-                            // para el equivalente en colones se usa el de la compra.
-                            exchangeRate={
-                              importCost.currency === currency
-                                ? purchaseExchangeRate
-                                : importCost.exchange_rate
-                            }
-                          />
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-foreground">
+                          {importCost.currency === "USD"
+                            ? `US$${formatMoney(importCost.amount)}`
+                            : formatColones(importCost.amount)}
                         </td>
 
-                        <td className="px-5 py-4 text-sm text-foreground">
-                          {formatNumber(importCost.exchange_rate, 4)}
+                        {/* Colones por dólar con que se pagó este costo:
+                            no depende de la moneda de la compra. */}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
+                          {importCost.currency === "USD"
+                            ? formatNumber(importCost.exchange_rate, 4)
+                            : "No aplica"}
+                        </td>
+
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                          {formatColones(
+                            Number(importCost.amount) *
+                              (importCost.currency === "USD" ? Number(importCost.exchange_rate) : 1),
+                          )}
                         </td>
 
                         <td className="px-5 py-4">
@@ -600,7 +623,7 @@ export function PurchaseCostsSection({
                           </span>
                         </td>
 
-                        {hasWriteAccess && (
+                        {canEditImportCosts && (
                           <td className="px-5 py-4">
                             <div className="flex justify-end gap-2">
                               <Button
@@ -652,7 +675,8 @@ export function PurchaseCostsSection({
             </h2>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Costo total de la compra (líneas + costos activos) y precio sugerido según un margen.
+              Todo en colones: las líneas con el tipo de cambio de la compra y cada costo con el suyo.
+              Precio sugerido según el margen, a dos decimales.
             </p>
           </div>
 
@@ -688,7 +712,7 @@ export function PurchaseCostsSection({
                 Calcular resumen
               </Button>
 
-              {hasWriteAccess && (
+              {hasWriteAccess && !isCancelled && (
                 <Button
                   type="button"
                   isLoading={applyState.isApplying}
@@ -704,48 +728,55 @@ export function PurchaseCostsSection({
 
             {applyState.error && <FormError message={applyState.error} />}
 
-            {summaryState.result && (
-              <dl className="grid gap-3 rounded-[var(--radius-md)] border border-border bg-surface-muted px-5 py-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    Subtotal factura
-                  </dt>
-                  <dd className="mt-1 text-sm font-semibold text-foreground">
-                    <MoneyCell
-                      amount={summaryState.result.invoice_subtotal}
-                      currency={summaryState.result.currency}
-                      exchangeRate={summaryState.result.exchange_rate}
-                    />
-                  </dd>
-                </div>
+            {summaryState.result && (() => {
+              const result = summaryState.result;
 
-                <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    Costos adicionales
-                  </dt>
-                  <dd className="mt-1 text-sm font-semibold text-foreground">
-                    <MoneyCell
-                      amount={summaryState.result.import_costs_total}
-                      currency={summaryState.result.currency}
-                      exchangeRate={summaryState.result.exchange_rate}
-                    />
-                  </dd>
-                </div>
+              return (
+                <dl className="grid gap-3 rounded-[var(--radius-md)] border border-border bg-surface-muted px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Subtotal factura
+                    </dt>
+                    <dd className="mt-1 font-mono text-sm font-semibold text-foreground">
+                      {formatColones(result.invoice_subtotal)}
+                    </dd>
+                    {result.currency === "USD" && (
+                      <dd className="mt-0.5 text-xs text-[var(--color-text-subtle)]">
+                        US${formatMoney(result.invoice_subtotal_original)} a ₡
+                        {formatNumber(result.exchange_rate, 4)}
+                      </dd>
+                    )}
+                  </div>
 
-                <div>
-                  <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    Costo total
-                  </dt>
-                  <dd className="mt-1 text-sm font-semibold text-foreground">
-                    <MoneyCell
-                      amount={summaryState.result.total_cost}
-                      currency={summaryState.result.currency}
-                      exchangeRate={summaryState.result.exchange_rate}
-                    />
-                  </dd>
-                </div>
-              </dl>
-            )}
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Costos adicionales
+                    </dt>
+                    <dd className="mt-1 font-mono text-sm font-semibold text-foreground">
+                      {formatColones(result.import_costs_total)}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Costo total
+                    </dt>
+                    <dd className="mt-1 font-mono text-sm font-semibold text-foreground">
+                      {formatColones(result.total_cost)}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Factor de costo
+                    </dt>
+                    <dd className="mt-1 font-mono text-sm font-semibold text-foreground">
+                      ×{formatNumber(result.cost_factor, 6)}
+                    </dd>
+                  </div>
+                </dl>
+              );
+            })()}
 
             {summaryState.result && summaryState.result.items.length > 0 && (() => {
               const result = summaryState.result;
@@ -764,19 +795,19 @@ export function PurchaseCostsSection({
                             Producto
                           </th>
 
-                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                          <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                             Cantidad
                           </th>
 
-                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                            Costo original
+                          <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            Costo unitario
                           </th>
 
-                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                          <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                             Costo final
                           </th>
 
-                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                          <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                             Precio sugerido
                           </th>
                         </tr>
@@ -796,9 +827,9 @@ export function PurchaseCostsSection({
                               <p className="mt-1 text-sm text-muted-foreground">{item.name}</p>
                             </td>
 
-                            <td className="px-4 py-3 text-sm text-foreground">{item.quantity}</td>
+                            <td className="px-4 py-3 text-right font-mono text-sm text-foreground">{item.quantity}</td>
 
-                            <td className="px-4 py-3 text-sm text-foreground">
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm text-foreground">
                               <MoneyCell
                                 amount={item.original_unit_cost}
                                 currency={result.currency}
@@ -806,20 +837,12 @@ export function PurchaseCostsSection({
                               />
                             </td>
 
-                            <td className="px-4 py-3 text-sm text-foreground">
-                              <MoneyCell
-                                amount={item.final_unit_cost}
-                                currency={result.currency}
-                                exchangeRate={result.exchange_rate}
-                              />
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm text-foreground">
+                              {formatColones(item.final_unit_cost)}
                             </td>
 
-                            <td className="px-4 py-3 text-sm font-semibold text-foreground">
-                              <MoneyCell
-                                amount={item.suggested_price}
-                                currency={result.currency}
-                                exchangeRate={result.exchange_rate}
-                              />
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm font-semibold text-foreground">
+                              {formatColones(item.suggested_price)}
                             </td>
                           </tr>
                         ))}
@@ -841,7 +864,7 @@ export function PurchaseCostsSection({
             </h2>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Costos finales calculados y aplicados a cada producto de esta compra.
+              Costo final y precio sugerido en colones de cada producto de esta compra.
             </p>
           </div>
 
@@ -853,19 +876,19 @@ export function PurchaseCostsSection({
                     Producto
                   </th>
 
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    Costo original
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Costo unitario
                   </th>
 
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     Costo final
                   </th>
 
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     Margen
                   </th>
 
-                  <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     Precio sugerido
                   </th>
 
@@ -886,7 +909,7 @@ export function PurchaseCostsSection({
                       <p className="mt-1 text-sm text-muted-foreground">{history.product_detail.name}</p>
                     </td>
 
-                    <td className="px-5 py-4 text-sm text-foreground">
+                    <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-foreground">
                       <MoneyCell
                         amount={history.original_unit_cost}
                         currency={history.currency}
@@ -894,26 +917,16 @@ export function PurchaseCostsSection({
                       />
                     </td>
 
-                    <td className="px-5 py-4 text-sm font-semibold text-foreground">
-                      <MoneyCell
-                        amount={history.final_unit_cost}
-                        currency={history.currency}
-                        exchangeRate={history.exchange_rate}
-                      />
+                    <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                      {formatColones(history.final_unit_cost)}
                     </td>
 
-                    <td className="px-5 py-4 text-sm text-foreground">{formatNumber(history.margin_percentage)}%</td>
+                    <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-foreground">
+                      {formatNumber(history.margin_percentage)}%
+                    </td>
 
-                    <td className="px-5 py-4 text-sm text-foreground">
-                      {history.suggested_price ? (
-                        <MoneyCell
-                          amount={history.suggested_price}
-                          currency={history.currency}
-                          exchangeRate={history.exchange_rate}
-                        />
-                      ) : (
-                        "—"
-                      )}
+                    <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-foreground">
+                      {history.suggested_price ? formatColones(history.suggested_price) : "—"}
                     </td>
 
                     <td className="px-5 py-4 text-sm text-muted-foreground">{formatDate(history.calculated_at)}</td>

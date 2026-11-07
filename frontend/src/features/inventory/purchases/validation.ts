@@ -1,3 +1,4 @@
+import { validateExchangeRate } from "./exchange-rate";
 import type {
   PurchaseFormErrors,
   PurchaseFormValues,
@@ -11,7 +12,6 @@ export function validatePurchaseForm(
   const errors: PurchaseFormErrors = {};
 
   const invoiceNumber = values.invoiceNumber.trim();
-  const exchangeRate = values.exchangeRate.trim();
 
   if (!values.supplierId) {
     errors.supplierId = "El proveedor es obligatorio.";
@@ -31,10 +31,12 @@ export function validatePurchaseForm(
     errors.currency = "La moneda no es válida.";
   }
 
-  if (!exchangeRate) {
-    errors.exchangeRate = "El tipo de cambio es obligatorio.";
-  } else if (Number.isNaN(Number(exchangeRate)) || Number(exchangeRate) <= 0) {
-    errors.exchangeRate = "El tipo de cambio debe ser un número mayor que cero.";
+  // Antes solo se pedía un número mayor que cero, y una compra en dólares
+  // con el 1 que quedaba al cambiar la moneda dejaba los precios en ×1.
+  const exchangeRateError = validateExchangeRate(values.currency, values.exchangeRate);
+
+  if (exchangeRateError) {
+    errors.exchangeRate = exchangeRateError;
   }
 
   return errors;

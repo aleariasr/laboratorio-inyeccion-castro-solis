@@ -11,6 +11,7 @@ from apps.core.query_params import (
     parse_date_or_none,
     parse_positive_integer_query_param,
 )
+from apps.inventory.exchange_rates import to_crc
 from apps.inventory.models import (
     Currency,
     MovementDirection,
@@ -285,8 +286,8 @@ def _convert_purchase_amount_to_crc(amount, purchase):
 
     El tipo de cambio de Purchase siempre se expresa como colones por
     dólar, sin importar la moneda de la compra (misma convención que
-    apps.inventory.services.costs._convert_import_cost_to_purchase_currency,
-    usada para los costos de importación).
+    apps.inventory.exchange_rates.to_crc, usada para los costos de
+    importación).
 
     Se usa tanto para sumar subtotales de compras de un mismo proveedor
     que pueden estar en monedas distintas (reporte de compras por
@@ -468,7 +469,7 @@ def purchases_by_supplier_results(date_from, date_to):
 
     results_by_supplier = {}
 
-    for purchase in purchases.prefetch_related("items"):
+    for purchase in purchases.prefetch_related("items", "import_costs"):
         supplier = purchase.supplier
 
         if supplier.id not in results_by_supplier:
@@ -479,6 +480,7 @@ def purchases_by_supplier_results(date_from, date_to):
                 },
                 "purchase_count": 0,
                 "invoice_subtotal": Decimal("0"),
+                "import_costs_total": Decimal("0"),
             }
 
         subtotal = sum(
@@ -494,8 +496,21 @@ def purchases_by_supplier_results(date_from, date_to):
             purchase,
         )
 
+        # Costos de importación activos, cada uno con el tipo de cambio
+        # con que se pagó (P10 de la auditoría del 2026-11-07: el reporte
+        # muestra la factura sola y el total con costos).
+        import_costs_crc = sum(
+            (
+                to_crc(cost.amount, cost.currency, cost.exchange_rate)
+                for cost in purchase.import_costs.all()
+                if cost.is_active
+            ),
+            Decimal("0"),
+        )
+
         results_by_supplier[supplier.id]["purchase_count"] += 1
         results_by_supplier[supplier.id]["invoice_subtotal"] += subtotal_crc
+        results_by_supplier[supplier.id]["import_costs_total"] += import_costs_crc
 
     results = sorted(
         (
@@ -503,6 +518,10 @@ def purchases_by_supplier_results(date_from, date_to):
                 "supplier": item["supplier"],
                 "purchase_count": item["purchase_count"],
                 "invoice_subtotal": item["invoice_subtotal"],
+                "import_costs_total": item["import_costs_total"],
+                "total_cost": (
+                    item["invoice_subtotal"] + item["import_costs_total"]
+                ),
                 "currency": "CRC",
             }
             for item in results_by_supplier.values()

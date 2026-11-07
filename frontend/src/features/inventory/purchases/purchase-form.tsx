@@ -23,7 +23,11 @@ import { getSuppliers } from "../suppliers/api";
 import { CreateSupplierDialog } from "../suppliers/create-supplier-dialog";
 import type { Supplier } from "../suppliers/types";
 
+import { getLatestPurchase } from "./api";
+import { validateExchangeRate } from "./exchange-rate";
+import { formatDateOnly } from "./format";
 import type {
+  Currency,
   PurchaseFormErrors,
   PurchaseFormField,
   PurchaseFormValues,
@@ -106,6 +110,13 @@ export function PurchaseForm({
   const [isSupplierListOpen, setIsSupplierListOpen] = useState(false);
 
   const [supplierSearchError, setSupplierSearchError] = useState<string | null>(null);
+
+  // Tipo de cambio propuesto (el de la última compra en dólares): se
+  // muestra de dónde salió para que se revise antes de guardar.
+  const [exchangeRateHint, setExchangeRateHint] = useState<string | null>(null);
+
+  // Si la moneda la eligió la persona, elegir el proveedor ya no la cambia.
+  const isCurrencyTouchedRef = useRef(mode === "edit");
 
   const isDirty = useMemo(
     () => !areValuesEqual(values, initialValues),
@@ -229,12 +240,73 @@ export function PurchaseForm({
     };
   }
 
+  /**
+   * Propone el tipo de cambio de la última compra en dólares. Si no hay
+   * ninguna, el campo queda vacío: nunca 1 (con 1 una compra en dólares
+   * dejaba los precios de venta en ×1).
+   */
+  function proposeUsdExchangeRate(): void {
+    updateValue("exchangeRate", "");
+    setExchangeRateHint(null);
+
+    getLatestPurchase(token, { currency: "USD" })
+      .then((purchase) => {
+        if (!purchase || validateExchangeRate("USD", purchase.exchange_rate)) {
+          return;
+        }
+
+        setValues((current) =>
+          current.currency === "USD" && !current.exchangeRate.trim()
+            ? { ...current, exchangeRate: purchase.exchange_rate }
+            : current,
+        );
+        setExchangeRateHint(
+          `Propuesto: el de la compra ${purchase.invoice_number} del ${formatDateOnly(purchase.purchase_date)}. Corresponde revisar que sea el de esta factura.`,
+        );
+      })
+      .catch(() => {
+        // Sin propuesta: el campo queda vacío y se escribe a mano.
+      });
+  }
+
+  function changeCurrency(nextCurrency: Currency): void {
+    if (nextCurrency === values.currency) {
+      return;
+    }
+
+    updateValue("currency", nextCurrency);
+
+    if (nextCurrency === "CRC") {
+      updateValue("exchangeRate", "1");
+      setExchangeRateHint(null);
+      return;
+    }
+
+    proposeUsdExchangeRate();
+  }
+
   function selectSupplier(supplier: Supplier): void {
     updateValue("supplierId", String(supplier.id));
     setSelectedSupplierLabel(supplier.name);
     setSupplierQuery("");
     setSupplierResults([]);
     setIsSupplierListOpen(false);
+
+    if (mode !== "create" || isCurrencyTouchedRef.current) {
+      return;
+    }
+
+    // La moneda de la última compra del proveedor (los del exterior
+    // facturan en dólares).
+    getLatestPurchase(token, { supplierId: supplier.id })
+      .then((purchase) => {
+        if (purchase && !isCurrencyTouchedRef.current) {
+          changeCurrency(purchase.currency);
+        }
+      })
+      .catch(() => {
+        // Sin propuesta: queda la moneda elegida.
+      });
   }
 
   function clearSelectedSupplier(): void {
@@ -454,13 +526,8 @@ export function PurchaseForm({
               name="currency"
               value={values.currency}
               onChange={(event) => {
-                const nextCurrency = event.target.value;
-
-                updateValue("currency", nextCurrency);
-
-                if (nextCurrency === "CRC") {
-                  updateValue("exchangeRate", "1");
-                }
+                isCurrencyTouchedRef.current = true;
+                changeCurrency(event.target.value as Currency);
               }}
               disabled={isSubmitting}
               className="h-12 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
@@ -477,7 +544,8 @@ export function PurchaseForm({
             hint={
               values.currency === "CRC"
                 ? "No aplica: la compra ya está en colones."
-                : "Colones por dólar (₡ por US$1)."
+                : exchangeRateHint ??
+                  "Colones por dólar (₡ por US$1) de esta factura."
             }
             error={errors.exchangeRate}
           >
@@ -485,7 +553,10 @@ export function PurchaseForm({
               id="purchase-exchange-rate"
               name="exchangeRate"
               value={values.exchangeRate}
-              onChange={handleTextChange("exchangeRate")}
+              onChange={(event) => {
+                setExchangeRateHint(null);
+                updateValue("exchangeRate", event.target.value);
+              }}
               hasError={Boolean(errors.exchangeRate)}
               inputMode="decimal"
               autoComplete="off"

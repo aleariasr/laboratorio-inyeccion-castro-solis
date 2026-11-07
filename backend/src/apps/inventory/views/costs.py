@@ -1,10 +1,11 @@
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
 
 from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 
 from apps.core.deletion import ProtectedDeleteMixin
+from apps.core.locking import lock_document
 from apps.core.permissions import CostsPermission, PurchasesPermission
 from apps.core.query_params import parse_boolean_query_param
 
@@ -12,6 +13,7 @@ from apps.inventory.models import (
     ImportCost,
     ImportCostCategory,
     ProductCostHistory,
+    Purchase,
     PurchaseStatus,
 )
 from apps.inventory.serializers import (
@@ -92,8 +94,23 @@ class ImportCostViewSet(viewsets.ModelViewSet):
     # importación cambia el factor de costo de toda la factura, así que el
     # cálculo de costos guardado queda obsoleto y se descarta (ver
     # discard_purchase_cost_calculation).
+    #
+    # Solo en borrador (P2 de la auditoría del 2026-11-07): confirmar es
+    # definitivo. Antes se podía agregar un costo a una compra confirmada
+    # y el cálculo vigente dejaba de corresponder a los costos guardados.
+    # La compra queda bloqueada mientras se escribe (ver lock_document).
+    def _lock_draft_purchase(self, purchase_id):
+        return lock_document(
+            Purchase,
+            purchase_id,
+            editable_statuses={PurchaseStatus.DRAFT},
+            message="Solo se pueden modificar costos de compras en borrador.",
+        )
+
     @transaction.atomic
     def perform_create(self, serializer):
+        self._lock_draft_purchase(serializer.validated_data["purchase"].pk)
+
         serializer.save(
             created_by=self.request.user,
             updated_by=self.request.user,
@@ -105,6 +122,8 @@ class ImportCostViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def perform_update(self, serializer):
+        self._lock_draft_purchase(serializer.instance.purchase_id)
+
         serializer.save(
             updated_by=self.request.user,
         )
@@ -115,7 +134,7 @@ class ImportCostViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def perform_destroy(self, instance):
-        purchase = instance.purchase
+        purchase = self._lock_draft_purchase(instance.purchase_id)
 
         instance.delete()
 
@@ -134,7 +153,11 @@ class ProductCostHistoryViewSet(viewsets.ReadOnlyModelViewSet):
                 "purchase",
                 "purchase__supplier",
             )
+            # El mismo orden que usa el precio vigente (ver
+            # CURRENT_COST_HISTORY_ORDERING): con purchase_status=CONFIRMED
+            # la primera fila es la que rige el precio del producto.
             .order_by(
+                F("purchase__confirmed_at").desc(nulls_last=True),
                 "-calculated_at",
                 "-id",
             )
@@ -152,7 +175,7 @@ class ProductCostHistoryViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Con purchase_status=CONFIRMED se obtiene el cálculo que de verdad
         # está rigiendo el precio del producto (ver
-        # _cost_history_with_suggested_price_in_crc). Sin el filtro se
+        # _current_cost_history). Sin el filtro se
         # devuelve todo el histórico, que es lo que necesita la pantalla
         # de una compra para ver su propio cálculo.
         if purchase_status:

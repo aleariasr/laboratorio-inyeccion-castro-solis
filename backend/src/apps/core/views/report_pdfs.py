@@ -190,6 +190,8 @@ class PurchasesBySupplierReportPdfView(APIView):
                 item["supplier"]["name"],
                 str(item["purchase_count"]),
                 format_amount(item["invoice_subtotal"]),
+                format_amount(item["import_costs_total"]),
+                format_amount(item["total_cost"]),
             )
             for item in results
         ]
@@ -203,21 +205,29 @@ class PurchasesBySupplierReportPdfView(APIView):
                 format_amount(
                     sum(item["invoice_subtotal"] for item in results)
                 ),
+                format_amount(
+                    sum(item["import_costs_total"] for item in results)
+                ),
+                format_amount(
+                    sum(item["total_cost"] for item in results)
+                ),
             )
 
         buffer = build_report_pdf(
             title="Compras por proveedor",
             subtitle_lines=[
                 f"{format_date_range(date_from, date_to)}. Compras confirmadas.",
-                f"{AMOUNTS_IN_CRC} Las compras en dólares se convierten con "
-                "su tipo de cambio.",
+                f"{AMOUNTS_IN_CRC} Las compras y los costos en dólares se "
+                "convierten con su propio tipo de cambio.",
             ],
             blocks=[
                 Table(
                     columns=(
-                        Column("Proveedor", 4),
+                        Column("Proveedor", 3.2),
                         Column("Compras", 1, align="right"),
                         Column("Subtotal facturado", 1.8, align="right"),
+                        Column("Costos adicionales", 1.8, align="right"),
+                        Column("Total con costos", 1.8, align="right"),
                     ),
                     rows=rows,
                     totals=totals,

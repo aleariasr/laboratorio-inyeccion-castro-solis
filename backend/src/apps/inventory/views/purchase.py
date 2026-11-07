@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 
 from rest_framework import filters, status, viewsets
 from rest_framework.exceptions import ValidationError
@@ -22,6 +22,7 @@ from apps.inventory.exceptions import (
 )
 
 from apps.inventory.models import (
+    ProductCostHistory,
     Purchase,
     PurchaseItem,
     PurchaseStatus,
@@ -79,6 +80,13 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                 "items__supplier_product",
                 "items__supplier_product__supplier",
                 "items__supplier_product__product",
+            )
+            .annotate(
+                has_cost_calculation=Exists(
+                    ProductCostHistory.objects.filter(
+                        purchase=OuterRef("pk"),
+                    )
+                ),
             )
         )
 
@@ -146,9 +154,20 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             serializer.instance.pk,
             "Solo se pueden modificar compras en borrador.",
         )
-        serializer.save(
+        previous = (
+            serializer.instance.currency,
+            serializer.instance.exchange_rate,
+        )
+
+        purchase = serializer.save(
             updated_by=self.request.user,
         )
+
+        # La moneda y el tipo de cambio pasan todas las líneas a colones:
+        # si cambian, el cálculo guardado ya no corresponde (antes seguía
+        # rigiendo el precio con el tipo de cambio viejo).
+        if previous != (purchase.currency, purchase.exchange_rate):
+            discard_purchase_cost_calculation(purchase=purchase)
 
     def destroy(self, request, *args, **kwargs):
         with transaction.atomic():

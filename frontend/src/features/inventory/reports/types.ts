@@ -66,6 +66,8 @@ export type PurchasesBySupplierEntry = {
   };
   purchase_count: number;
   invoice_subtotal: string;
+  import_costs_total: string;
+  total_cost: string;
   currency: "CRC";
 };
 

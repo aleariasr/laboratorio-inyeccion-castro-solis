@@ -23,7 +23,7 @@ import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import { CreateLocationDialog } from "../locations/create-location-dialog";
 import { getLatestProductCostHistory } from "../purchases/api";
-import { formatMoney } from "../purchases/format";
+import { formatDate, formatMoney } from "../purchases/format";
 import type { ProductCostHistory } from "../purchases/types";
 
 import type {
@@ -375,17 +375,15 @@ export function ProductForm({
       return "Sin precio sugerido calculado todavía (se calcula al procesar los costos de una compra). Si queda vacío, no hay precio de venta hasta que se calcule uno o se defina aquí.";
     }
 
-    const suggestedCrc =
-      priceReference.currency === "USD"
-        ? Number(priceReference.suggested_price) *
-          Number(priceReference.exchange_rate)
-        : Number(priceReference.suggested_price);
+    // El sugerido ya viene en colones aunque la compra sea en dólares
+    // (auditoría de compras en dólares, 2026-11-07): no se convierte.
+    const suggestedCrc = Number(priceReference.suggested_price);
 
     if (!Number.isFinite(suggestedCrc)) {
       return undefined;
     }
 
-    return `Sugerido: ₡${formatMoney(suggestedCrc)} (último cálculo, compra del ${priceReference.calculated_at.slice(0, 10)}). Si queda vacío, este es el precio que se usa.`;
+    return `Sugerido: ₡${formatMoney(suggestedCrc)} (última compra confirmada con costos aplicados, calculado el ${formatDate(priceReference.calculated_at)}). Si queda vacío, este es el precio que se usa.`;
   })();
 
   // En la ventana compacta va en la primera tarjeta; en la página (o con

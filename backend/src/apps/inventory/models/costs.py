@@ -76,7 +76,10 @@ class ImportCost(AuditModel, ActivableModel):
         validators=[
             MinValueValidator(Decimal("0.0001")),
         ],
-        help_text="Tipo de cambio para convertir este costo a la moneda de la compra.",
+        help_text=(
+            "Colones por dólar con que se pagó el costo. "
+            "1 si el costo es en colones."
+        ),
     )
 
     class Meta:
@@ -129,8 +132,11 @@ class ProductCostHistory(AuditModel):
         validators=[
             MinValueValidator(Decimal("0.0001")),
         ],
+        help_text="En colones, con los costos de importación prorrateados.",
     )
 
+    # Moneda y tipo de cambio de la compra: original_unit_cost está en esa
+    # moneda; final_unit_cost y suggested_price, siempre en colones.
     currency = models.CharField(
         max_length=3,
         choices=Currency.choices,
@@ -159,6 +165,7 @@ class ProductCostHistory(AuditModel):
         decimal_places=4,
         null=True,
         blank=True,
+        help_text="Precio de venta sugerido, en colones.",
     )
 
     calculated_at = models.DateTimeField(

@@ -16,7 +16,69 @@ El formato utiliza estas categorías:
 
 ## [No liberado]
 
-Nada pendiente de registrar.
+> Compras en dólares y mixtas (auditoría del 2026-11-07,
+> `docs/auditoria-compras-monedas-2026-11-07.md`). El cliente reportó que
+> con compras en dólares o mezcladas con colones los precios salían mal.
+
+### Cómo llevar estos cambios a una instalación existente
+
+- Trae la migración `inventory/0030_costs_in_colones` (la corre
+  **Actualizar aplicación**). No cambia el precio de venta de ningún
+  producto: pasa a colones los cálculos de costo viejos en dólares con el
+  tipo de cambio que ya tenían guardado.
+- Después de actualizar, correr `python manage.py fix_purchase_exchange_rate`:
+  lista las compras o costos en dólares que hayan quedado con un tipo de
+  cambio que no es real (el 1 del error de abajo). Si aparece alguna, se
+  corrige con `--purchase ID --rate TIPO --apply` y sus precios se
+  recalculan solos.
+
+### Fixed
+
+- Una compra en dólares quedaba con tipo de cambio 1 si se cambiaba la
+  moneda en el formulario sin tocar el tipo de cambio, y sus productos
+  quedaban con precio de venta ×1 (US$10 → ₡13). Ahora en dólares el tipo
+  de cambio es obligatorio y debe estar entre ₡100 y ₡2 000 por dólar (en
+  pantalla y en el backend); en colones se guarda siempre 1.
+- Los costos de importación se convertían dos veces (a la moneda de la
+  compra con su tipo de cambio y luego a colones con el de la compra): un
+  flete en colones de una compra en dólares no sumaba lo que se pagó. Ahora
+  todo se calcula en colones y cada monto se convierte una sola vez, con el
+  tipo de cambio del documento donde se pagó.
+- Cambiar la moneda o el tipo de cambio de un borrador no borraba el
+  cálculo de costos ya hecho, y al pasar la compra de una moneda a la otra
+  los tipos de cambio de sus costos quedaban al revés.
+- Cada "Aplicar costos" agregaba otra fila al histórico; ahora reemplaza el
+  cálculo anterior de la compra.
+- El precio vigente salía del último cálculo hecho, aunque esa compra se
+  hubiera confirmado antes que otra; ahora sale de la última compra
+  confirmada.
+- Se podían agregar o cambiar costos de importación de una compra
+  confirmada, y calcular costos de una anulada.
+
+### Changed
+
+- El costo final y el precio sugerido se guardan en colones, con el precio
+  redondeado a dos decimales. El resumen de costos muestra subtotal,
+  costos, total y factor en colones, y por producto el costo unitario en
+  su moneda, el costo final y el precio sugerido en ₡.
+- El tipo de cambio de un costo de importación es siempre ₡ por US$1 con
+  que se pagó ese costo (1 si es en colones), sin depender de la moneda de
+  la compra. La tabla de costos muestra cada uno en colones.
+- Al elegir dólares, el formulario de compra propone el tipo de cambio de
+  la última compra en dólares (y dice de cuál salió); al elegir el
+  proveedor, propone la moneda de su última compra.
+- Confirmar una compra sin costos aplicados avisa que el precio de venta de
+  sus productos no cambia. Confirmada, la compra y sus costos ya no
+  cambian (un costo que llegue después obliga a anular y volver a
+  registrarla); el margen sí se puede recalcular.
+- El reporte de compras por proveedor (pantalla y PDF) muestra también los
+  costos adicionales y el total con costos, en colones.
+- Montos de compras en `₡` / `US$` en lugar de "CRC" / "USD".
+
+### Added
+
+- Comando `fix_purchase_exchange_rate` para encontrar y corregir compras y
+  costos con tipo de cambio inválido, recalculando sus precios.
 
 ---
 

@@ -1942,6 +1942,53 @@ class BusinessReportsApiTest(APITestCase):
             Decimal("10800.0000"),
         )
 
+    def test_purchases_by_supplier_report_adds_import_costs_in_crc(self):
+        # P10 de la auditoría del 2026-11-07: el reporte muestra la factura
+        # y el total con los costos de importación activos, cada costo con
+        # el tipo de cambio con que se pagó.
+        from apps.inventory.models import ImportCost, ImportCostCategory
+
+        category = ImportCostCategory.objects.create(
+            name="FLETE REPORTE",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        for amount, currency, rate, is_active in (
+            (Decimal("5.0000"), "USD", Decimal("515.0000"), True),
+            (Decimal("1000.0000"), "CRC", Decimal("1.0000"), True),
+            (Decimal("999.0000"), "CRC", Decimal("1.0000"), False),
+        ):
+            ImportCost.objects.create(
+                purchase=self.purchase,
+                category=category,
+                amount=amount,
+                currency=currency,
+                exchange_rate=rate,
+                is_active=is_active,
+                created_by=self.user,
+                updated_by=self.user,
+            )
+
+        response = self.client.get(
+            "/api/reports/purchases-by-supplier/",
+            {
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        item = response.data["results"][0]
+
+        # Factura (setUp): 4 × ₡100 = ₡400.
+        # Costos activos: US$5 × 515 = ₡2 575 + ₡1 000 = ₡3 575 (el inactivo
+        # no cuenta). Total: ₡400 + ₡3 575 = ₡3 975.
+        self.assertEqual(Decimal(item["invoice_subtotal"]), Decimal("400.0000"))
+        self.assertEqual(Decimal(item["import_costs_total"]), Decimal("3575.0000"))
+        self.assertEqual(Decimal(item["total_cost"]), Decimal("3975.0000"))
+
     def test_business_reports_block_sales_only_user(self):
         # SALES ya no incluye view_reports en ROLE_PERMISSIONS.
         sales_user = User.objects.create_user(

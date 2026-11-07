@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { createImportCostCategory, getImportCostCategories } from "./api";
+import { validateExchangeRate } from "./exchange-rate";
+import { formatMoney } from "./format";
 import { validateImportCostForm } from "./import-cost-validation";
 import type {
   Currency,
@@ -30,6 +32,8 @@ type ImportCostFormProps = {
   mode: ImportCostFormMode;
   initialValues: ImportCostFormValues;
   purchaseCurrency: Currency;
+  /** Tipo de cambio de la compra (₡ por US$1): se propone para un costo en dólares. */
+  purchaseExchangeRate: string;
   token: string;
   isSubmitting?: boolean;
   submitError?: string | null;
@@ -52,6 +56,7 @@ export function ImportCostForm({
   mode,
   initialValues,
   purchaseCurrency,
+  purchaseExchangeRate,
   token,
   isSubmitting = false,
   submitError = null,
@@ -140,10 +145,17 @@ export function ImportCostForm({
     setIsCategoryDialogOpen(false);
   }
 
+  const amountInColones =
+    values.currency === "USD" &&
+    Number(values.amount) > 0 &&
+    !validateExchangeRate("USD", values.exchangeRate)
+      ? Number(values.amount) * Number(values.exchangeRate)
+      : null;
+
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
 
-    const validationErrors = validateImportCostForm(values, purchaseCurrency);
+    const validationErrors = validateImportCostForm(values);
 
     setLocalErrors(validationErrors);
 
@@ -203,7 +215,13 @@ export function ImportCostForm({
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-3">
-        <Field id="import-cost-amount" label="Monto" required error={errors.amount}>
+        <Field
+          id="import-cost-amount"
+          label="Monto"
+          required
+          hint={amountInColones ? `Equivale a ₡${formatMoney(amountInColones)}.` : undefined}
+          error={errors.amount}
+        >
           <Input
             id="import-cost-amount"
             value={values.amount}
@@ -224,13 +242,17 @@ export function ImportCostForm({
 
               updateValue("currency", nextCurrency);
 
-              if (nextCurrency === purchaseCurrency) {
-                updateValue("exchangeRate", "1");
-              } else if (values.currency === purchaseCurrency) {
-                // Traía el "1" por defecto de cuando coincidía con la moneda
-                // de la compra: se limpia para obligar a escribir el tipo de cambio real.
-                updateValue("exchangeRate", "");
-              }
+              // El tipo de cambio depende solo de la moneda del costo: en
+              // colones es 1; en dólares, el ₡ por US$1 con que se pagó
+              // (se propone el de la compra si la compra es en dólares).
+              updateValue(
+                "exchangeRate",
+                nextCurrency === "CRC"
+                  ? "1"
+                  : purchaseCurrency === "USD"
+                    ? purchaseExchangeRate
+                    : "",
+              );
             }}
             disabled={isSubmitting}
             className="h-12 w-full rounded-[var(--radius-md)] border border-border bg-surface px-4 text-sm font-medium text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-[rgb(7_81_132_/_12%)]"
@@ -245,9 +267,9 @@ export function ImportCostForm({
           label="Tipo de cambio"
           required
           hint={
-            values.currency === purchaseCurrency
-              ? `La compra está en ${purchaseCurrency}, no requiere conversión.`
-              : `Convierte el monto de ${values.currency} a ${purchaseCurrency}.`
+            values.currency === "CRC"
+              ? "No aplica: el costo está en colones."
+              : "Colones por dólar con que se pagó este costo."
           }
           error={errors.exchangeRate}
         >
@@ -260,7 +282,7 @@ export function ImportCostForm({
             hasError={Boolean(errors.exchangeRate)}
             inputMode="decimal"
             autoComplete="off"
-            disabled={isSubmitting || values.currency === purchaseCurrency}
+            disabled={isSubmitting || values.currency === "CRC"}
           />
         </Field>
       </div>

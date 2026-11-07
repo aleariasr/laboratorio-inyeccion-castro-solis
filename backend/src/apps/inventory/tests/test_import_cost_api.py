@@ -205,6 +205,9 @@ class ImportCostApiTest(APITestCase):
         self.assertEqual(import_cost.description, "Flete marítimo")
         self.assertEqual(str(import_cost.amount), "125.5000")
         self.assertEqual(import_cost.currency, Currency.USD)
+        # Sin tipo de cambio, un costo en dólares de una compra en dólares
+        # toma el de la compra (₡500 por US$1).
+        self.assertEqual(import_cost.exchange_rate, Decimal("500.0000"))
         self.assertEqual(import_cost.created_by, self.user)
         self.assertEqual(import_cost.updated_by, self.user)
 
@@ -288,6 +291,7 @@ class ImportCostApiTest(APITestCase):
             category=self.category,
             amount="125.5000",
             currency=Currency.USD,
+            exchange_rate="500.0000",
             created_by=self.user,
             updated_by=self.user,
         )
@@ -323,7 +327,27 @@ class ImportCostApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_import_cost_requires_exchange_rate_one_when_currency_matches_purchase(self):
+    def test_usd_import_cost_rejects_exchange_rate_out_of_range(self):
+        # El tipo de cambio es colones por dólar: 1,5 (o 1) no es real.
+        for rate in ("1.0000", "1.5000", "0.0001", "99.9999", "2000.0001"):
+            with self.subTest(rate=rate):
+                response = self.client.post(
+                    "/api/inventory/import-costs/",
+                    {
+                        "purchase": self.purchase.id,
+                        "category": self.category.id,
+                        "amount": "100.0000",
+                        "currency": Currency.USD,
+                        "exchange_rate": rate,
+                    },
+                    format="json",
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("exchange_rate", response.data)
+
+    def test_usd_import_cost_keeps_its_own_exchange_rate(self):
+        # Un flete pagado otro día, con otro tipo de cambio que la compra.
         response = self.client.post(
             "/api/inventory/import-costs/",
             {
@@ -331,15 +355,19 @@ class ImportCostApiTest(APITestCase):
                 "category": self.category.id,
                 "amount": "100.0000",
                 "currency": Currency.USD,
-                "exchange_rate": "1.5000",
+                "exchange_rate": "515.0000",
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("exchange_rate", response.data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            ImportCost.objects.get(id=response.data["id"]).exchange_rate,
+            Decimal("515.0000"),
+        )
 
-    def test_import_cost_allows_different_currency_with_custom_exchange_rate(self):
+    def test_crc_import_cost_always_stores_exchange_rate_one(self):
+        # En colones no hay nada que convertir: lo que llegue se guarda 1.
         response = self.client.post(
             "/api/inventory/import-costs/",
             {
@@ -356,17 +384,26 @@ class ImportCostApiTest(APITestCase):
 
         import_cost = ImportCost.objects.get(id=response.data["id"])
 
-        self.assertEqual(import_cost.exchange_rate, Decimal("500.0000"))
+        self.assertEqual(import_cost.exchange_rate, Decimal("1"))
 
-    def test_import_cost_rejects_exchange_rate_one_when_currency_differs(self):
+    def test_usd_import_cost_of_colones_purchase_requires_exchange_rate(self):
+        crc_purchase = Purchase.objects.create(
+            supplier=self.supplier,
+            invoice_number="FAC-CRC",
+            purchase_date=date.today(),
+            currency=Currency.CRC,
+            exchange_rate="1.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
         response = self.client.post(
             "/api/inventory/import-costs/",
             {
-                "purchase": self.purchase.id,
+                "purchase": crc_purchase.id,
                 "category": self.category.id,
-                "amount": "5000.0000",
-                "currency": Currency.CRC,
-                "exchange_rate": "1.0000",
+                "amount": "40.0000",
+                "currency": Currency.USD,
             },
             format="json",
         )
@@ -374,38 +411,63 @@ class ImportCostApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("exchange_rate", response.data)
 
-    def test_purchase_cost_summary_converts_import_costs_by_exchange_rate(self):
-        usd_purchase = Purchase.objects.create(
+    def test_changing_import_cost_to_colones_resets_exchange_rate(self):
+        import_cost = self.create_import_cost()
+
+        response = self.client.patch(
+            f"/api/inventory/import-costs/{import_cost.id}/",
+            {
+                "currency": Currency.CRC,
+                "amount": "25000.0000",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        import_cost.refresh_from_db()
+
+        self.assertEqual(import_cost.exchange_rate, Decimal("1"))
+
+    def test_import_cost_cannot_move_to_another_purchase(self):
+        import_cost = self.create_import_cost()
+        other_purchase = Purchase.objects.create(
             supplier=self.supplier,
-            invoice_number="FAC-USD",
+            invoice_number="FAC-OTRA",
             purchase_date=date.today(),
             currency=Currency.USD,
-            exchange_rate="1.0000",
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        PurchaseItem.objects.create(
-            purchase=usd_purchase,
-            supplier_product=self.supplier_product,
-            quantity=1,
-            unit_cost="100.0000",
-            created_by=self.user,
-            updated_by=self.user,
-        )
-
-        ImportCost.objects.create(
-            purchase=usd_purchase,
-            category=self.category,
-            amount="5000.0000",
-            currency=Currency.CRC,
             exchange_rate="500.0000",
             created_by=self.user,
             updated_by=self.user,
         )
 
+        response = self.client.patch(
+            f"/api/inventory/import-costs/{import_cost.id}/",
+            {"purchase": other_purchase.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        import_cost.refresh_from_db()
+
+        self.assertEqual(import_cost.purchase, self.purchase)
+
+    def test_purchase_cost_summary_converts_each_amount_once_to_colones(self):
+        # Compra en dólares (₡500 por US$1) con un costo pagado en colones:
+        # 1 × US$100 = ₡50 000 de factura + ₡5 000 de costo = ₡55 000.
+        ImportCost.objects.create(
+            purchase=self.purchase,
+            category=self.category,
+            amount="5000.0000",
+            currency=Currency.CRC,
+            exchange_rate="1.0000",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
         response = self.client.get(
-            f"/api/inventory/purchases/{usd_purchase.id}/cost-summary/",
+            f"/api/inventory/purchases/{self.purchase.id}/cost-summary/",
             {
                 "margin_percentage": "0.0000",
             },
@@ -413,12 +475,24 @@ class ImportCostApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
+            Decimal(response.data["invoice_subtotal_original"]),
+            Decimal("100.0000"),
+        )
+        self.assertEqual(
+            Decimal(response.data["invoice_subtotal"]),
+            Decimal("50000.0000"),
+        )
+        self.assertEqual(
             Decimal(response.data["import_costs_total"]),
-            Decimal("10.0000"),
+            Decimal("5000.0000"),
         )
         self.assertEqual(
             Decimal(response.data["total_cost"]),
-            Decimal("110.0000"),
+            Decimal("55000.0000"),
+        )
+        self.assertEqual(
+            Decimal(response.data["import_costs"][0]["amount_crc"]),
+            Decimal("5000.0000"),
         )
 
     def create_import_cost(self, amount="50.0000"):
@@ -427,7 +501,7 @@ class ImportCostApiTest(APITestCase):
             category=self.category,
             amount=amount,
             currency=Currency.USD,
-            exchange_rate="1.0000",
+            exchange_rate="500.0000",
             created_by=self.user,
             updated_by=self.user,
         )
@@ -457,7 +531,7 @@ class ImportCostApiTest(APITestCase):
                 "category": self.category.id,
                 "amount": "25.0000",
                 "currency": Currency.USD,
-                "exchange_rate": "1.0000",
+                "exchange_rate": "500.0000",
             },
             format="json",
         )
@@ -523,7 +597,9 @@ class ImportCostApiTest(APITestCase):
             0,
         )
 
-    def test_import_cost_change_keeps_calculation_of_confirmed_purchase(self):
+    def test_import_costs_of_confirmed_purchase_cannot_change(self):
+        # Confirmar es definitivo (P2 de la auditoría del 2026-11-07): un
+        # costo que llegue después obliga a anular y volver a registrar.
         import_cost = self.create_import_cost()
 
         self.calculate_costs()
@@ -535,17 +611,40 @@ class ImportCostApiTest(APITestCase):
         )
         self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
 
-        response = self.client.patch(
+        update_response = self.client.patch(
             f"/api/inventory/import-costs/{import_cost.id}/",
             {
                 "amount": "80.0000",
             },
             format="json",
         )
+        create_response = self.client.post(
+            "/api/inventory/import-costs/",
+            {
+                "purchase": self.purchase.id,
+                "category": self.category.id,
+                "amount": "25.0000",
+                "currency": Currency.USD,
+                "exchange_rate": "500.0000",
+            },
+            format="json",
+        )
+        delete_response = self.client.delete(
+            f"/api/inventory/import-costs/{import_cost.id}/",
+        )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # En una compra confirmada el histórico es el registro de lo que se
-        # aplicó: no se borra.
+        self.assertEqual(update_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(create_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(delete_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        import_cost.refresh_from_db()
+
+        self.assertEqual(import_cost.amount, Decimal("50.0000"))
+        self.assertEqual(
+            ImportCost.objects.filter(purchase=self.purchase).count(),
+            1,
+        )
+        # El histórico es el registro de lo que se aplicó: no se borra.
         self.assertEqual(
             ProductCostHistory.objects.filter(purchase=self.purchase).count(),
             1,

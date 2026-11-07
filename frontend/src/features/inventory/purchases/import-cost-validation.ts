@@ -1,14 +1,18 @@
+import { validateExchangeRate } from "./exchange-rate";
 import type {
-  Currency,
   ImportCostFormErrors,
   ImportCostFormValues,
 } from "./types";
 
 const CURRENCY_VALUES = ["CRC", "USD"];
 
+/**
+ * El tipo de cambio de un costo depende solo de la moneda del costo (no de
+ * la de la compra): en colones no aplica; en dólares es el ₡ por US$1 con
+ * que se pagó, con el mismo rango que el de la compra.
+ */
 export function validateImportCostForm(
   values: ImportCostFormValues,
-  purchaseCurrency: Currency,
 ): ImportCostFormErrors {
   const errors: ImportCostFormErrors = {};
 
@@ -34,22 +38,10 @@ export function validateImportCostForm(
     errors.currency = "La moneda no es válida.";
   }
 
-  const exchangeRate = values.exchangeRate.trim();
+  const exchangeRateError = validateExchangeRate(values.currency, values.exchangeRate);
 
-  if (!exchangeRate) {
-    errors.exchangeRate = "El tipo de cambio es obligatorio.";
-  } else if (Number.isNaN(Number(exchangeRate)) || Number(exchangeRate) <= 0) {
-    errors.exchangeRate = "El tipo de cambio debe ser un número mayor que cero.";
-  } else if (
-    values.currency === purchaseCurrency &&
-    Number(exchangeRate) !== 1
-  ) {
-    errors.exchangeRate = "Debe ser 1 cuando la moneda coincide con la de la compra.";
-  } else if (
-    values.currency !== purchaseCurrency &&
-    Number(exchangeRate) === 1
-  ) {
-    errors.exchangeRate = "No puede ser exactamente 1 cuando las monedas son distintas. Corresponde el tipo de cambio real.";
+  if (exchangeRateError) {
+    errors.exchangeRate = exchangeRateError;
   }
 
   return errors;
