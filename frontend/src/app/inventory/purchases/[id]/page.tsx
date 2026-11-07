@@ -174,6 +174,13 @@ export default function PurchaseDetailPage() {
 
   const [costsReloadKey, setCostsReloadKey] = useState(0);
 
+  // Si la compra tiene costos aplicados ahora mismo: el aviso de "se
+  // borraron los costos calculados" solo aparece cuando de verdad había un
+  // cálculo (antes salía al agregar la primera línea de una compra nueva).
+  const [hasCostCalculation, setHasCostCalculation] = useState(false);
+
+  const [wasCalculationDiscarded, setWasCalculationDiscarded] = useState(false);
+
   const purchaseId = Number(params.id);
 
   const hasInventoryAccess = user ? canReadPurchases(user) : false;
@@ -235,6 +242,7 @@ export default function PurchaseDetailPage() {
         }
 
         setLoadState({ status: "success", purchase, message: null });
+        setHasCostCalculation(purchase.has_cost_calculation);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
@@ -350,6 +358,8 @@ export default function PurchaseDetailPage() {
   // vuelve a montar PurchaseCostsSection para que no quede en pantalla un
   // resumen ni un historial que ya no existen.
   function markCostCalculationDiscarded(): void {
+    setWasCalculationDiscarded(hasCostCalculation);
+    setHasCostCalculation(false);
     setCostsReloadKey((current) => current + 1);
   }
 
@@ -678,6 +688,10 @@ export default function PurchaseDetailPage() {
     loadState.status === "success"
       ? loadState.purchase.items.reduce((sum, item) => sum + Number(item.subtotal), 0)
       : 0;
+
+  // Las líneas están en la moneda de la compra.
+  const currencySymbol =
+    loadState.status === "success" && loadState.purchase.currency === "USD" ? "US$" : "₡";
 
   return (
     <AppShell
@@ -1047,10 +1061,12 @@ export default function PurchaseDetailPage() {
                         <td className="px-5 py-4 text-right text-sm text-foreground">{item.quantity}</td>
 
                         <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
+                          {currencySymbol}
                           {formatMoney(item.unit_cost)}
                         </td>
 
                         <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                          {currencySymbol}
                           {formatMoney(item.subtotal)}
                         </td>
 
@@ -1108,7 +1124,9 @@ export default function PurchaseDetailPage() {
             hasWriteAccess={hasWriteAccess}
             isDraft={loadState.purchase.status === "DRAFT"}
             isCancelled={loadState.purchase.status === "CANCELLED"}
-            wasCalculationDiscarded={costsReloadKey > 0}
+            wasCalculationDiscarded={wasCalculationDiscarded}
+            hasCostCalculation={hasCostCalculation}
+            onCostCalculationChange={setHasCostCalculation}
           />
 
           {loadState.purchase.status === "DRAFT" && hasWriteAccess && (

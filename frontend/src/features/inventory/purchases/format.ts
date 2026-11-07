@@ -32,8 +32,15 @@ export function formatNumber(value: string | number, maxDecimals = 2): string {
   return isNegative ? `-${formatted}` : formatted;
 }
 
+/**
+ * Un monto de dinero: sin decimales si es entero ("15 000") y con los dos
+ * decimales completos si tiene céntimos ("4 647.50", no "4 647.5").
+ */
 export function formatMoney(value: string | number): string {
-  return formatNumber(value, 2);
+  const formatted = formatNumber(value, 2);
+  const [, decimalPart] = formatted.split(".");
+
+  return decimalPart?.length === 1 ? `${formatted}0` : formatted;
 }
 
 /** Un monto en colones: "₡15 000.50". */

@@ -84,6 +84,10 @@ type PurchaseCostsSectionProps = {
   isCancelled: boolean;
   /** El detalle de la compra ya descartó el cálculo (cambió una línea). */
   wasCalculationDiscarded: boolean;
+  /** Si la compra tiene costos aplicados ahora mismo. */
+  hasCostCalculation: boolean;
+  /** Avisa al detalle cuando se aplican costos o se descarta el cálculo. */
+  onCostCalculationChange: (hasCalculation: boolean) => void;
 };
 
 function getErrorMessage(error: unknown): string {
@@ -144,6 +148,8 @@ export function PurchaseCostsSection({
   isDraft,
   isCancelled,
   wasCalculationDiscarded,
+  hasCostCalculation,
+  onCostCalculationChange,
 }: PurchaseCostsSectionProps) {
   const canEditImportCosts = hasWriteAccess && isDraft;
 
@@ -195,7 +201,15 @@ export function PurchaseCostsSection({
       return;
     }
 
+    // El resumen en pantalla ya no corresponde a los costos guardados.
     setSummaryState((current) => ({ ...current, result: null, error: null }));
+
+    // El aviso solo tiene sentido si de verdad había un cálculo guardado.
+    if (!hasCostCalculation) {
+      return;
+    }
+
+    onCostCalculationChange(false);
 
     setHistoryState((current) =>
       current.status === "success"
@@ -437,6 +451,7 @@ export function PurchaseCostsSection({
       const histories = await calculatePurchaseCosts(token, purchaseId, margin);
 
       setShowDiscardedNotice(false);
+      onCostCalculationChange(true);
 
       setHistoryState((current) => {
         if (current.status !== "success") {
