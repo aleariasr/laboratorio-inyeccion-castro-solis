@@ -26,10 +26,14 @@ def _change_status(
     user,
 ):
     if service_record.status != expected_status:
+        # Con las etiquetas en pantalla ("Recibido", "Listo"), no los
+        # códigos internos (auditoría integral del 2026-11-07).
+        current_label = InjectorServiceStatus(service_record.status).label
+        new_label = InjectorServiceStatus(new_status).label
+
         raise InvalidServiceTransitionError(
-            f"No se puede cambiar de "
-            f"{service_record.status} "
-            f"a {new_status}."
+            f"Un servicio en estado «{current_label}» no puede pasar a "
+            f"«{new_label}»."
         )
 
     service_record.status = new_status

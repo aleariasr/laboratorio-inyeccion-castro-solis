@@ -763,7 +763,7 @@ export default function StorageLocationDetailPage() {
                                 )}
                               </td>
 
-                              <td className="px-5 py-4 text-right align-top font-mono text-sm text-muted-foreground">
+                              <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-muted-foreground">
                                 {formatStock(
                                   product.minimum_stock,
                                   product.unit_of_measure,

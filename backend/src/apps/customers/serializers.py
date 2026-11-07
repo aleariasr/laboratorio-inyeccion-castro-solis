@@ -167,6 +167,11 @@ class InjectorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+        # Los duplicados los revisa validate con un mensaje claro: el
+        # validador que DRF genera de la restricción única corría antes y
+        # respondía con los nombres de campo en inglés (auditoría integral
+        # del 2026-11-07).
+        validators = []
 
     def validate_injector_number(self, value):
         value = value.strip()
@@ -646,6 +651,11 @@ class InjectorServiceAccessorySerializer(
         extra_kwargs = {
             "unit_price": {"required": False},
         }
+        # Los duplicados los revisa validate con un mensaje claro: el
+        # validador que DRF genera de la restricción única corría antes y
+        # respondía con los nombres de campo en inglés (auditoría integral
+        # del 2026-11-07).
+        validators = []
 
     def get_product_detail(self, obj):
         # El importe de los accesorios forma parte del cobro del
@@ -716,8 +726,8 @@ class InjectorServiceAccessorySerializer(
             ).exists()
         ):
             raise serializers.ValidationError(
-                "Este producto ya fue registrado como accesorio en el servicio; "
-                "cambie su cantidad."
+                "Este producto ya está registrado como accesorio en el servicio; "
+                "se cambia su cantidad."
             )
 
         return attrs

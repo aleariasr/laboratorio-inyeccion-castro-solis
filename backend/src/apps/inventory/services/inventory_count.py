@@ -42,6 +42,13 @@ def approve_inventory_count(
 
     items = list(inventory_count.items.select_related("product"))
 
+    # Aprobar un conteo vacío lo dejaba "aprobado" sin haber contado nada
+    # (auditoría integral del 2026-11-07). Igual que traslados y ventas.
+    if not items:
+        raise InventoryError(
+            "El conteo no tiene productos."
+        )
+
     lock_products(item.product_id for item in items)
 
     for item in items:

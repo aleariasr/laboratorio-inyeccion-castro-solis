@@ -1,4 +1,4 @@
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones } from "@/features/inventory/purchases/format";
 
 type CashWithdrawalLineProps = {
   // Contado − fondo para la semana siguiente.
@@ -16,7 +16,7 @@ export function CashWithdrawalLine({ amount }: CashWithdrawalLineProps) {
     return (
       <p className="text-sm text-[var(--color-warning)]">
         Hay que reponer{" "}
-        <span className="font-mono font-semibold">₡{formatMoney(Math.abs(amount))}</span>{" "}
+        <span className="font-mono font-semibold">{formatColones(Math.abs(amount))}</span>{" "}
         para dejar el fondo de la semana siguiente: lo contado no alcanza.
       </p>
     );
@@ -25,7 +25,7 @@ export function CashWithdrawalLine({ amount }: CashWithdrawalLineProps) {
   return (
     <p className="text-sm text-muted-foreground">
       Se retira de la caja:{" "}
-      <span className="font-mono font-semibold text-foreground">₡{formatMoney(amount)}</span>{" "}
+      <span className="font-mono font-semibold text-foreground">{formatColones(amount)}</span>{" "}
       (lo contado menos el fondo para la semana siguiente; incluye vouchers y comprobantes).
     </p>
   );

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones } from "@/features/inventory/purchases/format";
 
 type PettyCashSummaryProps = {
   opening: number;
@@ -42,7 +42,7 @@ export function PettyCashSummary({
 
           {openingInput ?? (
             <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-              ₡{formatMoney(opening)}
+              {formatColones(opening)}
             </p>
           )}
 
@@ -58,7 +58,7 @@ export function PettyCashSummary({
             Gastos de la semana
           </p>
           <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-            − ₡{formatMoney(outflows)}
+            − {formatColones(outflows)}
           </p>
         </div>
 
@@ -67,7 +67,7 @@ export function PettyCashSummary({
             Saldo del fondo
           </p>
           <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-            ₡{formatMoney(fundBalance)}
+            {formatColones(fundBalance)}
           </p>
         </div>
       </div>
@@ -79,7 +79,7 @@ export function PettyCashSummary({
             superaron el fondo; la diferencia salió del efectivo cobrado esa semana.
           </p>
           <p className="font-mono text-base font-semibold text-[var(--color-warning)]">
-            ₡{formatMoney(overdraft)}
+            {formatColones(overdraft)}
           </p>
         </div>
       )}

@@ -852,7 +852,8 @@ export default function SearchPage() {
                         key={sale.id}
                         eyebrow={`Venta #${sale.id}`}
                         title={
-                          sale.customer.display_name
+                          sale.customer?.display_name ??
+                          "Venta de mostrador"
                         }
                         description={`Del ${formatDate(
                           sale.sale_date,

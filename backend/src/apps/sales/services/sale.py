@@ -14,11 +14,42 @@ from apps.sales.exceptions import (
     SaleAlreadyConfirmedError,
     SaleAmountsError,
     SaleCancelledError,
+    SaleDateNotAllowedError,
     SaleNotConfirmedError,
     SaleWithoutItemsError,
 )
 from apps.sales.models import Sale, SaleStatus
 from apps.sales.selectors import live_sale_amounts
+
+FUTURE_SALE_DATE_MESSAGE = "La fecha de la venta no puede ser futura."
+CLOSED_WEEK_SALE_DATE_MESSAGE = (
+    "La semana de esa fecha ya tiene cierre de caja: la venta se registra "
+    "con una fecha de la semana abierta."
+)
+
+
+def sale_date_error(sale_date):
+    """
+    Por qué una venta no puede llevar esa fecha, o None si puede.
+
+    Auditoría integral del 2026-11-07 (decisiones P1 y P3): una venta
+    confirmada en una semana ya cerrada quedaba fuera de todo cierre (el
+    cierre fija sus montos al crearse), y una con fecha futura caía en una
+    semana que la caja todavía no conoce. Mismo criterio que los gastos de
+    caja chica.
+    """
+
+    # Importado aquí: apps.cash.selectors importa los selectores de ventas.
+    from apps.cash.selectors import is_week_closed
+
+    if sale_date > timezone.localdate():
+        return FUTURE_SALE_DATE_MESSAGE
+
+    if is_week_closed(sale_date):
+        return CLOSED_WEEK_SALE_DATE_MESSAGE
+
+    return None
+
 
 FROZEN_AMOUNT_FIELDS = [
     "subtotal_amount",
@@ -62,6 +93,11 @@ def confirm_sale(*, sale: Sale, user):
 
     if sale.status == SaleStatus.CANCELLED:
         raise SaleCancelledError()
+
+    date_error = sale_date_error(sale.sale_date)
+
+    if date_error:
+        raise SaleDateNotAllowedError(date_error)
 
     items = list(
         sale.items.select_related("product")

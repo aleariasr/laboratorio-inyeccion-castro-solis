@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadReports } from "@/features/auth/permissions";
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones, formatMoney } from "@/features/inventory/purchases/format";
 import {
   getSalesSummaryReport,
   getSalesSummaryReportPdf,
@@ -273,7 +273,7 @@ function SummaryCard({
       <p className="text-sm font-semibold text-muted-foreground">{title}</p>
 
       <p className="mt-2 font-mono text-3xl font-semibold tracking-[-0.02em] text-foreground">
-        ₡{formatMoney(block.total)}
+        {formatColones(block.total)}
       </p>
 
       <div className="mt-1 min-h-5">
@@ -668,7 +668,7 @@ export default function SalesSummaryReportPage() {
                         {PAYMENT_METHOD_LABELS[method]}
                       </p>
                       <p className="mt-1 font-mono text-lg font-semibold text-foreground">
-                        ₡{formatMoney(data.summary.total.by_method[method])}
+                        {formatColones(data.summary.total.by_method[method])}
                       </p>
                     </div>
                   ),
@@ -732,30 +732,30 @@ export default function SalesSummaryReportPage() {
                           <td className="px-5 py-4 text-sm font-semibold text-foreground">
                             {formatPeriod(period.period_start, period.period_end, data.group_by)}
                           </td>
-                          <td className="px-5 py-4 text-right font-mono text-sm text-foreground">
-                            ₡{formatMoney(period.sales.total)}
+                          <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-foreground">
+                            {formatColones(period.sales.total)}
                             <span className="block font-sans text-xs text-muted-foreground">
                               {period.sales.count} {period.sales.count === 1 ? "venta" : "ventas"}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-right font-mono text-sm text-foreground">
-                            ₡{formatMoney(period.services.total)}
+                          <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-foreground">
+                            {formatColones(period.services.total)}
                             <span className="block font-sans text-xs text-muted-foreground">
                               {period.services.count}{" "}
                               {period.services.count === 1 ? "servicio" : "servicios"}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-right font-mono text-sm text-muted-foreground">
-                            ₡{formatMoney(period.total.discount)}
+                          <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
+                            {formatColones(period.total.discount)}
                           </td>
-                          <td className="px-5 py-4 text-right font-mono text-sm text-[var(--color-warning)]">
-                            ₡{formatMoney(period.total.tax)}
+                          <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-[var(--color-warning)]">
+                            {formatColones(period.total.tax)}
                           </td>
-                          <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
-                            ₡{formatMoney(period.total.total)}
+                          <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                            {formatColones(period.total.total)}
                           </td>
-                          <td className="px-5 py-4 text-right font-mono text-sm text-[var(--color-success)]">
-                            ₡{formatMoney(period.total.business_income)}
+                          <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-[var(--color-success)]">
+                            {formatColones(period.total.business_income)}
                           </td>
                         </tr>
                       ))}
@@ -766,23 +766,23 @@ export default function SalesSummaryReportPage() {
                         <td className="px-5 py-4 text-sm font-semibold text-foreground">
                           Total del rango
                         </td>
-                        <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
-                          ₡{formatMoney(data.summary.sales.total)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                          {formatColones(data.summary.sales.total)}
                         </td>
-                        <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
-                          ₡{formatMoney(data.summary.services.total)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                          {formatColones(data.summary.services.total)}
                         </td>
-                        <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-muted-foreground">
-                          ₡{formatMoney(data.summary.total.discount)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-muted-foreground">
+                          {formatColones(data.summary.total.discount)}
                         </td>
-                        <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-[var(--color-warning)]">
-                          ₡{formatMoney(data.summary.total.tax)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-[var(--color-warning)]">
+                          {formatColones(data.summary.total.tax)}
                         </td>
-                        <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
-                          ₡{formatMoney(data.summary.total.total)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
+                          {formatColones(data.summary.total.total)}
                         </td>
-                        <td className="px-5 py-4 text-right font-mono text-sm font-semibold text-[var(--color-success)]">
-                          ₡{formatMoney(data.summary.total.business_income)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-[var(--color-success)]">
+                          {formatColones(data.summary.total.business_income)}
                         </td>
                       </tr>
                     </tfoot>

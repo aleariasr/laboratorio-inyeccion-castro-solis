@@ -1,4 +1,4 @@
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones } from "@/features/inventory/purchases/format";
 
 type TaxBreakdownProps = {
   tax: string;
@@ -25,7 +25,7 @@ export function TaxBreakdown({ tax, businessIncome, discount }: TaxBreakdownProp
             Impuestos cobrados
           </p>
           <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-            ₡{formatMoney(tax)}
+            {formatColones(tax)}
           </p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Corresponden a Hacienda; no forman parte del ingreso.
@@ -37,7 +37,7 @@ export function TaxBreakdown({ tax, businessIncome, discount }: TaxBreakdownProp
             Ingreso del negocio
           </p>
           <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-            ₡{formatMoney(businessIncome)}
+            {formatColones(businessIncome)}
           </p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Lo cobrado sin los impuestos.
@@ -49,7 +49,7 @@ export function TaxBreakdown({ tax, businessIncome, discount }: TaxBreakdownProp
             Descuentos dados
           </p>
           <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-            ₡{formatMoney(discount)}
+            {formatColones(discount)}
           </p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Informativo: ya están restados del total.

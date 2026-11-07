@@ -183,7 +183,7 @@ export function ProductLabelsForm({
                 key={product.id}
                 className="border-b border-[var(--color-border-soft)] bg-surface last:border-b-0"
               >
-                <td className="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">
+                <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">
                   {index + 1}
                 </td>
 

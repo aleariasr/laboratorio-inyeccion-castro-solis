@@ -18,6 +18,7 @@ import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CreateCustomerDialog } from "@/features/customers/create-customer-dialog";
+import { todayIsoDate } from "@/features/inventory/transfers/types";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
@@ -421,6 +422,7 @@ export function SaleForm({
               id="sale-date"
               name="saleDate"
               type="date"
+              max={todayIsoDate()}
               value={values.saleDate}
               onChange={handleTextChange("saleDate")}
               hasError={Boolean(errors.saleDate)}

@@ -301,7 +301,7 @@ export default function ServiceTypesPage() {
                         )}
                       </td>
 
-                      <td className="px-5 py-4 text-right align-top font-mono text-sm font-semibold text-foreground">
+                      <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm font-semibold text-foreground">
                         {serviceType.default_labor_price
                           ? `₡${formatMoney(serviceType.default_labor_price)}`
                           : <span className="font-sans font-normal text-muted-foreground">Sin precio</span>}

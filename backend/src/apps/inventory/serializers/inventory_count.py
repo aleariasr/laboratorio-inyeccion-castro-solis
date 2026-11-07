@@ -26,6 +26,11 @@ class InventoryCountSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+        # Los duplicados los revisa validate con un mensaje claro: el
+        # validador que DRF genera de la restricción única corría antes y
+        # respondía con los nombres de campo en inglés (auditoría integral
+        # del 2026-11-07).
+        extra_kwargs = {"reference": {"validators": []}}
 
     def validate_reference(self, value):
         value = value.strip().upper()
@@ -76,6 +81,11 @@ class InventoryCountItemSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+        # Los duplicados los revisa validate con un mensaje claro: el
+        # validador que DRF genera de la restricción única corría antes y
+        # respondía con los nombres de campo en inglés (auditoría integral
+        # del 2026-11-07).
+        validators = []
         read_only_fields = (
             "created_at",
             "updated_at",

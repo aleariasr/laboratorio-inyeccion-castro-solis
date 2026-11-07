@@ -6,7 +6,7 @@ import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones, formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import { ApiError } from "@/lib/api/errors";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
@@ -363,7 +363,7 @@ export function PettyCashWeekCard({
               <p className="text-sm text-muted-foreground">
                 Cobrado con tarjeta, transferencia u otro:{" "}
                 <span className="font-mono font-semibold text-foreground">
-                  ₡{formatMoney(otherCollected)}
+                  {formatColones(otherCollected)}
                 </span>{" "}
                 (no está en efectivo).
               </p>
@@ -372,7 +372,7 @@ export function PettyCashWeekCard({
             {overdraft > 0 && (
               <p className="rounded-[var(--radius-lg)] bg-[var(--color-warning-soft)] px-4 py-3 text-sm text-[var(--color-warning)]">
                 <span className="font-semibold">Sobregiro:</span>{" "}
-                <span className="font-mono font-semibold">₡{formatMoney(overdraft)}</span>{" "}
+                <span className="font-mono font-semibold">{formatColones(overdraft)}</span>{" "}
                 de los gastos se pagaron con los ingresos de la semana. El fondo se repone al
                 cerrar la semana.
               </p>
@@ -412,7 +412,7 @@ export function PettyCashWeekCard({
 
                     <div className="flex shrink-0 items-center gap-3">
                       <span className="font-mono text-sm font-semibold text-foreground">
-                        ₡{formatMoney(movement.amount)}
+                        {formatColones(movement.amount)}
                       </span>
 
                       {canWrite && (
@@ -503,9 +503,9 @@ export function PettyCashWeekCard({
                 </p>
               ) : typedOverdraft > 0 ? (
                 <p className="rounded-[var(--radius-md)] bg-[var(--color-warning-soft)] px-3 py-2 text-xs leading-5 text-[var(--color-warning)]">
-                  <span className="font-mono">₡{formatMoney((typedAmount ?? 0) - typedOverdraft)}</span>{" "}
+                  <span className="font-mono">{formatColones((typedAmount ?? 0) - typedOverdraft)}</span>{" "}
                   salen del fondo y{" "}
-                  <span className="font-mono">₡{formatMoney(typedOverdraft)}</span> de los
+                  <span className="font-mono">{formatColones(typedOverdraft)}</span> de los
                   ingresos de la semana (sobregiro).
                 </p>
               ) : null}

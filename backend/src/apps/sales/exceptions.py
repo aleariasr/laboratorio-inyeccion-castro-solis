@@ -28,3 +28,7 @@ class SaleAlreadyCancelledError(SalesError):
 
 class SaleAmountsError(SalesError):
     """El descuento o el impuesto no son válidos para el subtotal."""
+
+
+class SaleDateNotAllowedError(SalesError):
+    """La fecha de la venta es futura o cae en una semana de caja cerrada."""

@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.cash.models import CashClosing
+from apps.cash.selectors import week_start_for
 from apps.core.money import (
     DiscountType,
     DocumentAmountsError,
@@ -12,6 +14,7 @@ from apps.inventory.selectors import effective_sale_price
 from apps.sales.models import Sale, SaleItem, SaleStatus
 from apps.sales.models.sale import DEFAULT_SALE_TAX_PERCENTAGE
 from apps.sales.selectors import sale_amounts, sale_total
+from apps.sales.services.sale import sale_date_error
 
 AMOUNT_SETTINGS_FIELDS = ("discount_type", "discount_value", "tax_percentage")
 
@@ -57,6 +60,12 @@ class SaleItemSerializer(serializers.ModelSerializer):
             # del producto (ver validate). Puntos 17 + 23.
             "unit_price": {"required": False},
         }
+        # El producto repetido lo revisa validate, con un mensaje claro y
+        # después de ver si la venta sigue en borrador. El validador que
+        # DRF genera del UniqueConstraint corría antes y respondía "Los
+        # campos sale, product deben formar un conjunto único."
+        # (auditoría integral del 2026-11-07).
+        validators = []
 
     def validate(self, attrs):
         sale = attrs.get("sale")
@@ -75,6 +84,27 @@ class SaleItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Solo se pueden modificar líneas de ventas en borrador."
             )
+
+        product = attrs.get(
+            "product",
+            self.instance.product if self.instance is not None else None,
+        )
+
+        if sale is not None and product is not None:
+            duplicates = SaleItem.objects.filter(sale=sale, product=product)
+
+            if self.instance is not None:
+                duplicates = duplicates.exclude(pk=self.instance.pk)
+
+            if duplicates.exists():
+                raise serializers.ValidationError(
+                    {
+                        "product": (
+                            "Ese producto ya está en la venta; se cambia la "
+                            "cantidad de su línea."
+                        )
+                    }
+                )
 
         if self.instance is None and attrs.get("unit_price") is None:
             default_price = effective_sale_price(attrs["product"])
@@ -148,6 +178,10 @@ class SaleSerializer(serializers.ModelSerializer):
     tax_amount = serializers.SerializerMethodField()
     total = serializers.SerializerMethodField()
     amounts_error = serializers.SerializerMethodField()
+    # Decisión P2 de la auditoría integral del 2026-11-07: anular una
+    # venta de una semana ya cerrada se permite, pero la pantalla avisa
+    # que el dinero devuelto no se resta de ningún cierre.
+    in_closed_cash_week = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -175,6 +209,7 @@ class SaleSerializer(serializers.ModelSerializer):
             "tax_amount",
             "total",
             "amounts_error",
+            "in_closed_cash_week",
             "is_active",
             "created_at",
             "updated_at",
@@ -192,6 +227,16 @@ class SaleSerializer(serializers.ModelSerializer):
             "updated_at",
             "total",
         )
+
+    def validate_sale_date(self, value):
+        # Mismo criterio que al confirmar (sale_date_error): se avisa al
+        # guardar el borrador, no recién al confirmarlo.
+        error = sale_date_error(value)
+
+        if error:
+            raise serializers.ValidationError(error)
+
+        return value
 
     def validate(self, attrs):
         if self.instance is not None and self.instance.status != SaleStatus.DRAFT:
@@ -289,6 +334,19 @@ class SaleSerializer(serializers.ModelSerializer):
         _amounts, error = self._amounts(obj)
 
         return error
+
+    def get_in_closed_cash_week(self, obj):
+        # Una consulta por respuesta, no una por venta: los cierres son
+        # uno por semana, la tabla es chica.
+        closed_weeks = self.__dict__.get("_closed_weeks_cache")
+
+        if closed_weeks is None:
+            closed_weeks = set(
+                CashClosing.objects.values_list("week_start", flat=True)
+            )
+            self.__dict__["_closed_weeks_cache"] = closed_weeks
+
+        return week_start_for(obj.sale_date) in closed_weeks
 class SaleCancellationSerializer(serializers.Serializer):
     reason = serializers.CharField(
         min_length=1,

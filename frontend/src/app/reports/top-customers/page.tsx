@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canReadReports } from "@/features/auth/permissions";
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones } from "@/features/inventory/purchases/format";
 import {
   getTopCustomersReport,
   getTopCustomersReportPdf,
@@ -337,7 +337,7 @@ export default function TopCustomersReportPage() {
                     </td>
 
                     <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm font-semibold text-foreground">
-                      ₡{formatMoney(entry.total)}
+                      {formatColones(entry.total)}
                     </td>
                   </tr>
                 ))}

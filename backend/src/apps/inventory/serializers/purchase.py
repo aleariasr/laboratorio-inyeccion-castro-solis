@@ -225,6 +225,11 @@ class PurchaseSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+        # La factura repetida la revisa validate con un mensaje claro: el
+        # validador que DRF genera de uq_supplier_invoice respondía "Los
+        # campos supplier, invoice_number deben formar un conjunto único."
+        # (auditoría integral del 2026-11-07).
+        validators = []
 
     def validate_currency(self, value):
         normalized_currency = value.strip().upper()
@@ -267,6 +272,32 @@ class PurchaseSerializer(serializers.ModelSerializer):
                     ]
                 }
             )
+
+        invoice_number = attrs.get(
+            "invoice_number",
+            self.instance.invoice_number if self.instance is not None else None,
+        )
+        invoice_supplier = supplier or (
+            self.instance.supplier if self.instance is not None else None
+        )
+
+        if invoice_supplier is not None and invoice_number is not None:
+            duplicates = Purchase.objects.filter(
+                supplier=invoice_supplier,
+                invoice_number=invoice_number,
+            )
+
+            if self.instance is not None:
+                duplicates = duplicates.exclude(pk=self.instance.pk)
+
+            if duplicates.exists():
+                raise serializers.ValidationError(
+                    {
+                        "invoice_number": [
+                            "Este proveedor ya tiene una compra con ese número de factura."
+                        ]
+                    }
+                )
 
         currency = attrs.get(
             "currency",

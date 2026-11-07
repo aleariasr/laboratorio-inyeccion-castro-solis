@@ -555,7 +555,7 @@ export default function NewProformaPage() {
                           />
                         </td>
 
-                        <td className="border-b border-[var(--color-border-soft)] px-3 py-3 text-right font-mono">
+                        <td className="whitespace-nowrap border-b border-[var(--color-border-soft)] px-3 py-3 text-right font-mono">
                           {price === null ? (
                             <span className="font-sans text-xs font-semibold text-[var(--color-warning)]">
                               Sin precio

@@ -43,9 +43,17 @@ export function formatMoney(value: string | number): string {
   return decimalPart?.length === 1 ? `${formatted}0` : formatted;
 }
 
-/** Un monto en colones: "₡15 000.50". */
+/**
+ * Un monto en colones: "₡15 000.50". Negativo con el signo antes del
+ * símbolo y el menos tipográfico: "−₡2 500" (antes salía "₡-2 500",
+ * auditoría integral del 2026-11-07).
+ */
 export function formatColones(value: string | number): string {
-  return `₡${formatMoney(value)}`;
+  const formatted = formatMoney(value);
+
+  return formatted.startsWith("-")
+    ? `−₡${formatted.slice(1)}`
+    : `₡${formatted}`;
 }
 
 /**

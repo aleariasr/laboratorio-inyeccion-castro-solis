@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
 import { canCancelServices, canPriceServices, canReadProducts, canReadServices, canWriteServices } from "@/features/auth/permissions";
-import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones, formatDate, formatMoney } from "@/features/inventory/purchases/format";
 import {
   cancelServiceRecord,
   createServiceAccessory,
@@ -1292,7 +1292,7 @@ export default function ServiceDetailPage() {
                             </td>
                           )}
                           {hasPricingAccess && (
-                            <td className="px-5 py-3 text-right font-mono text-sm text-muted-foreground">—</td>
+                            <td className="whitespace-nowrap px-5 py-3 text-right font-mono text-sm text-muted-foreground">—</td>
                           )}
                           <td className="px-5 py-3">
                             <Input
@@ -1349,7 +1349,7 @@ export default function ServiceDetailPage() {
 
                           {hasPricingAccess && (
                             <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
-                              ₡{formatMoney(accessory.unit_price ?? 0)}
+                              {formatColones(accessory.unit_price ?? 0)}
                             </td>
                           )}
 

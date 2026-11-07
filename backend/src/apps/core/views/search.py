@@ -159,23 +159,37 @@ class UniversalSearchView(APIView):
         ]
 
     def search_sales(self, query):
+        filters = Q(
+            status=SaleStatus.CONFIRMED,
+            customer__display_name__icontains=query,
+        )
+
+        # "156" o "#156" también encuentra la venta por su número, en
+        # cualquier estado y aunque no tenga cliente (auditoría integral
+        # del 2026-11-07: antes solo se buscaba por nombre del cliente).
+        number = query.lstrip("#").strip()
+
+        if number.isdigit():
+            filters |= Q(pk=int(number))
+
         sales = (
             Sale.objects
             .select_related("customer")
-            .filter(
-                status=SaleStatus.CONFIRMED,
-                customer__display_name__icontains=query,
-            )
+            .filter(filters)
             .order_by("-sale_date", "-id")[:10]
         )
 
         return [
             {
                 "id": sale.id,
-                "customer": {
-                    "id": sale.customer_id,
-                    "display_name": sale.customer.display_name,
-                },
+                "customer": (
+                    {
+                        "id": sale.customer_id,
+                        "display_name": sale.customer.display_name,
+                    }
+                    if sale.customer_id
+                    else None
+                ),
                 "sale_date": sale.sale_date,
                 "status": sale.status,
             }

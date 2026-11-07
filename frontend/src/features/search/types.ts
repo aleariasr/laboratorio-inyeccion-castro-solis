@@ -56,10 +56,11 @@ export type UniversalSearchInjector = {
 
 export type UniversalSearchSale = {
   id: number;
+  // null: venta de mostrador (se encuentra por su número).
   customer: {
     id: number;
     display_name: string;
-  };
+  } | null;
   sale_date: string;
   status: string;
 };

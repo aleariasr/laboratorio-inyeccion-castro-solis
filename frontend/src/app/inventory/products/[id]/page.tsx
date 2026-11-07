@@ -43,7 +43,7 @@ import {
 } from "@/features/inventory/products/types";
 import { getMovementOrigin } from "@/features/inventory/movements/origin";
 import { getLatestProductCostHistory } from "@/features/inventory/purchases/api";
-import { crcEquivalent, formatMoney, formatNumber } from "@/features/inventory/purchases/format";
+import { crcEquivalent, formatColones, formatMoney, formatNumber } from "@/features/inventory/purchases/format";
 import type { ProductCostHistory } from "@/features/inventory/purchases/types";
 import { useRecordRecentlyViewed } from "@/features/recently-viewed/use-record-recently-viewed";
 import type { PaginatedResponse } from "@/lib/api/types";
@@ -1143,7 +1143,7 @@ export default function ProductDetailPage() {
                     Último precio de costo
                   </dt>
                   <dd className="mt-2 font-mono text-lg font-semibold text-foreground">
-                    ₡{formatMoney(costHistory.final_unit_cost)}
+                    {formatColones(costHistory.final_unit_cost)}
                   </dd>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Con los costos de importación de la compra.
@@ -1552,7 +1552,7 @@ export default function ProductDetailPage() {
                           )}
                         </td>
 
-                        <td className="px-5 py-4 text-right font-mono text-sm text-foreground">
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-foreground">
                           {variant.current_stock}
                         </td>
 

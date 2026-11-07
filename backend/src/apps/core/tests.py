@@ -1061,6 +1061,27 @@ class UniversalSearchApiTest(APITestCase):
             self.sale.id,
         )
 
+    def test_search_finds_sale_by_number(self):
+        # Auditoría integral del 2026-11-07: "156" o "#156" encuentra la
+        # venta por su número, en cualquier estado y sin cliente.
+        counter_sale = Sale.objects.create(
+            sale_date=date.today(),
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        for query in (str(counter_sale.id), f"#{counter_sale.id}"):
+            response = self.client.get(
+                "/api/search/",
+                {"q": query if len(query) >= 2 else f"#{query}"},
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            sales = response.data["results"]["sales"]
+            self.assertEqual([sale["id"] for sale in sales], [counter_sale.id])
+            self.assertIsNone(sales[0]["customer"])
+            self.assertEqual(sales[0]["status"], SaleStatus.DRAFT)
+
     def test_search_finds_service_record_by_injector_number(self):
         response = self.client.get(
             "/api/search/",

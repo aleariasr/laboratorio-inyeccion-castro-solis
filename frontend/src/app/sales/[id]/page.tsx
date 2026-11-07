@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
 import { canCancelSales, canReadProducts, canReadSales, canWriteSales } from "@/features/auth/permissions";
-import { formatDate, formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones, formatDate, formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import {
   cancelSale,
   confirmSale,
@@ -826,6 +826,14 @@ export default function SaleDetailPage() {
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   Esta acción no se puede deshacer. Si la venta ya fue confirmada, se repondrá el inventario despachado.
                 </p>
+
+                {loadState.sale.in_closed_cash_week && (
+                  <p className="mt-3 rounded-[var(--radius-md)] bg-[var(--color-warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--color-warning)]">
+                    Esta venta ya se contó en el cierre de caja de su semana. El dinero
+                    devuelto no se resta de ningún cierre: si sale de la caja, se
+                    registra aparte.
+                  </p>
+                )}
               </div>
 
               <form onSubmit={handleCancelSubmit} className="grid gap-4 p-5 sm:p-6">
@@ -1072,11 +1080,11 @@ export default function SaleDetailPage() {
                         <td className="px-5 py-4 text-right text-sm text-foreground">{item.quantity}</td>
 
                         <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm text-muted-foreground">
-                          ₡{formatMoney(item.unit_price)}
+                          {formatColones(item.unit_price)}
                         </td>
 
                         <td className="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-semibold text-foreground">
-                          ₡{formatMoney(item.subtotal)}
+                          {formatColones(item.subtotal)}
                         </td>
 
                         {canManageItems && (

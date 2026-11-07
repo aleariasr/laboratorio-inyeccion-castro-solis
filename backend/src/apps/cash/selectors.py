@@ -187,10 +187,10 @@ def week_start_for(value):
 
 def _weeks_with_movement(oldest_start, newest_end):
     """
-    Sábados de las semanas que tuvieron ventas o servicios cobrados en el
-    rango. Usa los mismos filtros que expected_totals_by_method, así que
-    una semana "con movimiento" es exactamente una semana con dinero que
-    conciliar: ventas confirmadas y activas, y servicios entregados.
+    Sábados de las semanas que tuvieron ventas o servicios cobrados, o
+    gastos de caja chica, en el rango. Para lo cobrado usa los mismos
+    filtros que expected_totals_by_method: ventas confirmadas y activas, y
+    servicios entregados.
     """
 
     sale_dates = (
@@ -216,9 +216,22 @@ def _weeks_with_movement(oldest_start, newest_end):
         .distinct()
     )
 
+    # Una semana con gastos de caja chica también tiene algo que cerrar,
+    # aunque no haya cobrado nada: si no, esos gastos nunca entraban en un
+    # cierre y el fondo siguiente no los reflejaba (auditoría integral del
+    # 2026-11-07, decisión P4).
+    outflow_dates = (
+        PettyCashMovement.objects.filter(
+            date__gte=oldest_start,
+            date__lte=newest_end,
+        )
+        .values_list("date", flat=True)
+        .distinct()
+    )
+
     return {
         week_start_for(value)
-        for value in [*sale_dates, *service_dates]
+        for value in [*sale_dates, *service_dates, *outflow_dates]
         if value is not None
     }
 
@@ -231,7 +244,8 @@ def weeks_pending_closing(today=None, lookback=WEEKS_PENDING_LOOKBACK):
     calendario.
 
     Una semana entra solo si cumple las tres condiciones: ya terminó (su
-    viernes pasó), no tiene cierre, y tuvo ventas o servicios cobrados. Lo
+    viernes pasó), no tiene cierre, y tuvo ventas o servicios cobrados o
+    gastos de caja chica. Lo
     último evita ofrecer semanas en las que no hubo nada que conciliar
     (por ejemplo, las anteriores a que el negocio empezara a usar el
     sistema).

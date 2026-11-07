@@ -125,6 +125,38 @@ El formato utiliza estas categorías:
   "Debe haber al contar" da el mismo número que antes: ahora se explica
   como cobrado + fondo − gastos.
 
+### Fixed (auditoría integral del 2026-11-07)
+
+> Recorrido de punta a punta antes de producción,
+> `docs/auditoria-integral-2026-11-07.md`. Sin migración.
+
+- Ventas: ya no se confirma una venta con fecha de una semana de caja
+  cerrada. Antes quedaba fuera de todo cierre. Tampoco se aceptan fechas
+  de venta futuras; el formulario ya no ofrece días después de hoy.
+- Ventas: anular una venta de una semana cerrada sigue permitido, pero el
+  panel de anulación avisa que el dinero devuelto no se resta de ningún
+  cierre. La API trae `in_closed_cash_week`.
+- Caja: una semana que solo tiene gastos de caja chica también se ofrece
+  para cerrar.
+- Caja: crear un cierre pide confirmación (también con Ctrl+S), porque no
+  se puede editar ni borrar.
+- Montos negativos en colones: se muestran `−₡2 500` en lugar de `₡-2 500`
+  en todas las pantallas (lista y detalle de cierres, reportes, ventas,
+  servicios…). Los montos de las tablas ya no se parten en dos líneas.
+- Conteos físicos: un conteo sin productos ya no se puede aprobar.
+- Mensajes claros en lugar de los genéricos con nombres de campo en inglés:
+  código propio repetido, factura repetida del mismo proveedor, referencia
+  de conteo repetida, producto repetido en una venta o en un conteo,
+  inyector repetido del mismo cliente y accesorio repetido en un servicio.
+- Servicios: un cambio de estado no permitido dice «Recibido» → «Listo»
+  en lugar de `RECEIVED` → `READY`.
+- Ubicaciones: mensajes en tono neutro al asignar una ubicación inactiva o
+  al desactivar una que todavía tiene productos.
+- Búsqueda: encuentra una venta por su número ("156" o "#156"), en
+  cualquier estado y también si no tiene cliente.
+- Caja: el aviso de "semana que todavía no termina" muestra la fecha como
+  dd/mm/aaaa.
+
 ---
 
 ## [2.5.0] - 2026-10-27

@@ -102,8 +102,8 @@ class StorageLocationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {
                     "is_active": (
-                        "No puede inactivar una ubicación "
-                        "que todavía tiene productos activos."
+                        "Una ubicación con productos activos no se puede "
+                        "inactivar; antes se mueven los productos."
                     )
                 }
             )
@@ -139,7 +139,7 @@ def normalize_own_code(value, *, instance=None):
 def validate_active_location(value):
     if not value.is_active:
         raise serializers.ValidationError(
-            "No puede asignar el producto a una ubicación inactiva."
+            "La ubicación está inactiva; no se le asignan productos."
         )
 
     return value
@@ -184,6 +184,12 @@ class ProductSerializer(serializers.ModelSerializer):
         )
         extra_kwargs = {
             "standard_code": {
+                "validators": [],
+            },
+            # El código propio repetido lo revisa normalize_own_code con un
+            # mensaje claro; el validador de DRF respondía "Ya existe
+            # Producto con este own code." (auditoría integral 2026-11-07).
+            "own_code": {
                 "validators": [],
             },
         }
@@ -297,8 +303,8 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {
                     "storage_location": (
-                        "No puede activar un producto "
-                        "ubicado en una ubicación inactiva."
+                        "El producto está en una ubicación inactiva; para "
+                        "activarlo se elige otra ubicación."
                     )
                 }
             )
@@ -394,6 +400,8 @@ class ProductVariantCreateSerializer(serializers.ModelSerializer):
             "minimum_stock",
             "custom_sale_price",
         )
+        # Ver ProductSerializer: el código propio lo revisa normalize_own_code.
+        extra_kwargs = {"own_code": {"validators": []}}
 
     def validate_own_code(self, value):
         return normalize_own_code(value)

@@ -73,6 +73,9 @@ export type Sale = {
   tax_amount: string | null;
   total: string | null;
   amounts_error: string | null;
+  // La semana de caja de su fecha ya tiene cierre: anularla no resta el
+  // dinero devuelto de ningún cierre (decisión P2, auditoría 2026-11-07).
+  in_closed_cash_week: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;

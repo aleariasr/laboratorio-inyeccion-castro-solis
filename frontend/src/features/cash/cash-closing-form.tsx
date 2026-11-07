@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KeyboardShortcut } from "@/components/ui/keyboard-shortcut";
 import { Textarea } from "@/components/ui/textarea";
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones, formatMoney } from "@/features/inventory/purchases/format";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
@@ -275,6 +275,20 @@ export function CashClosingForm({
       return;
     }
 
+    // Un cierre no se edita ni se borra: se confirma antes de crearlo,
+    // también con Ctrl+S (auditoría integral del 2026-11-07).
+    const weekLabel = effectivePreview
+      ? formatWeekRange(effectivePreview.week_start, effectivePreview.week_end)
+      : values.weekStart;
+
+    if (
+      !confirmWithFocusRestore(
+        `¿Cerrar la semana del ${weekLabel}? El cierre no se puede editar ni eliminar después.`,
+      )
+    ) {
+      return;
+    }
+
     void onSubmit(values);
   }
 
@@ -371,35 +385,35 @@ export function CashClosingForm({
           <div>
             <p className="text-xs text-muted-foreground">Efectivo</p>
             <p className="font-mono text-sm font-semibold text-foreground">
-              ₡{formatMoney(effectivePreview.expected_cash)}
+              {formatColones(effectivePreview.expected_cash)}
             </p>
           </div>
 
           <div>
             <p className="text-xs text-muted-foreground">Tarjeta</p>
             <p className="font-mono text-sm font-semibold text-foreground">
-              ₡{formatMoney(effectivePreview.expected_card)}
+              {formatColones(effectivePreview.expected_card)}
             </p>
           </div>
 
           <div>
             <p className="text-xs text-muted-foreground">Transferencia</p>
             <p className="font-mono text-sm font-semibold text-foreground">
-              ₡{formatMoney(effectivePreview.expected_transfer)}
+              {formatColones(effectivePreview.expected_transfer)}
             </p>
           </div>
 
           <div>
             <p className="text-xs text-muted-foreground">Otro</p>
             <p className="font-mono text-sm font-semibold text-foreground">
-              ₡{formatMoney(effectivePreview.expected_other)}
+              {formatColones(effectivePreview.expected_other)}
             </p>
           </div>
 
           <div className="col-span-2 border-t border-[var(--color-border-soft)] pt-3 text-center sm:col-span-4">
             <p className="text-xs text-muted-foreground">Total cobrado</p>
             <p className="font-mono text-base font-semibold text-foreground">
-              ₡{formatMoney(effectivePreview.expected_total)}
+              {formatColones(effectivePreview.expected_total)}
             </p>
           </div>
         </div>
@@ -504,7 +518,7 @@ export function CashClosingForm({
               ].join(" ")}
             >
               {difference > 0 ? "+" : difference < 0 ? "-" : ""}
-              ₡{formatMoney(Math.abs(difference))}
+              {formatColones(Math.abs(difference))}
             </p>
           </div>
         )}

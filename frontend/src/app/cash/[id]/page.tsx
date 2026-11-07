@@ -13,7 +13,7 @@ import { formatWeekRange } from "@/features/cash/format";
 import { canReadCash } from "@/features/auth/permissions";
 import { getCashClosing, getCashClosingPdf } from "@/features/cash/api";
 import type { CashClosing } from "@/features/cash/types";
-import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones, formatDate } from "@/features/inventory/purchases/format";
 import { CashWithdrawalLine } from "@/features/cash/cash-withdrawal-line";
 import { PettyCashSummary } from "@/features/cash/petty-cash-summary";
 import { PhysicalTotalHero } from "@/features/cash/physical-total-hero";
@@ -293,7 +293,7 @@ export default function CashClosingDetailPage() {
             <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4 text-center">
               <p className="text-sm text-muted-foreground">Total contado</p>
               <p className="mt-2 font-mono text-2xl font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.counted_total)}
+                {formatColones(loadState.closing.counted_total)}
               </p>
             </div>
 
@@ -314,7 +314,7 @@ export default function CashClosingDetailPage() {
                     : "text-[var(--color-danger)]",
                 ].join(" ")}
               >
-                ₡{formatMoney(loadState.closing.difference)}
+                {formatColones(loadState.closing.difference)}
               </p>
             </div>
           </div>
@@ -323,35 +323,35 @@ export default function CashClosingDetailPage() {
             <div>
               <p className="text-xs text-muted-foreground">Efectivo</p>
               <p className="font-mono text-sm font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.expected_cash)}
+                {formatColones(loadState.closing.expected_cash)}
               </p>
             </div>
 
             <div>
               <p className="text-xs text-muted-foreground">Tarjeta</p>
               <p className="font-mono text-sm font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.expected_card)}
+                {formatColones(loadState.closing.expected_card)}
               </p>
             </div>
 
             <div>
               <p className="text-xs text-muted-foreground">Transferencia</p>
               <p className="font-mono text-sm font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.expected_transfer)}
+                {formatColones(loadState.closing.expected_transfer)}
               </p>
             </div>
 
             <div>
               <p className="text-xs text-muted-foreground">Otro</p>
               <p className="font-mono text-sm font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.expected_other)}
+                {formatColones(loadState.closing.expected_other)}
               </p>
             </div>
 
             <div className="col-span-2 border-t border-[var(--color-border-soft)] pt-3 text-center sm:col-span-4">
               <p className="text-xs text-muted-foreground">Total cobrado</p>
               <p className="font-mono text-base font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.expected_total)}
+                {formatColones(loadState.closing.expected_total)}
               </p>
             </div>
           </div>
@@ -373,7 +373,7 @@ export default function CashClosingDetailPage() {
             <p className="text-sm text-muted-foreground">
               Fondo de caja chica para la semana siguiente:{" "}
               <span className="font-mono font-semibold text-foreground">
-                ₡{formatMoney(loadState.closing.next_petty_cash_opening)}
+                {formatColones(loadState.closing.next_petty_cash_opening)}
               </span>
             </p>
 

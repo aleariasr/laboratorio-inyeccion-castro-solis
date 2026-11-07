@@ -720,6 +720,28 @@ class CashClosingApiTest(APITestCase):
 
         self.assertEqual(week_starts, [WEEK_START])
 
+    def test_closeable_weeks_counts_a_week_with_only_petty_cash_outflows(self):
+        # Auditoría integral del 2026-11-07 (P4): una semana sin cobros pero
+        # con gastos también se cierra; si no, esos gastos nunca entraban
+        # en un cierre.
+        PettyCashMovement.objects.create(
+            date=WEEK_START + timedelta(days=1),
+            amount=Decimal("8000.0000"),
+            reason="Agua",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        with patch(
+            "apps.cash.selectors.timezone.localdate",
+            return_value=WEEK_END + timedelta(days=5),
+        ):
+            response = self.client.get("/api/cash/closings/closeable_weeks/")
+
+        week_starts = [week["week_start"] for week in response.data["weeks"]]
+
+        self.assertEqual(week_starts, [WEEK_START])
+
     def test_closeable_weeks_ignores_draft_sales(self):
         # Una venta en borrador no es dinero que conciliar: mismos filtros
         # que expected_totals_by_method.

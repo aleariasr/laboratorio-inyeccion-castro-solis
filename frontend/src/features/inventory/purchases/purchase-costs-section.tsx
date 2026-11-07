@@ -871,7 +871,7 @@ export function PurchaseCostsSection({
                               <p className="mt-1 text-sm text-muted-foreground">{item.name}</p>
                             </td>
 
-                            <td className="px-4 py-3 text-right font-mono text-sm text-foreground">{item.quantity}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm text-foreground">{item.quantity}</td>
 
                             <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm text-foreground">
                               <MoneyCell

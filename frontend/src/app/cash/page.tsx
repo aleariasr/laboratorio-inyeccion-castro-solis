@@ -16,7 +16,7 @@ import { canReadCash, canWriteCash } from "@/features/auth/permissions";
 import { getCashClosings } from "@/features/cash/api";
 import { PettyCashWeekCard } from "@/features/cash/petty-cash-week-card";
 import type { CashClosing, CashClosingFilters } from "@/features/cash/types";
-import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones, formatDate } from "@/features/inventory/purchases/format";
 import { ApiError, ApiNetworkError, ApiTimeoutError } from "@/lib/api/errors";
 import type { PaginatedResponse } from "@/lib/api/types";
 
@@ -391,19 +391,19 @@ export default function CashClosingsPage() {
                       Semana
                     </th>
 
-                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    <th className="whitespace-nowrap px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                       Debía haber
                     </th>
 
-                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    <th className="whitespace-nowrap px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                       Contado
                     </th>
 
-                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    <th className="whitespace-nowrap px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                       Diferencia
                     </th>
 
-                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    <th className="whitespace-nowrap px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                       Impuestos
                     </th>
 
@@ -431,27 +431,27 @@ export default function CashClosingsPage() {
                           </span>
                         </td>
 
-                        <td className="px-5 py-4 text-right align-top font-mono text-sm text-foreground">
-                          ₡{formatMoney(closing.expected_physical_total)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-foreground">
+                          {formatColones(closing.expected_physical_total)}
                         </td>
 
-                        <td className="px-5 py-4 text-right align-top font-mono text-sm text-foreground">
-                          ₡{formatMoney(closing.counted_total)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-foreground">
+                          {formatColones(closing.counted_total)}
                         </td>
 
                         <td
                           className={[
-                            "px-5 py-4 text-right align-top font-mono text-sm font-semibold",
+                            "whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm font-semibold",
                             differenceValue === 0
                               ? "text-[var(--color-success)]"
                               : "text-[var(--color-danger)]",
                           ].join(" ")}
                         >
-                          ₡{formatMoney(closing.difference)}
+                          {formatColones(closing.difference)}
                         </td>
 
-                        <td className="px-5 py-4 text-right align-top font-mono text-sm text-[var(--color-warning)]">
-                          ₡{formatMoney(closing.expected_tax)}
+                        <td className="whitespace-nowrap px-5 py-4 text-right align-top font-mono text-sm text-[var(--color-warning)]">
+                          {formatColones(closing.expected_tax)}
                         </td>
 
                         <td className="px-5 py-4 align-top text-sm text-muted-foreground">

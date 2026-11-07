@@ -1,4 +1,4 @@
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones, formatMoney } from "@/features/inventory/purchases/format";
 
 type PhysicalTotalHeroProps = {
   // "Debe haber al contar" en el formulario; "Debía haber" en un cierre
@@ -42,22 +42,22 @@ export function PhysicalTotalHero({
       <p className="mt-3 text-sm text-muted-foreground">
         Cobrado{" "}
         <span className="font-mono font-semibold text-foreground">
-          ₡{formatMoney(collected)}
+          {formatColones(collected)}
         </span>{" "}
         + fondo de caja chica{" "}
         <span className="font-mono font-semibold text-foreground">
-          ₡{formatMoney(pettyCashOpening)}
+          {formatColones(pettyCashOpening)}
         </span>{" "}
         − gastos{" "}
         <span className="font-mono font-semibold text-foreground">
-          ₡{formatMoney(pettyCashOutflows)}
+          {formatColones(pettyCashOutflows)}
         </span>
       </p>
 
       {overdraft > 0 && (
         <p className="mt-1 text-sm text-[var(--color-warning)]">
           De los gastos,{" "}
-          <span className="font-mono font-semibold">₡{formatMoney(overdraft)}</span> se
+          <span className="font-mono font-semibold">{formatColones(overdraft)}</span> se
           pagaron con los ingresos (sobregiro).
         </p>
       )}

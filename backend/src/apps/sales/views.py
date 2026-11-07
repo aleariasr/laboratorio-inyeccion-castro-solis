@@ -17,6 +17,7 @@ from apps.sales.exceptions import (
     SaleAlreadyConfirmedError,
     SaleAmountsError,
     SaleCancelledError,
+    SaleDateNotAllowedError,
     SaleNotConfirmedError,
     SaleWithoutItemsError,
 )
@@ -152,6 +153,7 @@ class SaleViewSet(viewsets.ModelViewSet):
             SaleAlreadyConfirmedError,
             SaleAmountsError,
             SaleCancelledError,
+            SaleDateNotAllowedError,
             SaleWithoutItemsError,
         ) as exc:
             return Response(

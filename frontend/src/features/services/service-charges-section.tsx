@@ -7,7 +7,7 @@ import { CREATE_OPTION_VALUE } from "@/components/forms/create-option";
 import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatMoney } from "@/features/inventory/purchases/format";
+import { formatColones } from "@/features/inventory/purchases/format";
 import { ApiError } from "@/lib/api/errors";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
@@ -345,7 +345,7 @@ export function ServiceChargesSection({
                         className="ml-auto h-10 w-32 text-right"
                       />
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">—</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm text-muted-foreground">—</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -376,10 +376,10 @@ export function ServiceChargesSection({
                     <td className="px-4 py-3 text-sm font-semibold text-foreground">{line.description}</td>
                     <td className="px-4 py-3 text-right text-sm text-foreground">{line.quantity}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm text-muted-foreground">
-                      ₡{formatMoney(line.unit_price)}
+                      {formatColones(line.unit_price)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm font-semibold text-foreground">
-                      ₡{formatMoney(line.amount)}
+                      {formatColones(line.amount)}
                     </td>
                     {canManage && (
                       <td className="px-4 py-3">
@@ -507,15 +507,15 @@ export function ServiceChargesSection({
         <dl className="ml-auto grid w-full max-w-sm gap-2 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Líneas de cobro</dt>
-            <dd className="font-mono text-foreground">₡{formatMoney(linesTotal)}</dd>
+            <dd className="font-mono text-foreground">{formatColones(linesTotal)}</dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Accesorios</dt>
-            <dd className="font-mono text-foreground">₡{formatMoney(accessoriesTotal)}</dd>
+            <dd className="font-mono text-foreground">{formatColones(accessoriesTotal)}</dd>
           </div>
           <div className="flex justify-between gap-4 border-t border-[var(--color-border-soft)] pt-2 font-semibold">
             <dt className="text-foreground">Subtotal</dt>
-            <dd className="font-mono text-foreground">₡{formatMoney(subtotal ?? 0)}</dd>
+            <dd className="font-mono text-foreground">{formatColones(subtotal ?? 0)}</dd>
           </div>
         </dl>
       )}

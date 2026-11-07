@@ -49,7 +49,7 @@ def create_cash_closing(
     if week_end > timezone.localdate():
         raise FutureWeekClosingError(
             "Todavía no se puede cerrar esta semana: el viernes de cierre "
-            f"({week_end.isoformat()}) no ha llegado."
+            f"({week_end:%d/%m/%Y}) no ha llegado."
         )
 
     if CashClosing.objects.filter(week_start=week_start).exists():
