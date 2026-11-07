@@ -14,6 +14,7 @@ import { isFormShortcutTarget } from "@/lib/dom/form-shortcuts";
 
 import { getCashClosingPreview, getCloseableWeeks } from "./api";
 import { formatWeekdayDate, formatWeekRange } from "./format";
+import { CashWithdrawalLine } from "./cash-withdrawal-line";
 import { PettyCashSummary } from "./petty-cash-summary";
 import { PhysicalTotalHero } from "./physical-total-hero";
 import { TaxBreakdown } from "./tax-breakdown";
@@ -282,6 +283,17 @@ export function CashClosingForm({
       ? Number(values.countedTotal) - expectedPhysicalTotal
       : null;
 
+  // Lo que sale de la caja al cerrar: lo contado menos el fondo que se
+  // deja para la semana siguiente (vacío = el mismo fondo).
+  const nextPettyCashOpening = values.nextPettyCashOpening.trim()
+    ? Number(values.nextPettyCashOpening)
+    : pettyCashOpening;
+
+  const cashWithdrawal =
+    difference !== null && Number.isFinite(nextPettyCashOpening)
+      ? Number(values.countedTotal) - nextPettyCashOpening
+      : null;
+
   // Red de seguridad: la lista solo trae semanas cerrables, pero si el
   // backend dice que esta no se puede cerrar, no se envía (ver
   // create_cash_closing).
@@ -349,7 +361,8 @@ export function CashClosingForm({
         <PhysicalTotalHero
           label="Debe haber al contar"
           collected={Number(effectivePreview.expected_total)}
-          pettyCashBalance={pettyCashOpening - pettyCashOutflows}
+          pettyCashOpening={pettyCashOpening}
+          pettyCashOutflows={pettyCashOutflows}
         />
       )}
 
@@ -496,6 +509,10 @@ export function CashClosingForm({
           </div>
         )}
       </div>
+
+      {cashWithdrawal !== null && Number.isFinite(cashWithdrawal) && (
+        <CashWithdrawalLine amount={cashWithdrawal} />
+      )}
 
       <Field
         id="cash-closing-difference-reason"

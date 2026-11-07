@@ -14,6 +14,7 @@ import { canReadCash } from "@/features/auth/permissions";
 import { getCashClosing, getCashClosingPdf } from "@/features/cash/api";
 import type { CashClosing } from "@/features/cash/types";
 import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { CashWithdrawalLine } from "@/features/cash/cash-withdrawal-line";
 import { PettyCashSummary } from "@/features/cash/petty-cash-summary";
 import { PhysicalTotalHero } from "@/features/cash/physical-total-hero";
 import { TaxBreakdown } from "@/features/cash/tax-breakdown";
@@ -284,7 +285,8 @@ export default function CashClosingDetailPage() {
               <PhysicalTotalHero
                 label="Debía haber"
                 collected={Number(loadState.closing.expected_total)}
-                pettyCashBalance={Number(loadState.closing.petty_cash_balance)}
+                pettyCashOpening={Number(loadState.closing.petty_cash_opening)}
+                pettyCashOutflows={Number(loadState.closing.petty_cash_outflows)}
               />
             </div>
 
@@ -374,6 +376,8 @@ export default function CashClosingDetailPage() {
                 ₡{formatMoney(loadState.closing.next_petty_cash_opening)}
               </span>
             </p>
+
+            <CashWithdrawalLine amount={Number(loadState.closing.cash_withdrawal)} />
           </div>
 
           <dl className="border-t border-[var(--color-border-soft)]">

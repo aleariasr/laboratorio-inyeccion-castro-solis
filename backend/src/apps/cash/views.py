@@ -34,6 +34,8 @@ from apps.cash.serializers import (
     business_income,
     expected_physical_total,
     petty_cash_balance,
+    petty_cash_fund_balance,
+    petty_cash_overdraft,
 )
 from apps.cash.services import (
     SATURDAY,
@@ -223,6 +225,13 @@ class CashClosingViewSet(
                 "petty_cash_opening": inherited_opening,
                 "petty_cash_outflows": outflows,
                 "petty_cash_balance": petty_cash_balance(opening, outflows),
+                # Sobregiro: los gastos que superaron el fondo salieron
+                # del efectivo de los ingresos de la semana.
+                "petty_cash_fund_balance": petty_cash_fund_balance(
+                    opening,
+                    outflows,
+                ),
+                "petty_cash_overdraft": petty_cash_overdraft(opening, outflows),
                 "expected_physical_total": expected_physical_total(
                     expected,
                     opening,

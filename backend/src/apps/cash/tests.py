@@ -1112,6 +1112,13 @@ class PettyCashApiTest(APITestCase):
             Decimal(response.data["next_petty_cash_opening"]),
             Decimal("10000"),
         )
+        # Sin sobregiro; se retira lo contado menos el fondo que se deja.
+        self.assertEqual(Decimal(response.data["petty_cash_overdraft"]), Decimal("0"))
+        self.assertEqual(
+            Decimal(response.data["petty_cash_fund_balance"]),
+            Decimal("7500"),
+        )
+        self.assertEqual(Decimal(response.data["cash_withdrawal"]), Decimal("500"))
 
     def test_opening_is_inherited_from_the_previous_closing(self):
         self.close(
@@ -1141,6 +1148,83 @@ class PettyCashApiTest(APITestCase):
 
         self.assertIsNone(response.data["petty_cash_opening"])
         self.assertEqual(Decimal(response.data["petty_cash_balance"]), Decimal("0"))
+        self.assertEqual(Decimal(response.data["petty_cash_overdraft"]), Decimal("0"))
+
+    def preview(self, week_start):
+        return self.client.get(
+            "/api/cash/closings/preview/",
+            {"week_start": week_start.isoformat()},
+        )
+
+    def test_outflows_over_the_fund_are_paid_with_income(self):
+        # Fondo 10 000; venta en efectivo 3 000; techo 12 000 → 2 000 de
+        # sobregiro salen de los ingresos y debe haber 1 000 al contar.
+        self.close(WEEK_START, "10000.0000", petty_cash_opening="10000")
+        next_week = WEEK_START + timedelta(days=7)
+        self.create_cash_sale(next_week)
+        self.outflow(next_week + timedelta(days=1), amount="12000", reason="Techo")
+
+        preview = self.preview(next_week)
+
+        self.assertEqual(Decimal(preview.data["petty_cash_fund_balance"]), Decimal("0"))
+        self.assertEqual(Decimal(preview.data["petty_cash_overdraft"]), Decimal("2000"))
+        # El saldo con signo se mantiene para no romper a quien lo use.
+        self.assertEqual(Decimal(preview.data["petty_cash_balance"]), Decimal("-2000"))
+        self.assertEqual(
+            Decimal(preview.data["expected_physical_total"]),
+            Decimal("1000"),
+        )
+
+        closing = self.close(next_week, "1000.0000")
+
+        self.assertEqual(closing.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Decimal(closing.data["difference"]), Decimal("0"))
+        self.assertEqual(Decimal(closing.data["petty_cash_overdraft"]), Decimal("2000"))
+        # Para dejar el fondo completo hay que reponer 9 000.
+        self.assertEqual(Decimal(closing.data["cash_withdrawal"]), Decimal("-9000"))
+
+    def test_outflows_equal_to_the_fund_are_not_overdraft(self):
+        self.close(WEEK_START, "10000.0000", petty_cash_opening="10000")
+        next_week = WEEK_START + timedelta(days=7)
+        self.outflow(next_week, amount="6000")
+        self.outflow(next_week + timedelta(days=1), amount="4000")
+
+        preview = self.preview(next_week)
+
+        self.assertEqual(Decimal(preview.data["petty_cash_fund_balance"]), Decimal("0"))
+        self.assertEqual(Decimal(preview.data["petty_cash_overdraft"]), Decimal("0"))
+
+    def test_first_week_without_fund_counts_every_outflow_as_overdraft(self):
+        self.create_cash_sale(WEEK_START)
+        self.outflow(WEEK_START, amount="2500")
+
+        preview = self.preview(WEEK_START)
+
+        self.assertIsNone(preview.data["petty_cash_opening"])
+        self.assertEqual(Decimal(preview.data["petty_cash_overdraft"]), Decimal("2500"))
+        self.assertEqual(
+            Decimal(preview.data["expected_physical_total"]),
+            Decimal("500"),
+        )
+
+    def test_overdraft_larger_than_income_leaves_a_negative_expected_total(self):
+        # Gastos > fondo + todo lo cobrado: no se bloquea; lo que debe
+        # haber queda negativo y el cierre pide motivo.
+        self.close(WEEK_START, "1000.0000", petty_cash_opening="1000")
+        next_week = WEEK_START + timedelta(days=7)
+        self.outflow(next_week, amount="5000", reason="Techo")
+
+        preview = self.preview(next_week)
+
+        self.assertEqual(Decimal(preview.data["petty_cash_overdraft"]), Decimal("4000"))
+        self.assertEqual(
+            Decimal(preview.data["expected_physical_total"]),
+            Decimal("-4000"),
+        )
+        self.assertEqual(
+            self.close(next_week, "0").status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
 
 
 @patch.object(rl_config, "pageCompression", 0)
@@ -1200,9 +1284,28 @@ class CashClosingPdfApiTest(APITestCase):
 
         text = self.get_pdf_text(closing.id)
 
-        self.assertNotIn("(Salidas de caja chica) Tj", text)
+        self.assertNotIn("(Gastos de la semana) Tj", text)
+        self.assertNotIn("Pagado con ingresos", text)
         self.assertIn("(Sobrante sin explicar) Tj", text)
         self.assertIn("(+CRC 500) Tj", text)
+
+    def test_closing_pdf_shows_overdraft_and_withdrawal(self):
+        self.close(WEEK_START, "10000.0000", petty_cash_opening="10000")
+        next_week = WEEK_START + timedelta(days=7)
+        self.create_cash_sale(next_week)  # 3000 en efectivo
+        self.outflow(next_week, amount="12000", reason="Reparar el techo")
+
+        response = self.close(next_week, "1000.0000")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        text = self.get_pdf_text(response.data["id"])
+
+        self.assertIn("(Gastos de la semana) Tj", text)
+        self.assertIn("(Reparar el techo) Tj", text)
+        self.assertIn("Pagado con ingresos", text)
+        self.assertIn("(CRC 2 000) Tj", text)
+        # Se retira 1 000 − 10 000: hay que reponer 9 000.
+        self.assertIn("(-CRC 9 000) Tj", text)
 
     def test_closing_pdf_requires_view_cash(self):
         closing = self.create_closing(WEEK_START)

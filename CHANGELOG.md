@@ -100,6 +100,31 @@ El formato utiliza estas categorías:
 - Comando `fix_purchase_exchange_rate` para encontrar y corregir compras y
   costos con tipo de cambio inválido, recalculando sus precios.
 
+### Added (caja: ingresos y sobregiro, 2026-11-07)
+
+> Pedido del cliente, diseño en `docs/auditoria-caja-chica-2026-11-07.md`.
+> Sin migración: todo se deriva de campos que el cierre ya guarda.
+
+- La tarjeta de `/cash` pasa a ser **Caja de esta semana**: fondo de caja
+  chica + ingresos en efectivo cobrados hasta hoy − gastos = **efectivo en
+  caja**, con lo cobrado por tarjeta, transferencia u otro aparte.
+- **Sobregiro**: cuando los gastos superan el fondo, el resto se paga con el
+  efectivo de los ingresos de la semana. Se muestra en la tarjeta, en el
+  cierre, en su detalle y en el PDF ("Pagado con ingresos"). Al registrar
+  un gasto se avisa cuánto sale del fondo y cuánto de los ingresos, y se
+  pide confirmar si supera el efectivo en caja (no se bloquea).
+- El cierre muestra cuánto **se retira de la caja** (contado − fondo para
+  la semana siguiente) o cuánto hay que reponer si no alcanza.
+- API: el cierre y la vista previa traen `petty_cash_fund_balance` y
+  `petty_cash_overdraft`; el cierre trae también `cash_withdrawal`.
+
+### Changed (caja)
+
+- En pantalla, las "salidas de caja chica" se llaman **gastos** y el saldo
+  del fondo ya no se muestra negativo (lo que lo supera es sobregiro).
+  "Debe haber al contar" da el mismo número que antes: ahora se explica
+  como cobrado + fondo − gastos.
+
 ---
 
 ## [2.5.0] - 2026-10-27

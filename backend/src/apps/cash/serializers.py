@@ -20,6 +20,35 @@ def petty_cash_balance(opening, outflows):
     return opening - outflows
 
 
+def petty_cash_fund_balance(opening, outflows):
+    """
+    Lo que queda del fondo de caja chica: nunca menos de cero. Los gastos
+    se pagan primero del fondo; lo que lo supera es sobregiro.
+    """
+
+    return max(opening - outflows, Decimal("0"))
+
+
+def petty_cash_overdraft(opening, outflows):
+    """
+    Sobregiro: la parte de los gastos que superó el fondo y se pagó con
+    el efectivo de los ingresos de la semana. Se deriva, no se guarda; ya
+    está descontado de lo que debe haber al contar.
+    """
+
+    return max(outflows - opening, Decimal("0"))
+
+
+def cash_withdrawal(counted_total, next_opening):
+    """
+    Lo que sale de la caja al cerrar: lo contado menos el fondo que se
+    deja para la semana siguiente (incluye vouchers y comprobantes).
+    Negativo si lo contado no alcanza para dejar ese fondo.
+    """
+
+    return counted_total - next_opening
+
+
 def expected_physical_total(expected_total, opening, outflows):
     """
     Lo que debe haber al contar: lo cobrado (ventas y servicios, todos
@@ -32,7 +61,10 @@ def expected_physical_total(expected_total, opening, outflows):
 class CashClosingSerializer(serializers.ModelSerializer):
     expected_business_income = serializers.SerializerMethodField()
     petty_cash_balance = serializers.SerializerMethodField()
+    petty_cash_fund_balance = serializers.SerializerMethodField()
+    petty_cash_overdraft = serializers.SerializerMethodField()
     expected_physical_total = serializers.SerializerMethodField()
+    cash_withdrawal = serializers.SerializerMethodField()
 
     class Meta:
         model = CashClosing
@@ -51,9 +83,12 @@ class CashClosingSerializer(serializers.ModelSerializer):
             "petty_cash_opening",
             "petty_cash_outflows",
             "petty_cash_balance",
+            "petty_cash_fund_balance",
+            "petty_cash_overdraft",
             "next_petty_cash_opening",
             "expected_physical_total",
             "counted_total",
+            "cash_withdrawal",
             "difference",
             "difference_reason",
             "notes",
@@ -68,6 +103,18 @@ class CashClosingSerializer(serializers.ModelSerializer):
 
     def get_petty_cash_balance(self, obj):
         return petty_cash_balance(obj.petty_cash_opening, obj.petty_cash_outflows)
+
+    def get_petty_cash_fund_balance(self, obj):
+        return petty_cash_fund_balance(
+            obj.petty_cash_opening,
+            obj.petty_cash_outflows,
+        )
+
+    def get_petty_cash_overdraft(self, obj):
+        return petty_cash_overdraft(obj.petty_cash_opening, obj.petty_cash_outflows)
+
+    def get_cash_withdrawal(self, obj):
+        return cash_withdrawal(obj.counted_total, obj.next_petty_cash_opening)
 
     def get_expected_physical_total(self, obj):
         return expected_physical_total(
@@ -135,7 +182,7 @@ class PettyCashMovementSerializer(serializers.ModelSerializer):
         value = value.strip()
 
         if not value:
-            raise serializers.ValidationError("El motivo de la salida es obligatorio.")
+            raise serializers.ValidationError("El motivo del gasto es obligatorio.")
 
         return value
 

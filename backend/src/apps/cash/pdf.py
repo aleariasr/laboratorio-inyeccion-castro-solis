@@ -6,8 +6,10 @@ cierre, para archivarlo en papel, con el recuadro de revisión al pie.
 from apps.cash.models import PettyCashMovement
 from apps.cash.serializers import (
     business_income,
+    cash_withdrawal,
     expected_physical_total,
-    petty_cash_balance,
+    petty_cash_fund_balance,
+    petty_cash_overdraft,
 )
 from apps.documents.report_pdf import (
     Column,
@@ -39,6 +41,10 @@ def _signed_crc(value):
     return format_crc(value)
 
 
+def _unsigned_if_positive_crc(value):
+    return _signed_crc(value) if value < 0 else format_crc(value)
+
+
 def build_cash_closing_pdf(*, closing):
     movements = list(
         PettyCashMovement.objects.select_related("created_by").filter(
@@ -47,10 +53,31 @@ def build_cash_closing_pdf(*, closing):
         ).order_by("date", "id")
     )
 
-    balance = petty_cash_balance(
+    fund_balance = petty_cash_fund_balance(
         closing.petty_cash_opening,
         closing.petty_cash_outflows,
     )
+    overdraft = petty_cash_overdraft(
+        closing.petty_cash_opening,
+        closing.petty_cash_outflows,
+    )
+
+    withdrawal = cash_withdrawal(
+        closing.counted_total,
+        closing.next_petty_cash_opening,
+    )
+
+    petty_cash_rows = [
+        ("Fondo al inicio", format_crc(closing.petty_cash_opening)),
+        ("Gastos", f"-{format_crc(closing.petty_cash_outflows)}"),
+        ("Saldo del fondo", format_crc(fund_balance), True),
+    ]
+
+    # Sobregiro: lo que superó el fondo se pagó con los ingresos.
+    if overdraft > 0:
+        petty_cash_rows.append(
+            ("Pagado con ingresos (sobregiro)", format_crc(overdraft)),
+        )
 
     blocks = [
         KeyValues(
@@ -88,21 +115,14 @@ def build_cash_closing_pdf(*, closing):
         ),
         KeyValues(
             title="Caja chica",
-            rows=[
-                ("Fondo al inicio", format_crc(closing.petty_cash_opening)),
-                (
-                    "Salidas de la semana",
-                    f"-{format_crc(closing.petty_cash_outflows)}",
-                ),
-                ("Saldo de caja chica", _signed_crc(balance), True),
-            ],
+            rows=petty_cash_rows,
         ),
     ]
 
     if movements:
         blocks.append(
             Table(
-                title="Salidas de caja chica",
+                title="Gastos de la semana",
                 columns=(
                     Column("Fecha", 1.1),
                     Column("Motivo", 3.6),
@@ -132,7 +152,7 @@ def build_cash_closing_pdf(*, closing):
             title="Conteo",
             rows=[
                 (
-                    "Debía haber (cobrado + saldo de caja chica)",
+                    "Debía haber (cobrado + fondo - gastos)",
                     format_crc(
                         expected_physical_total(
                             closing.expected_total,
@@ -146,6 +166,11 @@ def build_cash_closing_pdf(*, closing):
                 (
                     "Fondo de caja chica para la semana siguiente",
                     format_crc(closing.next_petty_cash_opening),
+                ),
+                (
+                    "Se retira de la caja (contado - fondo siguiente, "
+                    "con vouchers y comprobantes)",
+                    _unsigned_if_positive_crc(withdrawal),
                 ),
             ],
         )

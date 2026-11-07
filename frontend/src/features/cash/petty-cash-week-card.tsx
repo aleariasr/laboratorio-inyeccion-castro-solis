@@ -6,7 +6,7 @@ import { FormError } from "@/components/feedback/form-error";
 import { Field } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDate, formatMoney } from "@/features/inventory/purchases/format";
+import { formatDateOnly, formatMoney } from "@/features/inventory/purchases/format";
 import { ApiError } from "@/lib/api/errors";
 import { confirmWithFocusRestore } from "@/lib/dom/confirm-with-focus-restore";
 
@@ -36,6 +36,10 @@ type LoadState =
 
 const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 
+function signedMoney(value: number): string {
+  return `${value < 0 ? "−" : ""}₡${formatMoney(Math.abs(value))}`;
+}
+
 function toDateOnly(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -55,9 +59,11 @@ function currentWeekStart(): string {
 }
 
 /**
- * Caja chica de la semana en curso (puntos 21 + 22): fondo, salidas y
- * saldo, la lista de salidas y el formulario para registrar una. Las
- * salidas de semanas ya cerradas no se tocan (lo valida el backend).
+ * Caja de la semana en curso (puntos 21 + 22 y sobregiro del
+ * 2026-11-07): fondo de caja chica + ingresos en efectivo − gastos =
+ * efectivo en caja, la lista de gastos y el formulario para registrar
+ * uno. Los gastos salen primero del fondo; lo que lo supera sale de los
+ * ingresos (sobregiro). Los de semanas cerradas no se tocan (backend).
  */
 export function PettyCashWeekCard({
   token,
@@ -130,6 +136,44 @@ export function PettyCashWeekCard({
     };
   }, [onUnauthorized, reloadKey, token, weekStart]);
 
+  const preview = loadState.status === "success" ? loadState.preview : null;
+  const movements = loadState.status === "success" ? loadState.movements : [];
+
+  // null la primera vez: el fondo todavía no se definió en ningún cierre.
+  const opening =
+    preview?.petty_cash_opening !== null && preview?.petty_cash_opening !== undefined
+      ? Number(preview.petty_cash_opening)
+      : null;
+
+  const outflows = Number(preview?.petty_cash_outflows ?? 0);
+
+  // Solo el efectivo puede pagar un gasto: tarjeta y transferencia no
+  // están en billetes en la caja.
+  const cashIncome = Number(preview?.expected_cash ?? 0);
+
+  const otherCollected = preview
+    ? Number(preview.expected_card) +
+      Number(preview.expected_transfer) +
+      Number(preview.expected_other)
+    : 0;
+
+  const cashInBox = preview ? (opening ?? 0) + cashIncome - outflows : null;
+
+  const fundLeft = Number(preview?.petty_cash_fund_balance ?? 0);
+
+  const overdraft = Number(preview?.petty_cash_overdraft ?? 0);
+
+  // Aviso en vivo al escribir el monto: cuánto sale del fondo y cuánto de
+  // los ingresos (sobregiro).
+  const typedAmount =
+    DECIMAL_PATTERN.test(amount.trim()) && Number(amount) > 0 ? Number(amount) : null;
+
+  const typedOverdraft =
+    preview && typedAmount !== null ? Math.max(typedAmount - fundLeft, 0) : 0;
+
+  const typedExceedsCash =
+    cashInBox !== null && typedAmount !== null && typedAmount > cashInBox;
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
 
@@ -144,12 +188,24 @@ export function PettyCashWeekCard({
     }
 
     if (!reason.trim()) {
-      nextErrors.reason = "El motivo de la salida es obligatorio.";
+      nextErrors.reason = "El motivo del gasto es obligatorio.";
     }
 
     setFieldErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0 || isSubmitting) {
+      return;
+    }
+
+    // No se bloquea (puede haber ventas en efectivo sin registrar), pero
+    // se pide confirmar un gasto mayor que el efectivo que hay en la caja.
+    if (
+      cashInBox !== null &&
+      Number(amount) > cashInBox &&
+      !confirmWithFocusRestore(
+        `Este gasto supera el efectivo que el sistema calcula en la caja (${signedMoney(cashInBox)}). ¿Registrarlo igual?`,
+      )
+    ) {
       return;
     }
 
@@ -191,7 +247,7 @@ export function PettyCashWeekCard({
       }
 
       setSubmitError(
-        error instanceof ApiError ? error.message : "No fue posible registrar la salida.",
+        error instanceof ApiError ? error.message : "No fue posible registrar el gasto.",
       );
     } finally {
       setIsSubmitting(false);
@@ -201,7 +257,7 @@ export function PettyCashWeekCard({
   async function handleDelete(movement: PettyCashMovement): Promise<void> {
     if (
       !confirmWithFocusRestore(
-        `¿Borrar la salida "${movement.reason}" de ₡${formatMoney(movement.amount)}?`,
+        `¿Borrar el gasto "${movement.reason}" de ₡${formatMoney(movement.amount)}?`,
       )
     ) {
       return;
@@ -220,37 +276,43 @@ export function PettyCashWeekCard({
       }
 
       setSubmitError(
-        error instanceof ApiError ? error.message : "No fue posible borrar la salida.",
+        error instanceof ApiError ? error.message : "No fue posible borrar el gasto.",
       );
     } finally {
       setPendingDeleteId(null);
     }
   }
 
-  const preview = loadState.status === "success" ? loadState.preview : null;
-  const movements = loadState.status === "success" ? loadState.movements : [];
-
-  const opening =
-    preview?.petty_cash_opening !== null && preview?.petty_cash_opening !== undefined
-      ? Number(preview.petty_cash_opening)
-      : null;
-
-  const outflows = Number(preview?.petty_cash_outflows ?? 0);
-
-  const balance = opening !== null ? opening - outflows : null;
+  const tiles = [
+    {
+      label: "Fondo de caja chica",
+      value: opening !== null ? `₡${formatMoney(opening)}` : "—",
+      note: preview && opening === null ? "Se define en el primer cierre." : null,
+    },
+    {
+      label: "Ingresos en efectivo",
+      value: `+ ₡${formatMoney(cashIncome)}`,
+      note: "Ventas y servicios cobrados hasta hoy.",
+    },
+    {
+      label: "Gastos",
+      value: `− ₡${formatMoney(outflows)}`,
+      note: null,
+    },
+  ];
 
   return (
     <section className="app-status-card mb-6 overflow-hidden">
       <div className="border-b border-[var(--color-border-soft)] p-5 sm:p-6">
         <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
-          Caja chica de esta semana
+          Caja de esta semana
         </h2>
 
         <p className="mt-1 text-sm text-muted-foreground">
           {preview
             ? `Semana del ${formatWeekRange(preview.week_start, preview.week_end)}. `
             : ""}
-          Gastos pagados con el fondo. Al cerrar la semana se cuentan junto con el resto de la caja.
+          Los gastos salen primero del fondo; si no alcanza, de los ingresos en efectivo de la semana.
         </p>
       </div>
 
@@ -259,50 +321,75 @@ export function PettyCashWeekCard({
           {loadState.message}
         </p>
       ) : (
-        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+        <div className="grid gap-6 p-5 sm:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
           <div className="grid content-start gap-5">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
-                <p className="text-sm text-muted-foreground">Fondo</p>
-                <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-                  {opening !== null ? `₡${formatMoney(opening)}` : "—"}
-                </p>
-                {preview && opening === null && (
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Se define en el primer cierre.
+            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+              {tiles.map((tile) => (
+                <div
+                  key={tile.label}
+                  className="rounded-[var(--radius-lg)] bg-surface-muted p-4"
+                >
+                  <p className="text-sm text-muted-foreground">{tile.label}</p>
+                  <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
+                    {preview ? tile.value : "—"}
                   </p>
-                )}
-              </div>
-
-              <div className="rounded-[var(--radius-lg)] bg-surface-muted p-4">
-                <p className="text-sm text-muted-foreground">Salidas</p>
-                <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-                  − ₡{formatMoney(outflows)}
-                </p>
-              </div>
+                  {tile.note && (
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {tile.note}
+                    </p>
+                  )}
+                </div>
+              ))}
 
               <div
                 className={[
                   "rounded-[var(--radius-lg)] p-4",
-                  balance !== null && balance < 0
+                  cashInBox !== null && cashInBox < 0
                     ? "bg-[var(--color-danger-soft)]"
                     : "bg-[var(--color-primary-soft)]",
                 ].join(" ")}
               >
-                <p className="text-sm text-muted-foreground">Saldo</p>
+                <p className="text-sm font-medium text-foreground">Efectivo en caja</p>
                 <p className="mt-1.5 font-mono text-xl font-semibold text-foreground">
-                  {balance !== null
-                    ? `${balance < 0 ? "−" : ""}₡${formatMoney(Math.abs(balance))}`
-                    : "—"}
+                  {cashInBox !== null ? signedMoney(cashInBox) : "—"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Fondo + ingresos en efectivo − gastos.
                 </p>
               </div>
             </div>
 
+            {preview && otherCollected > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Cobrado con tarjeta, transferencia u otro:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  ₡{formatMoney(otherCollected)}
+                </span>{" "}
+                (no está en efectivo).
+              </p>
+            )}
+
+            {overdraft > 0 && (
+              <p className="rounded-[var(--radius-lg)] bg-[var(--color-warning-soft)] px-4 py-3 text-sm text-[var(--color-warning)]">
+                <span className="font-semibold">Sobregiro:</span>{" "}
+                <span className="font-mono font-semibold">₡{formatMoney(overdraft)}</span>{" "}
+                de los gastos se pagaron con los ingresos de la semana. El fondo se repone al
+                cerrar la semana.
+              </p>
+            )}
+
+            {cashInBox !== null && cashInBox < 0 && (
+              <p className="rounded-[var(--radius-lg)] bg-[var(--color-danger-soft)] px-4 py-3 text-sm text-[var(--color-danger)]">
+                Los gastos superan el efectivo registrado: puede faltar registrar ventas, o la
+                plata salió de otro lado. Al cerrar la semana se verá como diferencia.
+              </p>
+            )}
+
             {movements.length === 0 ? (
               <p className="rounded-[var(--radius-lg)] border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
                 {loadState.status === "loading"
-                  ? "Cargando salidas…"
-                  : "Todavía no hay salidas esta semana."}
+                  ? "Cargando gastos…"
+                  : "Todavía no hay gastos esta semana."}
               </p>
             ) : (
               <ul className="divide-y divide-[var(--color-border-soft)] rounded-[var(--radius-lg)] ring-1 ring-[var(--color-border-soft)]">
@@ -316,7 +403,7 @@ export function PettyCashWeekCard({
                         {movement.reason}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatDate(movement.date)}
+                        {formatDateOnly(movement.date)}
                         {movement.created_by_name
                           ? ` · ${movement.created_by_name}`
                           : ""}
@@ -358,7 +445,7 @@ export function PettyCashWeekCard({
               className="grid content-start gap-4 rounded-[var(--radius-lg)] bg-surface-muted/50 p-5 ring-1 ring-[var(--color-border-soft)]"
             >
               <p className="text-sm font-semibold text-foreground">
-                Registrar salida
+                Registrar gasto
               </p>
 
               {submitError && <FormError message={submitError} />}
@@ -377,7 +464,7 @@ export function PettyCashWeekCard({
                 />
               </Field>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                 <Field id="petty-cash-amount" label="Monto" error={fieldErrors.amount}>
                   <Input
                     id="petty-cash-amount"
@@ -408,8 +495,23 @@ export function PettyCashWeekCard({
                 </Field>
               </div>
 
+              {typedAmount !== null && typedExceedsCash ? (
+                <p className="rounded-[var(--radius-md)] bg-[var(--color-danger-soft)] px-3 py-2 text-xs leading-5 text-[var(--color-danger)]">
+                  Supera el efectivo que el sistema calcula en la caja (
+                  <span className="font-mono">{signedMoney(cashInBox ?? 0)}</span>). Se pedirá
+                  confirmar.
+                </p>
+              ) : typedOverdraft > 0 ? (
+                <p className="rounded-[var(--radius-md)] bg-[var(--color-warning-soft)] px-3 py-2 text-xs leading-5 text-[var(--color-warning)]">
+                  <span className="font-mono">₡{formatMoney((typedAmount ?? 0) - typedOverdraft)}</span>{" "}
+                  salen del fondo y{" "}
+                  <span className="font-mono">₡{formatMoney(typedOverdraft)}</span> de los
+                  ingresos de la semana (sobregiro).
+                </p>
+              ) : null}
+
               <Button type="submit" isLoading={isSubmitting} loadingText="Registrando…">
-                Registrar salida
+                Registrar gasto
               </Button>
             </form>
           )}

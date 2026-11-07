@@ -5,7 +5,8 @@ type PhysicalTotalHeroProps = {
   // ya hecho.
   label: string;
   collected: number;
-  pettyCashBalance: number;
+  pettyCashOpening: number;
+  pettyCashOutflows: number;
 };
 
 function signedMoney(value: number): string {
@@ -14,16 +15,19 @@ function signedMoney(value: number): string {
 
 /**
  * El número contra el que se compara lo contado (punto 5 del plan del
- * 2026-10-22): lo cobrado más el saldo de caja chica, grande y centrado,
- * con de dónde sale. Lo usan el formulario de cierre y el detalle del
- * cierre, en los dos arriba, antes del desglose por método de pago.
+ * 2026-10-22): lo cobrado + el fondo de caja chica − los gastos, grande y
+ * centrado, con de dónde sale. Si los gastos superaron el fondo, la
+ * diferencia salió de los ingresos (sobregiro) y ya está descontada. Lo
+ * usan el formulario de cierre y el detalle del cierre.
  */
 export function PhysicalTotalHero({
   label,
   collected,
-  pettyCashBalance,
+  pettyCashOpening,
+  pettyCashOutflows,
 }: PhysicalTotalHeroProps) {
-  const physicalTotal = collected + pettyCashBalance;
+  const physicalTotal = collected + pettyCashOpening - pettyCashOutflows;
+  const overdraft = Math.max(pettyCashOutflows - pettyCashOpening, 0);
 
   return (
     <div className="rounded-[var(--radius-lg)] bg-[var(--color-primary-soft)] px-6 py-7 text-center ring-1 ring-[rgb(7_81_132_/_14%)]">
@@ -36,15 +40,27 @@ export function PhysicalTotalHero({
       </p>
 
       <p className="mt-3 text-sm text-muted-foreground">
-        Total cobrado{" "}
+        Cobrado{" "}
         <span className="font-mono font-semibold text-foreground">
           ₡{formatMoney(collected)}
         </span>{" "}
-        más el saldo de caja chica{" "}
+        + fondo de caja chica{" "}
         <span className="font-mono font-semibold text-foreground">
-          {signedMoney(pettyCashBalance)}
+          ₡{formatMoney(pettyCashOpening)}
+        </span>{" "}
+        − gastos{" "}
+        <span className="font-mono font-semibold text-foreground">
+          ₡{formatMoney(pettyCashOutflows)}
         </span>
       </p>
+
+      {overdraft > 0 && (
+        <p className="mt-1 text-sm text-[var(--color-warning)]">
+          De los gastos,{" "}
+          <span className="font-mono font-semibold">₡{formatMoney(overdraft)}</span> se
+          pagaron con los ingresos (sobregiro).
+        </p>
+      )}
     </div>
   );
 }

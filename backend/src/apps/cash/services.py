@@ -119,13 +119,13 @@ def register_petty_cash_outflow(*, date, amount, reason, user):
 
     if date > timezone.localdate():
         raise FuturePettyCashOutflowError(
-            "La fecha de la salida no puede ser futura."
+            "La fecha del gasto no puede ser futura."
         )
 
     if is_week_closed(date):
         raise PettyCashWeekClosedError(
             "La semana de esa fecha ya tiene cierre de caja: no se pueden "
-            "registrar salidas en ella."
+            "registrar gastos en ella."
         )
 
     return PettyCashMovement.objects.create(
@@ -141,7 +141,7 @@ def register_petty_cash_outflow(*, date, amount, reason, user):
 def delete_petty_cash_outflow(*, movement):
     if is_week_closed(movement.date):
         raise PettyCashWeekClosedError(
-            "La semana de esta salida ya tiene cierre de caja: no se puede "
+            "La semana de este gasto ya tiene cierre de caja: no se puede "
             "borrar."
         )
 

@@ -539,7 +539,10 @@ Campos reales:
 
 Derivados, no guardados: saldo de caja chica = fondo − salidas; lo que debe haber al contar =
 `expected_total` + saldo; `difference` = contado − eso; ingreso del negocio = `expected_total` −
-`expected_tax`.
+`expected_tax`. Sobregiro (2026-11-07): los gastos se pagan primero del fondo; saldo del fondo =
+máx(0, fondo − salidas) y sobregiro = máx(0, salidas − fondo), la parte pagada con el efectivo de
+los ingresos de la semana (ya descontada de lo que debe haber). Lo que se retira al cerrar =
+contado − `next_petty_cash_opening` (negativo si hay que reponer).
 
 ### PettyCashMovement
 

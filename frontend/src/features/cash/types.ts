@@ -18,9 +18,16 @@ export type CashClosing = {
   petty_cash_opening: string;
   petty_cash_outflows: string;
   petty_cash_balance: string;
+  // Lo que queda del fondo (mínimo 0) y lo que lo superó, pagado con los
+  // ingresos de la semana (sobregiro). fondo_restante − sobregiro = saldo.
+  petty_cash_fund_balance: string;
+  petty_cash_overdraft: string;
   next_petty_cash_opening: string;
   expected_physical_total: string;
   counted_total: string;
+  // Lo que sale de la caja al cerrar: contado − fondo siguiente. Negativo
+  // si hay que reponer para dejar ese fondo.
+  cash_withdrawal: string;
   difference: string;
   difference_reason: string;
   notes: string;
@@ -59,6 +66,8 @@ export type CashClosingPreview = {
   petty_cash_opening: string | null;
   petty_cash_outflows: string;
   petty_cash_balance: string;
+  petty_cash_fund_balance: string;
+  petty_cash_overdraft: string;
   expected_physical_total: string;
 };
 
