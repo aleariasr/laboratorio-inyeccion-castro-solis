@@ -252,10 +252,14 @@ create_pre_update_backup() {
 }
 
 image_archives() {
+    # "._*" son metadatos que macOS escribe al copiar a un USB FAT/exFAT
+    # (no son imágenes): cargarlos hacía fallar la actualización con
+    # "invalid tar header" (2.5.0).
     find "${SOURCE_IMAGES_DIR}" \
         -maxdepth 1 \
         -type f \
         -name '*.tar' \
+        ! -name '._*' \
         -print \
         | sort
 }
