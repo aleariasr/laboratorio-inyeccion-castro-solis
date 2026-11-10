@@ -28,5 +28,9 @@ export function validatePurchaseItemForm(
     errors.unitCost = "El costo unitario debe ser un número mayor que cero.";
   }
 
+  if (values.reference.trim().length > 100) {
+    errors.reference = "La referencia no puede superar 100 caracteres.";
+  }
+
   return errors;
 }

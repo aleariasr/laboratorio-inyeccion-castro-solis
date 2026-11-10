@@ -524,13 +524,18 @@ export default function ProductSupplierPricesReportPage() {
 
                               <tbody>
                                 {entry.purchases.map((purchaseEntry) => (
-                                  <tr key={purchaseEntry.id}>
+                                  <tr key={purchaseEntry.item_id}>
                                     <td className="py-1.5 pr-4 text-sm text-muted-foreground">
                                       {formatDateOnly(purchaseEntry.purchase_date)}
                                     </td>
 
                                     <td className="py-1.5 pr-4 text-sm text-muted-foreground">
                                       {purchaseEntry.invoice_number}
+                                      {purchaseEntry.reference && (
+                                        <span className="ml-2 text-xs text-foreground">
+                                          · {purchaseEntry.reference}
+                                        </span>
+                                      )}
                                     </td>
 
                                     <td className="whitespace-nowrap py-1.5 text-right font-mono text-sm font-medium text-foreground">

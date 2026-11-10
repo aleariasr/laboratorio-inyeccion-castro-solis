@@ -148,11 +148,13 @@ class PurchaseItemAdmin(admin.ModelAdmin):
     list_display = (
         "purchase",
         "supplier_product",
+        "reference",
         "quantity",
         "unit_cost",
     )
     search_fields = (
         "purchase__invoice_number",
+        "reference",
         "supplier_product__product__standard_code",
         "supplier_product__supplier__name",
     )

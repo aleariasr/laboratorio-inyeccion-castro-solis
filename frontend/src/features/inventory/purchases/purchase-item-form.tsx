@@ -24,6 +24,7 @@ import type {
   PurchaseItemFormErrors,
   Currency,
   PurchaseItemFormField,
+  PurchaseItemInline,
   PurchaseItemFormValues,
 } from "./types";
 import { formatMoney } from "./format";
@@ -36,6 +37,14 @@ type PurchaseItemFormProps = {
   currency: Currency;
   /** Tipo de cambio de la compra (₡ por US$1), para mostrar el equivalente. */
   exchangeRate: string;
+  /**
+   * Líneas que ya tiene la compra. Si el producto elegido ya está en otra
+   * línea, se avisa: puede ser correcto (otra bodega, otro precio) o un
+   * error (se escaneó dos veces).
+   */
+  existingItems?: PurchaseItemInline[];
+  /** Línea que se está editando (no cuenta como repetida de sí misma). */
+  editingItemId?: number;
   initialValues: PurchaseItemFormValues;
   productDisplayLabel?: string;
   canReadProducts: boolean;
@@ -69,6 +78,8 @@ export function PurchaseItemForm({
   mode,
   currency,
   exchangeRate,
+  existingItems = [],
+  editingItemId,
   initialValues,
   productDisplayLabel,
   canReadProducts,
@@ -225,6 +236,16 @@ export function PurchaseItemForm({
     void onSubmit(values);
   }
 
+  const sameProductItems = values.productId
+    ? existingItems.filter(
+        (item) =>
+          String(item.supplier_product_detail.product.id) === values.productId &&
+          item.id !== editingItemId,
+      )
+    : [];
+
+  const currencySymbol = currency === "USD" ? "US$" : "₡";
+
   const unitCostValue = Number(values.unitCost);
   const unitCostHint =
     currency === "USD"
@@ -367,6 +388,32 @@ export function PurchaseItemForm({
         )}
       </Field>
 
+      {sameProductItems.length > 0 && (
+        <div
+          role="status"
+          className="rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[var(--color-warning-soft)] px-4 py-3 text-sm text-foreground"
+        >
+          <p className="font-semibold">
+            {mode === "create"
+              ? "Este producto ya está en la factura. Se agrega como otra línea."
+              : "Este producto también está en otra línea de la factura."}
+          </p>
+          <ul className="mt-1 list-disc pl-5">
+            {sameProductItems.map((item) => (
+              <li key={item.id}>
+                {`${item.quantity} u. a ${currencySymbol}${formatMoney(item.unit_cost)}`}
+                {item.reference ? ` · ${item.reference}` : ""}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Sirve cuando el mismo producto viene, por ejemplo, de dos bodegas a precios
+            distintos; la referencia ayuda a distinguir las líneas. Si se agregó por error,
+            corresponde cancelar.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id="purchase-item-quantity" label="Cantidad" required error={errors.quantity}>
           <Input
@@ -400,6 +447,25 @@ export function PurchaseItemForm({
           />
         </Field>
       </div>
+
+      <Field
+        id="purchase-item-reference"
+        label="Referencia"
+        hint="Opcional. Distingue líneas del mismo producto, por ejemplo la bodega de la que viene."
+        error={errors.reference}
+      >
+        <Input
+          id="purchase-item-reference"
+          name="reference"
+          value={values.reference}
+          onChange={handleChange("reference")}
+          hasError={Boolean(errors.reference)}
+          maxLength={100}
+          autoComplete="off"
+          placeholder={sameProductItems.length > 0 ? "Bodega o lote de esta línea" : undefined}
+          disabled={isSubmitting}
+        />
+      </Field>
 
       <div className="flex flex-wrap justify-end gap-3 border-t border-[var(--color-border-soft)] pt-5">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>

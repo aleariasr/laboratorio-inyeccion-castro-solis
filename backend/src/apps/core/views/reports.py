@@ -335,6 +335,10 @@ def product_supplier_prices_results(product):
     ).filter(
         supplier_product__product=product,
         purchase__status=PurchaseStatus.CONFIRMED,
+    ).order_by(
+        "purchase__purchase_date",
+        "purchase_id",
+        "id",
     )
 
     results_by_supplier = {}
@@ -357,7 +361,8 @@ def product_supplier_prices_results(product):
                     "id": supplier.id,
                     "name": supplier.name,
                 },
-                "purchase_count": 0,
+                "purchase_ids": set(),
+                "line_count": 0,
                 "total_unit_cost": Decimal("0"),
                 "last_purchase_date": purchase.purchase_date,
                 "last_unit_cost": unit_cost_crc,
@@ -365,7 +370,11 @@ def product_supplier_prices_results(product):
             }
 
         entry = results_by_supplier[supplier.id]
-        entry["purchase_count"] += 1
+        # Una factura puede traer el producto en varias líneas (por
+        # ejemplo, de dos bodegas; pedido del 2026-11-10): cuenta como una
+        # compra, pero cada línea es un precio pagado.
+        entry["purchase_ids"].add(purchase.id)
+        entry["line_count"] += 1
         entry["total_unit_cost"] += unit_cost_crc
 
         if purchase.purchase_date >= entry["last_purchase_date"]:
@@ -375,8 +384,10 @@ def product_supplier_prices_results(product):
         entry["purchases"].append(
             {
                 "id": purchase.id,
+                "item_id": item.id,
                 "invoice_number": purchase.invoice_number,
                 "purchase_date": purchase.purchase_date,
+                "reference": item.reference,
                 "unit_cost": unit_cost_crc,
                 "currency": "CRC",
                 # Lo que dice la factura, para que se vea de dónde salen
@@ -391,7 +402,7 @@ def product_supplier_prices_results(product):
 
     for entry in results_by_supplier.values():
         average_unit_cost = (
-            entry["total_unit_cost"] / entry["purchase_count"]
+            entry["total_unit_cost"] / entry["line_count"]
         ).quantize(
             Decimal("0.0001"),
             rounding=ROUND_HALF_UP,
@@ -405,13 +416,14 @@ def product_supplier_prices_results(product):
             key=lambda purchase_entry: (
                 purchase_entry["purchase_date"],
                 purchase_entry["id"],
+                purchase_entry["item_id"],
             ),
         )
 
         results.append(
             {
                 "supplier": entry["supplier"],
-                "purchase_count": entry["purchase_count"],
+                "purchase_count": len(entry["purchase_ids"]),
                 "last_purchase_date": entry["last_purchase_date"],
                 "last_unit_cost": entry["last_unit_cost"],
                 "average_unit_cost": average_unit_cost,

@@ -226,21 +226,30 @@ class PurchaseApiTest(APITestCase):
             ).exists()
         )
 
-    def test_create_purchase_item_rejects_duplicate_product_in_same_purchase(self):
+    def test_same_product_can_come_in_another_line_of_the_purchase(self):
+        # Pedido del cliente del 2026-11-10: la misma factura trae el
+        # producto desde dos bodegas, a precios distintos. Antes se
+        # rechazaba ("Este producto ya fue agregado a la compra").
         response = self.client.post(
             "/api/inventory/purchase-items/",
             {
                 "purchase": self.purchase.id,
                 "product": self.product.id,
                 "quantity": 1,
-                "unit_cost": "10.0000",
+                "unit_cost": "120.0000",
+                "reference": "  Bodega Heredia  ",
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("product", response.data)
-        self.assertEqual(PurchaseItem.objects.count(), 1)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(PurchaseItem.objects.filter(purchase=self.purchase).count(), 2)
+
+        new_line = PurchaseItem.objects.get(id=response.data["id"])
+
+        # La misma relación proveedor-producto, otra línea.
+        self.assertEqual(new_line.supplier_product, self.supplier_product)
+        self.assertEqual(new_line.reference, "Bodega Heredia")
 
     def test_confirm_purchase_creates_stock_movement(self):
         response = self.client.post(

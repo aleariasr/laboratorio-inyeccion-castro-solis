@@ -99,6 +99,66 @@ def _calculate_item_cost(item, exchange_rate, cost_factor, margin_percentage):
     return _money(unit_cost_crc), final_unit_cost, suggested_price
 
 
+def _products_breakdown(items, exchange_rate, cost_factor, margin_percentage):
+    """
+    Costo y precio sugerido de cada producto de la compra, en el orden en
+    que aparece por primera vez.
+
+    Un mismo producto puede venir en varias líneas con costos distintos
+    (por ejemplo, de dos bodegas del proveedor; pedido del 2026-11-10).
+    Como tiene un solo precio de venta, se usa el costo promedio ponderado
+    por cantidad:
+
+        costo unitario promedio = Σ(costo unitario × cantidad) / Σ cantidad
+        costo final ₡ = costo promedio × tipo de cambio × factor
+        precio sugerido ₡ = costo final ₡ × (1 + margen / 100)
+
+    Con una sola línea el promedio es su propio costo unitario, así que el
+    resultado es el mismo de antes.
+    """
+
+    grouped = {}
+
+    for item in items:
+        product = item.supplier_product.product
+        entry = grouped.setdefault(
+            product.id,
+            {
+                "product": product,
+                "quantity": 0,
+                "total_original": Decimal("0"),
+                "line_count": 0,
+            },
+        )
+        entry["quantity"] += item.quantity
+        entry["total_original"] += item.unit_cost * item.quantity
+        entry["line_count"] += 1
+
+    breakdown = []
+
+    for entry in grouped.values():
+        product = entry["product"]
+        average_unit_cost = entry["total_original"] / entry["quantity"]
+        final_unit_cost = _money(average_unit_cost * exchange_rate * cost_factor)
+
+        breakdown.append(
+            {
+                "product": product.id,
+                "standard_code": product.standard_code,
+                "name": product.name,
+                "quantity": entry["quantity"],
+                "line_count": entry["line_count"],
+                "original_unit_cost": _money(average_unit_cost),
+                "final_unit_cost": final_unit_cost,
+                "suggested_price": _price(
+                    _apply_margin(final_unit_cost, margin_percentage)
+                ),
+            }
+        )
+
+    return breakdown
+
+
 @transaction.atomic
 def discard_purchase_cost_calculation(*, purchase: Purchase):
     """
@@ -197,12 +257,24 @@ def purchase_cost_summary(
     # el resumen y lo que queda guardado coincidan al último decimal.
     cost_factor = _quantize(total_cost / invoice_subtotal, FACTOR_QUANTUM)
 
+    products_breakdown = _products_breakdown(
+        items,
+        exchange_rate,
+        cost_factor,
+        margin_percentage,
+    )
+    products_by_id = {
+        product_line["product"]: product_line
+        for product_line in products_breakdown
+    }
+
     items_breakdown = []
 
     for item in items:
         product = item.supplier_product.product
+        product_line = products_by_id[product.id]
 
-        unit_cost_crc, final_unit_cost, suggested_price = _calculate_item_cost(
+        unit_cost_crc, final_unit_cost, _ = _calculate_item_cost(
             item,
             exchange_rate,
             cost_factor,
@@ -211,15 +283,21 @@ def purchase_cost_summary(
 
         items_breakdown.append(
             {
+                "id": item.id,
                 "supplier_product": item.supplier_product_id,
                 "product": product.id,
                 "standard_code": product.standard_code,
                 "name": product.name,
+                "reference": item.reference,
                 "quantity": item.quantity,
                 "original_unit_cost": item.unit_cost,
                 "original_unit_cost_crc": unit_cost_crc,
+                # Costo final de esta línea.
                 "final_unit_cost": final_unit_cost,
-                "suggested_price": suggested_price,
+                # Precio del producto: si viene en varias líneas, sale del
+                # costo promedio de todas (ver _products_breakdown).
+                "suggested_price": product_line["suggested_price"],
+                "is_repeated": product_line["line_count"] > 1,
             }
         )
 
@@ -236,6 +314,7 @@ def purchase_cost_summary(
         "suggested_total": _price(_apply_margin(total_cost, margin_percentage)),
         "import_costs": import_costs_breakdown,
         "items": items_breakdown,
+        "products": products_breakdown,
     }
 
 
@@ -247,7 +326,9 @@ def calculate_purchase_costs(
     user,
 ):
     """
-    Guarda el costo final y el precio sugerido (en colones) de cada línea.
+    Guarda el costo final y el precio sugerido (en colones) de cada
+    producto de la compra; uno que viene en varias líneas queda con el
+    costo promedio de todas (ver _products_breakdown).
 
     Reemplaza el cálculo anterior de la misma compra: antes cada "Aplicar
     costos" agregaba otra fila por producto y el histórico mostraba
@@ -271,8 +352,8 @@ def calculate_purchase_costs(
 
     ProductCostHistory.objects.filter(purchase=purchase).delete()
 
-    items = {
-        item.supplier_product_id: item
+    products = {
+        item.supplier_product.product_id: item.supplier_product.product
         for item in purchase.items.select_related(
             "supplier_product__product",
         )
@@ -280,14 +361,14 @@ def calculate_purchase_costs(
 
     histories = []
 
-    for line in summary["items"]:
-        item = items[line["supplier_product"]]
-
+    # Una fila por producto, aunque venga en varias líneas: el producto
+    # tiene un solo precio de venta.
+    for line in summary["products"]:
         histories.append(
             ProductCostHistory.objects.create(
-                product=item.supplier_product.product,
+                product=products[line["product"]],
                 purchase=purchase,
-                original_unit_cost=item.unit_cost,
+                original_unit_cost=line["original_unit_cost"],
                 cost_factor=summary["cost_factor"],
                 final_unit_cost=line["final_unit_cost"],
                 currency=purchase.currency,

@@ -39,6 +39,7 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
             "supplier_product_detail",
             "quantity",
             "unit_cost",
+            "reference",
             "subtotal",
             "created_at",
             "updated_at",
@@ -106,17 +107,15 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
             },
         )
 
-        if PurchaseItem.objects.filter(
-            purchase=purchase,
-            supplier_product=supplier_product,
-        ).exists():
-            raise serializers.ValidationError(
-                {"product": ["Este producto ya fue agregado a la compra."]}
-            )
-
+        # El mismo producto puede venir en varias líneas de una factura
+        # (pedido del 2026-11-10): ya no se rechaza. La pantalla avisa al
+        # agregarlo otra vez, por si fue un error.
         validated_data["supplier_product"] = supplier_product
 
         return super().create(validated_data)
+
+    def validate_reference(self, value):
+        return value.strip()
 
     def get_supplier_product_detail(self, obj):
         supplier_product = obj.supplier_product
@@ -151,6 +150,7 @@ class PurchaseItemInlineSerializer(serializers.ModelSerializer):
             "supplier_product_detail",
             "quantity",
             "unit_cost",
+            "reference",
             "subtotal",
         )
 

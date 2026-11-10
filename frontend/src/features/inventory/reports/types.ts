@@ -214,9 +214,13 @@ export const EMPTY_TOP_CUSTOMERS_FILTERS: TopCustomersFilters = {
 };
 
 export type ProductSupplierPriceHistoryEntry = {
+  /** Id de la compra. */
   id: number;
+  /** Id de la línea: una factura puede traer el producto en varias. */
+  item_id: number;
   invoice_number: string;
   purchase_date: string;
+  reference: string;
   unit_cost: string;
   currency: "CRC";
   /** Lo que dice la factura, en su moneda. */

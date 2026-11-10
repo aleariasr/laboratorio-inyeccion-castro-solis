@@ -273,7 +273,10 @@ class ProductSupplierPricesReportPdfView(APIView):
                 history_rows.append(
                     (
                         format_date(purchase["purchase_date"]),
-                        purchase["invoice_number"] or f"#{purchase['id']}",
+                        # Con la referencia, si la factura trae el producto
+                        # en varias líneas (por ejemplo, de dos bodegas).
+                        (purchase["invoice_number"] or f"#{purchase['id']}")
+                        + (f" · {purchase['reference']}" if purchase["reference"] else ""),
                         format_amount(purchase["unit_cost"]),
                     )
                 )

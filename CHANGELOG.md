@@ -177,6 +177,37 @@ El formato utiliza estas categorías:
   de caja llegan como texto exacto ("3390.00"), igual que el resto de los
   montos, en lugar de número JSON.
 
+### Added (compras: un producto en varias líneas, 2026-11-10)
+
+- Una factura puede traer el mismo producto en varias líneas, por ejemplo
+  despachado desde dos bodegas del proveedor a precios distintos. Antes se
+  rechazaba con "Este producto ya fue agregado a la compra". Al agregarlo
+  otra vez, el formulario avisa y muestra las líneas que ya tiene, por si
+  fue un error.
+- Cada línea tiene una **referencia** opcional (por ejemplo "Bodega
+  Heredia") que se ve en las líneas, en el resumen de costos y en el
+  reporte de precios por proveedor (pantalla y PDF).
+- Trae la migración `inventory/0031_purchaseitem_repeated_products`:
+  quita la restricción de producto único por factura y agrega la
+  referencia. No cambia datos existentes.
+
+### Changed (compras: un producto en varias líneas)
+
+- Cada línea entra al inventario con su propio costo final. El producto
+  sigue teniendo un solo precio de venta, calculado con el costo promedio
+  ponderado por cantidad de sus líneas; el resumen lo indica bajo el
+  precio ("Promedio de 2 líneas"). Con una sola línea, el resultado es el
+  mismo de antes.
+- Cambiar solo la referencia de una línea ya no borra los costos aplicados.
+- El reporte de precios por proveedor cuenta una factura como una compra
+  aunque traiga el producto en varias líneas, y muestra cada precio pagado.
+
+### Fixed (compras: un producto en varias líneas)
+
+- Al anular una compra, el inventario disponible se compara con la suma de
+  todas las líneas de cada producto. Línea por línea, una compra con el
+  producto repetido podía dejar el stock negativo.
+
 ---
 
 ## [2.5.0] - 2026-10-27

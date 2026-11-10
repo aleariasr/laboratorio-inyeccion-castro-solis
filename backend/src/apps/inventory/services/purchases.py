@@ -106,6 +106,11 @@ def cancel_purchase(
         lock_products(item.supplier_product.product_id for item in items)
 
         reversal_data = []
+        # Cuánto hay que sacar de cada producto. Un producto puede venir en
+        # varias líneas (pedido del 2026-11-10): el inventario disponible se
+        # compara con la suma de todas, no línea por línea, o la anulación
+        # dejaría el stock negativo.
+        required_by_product = {}
 
         for item in items:
             product = item.supplier_product.product
@@ -116,15 +121,8 @@ def cancel_purchase(
                 reverses_movement__isnull=True,
             )
 
-            available_stock = current_stock(product)
-
-            if available_stock < original_movement.quantity:
-                raise InsufficientStockForPurchaseReversalError(
-                    (
-                        "No existe inventario suficiente para "
-                        f"revertir el producto {product.standard_code}."
-                    )
-                )
+            required = required_by_product.setdefault(product.pk, [product, 0])
+            required[1] += original_movement.quantity
 
             reversal_data.append(
                 (
@@ -133,6 +131,15 @@ def cancel_purchase(
                     original_movement,
                 )
             )
+
+        for product, quantity in required_by_product.values():
+            if current_stock(product) < quantity:
+                raise InsufficientStockForPurchaseReversalError(
+                    (
+                        "No existe inventario suficiente para "
+                        f"revertir el producto {product.standard_code}."
+                    )
+                )
 
         for product, item, original_movement in reversal_data:
             StockMovement.create_from_service(

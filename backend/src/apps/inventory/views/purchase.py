@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Q
 
@@ -9,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.locking import lock_document
+from apps.core.money import money_texts
 from apps.core.permissions import PurchasesPermission, ViewCostsRequired
 from apps.core.query_params import (
     parse_boolean_query_param,
@@ -335,29 +334,10 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             )
 
         return Response(
-            _decimals_as_strings(summary),
+            # Montos como texto exacto, igual que el resto de la API.
+            money_texts(summary),
             status=status.HTTP_200_OK,
         )
-
-
-def _decimals_as_strings(value):
-    """
-    Los montos del resumen como texto exacto ("5200.0000"), igual que los
-    devuelven los serializers del resto de la API. Sin esto el JSON los
-    llevaba como números de punto flotante (DRF convierte Decimal a float
-    fuera de un serializer), que pierden precisión en montos grandes.
-    """
-
-    if isinstance(value, Decimal):
-        return str(value)
-
-    if isinstance(value, dict):
-        return {key: _decimals_as_strings(item) for key, item in value.items()}
-
-    if isinstance(value, list):
-        return [_decimals_as_strings(item) for item in value]
-
-    return value
 
 
 class PurchaseItemViewSet(viewsets.ModelViewSet):
@@ -398,13 +378,21 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
             serializer.instance.purchase_id,
             "Solo se pueden modificar líneas de compras en borrador.",
         )
-        serializer.save(
+        previous = (
+            serializer.instance.quantity,
+            serializer.instance.unit_cost,
+        )
+
+        item = serializer.save(
             updated_by=self.request.user,
         )
 
-        discard_purchase_cost_calculation(
-            purchase=serializer.instance.purchase,
-        )
+        # La referencia no entra en el cálculo: cambiar solo eso conserva
+        # los costos aplicados.
+        if previous != (item.quantity, item.unit_cost):
+            discard_purchase_cost_calculation(
+                purchase=item.purchase,
+            )
 
     def destroy(self, request, *args, **kwargs):
         purchase_item = self.get_object()

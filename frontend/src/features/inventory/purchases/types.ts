@@ -18,6 +18,8 @@ export type PurchaseItemInline = {
   };
   quantity: number;
   unit_cost: string;
+  /** Opcional: distingue líneas del mismo producto (p. ej. "Bodega Heredia"). */
+  reference: string;
   subtotal: string;
 };
 
@@ -131,18 +133,21 @@ export type PurchaseItemWritePayload = {
   product: number;
   quantity: number;
   unit_cost: string;
+  reference: string;
 };
 
 export type PurchaseItemFormValues = {
   productId: string;
   quantity: string;
   unitCost: string;
+  reference: string;
 };
 
 export type PurchaseItemFormField =
   | "productId"
   | "quantity"
-  | "unitCost";
+  | "unitCost"
+  | "reference";
 
 export type PurchaseItemFormErrors = Partial<Record<PurchaseItemFormField, string>>;
 
@@ -150,6 +155,7 @@ export const EMPTY_PURCHASE_ITEM_FORM_VALUES: PurchaseItemFormValues = {
   productId: "",
   quantity: "",
   unitCost: "",
+  reference: "",
 };
 
 export function buildPurchaseItemWritePayload(
@@ -161,6 +167,7 @@ export function buildPurchaseItemWritePayload(
     product: Number(values.productId),
     quantity: Number(values.quantity),
     unit_cost: values.unitCost.trim(),
+    reference: values.reference.trim(),
   };
 }
 
@@ -280,15 +287,36 @@ export function buildImportCostWritePayload(
  * colones salvo los campos *_original / original_unit_cost, que están en
  * la moneda de la compra.
  */
+/** Una línea de la compra en el resumen. */
 export type CostSummaryItem = {
+  /** Id de la línea (un producto puede venir en varias líneas). */
+  id: number;
   supplier_product: number;
   product: number;
   standard_code: string;
   name: string;
+  reference: string;
   quantity: number;
   /** En la moneda de la compra. */
   original_unit_cost: string;
   original_unit_cost_crc: string;
+  /** Costo final de esta línea. */
+  final_unit_cost: string;
+  /** Precio del producto (promedio de sus líneas si viene en varias). */
+  suggested_price: string;
+  /** El producto viene en más de una línea de la compra. */
+  is_repeated: boolean;
+};
+
+/** Un producto de la compra en el resumen (sus líneas sumadas). */
+export type CostSummaryProduct = {
+  product: number;
+  standard_code: string;
+  name: string;
+  quantity: number;
+  line_count: number;
+  /** Costo unitario promedio ponderado, en la moneda de la compra. */
+  original_unit_cost: string;
   final_unit_cost: string;
   suggested_price: string;
 };
@@ -318,6 +346,7 @@ export type CostSummary = {
   suggested_total: string;
   import_costs: CostSummaryImportCost[];
   items: CostSummaryItem[];
+  products: CostSummaryProduct[];
 };
 
 export type ProductCostHistory = {

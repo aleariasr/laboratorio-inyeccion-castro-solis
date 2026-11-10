@@ -25,6 +25,7 @@ import {
   emptyImportCostFormValues,
   importCostToFormValues,
   type CostSummary,
+  type CostSummaryProduct,
   type Currency,
   type ImportCost,
   type ImportCostFormErrors,
@@ -136,6 +137,18 @@ function MoneyCell({
       )}
     </div>
   );
+}
+
+/**
+ * Nota bajo el precio de un producto que viene en varias líneas: el precio
+ * sale del costo promedio de todas ("Promedio de 2 líneas: ₡11 000").
+ */
+function repeatedProductNote(products: CostSummaryProduct[], productId: number): string {
+  const product = products.find((entry) => entry.product === productId);
+
+  return product
+    ? `Promedio de ${product.line_count} líneas: costo ${formatColones(product.final_unit_cost)}`
+    : "Promedio de sus líneas";
 }
 
 /** Un costo de importación en colones, con el tipo de cambio con que se pagó. */
@@ -860,7 +873,7 @@ export function PurchaseCostsSection({
                       <tbody>
                         {result.items.map((item) => (
                           <tr
-                            key={item.supplier_product}
+                            key={item.id}
                             className="border-b border-[var(--color-border-soft)] last:border-b-0"
                           >
                             <td className="px-4 py-3">
@@ -869,6 +882,12 @@ export function PurchaseCostsSection({
                               </p>
 
                               <p className="mt-1 text-sm text-muted-foreground">{item.name}</p>
+
+                              {item.reference && (
+                                <p className="mt-1 inline-flex rounded-[var(--radius-sm)] bg-surface-muted px-2 py-0.5 text-xs font-medium text-foreground">
+                                  {item.reference}
+                                </p>
+                              )}
                             </td>
 
                             <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm text-foreground">{item.quantity}</td>
@@ -887,6 +906,14 @@ export function PurchaseCostsSection({
 
                             <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm font-semibold text-foreground">
                               {formatColones(item.suggested_price)}
+
+                              {/* Un producto tiene un solo precio: si viene en
+                                  varias líneas, sale del costo promedio. */}
+                              {item.is_repeated && (
+                                <p className="mt-0.5 font-sans text-xs font-normal text-muted-foreground">
+                                  {repeatedProductNote(result.products, item.product)}
+                                </p>
+                              )}
                             </td>
                           </tr>
                         ))}

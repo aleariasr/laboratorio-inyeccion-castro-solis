@@ -9,6 +9,7 @@ const FIELD_MAP: Record<string, PurchaseItemFormField> = {
   product: "productId",
   quantity: "quantity",
   unit_cost: "unitCost",
+  reference: "reference",
 };
 
 export function mapPurchaseItemApiFieldErrors(

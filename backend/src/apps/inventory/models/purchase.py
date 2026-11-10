@@ -140,6 +140,15 @@ class PurchaseItem(AuditModel):
         ]
     )
 
+    # Un mismo producto puede venir en varias líneas de la misma factura
+    # (por ejemplo, despachado desde dos bodegas del proveedor a precios
+    # distintos; pedido del cliente del 2026-11-10). La referencia es
+    # opcional y sirve para distinguirlas ("Bodega Heredia").
+    reference = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
     class Meta:
         db_table = "inventory_purchase_items"
         verbose_name = "Línea de compra"
@@ -147,15 +156,10 @@ class PurchaseItem(AuditModel):
         ordering = [
             "id",
         ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=[
-                    "purchase",
-                    "supplier_product",
-                ],
-                name="uq_purchase_supplier_product",
-            ),
-        ]
+
+    def save(self, *args, **kwargs):
+        self.reference = (self.reference or "").strip()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return (

@@ -213,6 +213,7 @@ export default function PurchaseDetailPage() {
           productId: String(itemFormState.item.supplier_product_detail.product.id),
           quantity: String(itemFormState.item.quantity),
           unitCost: itemFormState.item.unit_cost,
+          reference: itemFormState.item.reference,
         }
       : EMPTY_PURCHASE_ITEM_FORM_VALUES;
 
@@ -400,10 +401,21 @@ export default function PurchaseDetailPage() {
           : await updatePurchaseItem(token, itemFormState.item.id, {
               quantity: payload.quantity,
               unit_cost: payload.unit_cost,
+              reference: payload.reference,
             });
 
+      // Cambiar solo la referencia no toca costos: el backend conserva el
+      // cálculo (ver PurchaseItemViewSet.perform_update).
+      const changedCosts =
+        itemFormState.mode === "create" ||
+        saved.quantity !== itemFormState.item.quantity ||
+        Number(saved.unit_cost) !== Number(itemFormState.item.unit_cost);
+
       updateItemsInState(saved);
-      markCostCalculationDiscarded();
+
+      if (changedCosts) {
+        markCostCalculationDiscarded();
+      }
 
       setItemFormState({ mode: "closed", item: null });
 
@@ -456,7 +468,10 @@ export default function PurchaseDetailPage() {
       return;
     }
 
-    if (!confirmWithFocusRestore(`¿Eliminar la línea de ${formatItemLabel(item)}?`)) {
+    // Con cantidad y referencia: el mismo producto puede estar en varias líneas.
+    const lineDetail = `${item.quantity} u.${item.reference ? `, ${item.reference}` : ""}`;
+
+    if (!confirmWithFocusRestore(`¿Eliminar la línea de ${formatItemLabel(item)} (${lineDetail})?`)) {
       return;
     }
 
@@ -998,6 +1013,8 @@ export default function PurchaseDetailPage() {
                   canReadCosts={user ? canReadCosts(user) : false}
                   currency={loadState.purchase.currency}
                   exchangeRate={loadState.purchase.exchange_rate}
+                  existingItems={loadState.purchase.items}
+                  editingItemId={itemFormState.mode === "edit" ? itemFormState.item.id : undefined}
                   mode={itemFormState.mode}
                   initialValues={itemFormInitialValues}
                   productDisplayLabel={itemDisplayLabel}
@@ -1060,6 +1077,12 @@ export default function PurchaseDetailPage() {
                           <p className="mt-1 text-sm text-muted-foreground">
                             {item.supplier_product_detail.product.name}
                           </p>
+
+                          {item.reference && (
+                            <p className="mt-1 inline-flex rounded-[var(--radius-sm)] bg-surface-muted px-2 py-0.5 text-xs font-medium text-foreground">
+                              {item.reference}
+                            </p>
+                          )}
                         </td>
 
                         <td className="px-5 py-4 text-right text-sm text-foreground">{item.quantity}</td>
