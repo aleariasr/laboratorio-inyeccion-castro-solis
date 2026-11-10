@@ -169,6 +169,13 @@ El formato utiliza estas categorías:
   cómo llegar).
 - Textos: reportes sin permiso dicen "permisos de reportes"; la ubicación
   vacía de un producto dice "obligatoria"; otros textos en tono neutro.
+- API: los mensajes genéricos de validación salen en tono neutro ("El valor
+  debe ser mayor o igual a 0.01.", "Este campo es obligatorio.") y ya no en
+  inglés ("El registro no existe.", "Los datos enviados no son válidos.").
+  Los mensajes propios de cada pantalla no cambian.
+- API: los montos calculados de ventas, servicios, cierres y la vista previa
+  de caja llegan como texto exacto ("3390.00"), igual que el resto de los
+  montos, en lugar de número JSON.
 
 ---
 

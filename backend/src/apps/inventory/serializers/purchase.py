@@ -87,7 +87,7 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
 
         if self.instance is None and "product" not in attrs:
             raise serializers.ValidationError(
-                {"product": ["Este campo es requerido."]}
+                {"product": ["El producto es obligatorio."]}
             )
 
         return attrs

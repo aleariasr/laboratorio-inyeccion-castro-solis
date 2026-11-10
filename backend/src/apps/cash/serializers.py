@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.core.money import money_text
+
 from .models import CashClosing, PettyCashMovement
 
 
@@ -98,29 +100,38 @@ class CashClosingSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
+    # Como texto exacto, igual que los DecimalField del modelo: devueltos
+    # como Decimal salían como número JSON (auditoría integral, H-18).
     def get_expected_business_income(self, obj):
-        return business_income(obj.expected_total, obj.expected_tax)
+        return money_text(business_income(obj.expected_total, obj.expected_tax))
 
     def get_petty_cash_balance(self, obj):
-        return petty_cash_balance(obj.petty_cash_opening, obj.petty_cash_outflows)
+        return money_text(
+            petty_cash_balance(obj.petty_cash_opening, obj.petty_cash_outflows)
+        )
 
     def get_petty_cash_fund_balance(self, obj):
-        return petty_cash_fund_balance(
-            obj.petty_cash_opening,
-            obj.petty_cash_outflows,
+        return money_text(
+            petty_cash_fund_balance(obj.petty_cash_opening, obj.petty_cash_outflows)
         )
 
     def get_petty_cash_overdraft(self, obj):
-        return petty_cash_overdraft(obj.petty_cash_opening, obj.petty_cash_outflows)
+        return money_text(
+            petty_cash_overdraft(obj.petty_cash_opening, obj.petty_cash_outflows)
+        )
 
     def get_cash_withdrawal(self, obj):
-        return cash_withdrawal(obj.counted_total, obj.next_petty_cash_opening)
+        return money_text(
+            cash_withdrawal(obj.counted_total, obj.next_petty_cash_opening)
+        )
 
     def get_expected_physical_total(self, obj):
-        return expected_physical_total(
-            obj.expected_total,
-            obj.petty_cash_opening,
-            obj.petty_cash_outflows,
+        return money_text(
+            expected_physical_total(
+                obj.expected_total,
+                obj.petty_cash_opening,
+                obj.petty_cash_outflows,
+            )
         )
 
 

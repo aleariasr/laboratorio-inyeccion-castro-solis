@@ -3,7 +3,11 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.core.money import DocumentAmountsError, compute_document_amounts
+from apps.core.money import (
+    DocumentAmountsError,
+    compute_document_amounts,
+    money_text,
+)
 from apps.core.permissions import is_module_admin
 from apps.customers.selectors import service_amounts
 from apps.inventory.selectors import effective_sale_price
@@ -496,22 +500,22 @@ class InjectorServiceRecordSerializer(
     def get_subtotal(self, obj):
         amounts, _error = self._amounts(obj)
 
-        return amounts.subtotal if amounts else None
+        return money_text(amounts.subtotal) if amounts else None
 
     def get_discount_amount(self, obj):
         amounts, _error = self._amounts(obj)
 
-        return amounts.discount_amount if amounts else None
+        return money_text(amounts.discount_amount) if amounts else None
 
     def get_tax_amount(self, obj):
         amounts, _error = self._amounts(obj)
 
-        return amounts.tax_amount if amounts else None
+        return money_text(amounts.tax_amount) if amounts else None
 
     def get_total(self, obj):
         amounts, _error = self._amounts(obj)
 
-        return amounts.total if amounts else None
+        return money_text(amounts.total) if amounts else None
 
     def get_amounts_error(self, obj):
         _amounts, error = self._amounts(obj)

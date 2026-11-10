@@ -93,3 +93,33 @@ def compute_document_amounts(
         tax_amount=tax_amount,
         total=taxable_base + tax_amount,
     )
+
+
+def money_text(value):
+    """
+    Un monto como texto exacto para la API ("3390.00", "1234.5600"), o
+    None. Un Decimal devuelto tal cual por un SerializerMethodField o en un
+    dict de Response sale como número JSON (float) y puede perder céntimos;
+    los DecimalField del modelo ya salen como texto (auditoría integral del
+    2026-11-07, H-18).
+    """
+
+    if value is None:
+        return None
+
+    return str(Decimal(value))
+
+
+def money_texts(value):
+    """money_text aplicado a todo Decimal dentro de un dict o lista."""
+
+    if isinstance(value, dict):
+        return {key: money_texts(item) for key, item in value.items()}
+
+    if isinstance(value, list):
+        return [money_texts(item) for item in value]
+
+    if isinstance(value, Decimal):
+        return money_text(value)
+
+    return value

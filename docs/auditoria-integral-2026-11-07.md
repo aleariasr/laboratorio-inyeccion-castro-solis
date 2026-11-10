@@ -388,8 +388,8 @@ porque `demo.inventario`, `demo.ventas` y `demo.servicios` ya no tienen la contr
 | H-14 | U | Mensajes de ubicación | Tono neutro | "No puede asignar…", "No puede inactivar…" | Baja | **Corregido** |
 | H-15 | G-14 | Cerrar semana futura | Fecha dd/mm/aaaa | "(2026-11-13)" | Baja | **Corregido** |
 | H-16 | S-28 | `deliver` | — | `delivered_at` es de solo lectura: la entrega siempre queda con fecha de ahora, así que un servicio no puede caer en una semana cerrada. El parámetro `delivered_at` de la API se ignora sin aviso. | Info | Sin cambio (el caso A-02 no aplica a servicios) |
-| H-17 | X-01 | Mensajes genéricos de DRF | Tono neutro | "Asegúrese de que este valor es mayor o igual a 0.", "Este campo no puede estar en blanco." (motivo vacío), "date_from no puede ser mayor que date_to." | Baja | **Pendiente**. Las pantallas validan antes, así que casi no se ven. Cambiarlos es una pasada global aparte. |
-| H-18 | — | Ventas, servicios y vista previa de caja | Montos como texto exacto | Llegan como número JSON (`3920.11`) | Baja | **Pendiente**. Hoy no hay error de redondeo visible (2 decimales). Las compras ya devuelven texto. |
+| H-17 | X-01 | Mensajes genéricos de DRF/Django | Tono neutro | "Asegúrese de que este valor es mayor o igual a 0.", "Este campo no puede estar en blanco.", y en inglés "No Sale matches the given query." y "JSON parse error…" | Baja | **Corregido** (2026-11-10): `apps/core/exceptions.py` reescribe solo los mensajes genéricos (por ejemplo, "El valor debe ser mayor o igual a 0.01.", "Este campo es obligatorio.", "El registro no existe.") y conserva los propios + tests |
+| H-18 | — | Ventas, servicios, cierre y vista previa de caja | Montos como texto exacto | Llegaban como número JSON (`3920.11`) | Baja | **Corregido** (2026-11-10): `money_text`/`money_texts` en `apps/core/money.py`. Los reportes siguen como número (sus tests y pantallas lo usan así). Tests incluidos. |
 | H-19 | P | Base de desarrollo | Usuarios demo con la contraseña del seed | 3 de 5 tienen otra contraseña | Info | Avisado. Los usuarios `qa-ia.*` quedaron **desactivados** al terminar. |
 
 ### 7.3 Segunda pasada (después del commit b2ee7c5)
@@ -451,4 +451,4 @@ conteo vacío aprobado QA-IA-K03, el cierre #20 y las compras, ventas y servicio
 - [x] Correcciones con tests (escritos; falta que Alejandro los corra)
 - [x] `CHANGELOG.md` bajo `[No liberado]`
 - [x] Comandos de verificación para Alejandro
-- [ ] Pendientes H-17 y H-18 (baja prioridad)
+- [x] Pendientes H-17 y H-18 (2026-11-10)

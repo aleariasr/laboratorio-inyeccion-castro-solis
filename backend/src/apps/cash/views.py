@@ -44,6 +44,7 @@ from apps.cash.services import (
     register_petty_cash_outflow,
 )
 from apps.core.models import PaymentMethod
+from apps.core.money import money_texts
 from apps.core.permissions import CashPermission
 from apps.core.query_params import parse_date_query_param
 from apps.documents.report_pdf import report_pdf_response
@@ -201,8 +202,10 @@ class CashClosingViewSet(
         # previa lo calcula con 0 y avisa con petty_cash_opening en null.
         opening = inherited_opening if inherited_opening is not None else 0
 
+        # Montos como texto exacto, igual que en el cierre ya hecho
+        # (auditoría integral del 2026-11-07, H-18).
         return Response(
-            {
+            money_texts({
                 "week_start": week_start,
                 "week_end": week_end,
                 # La consulta de una semana en curso se permite a
@@ -237,7 +240,7 @@ class CashClosingViewSet(
                     opening,
                     outflows,
                 ),
-            }
+            })
         )
 
     @action(detail=True, methods=["get"], url_path="pdf")

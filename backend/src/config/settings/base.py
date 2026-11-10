@@ -160,6 +160,9 @@ REST_FRAMEWORK = {
         "apps.core.pagination.StandardResultsSetPagination"
     ),
     "PAGE_SIZE": 50,
+    # Mensajes genéricos de DRF/Django en tono neutro (auditoría integral
+    # del 2026-11-07, H-17). Ver apps/core/exceptions.py.
+    "EXCEPTION_HANDLER": "apps.core.exceptions.neutral_exception_handler",
 }
 
 # -----------------------------------------------------------------------------

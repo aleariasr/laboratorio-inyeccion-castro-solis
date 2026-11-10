@@ -6,6 +6,7 @@ from apps.cash.models import CashClosing
 from apps.cash.selectors import week_start_for
 from apps.core.money import (
     DiscountType,
+    money_text,
     DocumentAmountsError,
     compute_document_amounts,
 )
@@ -132,7 +133,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
         }
 
     def get_subtotal(self, obj):
-        return obj.quantity * obj.unit_price
+        return money_text(obj.quantity * obj.unit_price)
 
 
 class SaleItemInlineSerializer(serializers.ModelSerializer):
@@ -158,7 +159,7 @@ class SaleItemInlineSerializer(serializers.ModelSerializer):
         }
 
     def get_subtotal(self, obj):
-        return obj.quantity * obj.unit_price
+        return money_text(obj.quantity * obj.unit_price)
 
 
 class SaleSerializer(serializers.ModelSerializer):
@@ -313,22 +314,22 @@ class SaleSerializer(serializers.ModelSerializer):
     def get_subtotal(self, obj):
         amounts, _error = self._amounts(obj)
 
-        return amounts.subtotal if amounts else None
+        return money_text(amounts.subtotal) if amounts else None
 
     def get_discount_amount(self, obj):
         amounts, _error = self._amounts(obj)
 
-        return amounts.discount_amount if amounts else None
+        return money_text(amounts.discount_amount) if amounts else None
 
     def get_tax_amount(self, obj):
         amounts, _error = self._amounts(obj)
 
-        return amounts.tax_amount if amounts else None
+        return money_text(amounts.tax_amount) if amounts else None
 
     def get_total(self, obj):
         amounts, _error = self._amounts(obj)
 
-        return amounts.total if amounts else None
+        return money_text(amounts.total) if amounts else None
 
     def get_amounts_error(self, obj):
         _amounts, error = self._amounts(obj)
