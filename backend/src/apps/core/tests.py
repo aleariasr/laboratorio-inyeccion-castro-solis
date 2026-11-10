@@ -1824,9 +1824,11 @@ class BusinessReportsApiTest(APITestCase):
         self.assertEqual(period["period_start"], date(2026, 7, 2))
         self.assertEqual(period["period_end"], date(2026, 7, 2))
         self.assertEqual(period["sales"]["count"], 1)
-        self.assertEqual(period["sales"]["total"], Decimal("750.00"))
+        self.assertEqual(Decimal(period["sales"]["total"]), Decimal("750.00"))
         self.assertEqual(period["services"]["count"], 0)
-        self.assertEqual(period["total"]["total"], Decimal("750.00"))
+        self.assertEqual(Decimal(period["total"]["total"]), Decimal("750.00"))
+        # Montos como texto exacto (2026-11-10), no como número JSON.
+        self.assertIsInstance(period["total"]["total"], str)
         self.assertIsNone(response.data["comparison"])
 
     def test_sales_reports_use_amount_charged_but_top_products_stay_gross(self):
@@ -1848,7 +1850,7 @@ class BusinessReportsApiTest(APITestCase):
         by_product = self.client.get("/api/reports/top-selling-products/", params)
 
         self.assertEqual(
-            by_date.data["summary"]["sales"]["total"],
+            Decimal(by_date.data["summary"]["sales"]["total"]),
             Decimal("770.00"),
         )
         self.assertEqual(
@@ -2793,14 +2795,17 @@ class SalesSummaryReportApiTest(APITestCase):
 
         summary = self.summary()["summary"]
 
-        self.assertEqual(summary["sales"]["total"], Decimal("1130.00"))
-        self.assertEqual(summary["services"]["total"], Decimal("22600.00"))
+        self.assertEqual(Decimal(summary["sales"]["total"]), Decimal("1130.00"))
+        self.assertEqual(Decimal(summary["services"]["total"]), Decimal("22600.00"))
         self.assertEqual(summary["total"]["count"], 2)
-        self.assertEqual(summary["total"]["total"], Decimal("23730.00"))
-        self.assertEqual(summary["total"]["tax"], Decimal("2730.00"))
-        self.assertEqual(summary["total"]["business_income"], Decimal("21000.00"))
-        self.assertEqual(summary["total"]["by_method"]["CASH"], Decimal("1130.00"))
-        self.assertEqual(summary["total"]["by_method"]["CARD"], Decimal("22600.00"))
+        self.assertEqual(Decimal(summary["total"]["total"]), Decimal("23730.00"))
+        self.assertEqual(Decimal(summary["total"]["tax"]), Decimal("2730.00"))
+        self.assertEqual(Decimal(summary["total"]["business_income"]), Decimal("21000.00"))
+        self.assertEqual(Decimal(summary["total"]["by_method"]["CASH"]), Decimal("1130.00"))
+        self.assertEqual(Decimal(summary["total"]["by_method"]["CARD"]), Decimal("22600.00"))
+        # Montos como texto exacto (2026-11-10), no como número JSON.
+        self.assertIsInstance(summary["total"]["total"], str)
+        self.assertIsInstance(summary["total"]["by_method"]["CASH"], str)
 
     def test_weeks_run_saturday_to_friday_like_the_cash_closing(self):
         self.create_sale(date(2026, 7, 3))  # viernes
@@ -2841,7 +2846,7 @@ class SalesSummaryReportApiTest(APITestCase):
 
         self.assertEqual(summary["sales"]["count"], 1)
         self.assertEqual(summary["services"]["count"], 0)
-        self.assertEqual(summary["total"]["total"], Decimal("1000.00"))
+        self.assertEqual(Decimal(summary["total"]["total"]), Decimal("1000.00"))
 
     def test_comparison_returns_previous_summary_and_variation(self):
         self.create_sale(date(2026, 6, 10), amount="500.0000")
@@ -2850,11 +2855,16 @@ class SalesSummaryReportApiTest(APITestCase):
         data = self.summary(compare_from="2026-06-01", compare_to="2026-06-30")
         comparison = data["comparison"]
 
-        self.assertEqual(comparison["summary"]["total"]["total"], Decimal("500.00"))
         self.assertEqual(
-            comparison["variation"]["total"]["total"],
-            {"amount": Decimal("500.00"), "percentage": Decimal("100.0")},
+            Decimal(comparison["summary"]["total"]["total"]),
+            Decimal("500.00"),
         )
+
+        variation = comparison["variation"]["total"]["total"]
+
+        self.assertEqual(Decimal(variation["amount"]), Decimal("500.00"))
+        self.assertEqual(Decimal(variation["percentage"]), Decimal("100.0"))
+        self.assertIsInstance(variation["amount"], str)
         # Sin servicios en ninguno de los dos: crecer desde 0 no es un %.
         self.assertIsNone(
             comparison["variation"]["services"]["total"]["percentage"],

@@ -23,6 +23,7 @@ from rest_framework.views import APIView
 
 from apps.cash.selectors import week_start_for
 from apps.core.models import PaymentMethod
+from apps.core.money import money_texts
 from apps.core.permissions import ReportsPermission
 from apps.core.query_params import parse_date_or_none
 from apps.customers.selectors import delivered_services, service_amounts
@@ -280,4 +281,6 @@ class SalesSummaryReportView(APIView):
         if error_response is not None:
             return error_response
 
-        return Response(sales_summary_data(params))
+        # Montos como texto exacto, igual que el resto de la API (los
+        # Decimal de un dict salían como número JSON y podían perder céntimos).
+        return Response(money_texts(sales_summary_data(params)))
