@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.money import money_texts
 from apps.core.pagination import StandardResultsSetPagination
 from apps.core.permissions import ReportsPermission
 from apps.core.query_params import (
@@ -280,6 +281,10 @@ def parse_report_ordering(request, *, allowed_values, default):
     return value, None
 
 
+def _report_amount(value):
+    return value.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+
 def _convert_purchase_amount_to_crc(amount, purchase):
     """
     Convierte un monto en la moneda de una compra a colones.
@@ -457,7 +462,9 @@ class ProductSupplierPricesReportView(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)
 
-        response = paginator.get_paginated_response(page)
+        # Montos como texto exacto, igual que el resto de la API (los
+        # Decimal de un dict salían como número JSON y podían perder céntimos).
+        response = paginator.get_paginated_response(money_texts(page))
         response.data["product"] = {
             "id": product.id,
             "standard_code": product.standard_code,
@@ -534,9 +541,11 @@ def purchases_by_supplier_results(date_from, date_to):
             {
                 "supplier": item["supplier"],
                 "purchase_count": item["purchase_count"],
-                "invoice_subtotal": item["invoice_subtotal"],
-                "import_costs_total": item["import_costs_total"],
-                "total_cost": (
+                # A 4 decimales, como el resto de los reportes: monto ×
+                # tipo de cambio dejaba 8 ("384731.36000000").
+                "invoice_subtotal": _report_amount(item["invoice_subtotal"]),
+                "import_costs_total": _report_amount(item["import_costs_total"]),
+                "total_cost": _report_amount(
                     item["invoice_subtotal"] + item["import_costs_total"]
                 ),
                 "currency": "CRC",
@@ -564,7 +573,9 @@ class PurchasesBySupplierReportView(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)
 
-        response = paginator.get_paginated_response(page)
+        # Montos como texto exacto, igual que el resto de la API (los
+        # Decimal de un dict salían como número JSON y podían perder céntimos).
+        response = paginator.get_paginated_response(money_texts(page))
         response.data["date_from"] = date_from
         response.data["date_to"] = date_to
 
@@ -640,7 +651,9 @@ class TopSellingProductsReportView(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)
 
-        response = paginator.get_paginated_response(page)
+        # Montos como texto exacto, igual que el resto de la API (los
+        # Decimal de un dict salían como número JSON y podían perder céntimos).
+        response = paginator.get_paginated_response(money_texts(page))
         response.data["date_from"] = date_from
         response.data["date_to"] = date_to
 
@@ -735,7 +748,9 @@ class TopCustomersReportView(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(results, request, view=self)
 
-        response = paginator.get_paginated_response(page)
+        # Montos como texto exacto, igual que el resto de la API (los
+        # Decimal de un dict salían como número JSON y podían perder céntimos).
+        response = paginator.get_paginated_response(money_texts(page))
         response.data["date_from"] = date_from
         response.data["date_to"] = date_to
         response.data["ordering"] = ordering

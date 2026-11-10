@@ -207,6 +207,11 @@ El formato utiliza estas categorías:
 - Al anular una compra, el inventario disponible se compara con la suma de
   todas las líneas de cada producto. Línea por línea, una compra con el
   producto repetido podía dejar el stock negativo.
+- API: los reportes de precios por proveedor, compras por proveedor,
+  productos más vendidos y clientes principales mandan los montos como
+  texto exacto en lugar de número JSON (podía perder céntimos). Compras por
+  proveedor redondea a 4 decimales en vez de 8. El resumen de ventas todavía
+  los manda como número.
 
 ---
 

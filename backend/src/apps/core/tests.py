@@ -1859,6 +1859,9 @@ class BusinessReportsApiTest(APITestCase):
             Decimal(by_product.data["results"][0]["total"]),
             Decimal("750.0000"),
         )
+        # Montos como texto exacto, no como número JSON (2026-11-10).
+        self.assertIsInstance(by_customer.data["results"][0]["total"], str)
+        self.assertIsInstance(by_product.data["results"][0]["total"], str)
 
     def test_sales_reports_exclude_inactive_sales_like_the_cash_closing(self):
         # Punto 20: misma definición que la caja (confirmadas y activas).
@@ -2009,6 +2012,9 @@ class BusinessReportsApiTest(APITestCase):
         self.assertEqual(Decimal(item["invoice_subtotal"]), Decimal("400.0000"))
         self.assertEqual(Decimal(item["import_costs_total"]), Decimal("3575.0000"))
         self.assertEqual(Decimal(item["total_cost"]), Decimal("3975.0000"))
+        # Montos como texto exacto, no como número JSON (2026-11-10).
+        self.assertIsInstance(item["invoice_subtotal"], str)
+        self.assertIsInstance(item["total_cost"], str)
 
     def test_business_reports_block_sales_only_user(self):
         # SALES ya no incluye view_reports en ROLE_PERMISSIONS.
@@ -2452,6 +2458,11 @@ class BusinessReportsApiTest(APITestCase):
             Decimal(cheapest["purchases"][0]["exchange_rate"]),
             Decimal("600.0000"),
         )
+        # Montos como texto exacto, no como número JSON (2026-11-10).
+        self.assertIsInstance(cheapest["last_unit_cost"], str)
+        self.assertIsInstance(cheapest["average_unit_cost"], str)
+        self.assertIsInstance(cheapest["purchases"][0]["unit_cost"], str)
+        self.assertIsInstance(cheapest["purchases"][0]["original_unit_cost"], str)
 
         # Proveedor original: dos compras en colones, sin conversión.
         # Último precio: 120.0000 (2026-07-20). Promedio: (100+120)/2=110.0000.
