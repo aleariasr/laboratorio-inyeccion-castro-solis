@@ -95,7 +95,7 @@ export function DiscountTaxFields({
       <Field
         id={`${idPrefix}-tax-percentage`}
         label="Impuesto (%)"
-        hint="13 % por defecto. Póngalo en 0 si no lleva impuesto."
+        hint="13 % por defecto; 0 si no lleva impuesto."
         error={taxError}
       >
         <Input

@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.utils import timezone
+from reportlab import rl_config
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -673,6 +674,21 @@ class InvoicePdfApiTest(APITestCase):
         content = b"".join(response.streaming_content)
         self.assertTrue(content.startswith(b"%PDF"))
 
+    def test_sale_invoice_shows_sale_number_and_payment_method(self):
+        # Auditoría integral del 2026-11-07: el comprobante no decía de qué
+        # venta era.
+        sale = self.create_confirmed_sale()
+
+        self.client.force_authenticate(self.sales_user)
+
+        with mock.patch.object(rl_config, "pageCompression", 0):
+            response = self.client.get(f"/api/documents/sales/{sale.id}/invoice/")
+
+        text = b"".join(response.streaming_content).decode("latin-1")
+
+        self.assertIn(f"(Venta #{sale.id} ", text)
+        self.assertIn("Efectivo", text)
+
     def test_sale_invoice_with_discount_and_tax_returns_pdf(self):
         sale = self.create_confirmed_sale(
             discount_type="PERCENT",
@@ -754,6 +770,20 @@ class InvoicePdfApiTest(APITestCase):
 
         content = b"".join(response.streaming_content)
         self.assertTrue(content.startswith(b"%PDF"))
+
+    def test_service_invoice_shows_service_number(self):
+        service_record = self.create_delivered_service()
+
+        self.client.force_authenticate(self.admin_user)
+
+        with mock.patch.object(rl_config, "pageCompression", 0):
+            response = self.client.get(
+                f"/api/documents/services/{service_record.id}/invoice/"
+            )
+
+        text = b"".join(response.streaming_content).decode("latin-1")
+
+        self.assertIn(f"(Servicio #{service_record.id} ", text)
 
     def test_service_invoice_with_discount_and_tax_returns_pdf(self):
         service_record = self.create_delivered_service()
@@ -873,3 +903,23 @@ class DocumentAmountsSummaryTest(APITestCase):
             ["Subtotal", "Impuesto (13 %)"],
         )
         self.assertEqual(nothing.lines(), [])
+
+
+class PdfMoneyFormatTest(APITestCase):
+    """
+    Auditoría integral del 2026-11-07: el total de una proforma salía
+    "CRC 2 511.1". Igual que la pantalla: entero sin decimales, con
+    céntimos siempre dos.
+    """
+
+    def test_money_with_cents_keeps_two_decimals(self):
+        self.assertEqual(documents_pdf._format_money(Decimal("2511.10")), "2 511.10")
+        self.assertEqual(documents_pdf._format_money(Decimal("4647.5")), "4 647.50")
+        self.assertEqual(documents_pdf._format_money(Decimal("0.05")), "0.05")
+
+    def test_whole_amounts_have_no_decimals(self):
+        self.assertEqual(documents_pdf._format_money(Decimal("15000.0000")), "15 000")
+        self.assertEqual(documents_pdf._format_money(Decimal("-2500")), "-2 500")
+
+    def test_rounds_half_up_to_cents(self):
+        self.assertEqual(documents_pdf._format_money(Decimal("1.005")), "1.01")

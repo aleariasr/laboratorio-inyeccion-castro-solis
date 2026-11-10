@@ -559,6 +559,15 @@ class InventoryCountApiTest(APITestCase):
         )
 
     def test_cannot_delete_approved_inventory_count(self):
+        # Un conteo vacío ya no se aprueba (auditoría integral 2026-11-07).
+        InventoryCountItem.objects.create(
+            inventory_count=self.inventory_count,
+            product=self.product,
+            counted_quantity=5,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
         approve_response = self.client.post(
             (
                 "/api/inventory/inventory-counts/"
@@ -611,6 +620,15 @@ class InventoryCountApiTest(APITestCase):
         self.assertEqual(self.inventory_count.updated_by, self.user)
 
     def test_cannot_cancel_approved_inventory_count(self):
+        # Un conteo vacío ya no se aprueba (auditoría integral 2026-11-07).
+        InventoryCountItem.objects.create(
+            inventory_count=self.inventory_count,
+            product=self.product,
+            counted_quantity=5,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
         approve_response = self.client.post(
             (
                 "/api/inventory/inventory-counts/"

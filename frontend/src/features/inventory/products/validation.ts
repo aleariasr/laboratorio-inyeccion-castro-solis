@@ -56,7 +56,9 @@ export function validateProductForm(
       "El nombre no puede superar 150 caracteres.";
   }
 
-  if (
+  if (!values.storageLocationId) {
+    errors.storageLocationId = "La ubicación es obligatoria.";
+  } else if (
     !Number.isInteger(storageLocationId) ||
     storageLocationId <= 0
   ) {

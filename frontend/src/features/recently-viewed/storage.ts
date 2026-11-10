@@ -1,6 +1,19 @@
+import { readStoredSession } from "@/features/auth/storage";
+
 import type { RecentlyViewedEntry } from "./types";
 
-const STORAGE_KEY = "lics.recently-viewed";
+// La lista es de cada usuario: con una sola clave para todo el navegador,
+// quien entraba después veía lo que había abierto el anterior (por ejemplo,
+// Ventas veía las compras que abrió el Administrador). Auditoría integral
+// del 2026-11-07.
+const LEGACY_STORAGE_KEY = "lics.recently-viewed";
+const STORAGE_KEY_PREFIX = "lics.recently-viewed.";
+
+function storageKey(): string | null {
+  const userId = readStoredSession()?.user.id;
+
+  return userId === undefined ? null : `${STORAGE_KEY_PREFIX}${userId}`;
+}
 const MAX_ENTRIES = 10;
 
 function isRecentlyViewedEntry(
@@ -36,8 +49,17 @@ export function getRecentlyViewed(): RecentlyViewedEntry[] {
     return [];
   }
 
+  const key = storageKey();
+
+  if (!key) {
+    return [];
+  }
+
   try {
-    const raw = storage.getItem(STORAGE_KEY);
+    // La lista vieja, compartida entre usuarios, ya no se usa.
+    storage.removeItem(LEGACY_STORAGE_KEY);
+
+    const raw = storage.getItem(key);
 
     if (!raw) {
       return [];
@@ -60,7 +82,9 @@ export function recordRecentlyViewed(
 ): void {
   const storage = getStorage();
 
-  if (!storage) {
+  const key = storageKey();
+
+  if (!storage || !key) {
     return;
   }
 
@@ -72,7 +96,7 @@ export function recordRecentlyViewed(
 
     const next = [entry, ...current].slice(0, MAX_ENTRIES);
 
-    storage.setItem(STORAGE_KEY, JSON.stringify(next));
+    storage.setItem(key, JSON.stringify(next));
   } catch {
     // localStorage puede fallar en modo privado o con el cupo lleno;
     // no es crítico, la pantalla sigue funcionando sin este registro.

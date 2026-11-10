@@ -16,6 +16,7 @@ import {
   WrenchIcon,
 } from "@/components/icons/app-icons";
 import {
+  canCreateProformas,
   canOpenCustomersModule,
   canOpenProductsModule,
   canReadCash,
@@ -155,6 +156,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     section: "customers",
     icon: WrenchIcon,
     permissionCheck: canReadServices,
+  },
+  {
+    // Bodega puede hacer proformas pero no entra a Ventas, que es donde
+    // está el botón "Nueva proforma": sin esto no tenía cómo llegar
+    // (auditoría integral del 2026-11-07).
+    href: "/sales/proforma",
+    label: "Proformas",
+    section: "documents",
+    icon: ReceiptIcon,
+    permissionCheck: (user) => canCreateProformas(user) && !canReadSales(user),
   },
   {
     href: "/reports",

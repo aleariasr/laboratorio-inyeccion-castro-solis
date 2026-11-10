@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import { canCreateCustomers, canReadCustomers, canWriteSales } from "@/features/auth/permissions";
+import { todayIsoDate } from "@/features/inventory/transfers/types";
 import { createSale } from "@/features/sales/api";
 import { mapSaleApiFieldErrors } from "@/features/sales/form-errors";
 import { SaleForm } from "@/features/sales/sale-form";
@@ -38,6 +39,12 @@ function getSubmitErrorMessage(error: unknown): string {
 
 export default function NewSalePage() {
   const router = useRouter();
+  // La venta arranca con la fecha de hoy, como traslados y gastos
+  // (auditoría integral del 2026-11-07: antes había que elegirla siempre).
+  const [initialValues] = useState<SaleFormValues>(() => ({
+    ...EMPTY_SALE_FORM_VALUES,
+    saleDate: todayIsoDate(),
+  }));
 
   const { status: authStatus, user, token, logout } = useAuth();
 
@@ -137,7 +144,7 @@ export default function NewSalePage() {
         mode="create"
         canReadCustomers={hasCustomersAccess}
         canCreateCustomers={user ? canCreateCustomers(user) : false}
-        initialValues={EMPTY_SALE_FORM_VALUES}
+        initialValues={initialValues}
         token={token}
         isSubmitting={isSubmitting}
         submitError={submitError}

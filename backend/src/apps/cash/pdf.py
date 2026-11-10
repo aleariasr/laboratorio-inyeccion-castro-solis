@@ -168,8 +168,9 @@ def build_cash_closing_pdf(*, closing):
                     format_crc(closing.next_petty_cash_opening),
                 ),
                 (
-                    "Se retira de la caja (contado - fondo siguiente, "
-                    "con vouchers y comprobantes)",
+                    # Corta, para que no se recorte con "…" (auditoría
+                    # integral del 2026-11-07).
+                    "Se retira de la caja (contado - fondo siguiente)",
                     _unsigned_if_positive_crc(withdrawal),
                 ),
             ],

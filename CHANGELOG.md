@@ -156,6 +156,19 @@ El formato utiliza estas categorías:
   cualquier estado y también si no tiene cliente.
 - Caja: el aviso de "semana que todavía no termina" muestra la fecha como
   dd/mm/aaaa.
+- Venta, compra y conteo nuevos arrancan con la fecha de hoy.
+- Factura de venta y comprobante de servicio (PDF): dicen el número del
+  documento y el método de pago ("Venta #178 · Tarjeta").
+- PDFs: los montos con céntimos siempre llevan dos decimales ("2 511.10",
+  antes "2 511.1"). La etiqueta de "Se retira de la caja" del cierre ya no
+  se corta.
+- Dashboard: en el celular ya no se ensancha la página.
+- "Vistos recientemente" es de cada usuario: antes quien entraba después
+  veía lo que había abierto el anterior en ese navegador.
+- Rol Inventario: "Proformas" aparece en el menú (tenía el permiso pero no
+  cómo llegar).
+- Textos: reportes sin permiso dicen "permisos de reportes"; la ubicación
+  vacía de un producto dice "obligatoria"; otros textos en tono neutro.
 
 ---
 

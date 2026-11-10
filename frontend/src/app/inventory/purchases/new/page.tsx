@@ -11,6 +11,7 @@ import { canCreateSuppliers, canWritePurchases } from "@/features/auth/permissio
 import { createPurchase } from "@/features/inventory/purchases/api";
 import { mapPurchaseApiFieldErrors } from "@/features/inventory/purchases/form-errors";
 import { PurchaseForm } from "@/features/inventory/purchases/purchase-form";
+import { todayIsoDate } from "@/features/inventory/transfers/types";
 import {
   buildPurchaseWritePayload,
   EMPTY_PURCHASE_FORM_VALUES,
@@ -38,6 +39,11 @@ function getSubmitErrorMessage(error: unknown): string {
 
 export default function NewPurchasePage() {
   const router = useRouter();
+  // Arranca con la fecha de hoy (auditoría integral del 2026-11-07).
+  const [initialValues] = useState<PurchaseFormValues>(() => ({
+    ...EMPTY_PURCHASE_FORM_VALUES,
+    purchaseDate: todayIsoDate(),
+  }));
 
   const { status: authStatus, user, token, logout } = useAuth();
 
@@ -134,7 +140,7 @@ export default function NewPurchasePage() {
       <PurchaseForm
         mode="create"
         canCreateSuppliers={user ? canCreateSuppliers(user) : false}
-        initialValues={EMPTY_PURCHASE_FORM_VALUES}
+        initialValues={initialValues}
         token={token}
         isSubmitting={isSubmitting}
         submitError={submitError}

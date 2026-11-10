@@ -131,7 +131,7 @@ export default function LowStockProductsPage() {
     return (
       <AppShell
         title="Acceso restringido"
-        description="Este módulo requiere permisos de inventario o de ventas."
+        description="Este módulo requiere permisos de reportes."
       >
         <StatePanel
           title="No tiene acceso a reportes"

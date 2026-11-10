@@ -228,7 +228,9 @@ def _document_columns(page_width):
     )
 
 
-def _draw_document_banner(pdf, page_width, page_height, *, title, generated_at):
+def _draw_document_banner(
+    pdf, page_width, page_height, *, title, generated_at, reference=None,
+):
     pdf.setFillColor(PROFORMA_BRAND_BLUE)
     pdf.rect(
         0,
@@ -265,7 +267,14 @@ def _draw_document_banner(pdf, page_width, page_height, *, title, generated_at):
     pdf.drawRightString(
         page_width - PROFORMA_PAGE_MARGIN,
         page_height - 22 * mm,
-        generated_at.strftime("%d/%m/%Y %H:%M"),
+        # Número del documento y método de pago antes de la fecha
+        # (auditoría integral del 2026-11-07: el comprobante no decía de qué
+        # venta o servicio era).
+        (
+            f"{reference} · {generated_at:%d/%m/%Y %H:%M}"
+            if reference
+            else generated_at.strftime("%d/%m/%Y %H:%M")
+        ),
     )
 
     pdf.setFillColor(colors.black)
@@ -337,6 +346,7 @@ def _build_itemized_document_pdf(
     customer=None,
     price_missing_label="Sin precio definido",
     summary=None,
+    reference=None,
 ):
     """
     Documento genérico de una tabla Código/Producto/Precio + total,
@@ -364,7 +374,12 @@ def _build_itemized_document_pdf(
 
     def draw_banner():
         _draw_document_banner(
-            pdf, page_width, page_height, title=title, generated_at=generated_at,
+            pdf,
+            page_width,
+            page_height,
+            title=title,
+            generated_at=generated_at,
+            reference=reference,
         )
 
     def draw_table_header(top_y):
@@ -615,6 +630,7 @@ def build_sale_invoice_pdf(*, sale):
 
     return _build_itemized_document_pdf(
         title="FACTURA",
+        reference=f"Venta #{sale.id} · {sale.get_payment_method_display()}",
         footer_note=(
             "Comprobante interno de la empresa, sin validez fiscal ante el "
             "Ministerio de Hacienda."
@@ -646,8 +662,18 @@ def build_service_invoice_pdf(*, service_record, accessories):
 
     generated_at = timezone.localtime(timezone.now())
 
+    reference = (
+        f"Servicio #{service_record.id} · "
+        f"{service_record.get_payment_method_display()}"
+    )
+
     _draw_document_banner(
-        pdf, page_width, page_height, title="FACTURA", generated_at=generated_at,
+        pdf,
+        page_width,
+        page_height,
+        title="FACTURA",
+        generated_at=generated_at,
+        reference=reference,
     )
 
     y = page_height - PROFORMA_BANNER_HEIGHT - 12 * mm
@@ -737,6 +763,7 @@ def build_service_invoice_pdf(*, service_record, accessories):
                     page_height,
                     title="FACTURA",
                     generated_at=generated_at,
+                    reference=reference,
                 )
                 y = page_height - PROFORMA_BANNER_HEIGHT - 12 * mm
 
@@ -851,7 +878,11 @@ def _format_money(value):
     quantized = abs(quantized)
 
     integer_part, _, decimal_part = f"{quantized:.2f}".partition(".")
-    decimal_part = decimal_part.rstrip("0")
+    # Igual que la pantalla (formatMoney): sin decimales si es entero y con
+    # los dos completos si tiene céntimos. Antes "2 511.10" salía "2 511.1"
+    # (auditoría integral del 2026-11-07).
+    if decimal_part == "00":
+        decimal_part = ""
 
     grouped_digits = []
 

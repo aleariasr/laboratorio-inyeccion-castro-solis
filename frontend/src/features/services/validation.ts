@@ -21,7 +21,7 @@ export function validateServiceReceptionForm(
   const errors: ServiceReceptionFormErrors = {};
 
   if (!values.customer) {
-    errors.customer = "Falta el cliente.";
+    errors.customer = "El cliente es obligatorio.";
   } else if (values.items.length === 0) {
     errors.items = "Falta al menos un inyector.";
   }

@@ -836,7 +836,7 @@ export function ProductForm({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          La existencia actual no se modifica desde este formulario. Todo cambio de stock debe registrarse mediante entradas, salidas, ajustes o conteos físicos.
+          La existencia actual no se modifica desde este formulario. Todo cambio de stock se registra con entradas, salidas, ajustes o conteos físicos.
         </p>
       </section>
       )}

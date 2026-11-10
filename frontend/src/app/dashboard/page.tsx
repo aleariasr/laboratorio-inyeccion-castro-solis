@@ -239,7 +239,7 @@ export default function DashboardPage() {
       )}
 
       {loadState.status === "success" && (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {canSeeCash && loadState.data.cash_pending_week_start && (
             <div className="app-status-card flex flex-col gap-3 border-l-4 border-l-[var(--color-warning,#a05a00)] p-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
@@ -276,7 +276,7 @@ export default function DashboardPage() {
               tone="neutral"
             />
           ) : (
-            <section className="grid gap-6 lg:grid-cols-2">
+            <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {loadState.data.services_ready !== null && (
                 <div className="app-status-card overflow-hidden">
                   <div className="flex items-center justify-between border-b border-[var(--color-border-soft)] p-5">

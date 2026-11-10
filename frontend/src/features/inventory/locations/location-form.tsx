@@ -404,7 +404,7 @@ export function LocationForm({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Una ubicación que contenga productos activos no puede inactivarse. Primero debe trasladar o inactivar esos productos.
+          Una ubicación con productos activos no se puede inactivar; antes se mueven o se inactivan esos productos.
         </p>
       </section>
       )}

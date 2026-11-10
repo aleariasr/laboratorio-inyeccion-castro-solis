@@ -392,8 +392,54 @@ porque `demo.inventario`, `demo.ventas` y `demo.servicios` ya no tienen la contr
 | H-18 | — | Ventas, servicios y vista previa de caja | Montos como texto exacto | Llegan como número JSON (`3920.11`) | Baja | **Pendiente**. Hoy no hay error de redondeo visible (2 decimales). Las compras ya devuelven texto. |
 | H-19 | P | Base de desarrollo | Usuarios demo con la contraseña del seed | 3 de 5 tienen otra contraseña | Info | Avisado. Los usuarios `qa-ia.*` quedaron **desactivados** al terminar. |
 
-Datos que quedaron en la base de desarrollo: la venta #176 (confirmada el 27-oct, antes de la
-corrección, dentro de la semana cerrada del 24-oct), la venta borrador #175 (fecha 01-dic), el
+### 7.3 Segunda pasada (después del commit b2ee7c5)
+
+`make test` dio 2 fallos: dos tests aprobaban un conteo vacío, justo lo que H-10 bloquea. Se
+corrigieron los tests. Después se recorrió en pantalla lo que la primera pasada solo había probado
+por API.
+
+**Verificado en pantalla:**
+- Lista y detalle de cierres con `−₡2 500`, montos en una línea.
+- Confirmación del cierre: muestra la semana y, si se responde "no", no se crea nada.
+- Aviso al anular la venta #176, que es de una semana cerrada (y se anuló, para limpiar el dato).
+- Venta completa desde el formulario (#178): cliente, tarjeta, código escaneado, línea repetida con
+  mensaje claro, descuento 7.5 % en vivo, confirmación y factura.
+- Servicio completo desde la pantalla (#133): tipo que trae el precio, descuento, impuesto 0,
+  tarjeta, y Iniciar → Marcar listo → Entregar con confirmación.
+- PDFs revisados a la vista: factura de venta, comprobante de servicio, proforma, cierre (2 páginas),
+  resumen de ventas, guía de traslado y etiquetas.
+- Las 25 pantallas principales en 375 px.
+- Menú y acceso por URL de los 4 roles.
+- Mensajes de los formularios nuevos al guardar vacíos.
+- Ninguna pantalla provoca un 400 al cargar.
+
+| Id | Dónde | Obtenido | Sev. | Estado |
+|---|---|---|---|---|
+| H-20 | Tests de conteos | 2 tests aprobaban conteos vacíos | — | **Corregido** (los tests) |
+| H-21 | Nueva venta, compra y conteo | La fecha venía vacía y había que elegirla siempre (traslados y gastos ya traían hoy) | Media | **Corregido**: arranca con hoy |
+| H-22 | Factura de venta y comprobante de servicio (PDF) | No decían de qué venta o servicio eran ni el método de pago | Media | **Corregido**: "Venta #178 · Tarjeta · fecha" + tests |
+| H-23 | Todos los PDF | "TOTAL: CRC 2 511.1" (un decimal) | Media | **Corregido**: dos decimales si hay céntimos + tests |
+| H-24 | PDF del cierre | "Se retira de la caja (contado - fondo siguiente, con vouchers y com…" cortado | Baja | **Corregido** (etiqueta más corta) |
+| H-25 | Dashboard en celular | La página se ensanchaba a 538 px (scroll horizontal) | Media | **Corregido** (`grid-cols-1`) |
+| H-26 | "Vistos recientemente" | Era una lista por navegador: Ventas veía las compras que abrió el Administrador | Media | **Corregido**: una lista por usuario |
+| H-27 | Reportes sin permiso | "Requiere permisos de inventario o de ventas", pero son solo del Administrador | Baja | **Corregido**: "permisos de reportes" |
+| H-28 | Rol Inventario | Tiene permiso de proformas, pero ninguna pantalla lo llevaba ahí | Media | **Corregido**: "Proformas" en el menú (sección Documentos) solo para quien no entra a Ventas |
+| H-29 | Textos | "Póngalo en 0…", "La ubicación no es válida." con el campo vacío, "Primero debe trasladar…", "debe registrarse…", "Falta el cliente." | Baja | **Corregido** |
+| O-01 | Servicio entregado | El subtotal aparece en el detalle y otra vez en la tarjeta de montos | Info | Sin cambio (se entiende) |
+| O-02 | Línea de venta | La cantidad no viene en 1 al escanear | Info | Sin cambio (posible mejora) |
+| O-03 | Rol Inventario | `/customers` abre por URL (tiene `view_customers` para la proforma), aunque no está en su menú | Info | Sin cambio (así está diseñado) |
+| O-04 | Guía de traslado | Dos variantes con el mismo código universal solo se distinguen por el nombre | Info | Sin cambio |
+
+**Lo que este recorrido no puede cubrir** (requiere el equipo real o es de otra etapa):
+- Lector de código de barras físico e impresora de etiquetas reales.
+- Instalador y actualización en Windows.
+- Respaldo y restauración.
+- Importación de datos viejos (DBF).
+- Dos personas trabajando a la vez en pantalla (los tests de concurrencia del backend sí lo cubren).
+- El contenido de los archivos Excel (solo se comprobó que se descargan).
+
+Datos que quedaron en la base de desarrollo: la venta #176 (confirmada el 27-oct antes de la
+corrección, dentro de la semana cerrada del 24-oct; **anulada** en la segunda pasada), la venta borrador #175 (fecha 01-dic), el
 conteo vacío aprobado QA-IA-K03, el cierre #20 y las compras, ventas y servicios `QA-IA`.
 
 ## 8. Checklist de avance

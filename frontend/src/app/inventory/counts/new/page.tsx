@@ -11,6 +11,7 @@ import { canWriteInventoryCounts } from "@/features/auth/permissions";
 import { createInventoryCount } from "@/features/inventory/counts/api";
 import { mapInventoryCountApiFieldErrors } from "@/features/inventory/counts/form-errors";
 import { InventoryCountForm } from "@/features/inventory/counts/inventory-count-form";
+import { todayIsoDate } from "@/features/inventory/transfers/types";
 import {
   buildInventoryCountWritePayload,
   EMPTY_INVENTORY_COUNT_FORM_VALUES,
@@ -38,6 +39,11 @@ function getSubmitErrorMessage(error: unknown): string {
 
 export default function NewInventoryCountPage() {
   const router = useRouter();
+  // Arranca con la fecha de hoy (auditoría integral del 2026-11-07).
+  const [initialValues] = useState<InventoryCountFormValues>(() => ({
+    ...EMPTY_INVENTORY_COUNT_FORM_VALUES,
+    countDate: todayIsoDate(),
+  }));
 
   const { status: authStatus, user, token, logout } = useAuth();
 
@@ -136,7 +142,7 @@ export default function NewInventoryCountPage() {
     >
       <InventoryCountForm
         mode="create"
-        initialValues={EMPTY_INVENTORY_COUNT_FORM_VALUES}
+        initialValues={initialValues}
         isSubmitting={isSubmitting}
         submitError={submitError}
         serverErrors={serverErrors}
