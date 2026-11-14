@@ -35,7 +35,7 @@ LICS está orientado a producción real, no a prototipo académico. Las decision
 
 Versión actual:
 
-    2.5.0
+    2.6.0
 
 Estado actual:
 
@@ -56,6 +56,11 @@ Estado actual:
     inyectores a la vez, orden de productos y etiquetas con copias, traslados a la otra sede con
     guía en PDF y crear cliente, producto, proveedor, etc. desde el mismo formulario.
     Ver docs/auditoria-mejoras-2026-10-22.md y CHANGELOG.md.
+    Versión 2.6.0 (2026-11-14): compras en dólares y mixtas calculadas en colones (cada monto se
+    convierte una sola vez con su propio tipo de cambio), un producto en varias líneas de una
+    factura con referencia, ingresos de la semana y sobregiro en la caja chica, y la auditoría
+    integral antes de producción. Ver docs/auditoria-compras-monedas-2026-11-07.md,
+    docs/auditoria-caja-chica-2026-11-07.md, docs/auditoria-integral-2026-11-07.md y CHANGELOG.md.
     Migración de datos legacy DBF del cliente (proveedores, productos y compras): completada
     (2026-09-09) — ver docs/dbf-migration-closure.md.
     Validación con flujos y datos reales: pendiente.
@@ -192,7 +197,7 @@ Documento principal de cierre:
 - Servicios de inyector: recepción de uno o varios inyectores del mismo cliente a la vez (un servicio por inyector); cobro por líneas (mano de obra u otros conceptos con cantidad y precio, más los accesorios con su precio fijado al agregarlos), con el total calculado; descuento e impuesto congelados al entregar, método de pago, catálogo de "Tipo de Servicio" con precio de mano de obra y descripción. Solo el Administrador ve y pone montos y entrega.
 - Accesorios de servicio ligados al inventario real de productos, con descuento y reversión de stock.
 - Traslados a otra sede: documento con líneas (borrador, confirmar que descuenta inventario, anular con motivo que lo devuelve) y guía en PDF sin costos; solo ADMIN.
-- Cierre de caja semanal (sábado a viernes), suma ventas y servicios por método de pago (efectivo/tarjeta/transferencia/otro), con desglose por método, impuestos cobrados (aparte del ingreso) y descuentos congelados al cerrar; caja chica con fondo semanal y salidas; solo ADMIN.
+- Cierre de caja semanal (sábado a viernes), suma ventas y servicios por método de pago (efectivo/tarjeta/transferencia/otro), con desglose por método, impuestos cobrados (aparte del ingreso) y descuentos congelados al cerrar; caja chica con fondo semanal y gastos, y sobregiro pagado con el efectivo de los ingresos de la semana cuando los gastos superan el fondo; solo ADMIN.
 - Documentos PDF: etiquetas, proforma (con cantidades, descuento e impuesto) y facturas internas (no fiscales) para ventas confirmadas y servicios entregados.
 - Conteo físico.
 - Ajustes auditables de inventario.
@@ -213,14 +218,14 @@ Documento principal de cierre:
 - Módulo de productos: listado ordenable (código, nombre, descripción, ubicación, existencia o fechas, con orden natural y recordando el último), detalle, creación, edición, precio de venta editable con sugerencia, código propio, variantes original/genérico bajo el mismo código (creación guiada con ubicación propia, sin afectar el formulario normal de creación), historial de movimientos e impresión de etiquetas con el orden elegido y copias por producto.
 - Módulo de ubicaciones: listado, detalle, creación y edición.
 - Módulo de proveedores: listado, detalle, creación, edición y gestión de productos asociados.
-- Módulo de compras: listado con filtros, detalle, creación, edición de borrador, líneas de compra, confirmación y anulación con motivo.
-- Módulo de costos de importación: categorías, costos por compra con conversión de moneda mediante tipo de cambio, resumen de costos con desglose por producto, aplicación de costos e histórico append-only.
+- Módulo de compras: listado con filtros, detalle, creación, edición de borrador, líneas de compra (un mismo producto puede ir en varias líneas, cada una con una referencia opcional, por ejemplo la bodega del proveedor), confirmación y anulación con motivo. Compras en colones o en dólares: en dólares el tipo de cambio (₡ por US$1) es obligatorio, se propone el de la última compra y la moneda se ve en cada monto.
+- Módulo de costos de importación: categorías, costos por compra en colones o dólares, cada uno con el tipo de cambio con que se pagó; resumen de costos en colones con desglose por línea y por producto (un producto en varias líneas toma el costo promedio ponderado); aplicación de costos, que reemplaza el cálculo anterior de la compra, y precio de venta sugerido a partir de la última compra confirmada. Comando `fix_purchase_exchange_rate` para corregir compras o costos con un tipo de cambio inválido.
 - Módulo de ventas: listado con filtros, detalle, creación, edición de borrador, líneas de venta con el precio de venta precargado (y selección automática al escanear el código propio o universal) y validación de stock disponible, descuento e impuesto con resumen en vivo, confirmación y anulación con motivo, método de pago, descarga de factura interna para ventas confirmadas.
 - Módulo de clientes: listado con filtros (búsqueda, tipo, activo/inactivo), detalle con inyectores y ventas relacionadas, creación y edición.
 - Módulo de inyectores y servicios: inyectores (listado, detalle, creación, edición), recepción en un solo formulario (cliente, varios inyectores, fecha, tipo y lo que reporta el cliente, con aviso si el inyector ya tiene un servicio abierto), "Corregir recepción" mientras no esté entregado, y bandeja operativa de servicios (iniciar, marcar listo, entregar, anular — la entrega exige que el servicio tenga total) con datos técnicos editables, líneas de cobro, accesorios reales de inventario editables (cantidad, precio y notas), método de pago, aviso al entregar en ₡0 y descarga de factura interna con el detalle para servicios entregados. Tipos de servicio en `/services/types`.
 - Módulo de traslados (`/inventory/transfers`, solo ADMIN): listado, creación con líneas, confirmación, anulación con motivo y guía en PDF; la sede se elige o se crea desde el mismo traslado.
 - Crear desde el formulario: cuando un buscador no encuentra lo escrito ofrece "+ Crear … «lo buscado»", y las listas desplegables terminan en "+ Nueva …"; ambos abren una ventana encima que deja elegido lo creado sin perder lo escrito (cliente, proveedor, producto, ubicación, sede, tipo de servicio, inyector, categoría de costo).
-- Módulo de cierre de caja: listado con filtro por fechas y buscador, detalle con PDF, creación eligiendo de la lista de semanas por cerrar, con previsualización del desglose esperado por método de pago (efectivo/tarjeta/transferencia/otro), los impuestos y el ingreso del negocio, y la caja chica (fondo, salidas y saldo) antes de confirmar; un único campo de "total contado" que se compara contra lo cobrado más el saldo de caja chica (así se concilia igual que en el proceso real: efectivo + vouchers de datáfono + comprobantes de transferencia contra lo registrado); semana sábado-viernes, solo visible para ADMIN.
+- Módulo de cierre de caja: listado con filtro por fechas y buscador, detalle con PDF, creación eligiendo de la lista de semanas por cerrar, con previsualización del desglose esperado por método de pago (efectivo/tarjeta/transferencia/otro), los impuestos y el ingreso del negocio, y la caja chica (fondo, gastos y lo pagado con ingresos cuando hay sobregiro) antes de confirmar; tarjeta "Caja de esta semana" con el efectivo en caja (fondo + ingresos en efectivo − gastos); al cerrar, cuánto se retira de la caja o cuánto hay que reponer; un único campo de "total contado" que se compara contra lo cobrado más el fondo menos los gastos (así se concilia igual que en el proceso real: efectivo + vouchers de datáfono + comprobantes de transferencia contra lo registrado); semana sábado-viernes, solo visible para ADMIN.
 - Proforma: desde Ventas (`/sales/proforma`, con cantidades) o desde el listado de productos, cliente opcional, descuento e impuesto.
 - Mi cuenta: cambio de la propia contraseña.
 - Módulo de conteos físicos: listado con filtros (búsqueda, estado, rango de fechas, activo/inactivo), creación, captura rápida de líneas (búsqueda de producto, cantidad, avance con Enter, prevención de duplicados), diferencia visible contra el stock actual del sistema, edición y eliminación de líneas en borrador, aprobación y anulación.
@@ -540,8 +545,8 @@ Validación técnica del backend base:
 
     Django check: OK
     Migraciones pendientes: no
-    Tests backend: suite completa en verde, 852 tests con `make test` (2026-10-27, versión
-    2.5.0).
+    Tests backend: suite completa en verde, 978 tests con `make test` (2026-11-14, versión
+    2.6.0).
     Build backend Docker: OK
 
 El backend base queda cerrado como `0.2.0-alpha`. Las fases posteriores (frontend operativo,

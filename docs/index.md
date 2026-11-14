@@ -452,6 +452,9 @@ Estos documentos no describen el estado actual del sistema; son insumos y trabaj
 - [Backlog de la visita al cliente (2026-09, 20 puntos)](backlog-cliente-2026-09.md) — ya implementado salvo §5; se conserva como registro de la decisión original.
 - [Auditoría y plan de 30 mejoras (2026-09-21)](auditoria-mejoras-30-puntos-2026-09-21.md) — implementada en la 2.4.0 (el punto 6 se descartó); la sección 6 resume cada punto y la sección 3 las decisiones del cliente.
 - [Auditoría y plan: servicios, etiquetas, caja y traslados (2026-10-22)](auditoria-mejoras-2026-10-22.md) — implementado en la 2.5.0; la sección 3 tiene las decisiones y la 6 cómo quedó cada punto.
+- [Auditoría: compras en dólares y mixtas (2026-11-07)](auditoria-compras-monedas-2026-11-07.md) — implementado en la 2.6.0: todo el cálculo de costos en colones, tipo de cambio obligatorio en dólares y comando `fix_purchase_exchange_rate`.
+- [Auditoría: caja chica, ingresos y sobregiro (2026-11-07)](auditoria-caja-chica-2026-11-07.md) — implementado en la 2.6.0.
+- [Auditoría integral antes de producción (2026-11-07)](auditoria-integral-2026-11-07.md) — correcciones incluidas en la 2.6.0.
 
 ---
 
@@ -459,7 +462,7 @@ Estos documentos no describen el estado actual del sistema; son insumos y trabaj
 
 Versión actual:
 
-    2.5.0
+    2.6.0
 
 Estado resumido:
 
@@ -491,6 +494,12 @@ Estado resumido:
     varios inyectores a la vez, orden de productos y etiquetas con orden y copias, "Debe haber al
     contar" destacado en el cierre, traslados a la otra sede con guía en PDF y crear lo que falta
     desde el mismo formulario. Ver [auditoria-mejoras-2026-10-22.md](auditoria-mejoras-2026-10-22.md).
+    Versión 2.6.0 (2026-11-14): compras en dólares y mixtas calculadas en colones, un producto en
+    varias líneas de una factura con referencia, ingresos y sobregiro en la caja chica, y la
+    auditoría integral antes de producción. Ver
+    [auditoria-compras-monedas-2026-11-07.md](auditoria-compras-monedas-2026-11-07.md),
+    [auditoria-caja-chica-2026-11-07.md](auditoria-caja-chica-2026-11-07.md) y
+    [auditoria-integral-2026-11-07.md](auditoria-integral-2026-11-07.md).
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
     cliente importados y conciliados contra el stock auxiliar legacy. Ver

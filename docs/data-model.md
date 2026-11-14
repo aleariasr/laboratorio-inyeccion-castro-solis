@@ -248,7 +248,9 @@ Restricciones:
 - la cantidad debe ser mayor que cero;
 - el precio unitario no debe ser negativo.
 
-> Nota de implementación: el modelo real (`PurchaseItem`) referencia `supplier_product` (FK a `SupplierProduct`), no `product` directamente. Sus campos reales son `purchase`, `supplier_product`, `quantity` y `unit_cost`, con restricción única sobre `(purchase, supplier_product)`. No existe un campo `currency` en esta línea: la moneda se define a nivel de la compra (`Purchase.currency`). El `subtotal` tampoco es un campo almacenado: se calcula en el serializador (`SerializerMethodField`) como `quantity * unit_cost`.
+> Nota de implementación: el modelo real (`PurchaseItem`) referencia `supplier_product` (FK a `SupplierProduct`), no `product` directamente. Sus campos reales son `purchase`, `supplier_product`, `quantity`, `unit_cost` y `reference`. No existe un campo `currency` en esta línea: la moneda se define a nivel de la compra (`Purchase.currency`). El `subtotal` tampoco es un campo almacenado: se calcula en el serializador (`SerializerMethodField`) como `quantity * unit_cost`.
+
+> Nota de implementación (2.6.0): un mismo producto puede venir en varias líneas de una compra (por ejemplo, despachado desde dos bodegas del proveedor a precios distintos); la migración `inventory/0031` quitó la restricción única `(purchase, supplier_product)`. `reference` (texto opcional, hasta 100 caracteres) distingue esas líneas. Cada línea genera su propia entrada de inventario; al anular, el stock disponible se compara con la suma de las líneas de cada producto.
 
 ## Costos de importación y cálculo de costo
 
@@ -279,7 +281,7 @@ Campos conceptuales:
 - moneda;
 - tipo de cambio.
 
-> Nota de implementación: el modelo real (`ImportCost`) incluye un campo `exchange_rate` (tipo de cambio) usado para convertir este costo a la moneda de la compra; no basta con `currency` solamente.
+> Nota de implementación: el modelo real (`ImportCost`) incluye un campo `exchange_rate`. Desde la 2.6.0 (migración `inventory/0030`) es siempre colones por dólar con que se pagó ese costo, y 1 si el costo es en colones, sin depender de la moneda de la compra (antes servía para pasarlo a la moneda de la compra). El rango válido en dólares está en `apps/inventory/exchange_rates.py` (₡100 a ₡2 000); `Purchase.exchange_rate` sigue la misma regla.
 
 ### PurchaseCostSummary
 
@@ -321,6 +323,8 @@ Campos conceptuales:
 - fecha de cálculo.
 
 Los precios históricos no deben sobrescribirse. Si cambia una compra o se recalcula un costo, debe quedar trazabilidad.
+
+> Nota de implementación (2.6.0): todo el cálculo se hace en colones (`apps/inventory/services/costs.py`). `original_unit_cost` queda en la moneda de la compra (`currency`, `exchange_rate`); `final_unit_cost` y `suggested_price` se guardan en colones, el precio a dos decimales (la migración `inventory/0030` convirtió los cálculos viejos en dólares con el tipo de cambio que tenían guardado). Hay una fila por producto y compra: un producto que viene en varias líneas toma el costo promedio ponderado por cantidad. Recalcular reemplaza el cálculo de esa compra (en borrador o confirmada; nunca en anulada). El precio vigente de un producto es el de su última compra confirmada (`purchase__confirmed_at`), no el último cálculo hecho.
 
 ## Ventas
 

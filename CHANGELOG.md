@@ -16,120 +16,140 @@ El formato utiliza estas categorías:
 
 ## [No liberado]
 
-> Compras en dólares y mixtas (auditoría del 2026-11-07,
-> `docs/auditoria-compras-monedas-2026-11-07.md`). El cliente reportó que
-> con compras en dólares o mezcladas con colones los precios salían mal.
+Nada pendiente de registrar.
 
-### Cómo llevar estos cambios a una instalación existente
+---
 
-- Trae la migración `inventory/0030_costs_in_colones` (la corre
-  **Actualizar aplicación**). No cambia el precio de venta de ningún
-  producto: pasa a colones los cálculos de costo viejos en dólares con el
-  tipo de cambio que ya tenían guardado.
-- Después de actualizar, correr `python manage.py fix_purchase_exchange_rate`:
-  lista las compras o costos en dólares que hayan quedado con un tipo de
-  cambio que no es real (el 1 del error de abajo). Si aparece alguna, se
+## [2.6.0] - 2026-11-14
+
+> Compras en dólares y mixtas calculadas en colones
+> (`docs/auditoria-compras-monedas-2026-11-07.md`), un producto en varias
+> líneas de una factura, ingresos y sobregiro en la caja
+> (`docs/auditoria-caja-chica-2026-11-07.md`) y la auditoría integral antes
+> de producción (`docs/auditoria-integral-2026-11-07.md`).
+
+### Cómo llevar esta versión a una instalación existente
+
+- **Solo el paquete:** con `lics-2.6.0-linux-amd64/` copiado en
+  `C:\lics-dev\`, usar **LICS > Actualizar aplicación (Django/Next)…**. El
+  instalador de Windows no cambió desde la 2.5.0: no hace falta instalar un
+  `.exe` nuevo.
+- Trae dos migraciones, las dos sin cambiar montos ni precios:
+  - `inventory/0030_costs_in_colones`: pasa a colones los cálculos de costo
+    viejos en dólares con el tipo de cambio que ya tenían guardado (el
+    precio de venta de cada producto queda igual) y reescribe el tipo de
+    cambio de los costos de importación con la regla nueva.
+  - `inventory/0031_purchaseitem_repeated_products`: quita la restricción
+    de producto único por factura y agrega la referencia de la línea.
+    Aditiva; volver atrás solo falla si ya hay facturas con un producto
+    repetido.
+- Después de actualizar, correr una vez `fix_purchase_exchange_rate`: lista
+  las compras o costos en dólares que hayan quedado con un tipo de cambio
+  que no es real (el 1 del error corregido abajo). Si aparece alguna, se
   corrige con `--purchase ID --rate TIPO --apply` y sus precios se
   recalculan solos.
-
-### Fixed
-
-- Una compra en dólares quedaba con tipo de cambio 1 si se cambiaba la
-  moneda en el formulario sin tocar el tipo de cambio, y sus productos
-  quedaban con precio de venta ×1 (US$10 → ₡13). Ahora en dólares el tipo
-  de cambio es obligatorio y debe estar entre ₡100 y ₡2 000 por dólar (en
-  pantalla y en el backend); en colones se guarda siempre 1.
-- Los costos de importación se convertían dos veces (a la moneda de la
-  compra con su tipo de cambio y luego a colones con el de la compra): un
-  flete en colones de una compra en dólares no sumaba lo que se pagó. Ahora
-  todo se calcula en colones y cada monto se convierte una sola vez, con el
-  tipo de cambio del documento donde se pagó.
-- Cambiar la moneda o el tipo de cambio de un borrador no borraba el
-  cálculo de costos ya hecho, y al pasar la compra de una moneda a la otra
-  los tipos de cambio de sus costos quedaban al revés.
-- Cada "Aplicar costos" agregaba otra fila al histórico; ahora reemplaza el
-  cálculo anterior de la compra.
-- El precio vigente salía del último cálculo hecho, aunque esa compra se
-  hubiera confirmado antes que otra; ahora sale de la última compra
-  confirmada.
-- Se podían agregar o cambiar costos de importación de una compra
-  confirmada, y calcular costos de una anulada.
-
-### Changed
-
-- El costo final y el precio sugerido se guardan en colones, con el precio
-  redondeado a dos decimales. El resumen de costos muestra subtotal,
-  costos, total y factor en colones, y por producto el costo unitario en
-  su moneda, el costo final y el precio sugerido en ₡.
-- El tipo de cambio de un costo de importación es siempre ₡ por US$1 con
-  que se pagó ese costo (1 si es en colones), sin depender de la moneda de
-  la compra. La tabla de costos muestra cada uno en colones.
-- Al elegir dólares, el formulario de compra propone el tipo de cambio de
-  la última compra en dólares (y dice de cuál salió); al elegir el
-  proveedor, propone la moneda de su última compra.
-- Confirmar una compra sin costos aplicados avisa que el precio de venta de
-  sus productos no cambia. Confirmada, la compra y sus costos ya no
-  cambian (un costo que llegue después obliga a anular y volver a
-  registrarla); el margen sí se puede recalcular.
-- El reporte de compras por proveedor (pantalla y PDF) muestra también los
-  costos adicionales y el total con costos, en colones.
-- Montos de compras en `₡` / `US$` en lugar de "CRC" / "USD", y la moneda
-  visible en cada pantalla de la compra: el costo unitario de una línea se
-  escribe con su moneda y su equivalente en colones, la tabla de costos
-  muestra el total que suma (los inactivos tachados) y el reporte de
-  precios por proveedor dice de dónde salen los colones de cada compra en
-  dólares.
-- Los montos de dinero con céntimos se muestran siempre con dos decimales
-  (₡4 647.50, no ₡4 647.5) en todo el sistema.
-- Al cambiar la moneda de una compra que ya tiene líneas, el formulario
-  avisa que sus montos no se convierten.
-
-### Fixed (recorrido completo del 2026-11-07)
-
-- El resumen de costos devolvía los montos como números de punto flotante;
-  ahora como texto exacto, igual que el resto de la API.
-- Editar una línea con otro producto respondía bien pero no lo cambiaba;
-  ahora se rechaza con un mensaje.
-- Se podía cambiar por la API el proveedor de una compra con líneas, que
-  quedaban con productos del proveedor anterior; ahora se rechaza.
-- El aviso "Se borraron los costos calculados" salía aunque la compra no
-  tuviera ningún cálculo.
+- La actualización ya ignora los archivos `._*` que macOS deja al copiar el
+  paquete a un USB (antes fallaba con `invalid tar header`).
 
 ### Added
 
-- Comando `fix_purchase_exchange_rate` para encontrar y corregir compras y
-  costos con tipo de cambio inválido, recalculando sus precios.
-
-### Added (caja: ingresos y sobregiro, 2026-11-07)
-
-> Pedido del cliente, diseño en `docs/auditoria-caja-chica-2026-11-07.md`.
-> Sin migración: todo se deriva de campos que el cierre ya guarda.
-
-- La tarjeta de `/cash` pasa a ser **Caja de esta semana**: fondo de caja
-  chica + ingresos en efectivo cobrados hasta hoy − gastos = **efectivo en
-  caja**, con lo cobrado por tarjeta, transferencia u otro aparte.
-- **Sobregiro**: cuando los gastos superan el fondo, el resto se paga con el
-  efectivo de los ingresos de la semana. Se muestra en la tarjeta, en el
-  cierre, en su detalle y en el PDF ("Pagado con ingresos"). Al registrar
-  un gasto se avisa cuánto sale del fondo y cuánto de los ingresos, y se
-  pide confirmar si supera el efectivo en caja (no se bloquea).
-- El cierre muestra cuánto **se retira de la caja** (contado − fondo para
-  la semana siguiente) o cuánto hay que reponer si no alcanza.
+- **Compras:** una factura puede traer el mismo producto en varias líneas,
+  por ejemplo despachado desde dos bodegas del proveedor a precios
+  distintos. Antes se rechazaba con "Este producto ya fue agregado a la
+  compra". Al agregarlo otra vez, el formulario avisa y muestra las líneas
+  que ya tiene, por si fue un error.
+- **Compras:** cada línea tiene una **referencia** opcional (por ejemplo
+  "Bodega Heredia") que se ve en las líneas, en el resumen de costos y en
+  el reporte de precios por proveedor (pantalla y PDF).
+- **Compras:** comando `fix_purchase_exchange_rate` para encontrar y
+  corregir compras y costos con tipo de cambio inválido, recalculando sus
+  precios.
+- **Caja:** la tarjeta de `/cash` pasa a ser **Caja de esta semana**: fondo
+  de caja chica + ingresos en efectivo cobrados hasta hoy − gastos =
+  **efectivo en caja**, con lo cobrado por tarjeta, transferencia u otro
+  aparte.
+- **Caja: sobregiro.** Cuando los gastos superan el fondo, el resto se paga
+  con el efectivo de los ingresos de la semana. Se muestra en la tarjeta,
+  en el cierre, en su detalle y en el PDF ("Pagado con ingresos"). Al
+  registrar un gasto se avisa cuánto sale del fondo y cuánto de los
+  ingresos, y se pide confirmar si supera el efectivo en caja (no se
+  bloquea). Sin migración: todo se deriva de lo que el cierre ya guarda.
+- **Caja:** el cierre muestra cuánto **se retira de la caja** (contado −
+  fondo para la semana siguiente) o cuánto hay que reponer si no alcanza.
 - API: el cierre y la vista previa traen `petty_cash_fund_balance` y
   `petty_cash_overdraft`; el cierre trae también `cash_withdrawal`.
 
-### Changed (caja)
+### Changed
 
-- En pantalla, las "salidas de caja chica" se llaman **gastos** y el saldo
-  del fondo ya no se muestra negativo (lo que lo supera es sobregiro).
-  "Debe haber al contar" da el mismo número que antes: ahora se explica
-  como cobrado + fondo − gastos.
+- **Compras: todo se calcula en colones.** El costo final y el precio
+  sugerido se guardan en colones, con el precio redondeado a dos
+  decimales. Cada monto se convierte una sola vez, con el tipo de cambio
+  del documento donde se pagó. El resumen de costos muestra subtotal,
+  costos, total y factor en colones, y por producto el costo unitario en
+  su moneda, el costo final y el precio sugerido en ₡.
+- **Compras:** el tipo de cambio de un costo de importación es siempre ₡
+  por US$1 con que se pagó ese costo (1 si es en colones), sin depender de
+  la moneda de la compra. La tabla de costos muestra cada uno en colones y
+  el total que suma (los inactivos tachados).
+- **Compras:** al elegir dólares, el formulario propone el tipo de cambio
+  de la última compra en dólares (y dice de cuál salió); al elegir el
+  proveedor, propone la moneda de su última compra. Al cambiar la moneda de
+  una compra que ya tiene líneas, avisa que sus montos no se convierten.
+- **Compras:** la moneda se ve en cada pantalla: montos en `₡` / `US$` en
+  lugar de "CRC" / "USD", el costo unitario de una línea se escribe con su
+  moneda y su equivalente en colones, y el reporte de precios por
+  proveedor dice de dónde salen los colones de cada compra en dólares.
+- **Compras:** confirmar una compra sin costos aplicados avisa que el
+  precio de venta de sus productos no cambia. Confirmada, la compra y sus
+  costos ya no cambian (un costo que llegue después obliga a anular y
+  volver a registrarla); el margen sí se puede recalcular.
+- **Compras:** cada línea entra al inventario con su propio costo final. Un
+  producto que viene en varias líneas tiene un solo precio de venta,
+  calculado con el costo promedio ponderado por cantidad de sus líneas; el
+  resumen lo indica bajo el precio ("Promedio de 2 líneas"). Con una sola
+  línea, el resultado es el mismo de antes. Cambiar solo la referencia de
+  una línea no borra los costos aplicados.
+- **Reportes:** compras por proveedor (pantalla y PDF) muestra también los
+  costos adicionales y el total con costos, en colones. Precios por
+  proveedor cuenta una factura como una compra aunque traiga el producto
+  en varias líneas, y muestra cada precio pagado.
+- **Caja:** en pantalla, las "salidas de caja chica" se llaman **gastos** y
+  el saldo del fondo ya no se muestra negativo (lo que lo supera es
+  sobregiro). "Debe haber al contar" da el mismo número que antes: ahora
+  se explica como cobrado + fondo − gastos.
+- Los montos de dinero con céntimos se muestran siempre con dos decimales
+  (₡4 647.50, no ₡4 647.5) en todas las pantallas y en los PDF.
 
-### Fixed (auditoría integral del 2026-11-07)
+### Fixed
 
-> Recorrido de punta a punta antes de producción,
-> `docs/auditoria-integral-2026-11-07.md`. Sin migración.
-
+- **Compras: una compra en dólares quedaba con tipo de cambio 1** si se
+  cambiaba la moneda en el formulario sin tocar el tipo de cambio, y sus
+  productos quedaban con precio de venta ×1 (US$10 → ₡13). Ahora en dólares
+  el tipo de cambio es obligatorio y debe estar entre ₡100 y ₡2 000 por
+  dólar (en pantalla y en el backend); en colones se guarda siempre 1.
+- **Compras:** los costos de importación se convertían dos veces (a la
+  moneda de la compra con su tipo de cambio y luego a colones con el de la
+  compra): un flete en colones de una compra en dólares no sumaba lo que
+  se pagó.
+- **Compras:** cambiar la moneda o el tipo de cambio de un borrador no
+  borraba el cálculo de costos ya hecho, y al pasar la compra de una
+  moneda a la otra los tipos de cambio de sus costos quedaban al revés.
+- **Compras:** cada "Aplicar costos" agregaba otra fila al histórico; ahora
+  reemplaza el cálculo anterior de la compra.
+- **Compras:** el precio vigente salía del último cálculo hecho, aunque esa
+  compra se hubiera confirmado antes que otra; ahora sale de la última
+  compra confirmada.
+- **Compras:** se podían agregar o cambiar costos de importación de una
+  compra confirmada, y calcular costos de una anulada.
+- **Compras:** al anular, el inventario disponible se compara con la suma
+  de todas las líneas de cada producto. Línea por línea, una compra con el
+  producto repetido podía dejar el stock negativo.
+- **Compras:** editar una línea con otro producto respondía bien pero no lo
+  cambiaba, y la API dejaba cambiar el proveedor de una compra con líneas
+  (que quedaban con productos del proveedor anterior); ahora los dos se
+  rechazan con un mensaje.
+- **Compras:** el aviso "Se borraron los costos calculados" salía aunque la
+  compra no tuviera ningún cálculo.
 - Ventas: ya no se confirma una venta con fecha de una semana de caja
   cerrada. Antes quedaba fuera de todo cierre. Tampoco se aceptan fechas
   de venta futuras; el formulario ya no ofrece días después de hoy.
@@ -140,6 +160,8 @@ El formato utiliza estas categorías:
   para cerrar.
 - Caja: crear un cierre pide confirmación (también con Ctrl+S), porque no
   se puede editar ni borrar.
+- Caja: el aviso de "semana que todavía no termina" muestra la fecha como
+  dd/mm/aaaa.
 - Montos negativos en colones: se muestran `−₡2 500` en lugar de `₡-2 500`
   en todas las pantallas (lista y detalle de cierres, reportes, ventas,
   servicios…). Los montos de las tablas ya no se parten en dos líneas.
@@ -154,14 +176,10 @@ El formato utiliza estas categorías:
   al desactivar una que todavía tiene productos.
 - Búsqueda: encuentra una venta por su número ("156" o "#156"), en
   cualquier estado y también si no tiene cliente.
-- Caja: el aviso de "semana que todavía no termina" muestra la fecha como
-  dd/mm/aaaa.
 - Venta, compra y conteo nuevos arrancan con la fecha de hoy.
 - Factura de venta y comprobante de servicio (PDF): dicen el número del
   documento y el método de pago ("Venta #178 · Tarjeta").
-- PDFs: los montos con céntimos siempre llevan dos decimales ("2 511.10",
-  antes "2 511.1"). La etiqueta de "Se retira de la caja" del cierre ya no
-  se corta.
+- PDFs: la etiqueta de "Se retira de la caja" del cierre ya no se corta.
 - Dashboard: en el celular ya no se ensancha la página.
 - "Vistos recientemente" es de cada usuario: antes quien entraba después
   veía lo que había abierto el anterior en ese navegador.
@@ -173,45 +191,25 @@ El formato utiliza estas categorías:
   debe ser mayor o igual a 0.01.", "Este campo es obligatorio.") y ya no en
   inglés ("El registro no existe.", "Los datos enviados no son válidos.").
   Los mensajes propios de cada pantalla no cambian.
-- API: los montos calculados de ventas, servicios, cierres y la vista previa
-  de caja llegan como texto exacto ("3390.00"), igual que el resto de los
-  montos, en lugar de número JSON.
+- API: todos los montos llegan como texto exacto ("3390.00") en lugar de
+  número JSON, que podía perder céntimos: los calculados de ventas,
+  servicios, cierres y la vista previa de caja, el resumen de costos de
+  una compra y los reportes (precios por proveedor, compras por proveedor,
+  productos más vendidos, clientes principales y el resumen de ventas con
+  su comparación). Compras por proveedor redondea a 4 decimales en vez de
+  8.
+- Actualización: ignora los archivos `._*` que macOS escribe al copiar el
+  paquete a un USB; antes la carga de imágenes fallaba con
+  `invalid tar header`.
 
-### Added (compras: un producto en varias líneas, 2026-11-10)
+### Validated
 
-- Una factura puede traer el mismo producto en varias líneas, por ejemplo
-  despachado desde dos bodegas del proveedor a precios distintos. Antes se
-  rechazaba con "Este producto ya fue agregado a la compra". Al agregarlo
-  otra vez, el formulario avisa y muestra las líneas que ya tiene, por si
-  fue un error.
-- Cada línea tiene una **referencia** opcional (por ejemplo "Bodega
-  Heredia") que se ve en las líneas, en el resumen de costos y en el
-  reporte de precios por proveedor (pantalla y PDF).
-- Trae la migración `inventory/0031_purchaseitem_repeated_products`:
-  quita la restricción de producto único por factura y agrega la
-  referencia. No cambia datos existentes.
-
-### Changed (compras: un producto en varias líneas)
-
-- Cada línea entra al inventario con su propio costo final. El producto
-  sigue teniendo un solo precio de venta, calculado con el costo promedio
-  ponderado por cantidad de sus líneas; el resumen lo indica bajo el
-  precio ("Promedio de 2 líneas"). Con una sola línea, el resultado es el
-  mismo de antes.
-- Cambiar solo la referencia de una línea ya no borra los costos aplicados.
-- El reporte de precios por proveedor cuenta una factura como una compra
-  aunque traiga el producto en varias líneas, y muestra cada precio pagado.
-
-### Fixed (compras: un producto en varias líneas)
-
-- Al anular una compra, el inventario disponible se compara con la suma de
-  todas las líneas de cada producto. Línea por línea, una compra con el
-  producto repetido podía dejar el stock negativo.
-- API: los reportes de precios por proveedor, compras por proveedor,
-  productos más vendidos, clientes principales y el resumen de ventas
-  (con su comparación) mandan los montos como texto exacto en lugar de
-  número JSON (podía perder céntimos). Compras por proveedor redondea a 4
-  decimales en vez de 8.
+- Backend: 978 tests en verde (`make test`). Frontend: lint y build de
+  producción sin errores.
+- Compras: matriz de 144 cálculos (compras en colones y en dólares, costos
+  en una y otra moneda, inactivos, márgenes de 0 % a 333 %) comparada
+  contra un cálculo independiente, 79 casos de uso equivocado (borrar,
+  editar, cambiar moneda o margen, estados) y recorrido en pantalla.
 
 ---
 

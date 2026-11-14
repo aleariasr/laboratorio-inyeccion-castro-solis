@@ -14,7 +14,7 @@ El backend base ya existe, pero no debe seguir ampliándose por suposición. La 
 
 Versión actual:
 
-    2.5.0
+    2.6.0
 
 Estado resumido:
 
@@ -45,6 +45,10 @@ Estado resumido:
     varios inyectores a la vez, orden de productos y etiquetas con orden y copias, "Debe haber al
     contar" destacado en el cierre, traslados a la otra sede con guía en PDF y crear lo que falta
     desde el mismo formulario. Ver docs/auditoria-mejoras-2026-10-22.md.
+    Versión 2.6.0 (2026-11-14): compras en dólares y mixtas calculadas en colones, un producto en
+    varias líneas de una factura con referencia, ingresos y sobregiro en la caja chica, y la
+    auditoría integral antes de producción. Ver docs/auditoria-compras-monedas-2026-11-07.md,
+    docs/auditoria-caja-chica-2026-11-07.md y docs/auditoria-integral-2026-11-07.md.
     Validación con usuarios reales: pendiente.
     Migración DBF legacy: completada (2026-09-09) — proveedores, productos y compras reales del
     cliente importados y conciliados contra el stock auxiliar legacy. Ver "Fase 10" abajo y
