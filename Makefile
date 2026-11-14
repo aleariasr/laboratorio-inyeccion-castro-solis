@@ -1,6 +1,12 @@
 COMPOSE=docker compose -f infra/docker/compose.yml
 BACKEND=$(COMPOSE) exec backend python src/manage.py
 
+# Son comandos, no archivos: sin esto, "make release" no hace nada porque
+# existe la carpeta release/ ("release is up to date").
+.PHONY: up down start stop restart logs ps shell db migrate makemigrations check \
+	test test-inventory test-core test-customers test-sales test-accounts \
+	test-configuration test-documents test-cash test-legacy-migration run release
+
 up:
 	$(COMPOSE) up -d --build
 
